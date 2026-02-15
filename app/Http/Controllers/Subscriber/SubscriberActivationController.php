@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\ActivationRequest;
 use App\Models\Company;
 use App\Models\CompanyTaxProfile;
+use App\Models\DgiiCompanySetting;
 use App\Models\Subscriber;
 use App\Models\Subscription;
 use App\Services\AuditService;
@@ -165,6 +166,9 @@ class SubscriberActivationController extends Controller
                 // 2) company (unique subscriber_id)
                 [$company, $companyCreated] = $this->ensureCompany($user, $subscriber, $activation);
 
+                // ✅ 2.3) DGII settings 1:1 por company (creado en activación)
+                [$dgiiSetting, $dgiiSettingCreated] = $this->ensureDgiiCompanySetting($company);
+
                 // ✅ 2.5) tax profile 1:1 por company (creado en activación)
                 [$taxProfile, $taxProfileCreated] = $this->ensureCompanyTaxProfile($company, $activation);
 
@@ -183,11 +187,13 @@ class SubscriberActivationController extends Controller
                 return [
                     'subscriber_id' => $subscriber->id,
                     'company_id' => $company->id,
+                    'dgii_setting_id' => $dgiiSetting->id,
                     'tax_profile_id' => $taxProfile->id,
                     'subscription_id' => $subscription->id,
                     'created' => [
                         'subscriber' => $subscriberCreated,
                         'company' => $companyCreated,
+                        'dgii_setting' => $dgiiSettingCreated,
                         'tax_profile' => $taxProfileCreated,
                         'subscription' => $subscriptionCreated,
                     ],
@@ -200,6 +206,7 @@ class SubscriberActivationController extends Controller
                 'activation_id' => $activation->id,
                 'subscriber_id' => $result['subscriber_id'],
                 'company_id' => $result['company_id'],
+                'dgii_setting_id' => $result['dgii_setting_id'],
                 'tax_profile_id' => $result['tax_profile_id'],
                 'subscription_id' => $result['subscription_id'],
                 'created' => $result['created'],
@@ -216,7 +223,7 @@ class SubscriberActivationController extends Controller
             return back()->with('error', 'Falló la activación: ' . $e->getMessage());
         }
 
-        return back()->with('success', 'Activación completada. Ya tienes empresa, perfil fiscal y trial activo.');
+        return back()->with('success', 'Activación completada. Ya tienes empresa, settings DGII, perfil fiscal y trial activo.');
     }
 
     // ------------------------
@@ -301,6 +308,40 @@ class SubscriberActivationController extends Controller
         ]);
 
         return [$company, true];
+    }
+
+    /**
+     * ✅ Settings DGII 1:1 por Company (dgii_company_settings.unique(company_id)).
+     * Idempotente: si ya existe, NO crea otro.
+     */
+    protected function ensureDgiiCompanySetting(Company $company): array
+    {
+        // ✅ forma anti race y simple (recomendada)
+        $setting = DgiiCompanySetting::firstOrCreate(
+            ['company_id' => $company->id],
+            [
+                'environment' => 'precert',
+                'cf_prefix' => 'testecf',
+                'use_directory' => true,
+                'endpoints' => null,
+                'meta' => null,
+
+                // Token defaults
+                'dgii_token_auto' => true, // default auto (cámbialo a false si quieres manual por defecto)
+                'dgii_token_refresh_before_seconds' => 0,
+
+                // Token data (vacío al inicio)
+                'dgii_access_token' => null,
+                'dgii_token_issued_at' => null,
+                'dgii_token_expires_at' => null,
+                'dgii_token_last_requested_at' => null,
+                'dgii_token_last_error' => null,
+            ]
+        );
+
+        // Para saber si se creó en este request:
+        // firstOrCreate no te da "wasRecentlyCreated" si ya existía, sí lo da si se creó
+        return [$setting, (bool) $setting->wasRecentlyCreated];
     }
 
     /**

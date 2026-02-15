@@ -47,7 +47,12 @@ use App\Http\Controllers\Subscriber\SubscriberSupportController;
 
 use App\Http\Controllers\LaudaErp\LaudaErpDashboardController;
 use App\Http\Controllers\LaudaErp\DgiiCertificationController;
+use App\Http\Controllers\LaudaErp\DgiiCertificateController;
+use App\Http\Controllers\LaudaErp\DgiiCertificateToolsController;
 use App\Http\Controllers\LaudaErp\Support\ErpSupportController;
+use App\Http\Controllers\LaudaErp\DgiiEndpointsController;
+use App\Http\Controllers\LaudaErp\DgiiTokenController;
+use App\Http\Controllers\LaudaErp\DgiiTokenAutoController;
 
 /*
 |--------------------------------------------------------------------------
@@ -238,6 +243,7 @@ Route::middleware(['auth', 'verified', 'role:subscriber', 'erp.access'])
 
         Route::get('/', LaudaErpDashboardController::class)->name('dashboard');
 
+
         /*
         |--------------------------------------------------------------------------
         | ✅ ERP / Services (ejecución de servicios)
@@ -245,15 +251,27 @@ Route::middleware(['auth', 'verified', 'role:subscriber', 'erp.access'])
         */
         Route::prefix('services')->name('services.')->group(function () {
 
-            // ✅ /erp/services/certificacion-emisor
-            Route::get('/certificacion-emisor', [DgiiCertificationController::class, 'index'])
-                ->name('certificacion-emisor.index');
+            Route::prefix('certificacion-emisor')->name('certificacion-emisor.')->group(function () {
 
-            // ✅ (Opcional recomendado) fallback para servicios aún no implementados
-            // Route::get('/{path}', [ErpServicesController::class, 'show'])
-            //     ->where('path', '.*')
-            //     ->name('show');
+                Route::get('/', [DgiiCertificationController::class, 'index'])->name('index');
+
+                Route::get('/certificados', [DgiiCertificateController::class, 'index'])->name('certificados.index');
+                Route::post('/certificados', [DgiiCertificateController::class, 'store'])->name('certificados.store');
+                Route::post('/certificados/{cert}/default', [DgiiCertificateController::class, 'setDefault'])->name('certificados.default');
+                Route::delete('/certificados/{cert}', [DgiiCertificateController::class, 'destroy'])->name('certificados.destroy');
+
+                Route::get('/certificados/health', [DgiiCertificateToolsController::class, 'health'])->name('certificados.health');
+                Route::post('/certificados/{cert}/test-sign', [DgiiCertificateToolsController::class, 'testSign'])->name('certificados.test-sign');
+                Route::post('/certificados/{cert}/refresh', [DgiiCertificateToolsController::class, 'refresh'])->name('certificados.refresh');
+
+                Route::get('/endpoints', [DgiiEndpointsController::class, 'show'])->name('endpoints.show');
+                Route::post('/endpoints', [DgiiEndpointsController::class, 'update'])->name('endpoints.update');
+
+                Route::post('/token/generate', [DgiiTokenController::class, 'generate'])->name('token.generate');
+                Route::put('/token/auto', [DgiiTokenAutoController::class, 'update'])->name('token.auto');
+            });
         });
+
 
         Route::prefix('support')->name('support.')->group(function () {
             Route::get('/', [ErpSupportController::class, 'index'])->name('index');

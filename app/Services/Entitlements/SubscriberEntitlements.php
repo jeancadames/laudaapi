@@ -9,11 +9,22 @@ use Illuminate\Support\Collection;
 class SubscriberEntitlements
 {
     /**
+     * Cache por request/instancia para no repetir queries.
+     */
+    private array $erpServicesCache = [];
+    private array $dgiiCapabilitiesCache = [];
+    private array $dgiiCapabilitiesDetailsCache = [];
+
+    /**
      * Servicios ERP por entitlements (SOLO para /erp):
      * incluye active|trialing|pending (Opción B).
      */
     public function erpServicesForSubscriber(int $subscriberId): Collection
     {
+        if (isset($this->erpServicesCache[$subscriberId])) {
+            return $this->erpServicesCache[$subscriberId];
+        }
+
         $subscriptionId = Subscription::query()
             ->where('subscriber_id', $subscriberId)
             ->whereIn('status', ['active', 'trialing'])
@@ -21,9 +32,11 @@ class SubscriberEntitlements
             ->orderByDesc('id')
             ->value('id');
 
-        if (!$subscriptionId) return collect();
+        if (!$subscriptionId) {
+            return $this->erpServicesCache[$subscriberId] = collect();
+        }
 
-        return Service::query()
+        return $this->erpServicesCache[$subscriberId] = Service::query()
             ->select('services.*', 'subscription_items.status as item_status')
             ->join('subscription_items', 'subscription_items.service_id', '=', 'services.id')
             ->where('subscription_items.subscription_id', $subscriptionId)
@@ -42,7 +55,6 @@ class SubscriberEntitlements
     {
         $services = $this->erpServicesForSubscriber($subscriberId);
 
-        // Padres fijos (3 grupos)
         $parents = Service::query()
             ->whereNull('parent_id')
             ->whereIn('slug', ['api-facturacion-electronica', 'marketplace', 'laudaone'])
@@ -50,10 +62,6 @@ class SubscriberEntitlements
             ->orderBy('sort_order')
             ->get();
 
-        // Index rápido
-        $parentById = $parents->keyBy('id');
-
-        // Inicializar grupos
         $groups = [];
         foreach ($parents as $p) {
             $groups[$p->id] = [
@@ -64,14 +72,10 @@ class SubscriberEntitlements
             ];
         }
 
-        // Index de servicios permitidos por id (para detectar root-only)
         $servicesById = $services->keyBy('id');
 
-        // 1) ✅ Root-only: si el padre está entitled, lo agregamos como item del grupo
         foreach ($parents as $p) {
-            if (!$servicesById->has($p->id)) {
-                continue;
-            }
+            if (!$servicesById->has($p->id)) continue;
 
             $st = strtolower((string) ($servicesById[$p->id]->item_status ?? ''));
 
@@ -83,14 +87,9 @@ class SubscriberEntitlements
             ];
         }
 
-        // 2) Hijos: servicios con parent_id en los 3 padres
         foreach ($services as $s) {
-            if (!$s->parent_id) {
-                continue;
-            }
-            if (!isset($groups[$s->parent_id])) {
-                continue;
-            }
+            if (!$s->parent_id) continue;
+            if (!isset($groups[$s->parent_id])) continue;
 
             $st = strtolower((string) ($s->item_status ?? ''));
 
@@ -102,9 +101,7 @@ class SubscriberEntitlements
             ];
         }
 
-        // Ordenar items por title (o sort_order si quieres, pero aquí ya viene ordenado)
         foreach ($groups as $pid => $g) {
-            // evitar duplicados (por si root-only y también aparece como hijo por data rara)
             $seen = [];
             $unique = [];
             foreach ($g['items'] as $it) {
@@ -116,24 +113,134 @@ class SubscriberEntitlements
             $groups[$pid]['items'] = $unique;
         }
 
-        // Quitar grupos vacíos
         $groups = array_values(array_filter($groups, fn($g) => count($g['items']) > 0));
 
         return ['groups' => $groups];
     }
 
     /**
+     * ✅ DGII habilitado (boolean) — rápido con exists().
+     */
+    public function hasDgiiCapabilities(int $subscriberId): bool
+    {
+        if (isset($this->dgiiCapabilitiesCache[$subscriberId])) {
+            return $this->dgiiCapabilitiesCache[$subscriberId];
+        }
+
+        $subscriptionId = Subscription::query()
+            ->where('subscriber_id', $subscriberId)
+            ->whereIn('status', ['active', 'trialing'])
+            ->orderByRaw("FIELD(status,'active','trialing')")
+            ->orderByDesc('id')
+            ->value('id');
+
+        if (!$subscriptionId) {
+            return $this->dgiiCapabilitiesCache[$subscriberId] = false;
+        }
+
+        $enabled = Service::query()
+            ->join('subscription_items', 'subscription_items.service_id', '=', 'services.id')
+            ->where('subscription_items.subscription_id', $subscriptionId)
+            ->whereIn('subscription_items.status', ['active', 'trialing', 'pending'])
+            ->where('services.active', true)
+            ->whereIn('services.slug', [
+                'api-facturacion-electronica',
+                'certificacion-emisor-electronico',
+            ])
+            ->exists();
+
+        return $this->dgiiCapabilitiesCache[$subscriberId] = $enabled;
+    }
+
+    /**
+     * ✅ Detalles DGII para UI (tooltip/badge):
+     * - enabled
+     * - enabled_by (prioridad: api-facturacion-electronica > certificacion-emisor-electronico)
+     * - enabled_services (slugs encontrados)
+     * - enabled_by_item_status (active|trialing|pending)
+     */
+    public function dgiiCapabilitiesDetails(int $subscriberId): array
+    {
+        if (isset($this->dgiiCapabilitiesDetailsCache[$subscriberId])) {
+            return $this->dgiiCapabilitiesDetailsCache[$subscriberId];
+        }
+
+        $subscriptionId = Subscription::query()
+            ->where('subscriber_id', $subscriberId)
+            ->whereIn('status', ['active', 'trialing'])
+            ->orderByRaw("FIELD(status,'active','trialing')")
+            ->orderByDesc('id')
+            ->value('id');
+
+        if (!$subscriptionId) {
+            return $this->dgiiCapabilitiesDetailsCache[$subscriberId] = [
+                'enabled' => false,
+                'enabled_by' => null,
+                'enabled_services' => [],
+                'enabled_by_item_status' => null,
+            ];
+        }
+
+        // ✅ Máximo 2 filas (barato)
+        $rows = Service::query()
+            ->select([
+                'services.slug',
+                'subscription_items.status as item_status',
+            ])
+            ->join('subscription_items', 'subscription_items.service_id', '=', 'services.id')
+            ->where('subscription_items.subscription_id', $subscriptionId)
+            ->whereIn('subscription_items.status', ['active', 'trialing', 'pending'])
+            ->where('services.active', true)
+            ->whereIn('services.slug', [
+                'api-facturacion-electronica',
+                'certificacion-emisor-electronico',
+            ])
+            ->get();
+
+        if ($rows->isEmpty()) {
+            $this->dgiiCapabilitiesCache[$subscriberId] = false;
+
+            return $this->dgiiCapabilitiesDetailsCache[$subscriberId] = [
+                'enabled' => false,
+                'enabled_by' => null,
+                'enabled_services' => [],
+                'enabled_by_item_status' => null,
+            ];
+        }
+
+        // alimenta cache booleano
+        $this->dgiiCapabilitiesCache[$subscriberId] = true;
+
+        $priority = ['api-facturacion-electronica', 'certificacion-emisor-electronico'];
+
+        $enabledBy = null;
+        $enabledByItemStatus = null;
+
+        foreach ($priority as $p) {
+            $hit = $rows->firstWhere('slug', $p);
+            if ($hit) {
+                $enabledBy = $p;
+                $enabledByItemStatus = strtolower((string) ($hit->item_status ?? '')) ?: null;
+                break;
+            }
+        }
+
+        return $this->dgiiCapabilitiesDetailsCache[$subscriberId] = [
+            'enabled' => true,
+            'enabled_by' => $enabledBy,
+            'enabled_services' => $rows->pluck('slug')->unique()->values()->all(),
+            'enabled_by_item_status' => $enabledByItemStatus,
+        ];
+    }
+
+    /**
      * ✅ No rompas iconos ya bien formateados (ej: LayoutGrid)
-     * - Si viene "LayoutGrid" lo devolvemos igual.
-     * - Si viene "layout-grid" => "LayoutGrid"
-     * - Si viene vacío => LayoutGrid
      */
     private function normalizeIcon(?string $icon): string
     {
         $icon = trim((string) $icon);
         if ($icon === '') return 'LayoutGrid';
 
-        // ya está en PascalCase sin separadores → lo respetamos
         if (!str_contains($icon, '-') && !str_contains($icon, '_') && preg_match('/[A-Z]/', $icon)) {
             return $icon;
         }

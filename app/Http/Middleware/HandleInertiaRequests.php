@@ -3,7 +3,9 @@
 namespace App\Http\Middleware;
 
 use App\Models\Company;
+use App\Models\DgiiCompanySetting;
 use App\Models\Service;
+use App\Services\Dgii\DgiiTokenManager;
 use App\Services\Entitlements\SubscriberEntitlements;
 use Illuminate\Foundation\Inspiring;
 use Illuminate\Http\Request;
@@ -24,9 +26,12 @@ class HandleInertiaRequests extends Middleware
         [$message, $author] = str(Inspiring::quotes()->random())->explode('-');
 
         $user = $request->user();
-
-        // ✅ Resolver subscriber_id “real” (sirve para ERP y para mostrarlo en FE)
         $resolvedSubscriberId = $user ? $this->resolveSubscriberId($user) : null;
+
+        // ✅ Instancia única (evita duplicidad nav + token)
+        $entitlements = ($user && str_starts_with($request->path(), 'erp') && $resolvedSubscriberId)
+            ? app(SubscriberEntitlements::class)
+            : null;
 
         return array_merge(parent::share($request), [
             'name' => config('app.name'),
@@ -47,35 +52,29 @@ class HandleInertiaRequests extends Middleware
                     'name'          => $user->name,
                     'email'         => $user->email,
                     'role'          => $user->role,
-
-                    // ✅ aquí YA llega bien aunque users.subscriber_id sea null
                     'subscriber_id' => $resolvedSubscriberId,
                 ] : null,
             ],
 
-            /**
-             * ✅ Menú “catálogo por roles” para subscriber (como lo tienes hoy).
-             */
             'menu' => ($user && $user->role === 'subscriber')
                 ? fn() => $this->subscriberMenu($user)
                 : null,
 
-            /**
-             * ✅ Navegación ERP por entitlements.
-             * Solo se calcula cuando la URL empieza con /erp para reducir carga.
-             */
-            'nav' => fn() => $this->navPayload($request, $user, $resolvedSubscriberId),
+            // ✅ Pasamos $entitlements para evitar re-instancia
+            'nav' => fn() => $this->navPayload($request, $user, $resolvedSubscriberId, $entitlements),
+
+            // ✅ Pasamos $entitlements para evitar re-instancia + queries duplicadas
+            'dgiiToken' => fn() => $this->dgiiTokenPayload($request, $user, $resolvedSubscriberId, $entitlements),
 
             'sidebarOpen' => ! $request->hasCookie('sidebar_state')
                 || $request->cookie('sidebar_state') === 'true',
         ]);
     }
 
-    private function navPayload(Request $request, $user, ?int $resolvedSubscriberId): array
+    private function navPayload(Request $request, $user, ?int $resolvedSubscriberId, ?SubscriberEntitlements $entitlements = null): array
     {
         if (!$user) return ['erp' => []];
 
-        // Solo en /erp calculamos ERP nav (performance)
         if (!str_starts_with($request->path(), 'erp')) {
             return ['erp' => []];
         }
@@ -83,29 +82,117 @@ class HandleInertiaRequests extends Middleware
         $subscriberId = (int) ($resolvedSubscriberId ?? 0);
         if ($subscriberId <= 0) return ['erp' => []];
 
-        /** @var SubscriberEntitlements $entitlements */
-        $entitlements = app(SubscriberEntitlements::class);
+        $entitlements ??= app(SubscriberEntitlements::class);
 
-        // ✅ OJO: erpSidebarTree retorna ['groups' => ...]
         return [
             'erp' => $entitlements->erpSidebarTree($subscriberId),
         ];
     }
 
     /**
-     * ✅ Resolver subscriber_id “real” aunque users.subscriber_id sea null.
-     * Orden:
-     * 1) users.subscriber_id
-     * 2) pivot subscriber_user (active=1)
-     * 3) company->subscriber_id (por company_id / owner_user_id)
+     * ✅ Payload para badge del token DGII (solo /erp)
+     * ✅ Muestra SOLO si el subscriber tiene activado:
+     * - api-facturacion-electronica
+     * - o certificacion-emisor-electronico
+     *
+     * ✅ Incluye detalles:
+     * - enabled_by
+     * - enabled_services
+     * - enabled_by_item_status
+     *
+     * ✅ Auto mode:
+     * - auto viene de dgii_company_settings.token_auto_enabled
+     * - can_toggle_auto controla si mostramos/permitimos el switch
      */
+    private function dgiiTokenPayload(Request $request, $user, ?int $resolvedSubscriberId, ?SubscriberEntitlements $entitlements = null): ?array
+    {
+        if (!$user) return null;
+
+        if (!str_starts_with($request->path(), 'erp')) {
+            return null;
+        }
+
+        $subscriberId = (int) ($resolvedSubscriberId ?? 0);
+        if ($subscriberId <= 0) return null;
+
+        $entitlements ??= app(SubscriberEntitlements::class);
+
+        $details = $entitlements->dgiiCapabilitiesDetails($subscriberId);
+
+        if (!$details['enabled']) {
+            return ['enabled' => false];
+        }
+
+        // ✅ bloquear el switch si está pending (PAGO)
+        $canToggleAuto = ($details['enabled_by_item_status'] ?? null) !== 'pending';
+
+        $base = [
+            'enabled' => true,
+            'enabled_by' => $details['enabled_by'],
+            'enabled_services' => $details['enabled_services'],
+            'enabled_by_item_status' => $details['enabled_by_item_status'],
+            'can_toggle_auto' => $canToggleAuto,
+
+            // ✅ si no hay setting, auto=false
+            'auto' => false,
+
+            'status' => 'expired',
+            'secondsLeft' => 0,
+            'expiresAt' => null,
+            'lastError' => null,
+            'lastRequestedAt' => null,
+        ];
+
+        // ✅ Resolver company de forma estable:
+        // - si user->company_id existe => esa
+        // - si no => la más reciente de ese subscriber
+        $company = Company::query()
+            ->select(['id'])
+            ->when(
+                !empty($user->company_id),
+                fn($q) => $q->where('id', (int) $user->company_id),
+                fn($q) => $q->where('subscriber_id', $subscriberId)->orderByDesc('id')
+            )
+            ->first();
+
+        if (!$company) {
+            return $base;
+        }
+
+        $setting = DgiiCompanySetting::query()
+            ->where('company_id', $company->id)
+            ->first();
+
+        if (!$setting) {
+            return $base;
+        }
+
+        /** @var DgiiTokenManager $tm */
+        $tm = app(DgiiTokenManager::class);
+
+        $status = $tm->getTokenStatus($setting);
+
+        // ✅ Fuente de verdad del modo auto
+        $status['auto'] = (bool) $setting->dgii_token_auto;
+
+        return array_merge(
+            [
+                'enabled' => true,
+                'enabled_by' => $details['enabled_by'],
+                'enabled_services' => $details['enabled_services'],
+                'enabled_by_item_status' => $details['enabled_by_item_status'],
+                'can_toggle_auto' => $canToggleAuto,
+            ],
+            $status
+        );
+    }
+
+
     private function resolveSubscriberId($user): ?int
     {
-        // 1) Campo directo en users
         $sid = (int) ($user->subscriber_id ?? 0);
         if ($sid > 0) return $sid;
 
-        // 2) Pivot subscriber_user
         $sid = (int) DB::table('subscriber_user')
             ->where('user_id', $user->id)
             ->where('active', 1)
@@ -114,7 +201,6 @@ class HandleInertiaRequests extends Middleware
 
         if ($sid > 0) return $sid;
 
-        // 3) Company (igual a tu lógica de My Services)
         if (!empty($user->company_id)) {
             $sid = (int) Company::query()
                 ->where('id', (int) $user->company_id)
@@ -130,10 +216,6 @@ class HandleInertiaRequests extends Middleware
         return $sid > 0 ? $sid : null;
     }
 
-    /**
-     * Construye el menú dinámico “catálogo” para subscribers basado en services.roles
-     * (NO es entitlements; es catálogo visible).
-     */
     private function subscriberMenu($user): array
     {
         $main = Service::query()

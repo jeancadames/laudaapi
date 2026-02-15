@@ -22,5 +22,7 @@ class DatabaseSeeder extends Seeder
 
         $this->call(AdminUsersSeeder::class);
         $this->call(ServiceSeeder::class);
+        $this->call(DgiiEndpointCatalogSeeder::class);
+        $this->call(DgiiCompanySettingsSeeder::class);
     }
 }

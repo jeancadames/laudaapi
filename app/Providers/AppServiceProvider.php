@@ -10,6 +10,9 @@ use Illuminate\Support\ServiceProvider;
 use Illuminate\Validation\Rules\Password;
 use Illuminate\Queue\Events\JobFailed;
 
+use App\Services\Dgii\DgiiAuthClient;
+use App\Services\Dgii\HttpDgiiAuthClient;
+
 use Laravel\Fortify\Contracts\LoginResponse as LoginResponseContract;
 use App\Services\ErrorLogService;
 use App\Http\Responses\LoginResponse;
@@ -23,6 +26,7 @@ class AppServiceProvider extends ServiceProvider
     {
         // Sobrescribir la respuesta de login de Fortify
         $this->app->singleton(LoginResponseContract::class, LoginResponse::class);
+        $this->app->bind(DgiiAuthClient::class, HttpDgiiAuthClient::class);
     }
 
     /**
