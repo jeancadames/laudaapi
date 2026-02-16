@@ -5,6 +5,7 @@ namespace App\Http\Middleware;
 use App\Models\Company;
 use App\Models\DgiiCompanySetting;
 use App\Models\Service;
+use App\Services\Dgii\DgiiCertificateRequirements;
 use App\Services\Dgii\DgiiTokenManager;
 use App\Services\Entitlements\SubscriberEntitlements;
 use Illuminate\Foundation\Inspiring;
@@ -26,10 +27,12 @@ class HandleInertiaRequests extends Middleware
         [$message, $author] = str(Inspiring::quotes()->random())->explode('-');
 
         $user = $request->user();
+        $isErp = str_starts_with($request->path(), 'erp');
+
         $resolvedSubscriberId = $user ? $this->resolveSubscriberId($user) : null;
 
         // ✅ Instancia única (evita duplicidad nav + token)
-        $entitlements = ($user && str_starts_with($request->path(), 'erp') && $resolvedSubscriberId)
+        $entitlements = ($user && $isErp && $resolvedSubscriberId)
             ? app(SubscriberEntitlements::class)
             : null;
 
@@ -66,6 +69,9 @@ class HandleInertiaRequests extends Middleware
             // ✅ Pasamos $entitlements para evitar re-instancia + queries duplicadas
             'dgiiToken' => fn() => $this->dgiiTokenPayload($request, $user, $resolvedSubscriberId, $entitlements),
 
+            // ✅ NUEVO: requerido para el switch en el layout (badge header)
+            'cert_requirements' => fn() => $this->certRequirementsPayload($request, $user, $resolvedSubscriberId),
+
             'sidebarOpen' => ! $request->hasCookie('sidebar_state')
                 || $request->cookie('sidebar_state') === 'true',
         ]);
@@ -90,19 +96,31 @@ class HandleInertiaRequests extends Middleware
     }
 
     /**
+     * ✅ Payload global: requisitos de certificados (solo /erp)
+     * Esto evita que el layout dependa del controller de la vista actual.
+     */
+    private function certRequirementsPayload(Request $request, $user, ?int $resolvedSubscriberId): ?array
+    {
+        if (!$user) return null;
+
+        if (!str_starts_with($request->path(), 'erp')) {
+            return null;
+        }
+
+        $subscriberId = (int) ($resolvedSubscriberId ?? 0);
+        if ($subscriberId <= 0) return null;
+
+        $company = $this->resolveCompanyForUser($user, $subscriberId);
+        if (!$company) return null;
+
+        /** @var DgiiCertificateRequirements $req */
+        $req = app(DgiiCertificateRequirements::class);
+
+        return $req->checkForCompany((int) $company->id);
+    }
+
+    /**
      * ✅ Payload para badge del token DGII (solo /erp)
-     * ✅ Muestra SOLO si el subscriber tiene activado:
-     * - api-facturacion-electronica
-     * - o certificacion-emisor-electronico
-     *
-     * ✅ Incluye detalles:
-     * - enabled_by
-     * - enabled_services
-     * - enabled_by_item_status
-     *
-     * ✅ Auto mode:
-     * - auto viene de dgii_company_settings.token_auto_enabled
-     * - can_toggle_auto controla si mostramos/permitimos el switch
      */
     private function dgiiTokenPayload(Request $request, $user, ?int $resolvedSubscriberId, ?SubscriberEntitlements $entitlements = null): ?array
     {
@@ -143,29 +161,14 @@ class HandleInertiaRequests extends Middleware
             'lastRequestedAt' => null,
         ];
 
-        // ✅ Resolver company de forma estable:
-        // - si user->company_id existe => esa
-        // - si no => la más reciente de ese subscriber
-        $company = Company::query()
-            ->select(['id'])
-            ->when(
-                !empty($user->company_id),
-                fn($q) => $q->where('id', (int) $user->company_id),
-                fn($q) => $q->where('subscriber_id', $subscriberId)->orderByDesc('id')
-            )
-            ->first();
-
-        if (!$company) {
-            return $base;
-        }
+        $company = $this->resolveCompanyForUser($user, $subscriberId);
+        if (!$company) return $base;
 
         $setting = DgiiCompanySetting::query()
             ->where('company_id', $company->id)
             ->first();
 
-        if (!$setting) {
-            return $base;
-        }
+        if (!$setting) return $base;
 
         /** @var DgiiTokenManager $tm */
         $tm = app(DgiiTokenManager::class);
@@ -187,6 +190,22 @@ class HandleInertiaRequests extends Middleware
         );
     }
 
+    /**
+     * ✅ Resolver company de forma estable y reutilizable:
+     * - si user->company_id existe => esa
+     * - si no => la más reciente del subscriber
+     */
+    private function resolveCompanyForUser($user, int $subscriberId): ?Company
+    {
+        return Company::query()
+            ->select(['id'])
+            ->when(
+                !empty($user->company_id),
+                fn($q) => $q->where('id', (int) $user->company_id),
+                fn($q) => $q->where('subscriber_id', $subscriberId)->orderByDesc('id')
+            )
+            ->first();
+    }
 
     private function resolveSubscriberId($user): ?int
     {

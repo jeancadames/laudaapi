@@ -26,36 +26,41 @@ class HttpDgiiAuthClient implements DgiiAuthClient
 
     public function requestToken(DgiiCompanySetting $setting): array
     {
-        // ✅ Debug: permite saltar cache en pruebas
         $skipCache = (bool) config('dgii.auth_skip_cache', (bool) env('DGII_AUTH_SKIP_CACHE', false));
 
-        $cacheKey = "dgii:token:company:{$setting->company_id}:env:{$setting->environment}";
+        // ✅ usa el CF real para cache (DGII usa testecf/certecf/ecf)
+        $cf = $this->resolveCfPrefix($setting);
+
+        $cacheKey = "dgii:token:company:{$setting->company_id}:cf:{$cf}";
 
         if (!$skipCache) {
             $cached = cache()->get($cacheKey);
-            if (is_array($cached) && !empty($cached['token'])) {
-                return $cached;
+
+            if (is_array($cached)) {
+                $tok = (string) ($cached['token'] ?? '');
+                if (trim($tok) !== '') {
+                    return $cached;
+                }
             }
         }
 
-        $seedUrl     = $this->endpointUrl($setting, 'auth.get_seed');
+        // ✅ keys correctos
+        $seedUrl     = $this->endpointUrl($setting, 'auth.seed');
         $validateUrl = $this->endpointUrl($setting, 'auth.validate_seed');
 
-        // ✅ Siempre semilla fresca (si falla validate_seed, NO reuses)
-        $seedXml = $this->getSeedXml($seedUrl);
-        $seedXml = $this->sanitizeXml($seedXml);
+        // Semilla fresca
+        $seedXml = $this->sanitizeXml($this->getSeedXml($seedUrl));
 
         [$p12Bytes, $p12Password] = $this->loadActiveP12ForCompany($setting->company_id);
 
-        $signedSeedXml = $this->signer->signSemillaXml($seedXml, $p12Bytes, $p12Password);
-        $signedSeedXml = $this->sanitizeXml($signedSeedXml);
+        $signedSeedXml = $this->sanitizeXml(
+            $this->signer->signSemillaXml($seedXml, $p12Bytes, $p12Password)
+        );
 
-        // ✅ Guarda evidencias si estás en debug (te salva horas)
         $this->maybeDumpAuthArtifacts($setting, $seedXml, $signedSeedXml, $seedUrl, $validateUrl);
 
         $out = $this->validateSignedSeed($validateUrl, $signedSeedXml);
 
-        // ✅ NO cachees si skipCache=true
         if (!$skipCache) {
             $expiresIn  = (int) ($out['expires_in'] ?? 3600);
             $ttlSeconds = max(60, $expiresIn - 120);
@@ -67,24 +72,29 @@ class HttpDgiiAuthClient implements DgiiAuthClient
 
     private function endpointUrl(DgiiCompanySetting $setting, string $key, array $params = []): string
     {
+        // ✅ siempre resuelve el cfPrefix correcto (testecf/certecf/ecf)
+        $cfPrefix = $this->resolveCfPrefix($setting);
+
         $overrides = (array) ($setting->endpoints ?? []);
         if (isset($overrides[$key])) {
             $ov = $overrides[$key];
 
+            // override como URL completa
             if (is_string($ov) && trim($ov) !== '') {
                 return $ov;
             }
 
+            // override como { base_url, path }
             if (is_array($ov)) {
                 $base = (string) ($ov['base_url'] ?? '');
                 $path = (string) ($ov['path'] ?? '');
                 if ($base !== '' && $path !== '') {
-                    return $this->builder->resolve($base, $path, (string) $setting->cf_prefix, $params);
+                    return $this->builder->resolve($base, $path, $cfPrefix, $params);
                 }
             }
         }
 
-        /** @var DgiiEndpointCatalog|null $row */
+        /** @var \App\Models\DgiiEndpointCatalog|null $row */
         $row = DgiiEndpointCatalog::query()
             ->where('environment', (string) $setting->environment)
             ->where('key', $key)
@@ -104,7 +114,8 @@ class HttpDgiiAuthClient implements DgiiAuthClient
             throw new RuntimeException("DGII endpoint inválido: key={$key}, env={$setting->environment}.");
         }
 
-        return $this->builder->resolve($baseUrl, $path, (string) $setting->cf_prefix, $params);
+        // ✅ usar cfPrefix mapeado, NO setting->cf_prefix crudo
+        return $this->builder->resolve($baseUrl, $path, $cfPrefix, $params);
     }
 
     private function getSeedXml(string $url): string
@@ -132,23 +143,19 @@ class HttpDgiiAuthClient implements DgiiAuthClient
 
     private function validateSignedSeed(string $url, string $signedXml): array
     {
-        // ✅ SANITIZE final: sin BOM, y trim ligero
         $signedXml = $this->sanitizeXml($signedXml);
 
         $res = Http::timeout(25)
             ->accept('application/json, application/xml, text/xml, */*')
-            // ✅ evita compresión rara
             ->withHeaders([
-                'Content-Type' => 'application/xml; charset=utf-8',
                 'Accept-Encoding' => 'identity',
                 'User-Agent' => 'LaudaAPI/1.0 (DGII Auth Client)',
             ])
-            // ✅ body crudo
-            ->withBody($signedXml, 'application/xml; charset=utf-8')
+            // ✅ DGII doc: multipart/form-data con campo "xml"
+            ->attach('xml', $signedXml, 'semilla.xml')
             ->post($url);
 
         if (!$res->ok()) {
-            // ✅ Log con contexto útil (sin filtrar todo el XML completo en logs)
             Log::warning('DGII validate_seed failed', [
                 'status' => $res->status(),
                 'url' => $url,
@@ -163,26 +170,28 @@ class HttpDgiiAuthClient implements DgiiAuthClient
         $body = (string) $res->body();
         $trim = ltrim($body);
 
+        // DGII puede devolver JSON o XML
         if ($trim !== '' && ($trim[0] === '{' || $trim[0] === '[')) {
             $json = $res->json() ?? [];
-            $token = data_get($json, 'access_token') ?? data_get($json, 'token') ?? data_get($json, 'Token');
+            $token = data_get($json, 'token') ?? data_get($json, 'access_token') ?? data_get($json, 'Token');
 
             if (is_string($token) && trim($token) !== '') {
                 $expiresIn = (int) (data_get($json, 'expires_in') ?? 3600);
-                return ['token' => $token, 'expires_in' => $expiresIn > 0 ? $expiresIn : 3600];
+                return ['token' => trim($token), 'expires_in' => $expiresIn > 0 ? $expiresIn : 3600];
             }
         }
 
         $token = $this->extractTokenFromXml($body);
         if (is_string($token) && trim($token) !== '') {
-            return ['token' => $token, 'expires_in' => 3600];
+            return ['token' => trim($token), 'expires_in' => 3600];
         }
 
+        // fallback JSON parse
         $json = $res->json();
         if (is_array($json)) {
-            $token2 = data_get($json, 'access_token') ?? data_get($json, 'token') ?? data_get($json, 'Token');
+            $token2 = data_get($json, 'token') ?? data_get($json, 'access_token') ?? data_get($json, 'Token');
             if (is_string($token2) && trim($token2) !== '') {
-                return ['token' => $token2, 'expires_in' => (int) (data_get($json, 'expires_in') ?? 3600)];
+                return ['token' => trim($token2), 'expires_in' => (int) (data_get($json, 'expires_in') ?? 3600)];
             }
         }
 
@@ -371,5 +380,37 @@ class HttpDgiiAuthClient implements DgiiAuthClient
     {
         $b = trim($body);
         return $b === '' ? '(empty body)' : mb_substr($b, 0, 1200);
+    }
+
+    private function resolveCfPrefix(DgiiCompanySetting $setting): string
+    {
+        // prioridad: cf_prefix explícito si ya viene DGII-native
+        $raw = trim((string) ($setting->cf_prefix ?? ''));
+
+        $map = function (string $v): string {
+            return match ($v) {
+                'precert' => 'testecf',
+                'cert'    => 'certecf',
+                'prod'    => 'ecf',
+
+                // ya en formato DGII
+                'testecf', 'certecf', 'ecf' => $v,
+
+                default => $v,
+            };
+        };
+
+        if ($raw !== '') {
+            $cf = $map($raw);
+            if (in_array($cf, ['testecf', 'certecf', 'ecf'], true)) {
+                return $cf;
+            }
+        }
+
+        // fallback: usar environment
+        $env = trim((string) ($setting->environment ?? 'precert'));
+        $cf  = $map($env);
+
+        return in_array($cf, ['testecf', 'certecf', 'ecf'], true) ? $cf : 'testecf';
     }
 }

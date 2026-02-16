@@ -5,8 +5,9 @@ namespace App\Http\Controllers\LaudaErp;
 use App\Http\Controllers\Controller;
 use App\Models\Company;
 use App\Models\DgiiCertificate;
-use App\Models\DgiiEndpointCatalog; // ✅ NUEVO
+use App\Models\DgiiEndpointCatalog;
 use App\Services\Subscribers\SubscriberResolver;
+use App\Services\Dgii\DgiiCertificateRequirements;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 
@@ -94,6 +95,8 @@ class DgiiCertificationController extends Controller
                 ];
             });
 
+        $certCheck = app(DgiiCertificateRequirements::class)->checkForCompany($company->id);
+
         return Inertia::render('LaudaERP/CertificacionEmisor/Index', [
             'company' => [
                 'id'   => $company->id,
@@ -111,6 +114,7 @@ class DgiiCertificationController extends Controller
 
             // ✅ NUEVO PROP: el tab Endpoints lo debe leer de aquí
             'endpoint_catalog' => $endpointCatalog,
+            'cert_requirements' => $certCheck,
         ]);
     }
 }

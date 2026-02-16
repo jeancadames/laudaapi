@@ -14,7 +14,6 @@ class DgiiTokenAutoController extends Controller
 {
     public function update(Request $request)
     {
-        // ✅ acepta 0/1, "0"/"1", true/false
         $data = $request->validate([
             'enabled' => ['required', 'boolean'],
         ]);
@@ -43,58 +42,72 @@ class DgiiTokenAutoController extends Controller
             )
             ->firstOrFail();
 
-        /** @var DgiiCompanySetting $setting */
-        $setting = DgiiCompanySetting::query()->firstOrCreate(
-            ['company_id' => $company->id],
-            [
-                'environment' => 'precert',
-                'cf_prefix' => 'testecf',
-                'use_directory' => true,
-                'endpoints' => null,
-                'meta' => null,
-                'dgii_token_auto' => false, // default manual
-                'dgii_token_refresh_before_seconds' => 0,
-            ]
-        );
-
-        $wasAuto = (bool) $setting->dgii_token_auto;
-
-        // ✅ update flag
-        $setting->update([
-            'dgii_token_auto' => $enabled,
-        ]);
-
         /** @var DgiiTokenManager $tm */
         $tm = app(DgiiTokenManager::class);
 
-        // ✅ OFF -> ON: genera token inmediatamente
-        if (!$wasAuto && $enabled) {
-            try {
-                // si aún no agregaste ensureValidToken(), usa getValidToken() + invalidateToken()
-                // Recomendado: force => invalida primero
-                $tm->invalidateToken($setting->fresh());
-                $tm->getValidToken($setting->fresh(), 90);
+        try {
+            DB::transaction(function () use ($company, $enabled, $tm, &$setting, &$wasAuto) {
+                /** @var DgiiCompanySetting $setting */
+                $setting = DgiiCompanySetting::query()->firstOrCreate(
+                    ['company_id' => $company->id],
+                    [
+                        'environment' => 'precert',
+                        // ✅ importante: cf_prefix debe ser DGII-native: testecf/certecf/ecf
+                        // si ya estás mapeando en HttpDgiiAuthClient, puedes dejarlo, pero esto ayuda.
+                        'cf_prefix' => 'testecf',
+                        'use_directory' => true,
+                        'endpoints' => null,
+                        'meta' => null,
+                        'dgii_token_auto' => false,
+                        'dgii_token_refresh_before_seconds' => 0,
+                    ]
+                );
 
-                return back()->with('success', 'Modo automático activado. Token generado.');
-            } catch (\Throwable $e) {
-                // El manager ya guarda last_error, pero dejamos esto por si falla antes de entrar al lock
-                $setting->fresh()->update([
-                    'dgii_token_last_error' => mb_substr($e->getMessage(), 0, 255),
-                    'dgii_token_last_requested_at' => now(),
+                $wasAuto = (bool) $setting->dgii_token_auto;
+
+                // ✅ actualizar flag
+                $setting->update([
+                    'dgii_token_auto' => $enabled,
                 ]);
 
-                return back()->with('error', 'Se activó el modo automático, pero falló la generación del token: ' . $e->getMessage());
+                $setting = $setting->fresh();
+
+                // ✅ OFF -> ON: genera token inmediatamente (y si falla, lanzamos excepción para rollback)
+                if (!$wasAuto && $enabled) {
+                    $tm->invalidateToken($setting);
+                    $tm->getValidToken($setting, 90);
+                }
+
+                // ✅ ON -> OFF: opcional invalidar para forzar manual real
+                if ($wasAuto && !$enabled) {
+                    $tm->invalidateToken($setting);
+                }
+            });
+
+            if (!$wasAuto && $enabled) {
+                return back()->with('success', 'Modo automático activado. Token generado.');
             }
-        }
 
-        // ✅ ON -> OFF (opcional pero recomendado): invalidar token para forzar manual real
-        if ($wasAuto && !$enabled) {
-            $tm->invalidateToken($setting->fresh());
-        }
+            return back()->with('success', 'Modo automático de token actualizado.');
+        } catch (\Throwable $e) {
+            // ✅ si falló al activar ON, revierte a OFF (seguro aunque la tx haya rollback)
+            try {
+                $s = DgiiCompanySetting::query()->where('company_id', $company->id)->first();
+                if ($s) {
+                    $s->update([
+                        'dgii_token_auto' => false,
+                        'dgii_token_last_error' => mb_substr($e->getMessage(), 0, 255),
+                        'dgii_token_last_requested_at' => now(),
+                    ]);
+                }
+            } catch (\Throwable $ignored) {
+            }
 
-        return back()->with('success', 'Modo automático de token actualizado.');
+            $msg = mb_substr($e->getMessage(), 0, 180);
+
+            return back()->with('error', "No se pudo generar el token al activar automático: {$msg}");
+        }
     }
-
     private function resolveSubscriberId($user): ?int
     {
         $sid = (int) ($user->subscriber_id ?? 0);

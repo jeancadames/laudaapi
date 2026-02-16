@@ -243,7 +243,6 @@ Route::middleware(['auth', 'verified', 'role:subscriber', 'erp.access'])
 
         Route::get('/', LaudaErpDashboardController::class)->name('dashboard');
 
-
         /*
         |--------------------------------------------------------------------------
         | ✅ ERP / Services (ejecución de servicios)

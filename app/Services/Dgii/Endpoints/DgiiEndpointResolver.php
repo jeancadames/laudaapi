@@ -14,7 +14,7 @@ final class DgiiEndpointResolver
      *    'status' => 'https://statusecf.dgii.gov.do',
      *  ]
      */
-    public function resolve(string $baseUrl, string $pathTemplate, string $cfPrefix, array $params = []): string
+    public function resolve(string $baseUrl, string $pathTemplate, string $cfPrefix, array $params = [], bool $strict = false): string
     {
         $baseUrl = rtrim($baseUrl, '/');
 

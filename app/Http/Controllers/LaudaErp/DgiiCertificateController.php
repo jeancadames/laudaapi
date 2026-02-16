@@ -7,6 +7,7 @@ use App\Models\Company;
 use App\Models\DgiiCertificate;
 use App\Services\Dgii\DgiiCertificateReader;
 use App\Services\Subscribers\SubscriberResolver;
+use App\Services\Dgii\DgiiCertificateRequirements;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Crypt;
@@ -130,8 +131,12 @@ class DgiiCertificateController extends Controller
                 'original_name' => $c->original_name,
                 'file_size' => $c->file_size,
 
+                // ojo: si alguna vez meta trae bytes raros, quítalo de props.
                 'meta' => $c->meta ?? null,
             ]);
+
+        // ✅ CLAVE: esto es lo que tu layout necesita
+        $certCheck = app(DgiiCertificateRequirements::class)->checkForCompany($company->id);
 
         return Inertia::render('LaudaERP/CertificacionEmisor/Certificados', [
             'company' => [
@@ -140,9 +145,11 @@ class DgiiCertificateController extends Controller
                 'rnc' => $company->rnc ?? null,
             ],
             'certs' => $certs,
+
+            // ✅ NUEVO
+            'cert_requirements' => $certCheck,
         ]);
     }
-
     public function store(Request $request)
     {
         $company = $this->companyFromErp($request);

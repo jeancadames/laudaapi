@@ -10,8 +10,17 @@ use App\Http\Middleware\EnsureActiveSubscription;
 use App\Http\Middleware\EnsureActivationAccepted;
 use App\Http\Middleware\EnsureServiceEntitled;
 use App\Http\Middleware\EnsureErpAccess;
-
 use Illuminate\Http\Middleware\AddLinkHeadersForPreloadedAssets;
+
+/**
+ * ✅ OpenSSL Legacy Provider (OpenSSL 3.x)
+ * - Dotenv llena $_ENV/$_SERVER, pero NO siempre getenv()
+ * - OpenSSL usa getenv()/env real => forzamos putenv si existe en dotenv
+ *
+ * Requisito:
+ *   .env => OPENSSL_CONF=/etc/ssl/openssl-legacy.cnf
+ */
+
 
 return Application::configure(basePath: dirname(__DIR__))
     ->withRouting(
@@ -35,7 +44,6 @@ return Application::configure(basePath: dirname(__DIR__))
 
             'erp.access' => EnsureErpAccess::class,
         ]);
-
 
         $middleware->web(append: [
             HandleAppearance::class,
