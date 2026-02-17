@@ -2,95 +2,108 @@
 
 namespace App\Services\Dgii;
 
-use DOMDocument;
-use DOMXPath;
-use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 use RuntimeException;
+use Symfony\Component\Process\Process;
 
-class DgiiXmlSigner
+final class DgiiXmlSigner
 {
-    public function signXmlDgii(string $xml, string $certDisk, string $certPath, ?string $password = null): string
+    public function signAnyXml(string $xml, string $p12Binary, string $p12Password): string
     {
-        if (!class_exists(\RobRichards\XMLSecLibs\XMLSecurityDSig::class)) {
-            throw new RuntimeException('Falta xmlseclibs: instala robrichards/xmlseclibs:^3.');
+        $xml = $this->stripBom($xml);
+        if (trim($xml) === '') {
+            throw new RuntimeException('XML vacío.');
         }
 
-        $p12 = Storage::disk($certDisk)->get($certPath);
+        $tmpDir = rtrim(sys_get_temp_dir(), DIRECTORY_SEPARATOR)
+            . DIRECTORY_SEPARATOR . 'dgii_xml_' . Str::random(12);
 
-        $certs = [];
-        $ok = @openssl_pkcs12_read($p12, $certs, (string)($password ?? ''));
-
-        if (!$ok || empty($certs['pkey']) || empty($certs['cert'])) {
-            throw new RuntimeException('No se pudo abrir P12/PFX o falta llave privada/cert. Verifica password.');
+        if (!@mkdir($tmpDir, 0700, true) && !is_dir($tmpDir)) {
+            throw new RuntimeException('No se pudo crear el directorio temporal para firmar.');
         }
 
-        $dom = new DOMDocument();
-        $dom->preserveWhiteSpace = true;
-        $dom->formatOutput = false;
+        $passFile   = $tmpDir . DIRECTORY_SEPARATOR . 'pass.txt';
+        $p12File    = $tmpDir . DIRECTORY_SEPARATOR . 'cert.p12';
+        $xmlFile    = $tmpDir . DIRECTORY_SEPARATOR . 'input.xml';
+        $signedFile = $tmpDir . DIRECTORY_SEPARATOR . 'output_signed.xml';
 
-        // ✅ No usar LIBXML_NOBLANKS (no queremos tocar el XML original)
-        if (!$dom->loadXML($xml)) {
-            throw new RuntimeException('XML inválido.');
+        try {
+            file_put_contents($passFile, (string) $p12Password);
+            file_put_contents($p12File, $this->normalizePkcs12($p12Binary));
+            file_put_contents($xmlFile, $xml);
+
+            $nodeBin = config('dgii.node_bin', 'node');
+            $script  = base_path('node_scripts/signCert.js');
+
+            if (!is_file($script)) {
+                throw new RuntimeException("No se encontró el script de firma Node: {$script}");
+            }
+
+            $cmd = [$nodeBin, $script, $passFile, $p12File, $xmlFile, $signedFile];
+
+            $process = new Process($cmd, base_path());
+            $process->setTimeout((float) config('dgii.node_sign_timeout', 25));
+            $process->run();
+
+            if (!$process->isSuccessful()) {
+                $err = trim($process->getErrorOutput() ?: $process->getOutput());
+                $err = $err !== '' ? $err : 'Node signing failed (sin salida).';
+                throw new RuntimeException($err);
+            }
+
+            if (!is_file($signedFile)) {
+                throw new RuntimeException('Node no generó el archivo signed XML.');
+            }
+
+            $signedXml = (string) file_get_contents($signedFile);
+            $signedXml = $this->stripBom($signedXml);
+
+            if (trim($signedXml) === '') {
+                throw new RuntimeException('XML firmado final vacío.');
+            }
+
+            return $signedXml;
+
+        } finally {
+            $this->safeCleanup($tmpDir);
         }
-
-        $dsig = new \RobRichards\XMLSecLibs\XMLSecurityDSig();
-
-        // SignedInfo canonicalization (como tu ejemplo)
-        $dsig->setCanonicalMethod(\RobRichards\XMLSecLibs\XMLSecurityDSig::C14N);
-
-        // ✅ DGII: Reference URI="" y SOLO enveloped-signature
-        $dsig->addReference(
-            $dom->documentElement,
-            \RobRichards\XMLSecLibs\XMLSecurityDSig::SHA256,
-            ['http://www.w3.org/2000/09/xmldsig#enveloped-signature'],
-            ['uri' => '']
-        );
-
-        $key = new \RobRichards\XMLSecLibs\XMLSecurityKey(
-            \RobRichards\XMLSecLibs\XMLSecurityKey::RSA_SHA256,
-            ['type' => 'private']
-        );
-
-        $key->loadKey($certs['pkey'], false);
-
-        $dsig->sign($key);
-
-        // ✅ Inserta la firma en el root
-        if (method_exists($dsig, 'appendSignature')) {
-            $dsig->appendSignature($dom->documentElement);
-        }
-
-        // ✅ KeyInfo/X509Data/X509Certificate (sin subjectName, como tu ejemplo)
-        $dsig->add509Cert($certs['cert'], true, false, ['subjectName' => false]);
-
-        // ✅ Normaliza para que quede SIN "ds:" y con xmlns default
-        $this->stripDsPrefixKeepDefaultNs($dom);
-
-        return $dom->saveXML();
     }
 
-    private function stripDsPrefixKeepDefaultNs(DOMDocument $dom): void
+    private function normalizePkcs12(string $raw): string
     {
-        $xpath = new DOMXPath($dom);
-        $xpath->registerNamespace('ds', 'http://www.w3.org/2000/09/xmldsig#');
+        $trim = trim($raw);
 
-        $sig = $xpath->query('//ds:Signature')->item(0);
-        if (!$sig) return;
+        $looksBase64 =
+            $trim !== '' &&
+            preg_match('/^[A-Za-z0-9+\/=\r\n]+$/', $trim) &&
+            (strlen($trim) % 4 === 0);
 
-        // Renombrar Signature primero
-        $dom->renameNode($sig, 'http://www.w3.org/2000/09/xmldsig#', 'Signature');
-
-        // Asegurar xmlns default como tu ejemplo
-        if ($sig instanceof \DOMElement) {
-            $sig->setAttribute('xmlns', 'http://www.w3.org/2000/09/xmldsig#');
-            if ($sig->hasAttribute('xmlns:ds')) $sig->removeAttribute('xmlns:ds');
+        if ($looksBase64) {
+            $decoded = base64_decode($trim, true);
+            if ($decoded !== false && $decoded !== '') {
+                return $decoded;
+            }
         }
 
-        // Renombrar todo el subárbol: ds:SignedInfo, ds:Reference, etc -> sin prefijo
-        $nodes = $xpath->query('//*[namespace-uri()="http://www.w3.org/2000/09/xmldsig#"]');
-        foreach ($nodes as $n) {
-            /** @var \DOMElement $n */
-            $dom->renameNode($n, 'http://www.w3.org/2000/09/xmldsig#', $n->localName);
+        return $raw;
+    }
+
+    private function stripBom(string $s): string
+    {
+        return str_starts_with($s, "\xEF\xBB\xBF") ? substr($s, 3) : $s;
+    }
+
+    private function safeCleanup(string $dir): void
+    {
+        if (!is_dir($dir)) return;
+
+        $files = @scandir($dir);
+        if (is_array($files)) {
+            foreach ($files as $f) {
+                if ($f === '.' || $f === '..') continue;
+                @unlink($dir . DIRECTORY_SEPARATOR . $f);
+            }
         }
+        @rmdir($dir);
     }
 }

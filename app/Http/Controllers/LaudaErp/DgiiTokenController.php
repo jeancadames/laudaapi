@@ -6,7 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Company;
 use App\Models\DgiiCertificate;
 use App\Models\DgiiCompanySetting;
-use App\Services\Dgii\DgiiSeedSigner;
+use App\Services\Dgii\DgiiXmlSigner;
 use App\Services\Subscribers\SubscriberResolver;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Crypt;
@@ -56,10 +56,10 @@ class DgiiTokenController extends Controller
 
         // 4) Firmar SemillaModel
         try {
-            /** @var DgiiSeedSigner $signer */
-            $signer = app(DgiiSeedSigner::class);
+            /** @var DgiiXmlSigner $signer */
+            $signer = app(DgiiXmlSigner::class);
 
-            $signedSeedXml = $signer->signSemillaXml($seedXml, $p12Binary, $p12Password);
+            $signedSeedXml = $signer->signAnyXml($seedXml, $p12Binary, $p12Password);
         } catch (\Throwable $e) {
             return back()->with('dgii_token_debug', [
                 'get_seed_url' => $urls['get_seed'],
@@ -69,13 +69,24 @@ class DgiiTokenController extends Controller
         }
 
         // 5) POST validarsemilla (XML)
+        // $validateResp = Http::timeout(25)
+        //     ->withHeaders([
+        //         'Content-Type' => 'application/xml; charset=utf-8',
+        //         'Accept'       => 'application/xml, text/xml, */*',
+        //     ])
+        //     ->send('POST', $urls['validate_seed'], [
+        //         'body' => $signedSeedXml,
+        //     ]);
         $validateResp = Http::timeout(25)
-            ->withHeaders([
-                'Content-Type' => 'application/xml; charset=utf-8',
-                'Accept'       => 'application/xml, text/xml, */*',
-            ])
-            ->send('POST', $urls['validate_seed'], [
-                'body' => $signedSeedXml,
+            ->acceptJson()
+            ->asMultipart()
+            ->post($urls['validate_seed'], [
+                [
+                    'name'     => 'xml',
+                    'contents' => $signedSeedXml,
+                    'filename' => 'semilla_signed.xml',
+                    'headers'  => ['Content-Type' => 'text/xml'],
+                ],
             ]);
 
         if (!$validateResp->ok()) {

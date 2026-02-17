@@ -9,10 +9,18 @@ use App\Models\DgiiEndpointCatalog;
 use App\Services\Subscribers\SubscriberResolver;
 use App\Services\Dgii\DgiiCertificateRequirements;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Storage;
+
 use Inertia\Inertia;
 
 class DgiiCertificationController extends Controller
 {
+    private const KIND_TO_DIR = [
+        'ecf'   => 'cert-ecf',
+        'rfce'  => 'cert-rfce',
+        'acecf' => 'cert-acecf',
+    ];
+
     public function index(Request $request)
     {
         $user = $request->user();
@@ -97,6 +105,12 @@ class DgiiCertificationController extends Controller
 
         $certCheck = app(DgiiCertificateRequirements::class)->checkForCompany($company->id);
 
+        $xmlFiles = [
+            'ecf'   => $this->listXmlFilesForCompany('cert-ecf',   $company->id),
+            'rfce'  => $this->listXmlFilesForCompany('cert-rfce',  $company->id),
+            'acecf' => $this->listXmlFilesForCompany('cert-acecf', $company->id),
+        ];
+
         return Inertia::render('LaudaERP/CertificacionEmisor/Index', [
             'company' => [
                 'id'   => $company->id,
@@ -115,6 +129,69 @@ class DgiiCertificationController extends Controller
             // ✅ NUEVO PROP: el tab Endpoints lo debe leer de aquí
             'endpoint_catalog' => $endpointCatalog,
             'cert_requirements' => $certCheck,
+            // Para mostrar listados de xml
+            'xml_files' => $xmlFiles,
         ]);
+    }
+
+    private function listXmlFilesForCompany(string $kind, int $companyId): array
+    {
+        // kind: cert-ecf | cert-rfce | cert-acecf
+        $disk = Storage::disk('private');
+        $baseDir = "dgii/{$kind}/company_{$companyId}";
+
+        if (!$disk->exists($baseDir)) {
+            return ['count' => 0, 'items' => []];
+        }
+
+        $files = $disk->files($baseDir);
+
+        $items = [];
+        foreach ($files as $relPath) {
+            if (!preg_match('/\.xml$/i', $relPath)) continue;
+
+            $name = basename($relPath);
+
+            // ignorar los signed como “base” (los marcamos via flag)
+            if (str_ends_with(strtolower($name), '_signed.xml')) continue;
+
+            $signedName = preg_replace('/\.xml$/i', '_signed.xml', $name) ?? ($name . '_signed.xml');
+            $signedRel  = $baseDir . '/' . $signedName;
+
+            $mtime = $disk->lastModified($relPath);
+            $items[] = [
+                'name' => $name,
+                'type' => $this->extractTipoFromFilename($name),
+                'size_bytes' => (int) $disk->size($relPath),
+                // 'last_modified' => Carbon::createFromTimestamp($mtime)->format('Y-m-d H:i:s'),
+                'last_modified' => (int) $disk->lastModified($relPath),
+                'signed' => $disk->exists($signedRel),
+                'signed_name' => $disk->exists($signedRel) ? $signedName : null,
+            ];
+        }
+
+        // ordenar por fecha desc
+        usort($items, fn($a, $b) => strcmp($b['last_modified'], $a['last_modified']));
+
+        return ['count' => count($items), 'items' => $items];
+    }
+
+    private function extractTipoFromFilename(string $filename): ?string
+    {
+        // quitar .xml o .XML
+        $base = preg_replace('/\.xml$/i', '', $filename) ?? $filename;
+
+        // Caso ideal: el tipo va justo antes de los últimos 10 dígitos
+        // ...E46 + 0000000008
+        if (preg_match('/(E\d{2})(?=\d{10}$)/', $base, $m)) {
+            return $m[1];
+        }
+
+        // Fallback: último E## en el string
+        if (preg_match_all('/E\d{2}/', $base, $mm) && !empty($mm[0])) {
+            return end($mm[0]) ?: null;
+        }
+
+        return null;
     }
 }

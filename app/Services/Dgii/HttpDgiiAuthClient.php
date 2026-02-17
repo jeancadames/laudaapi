@@ -20,7 +20,7 @@ class HttpDgiiAuthClient implements DgiiAuthClient
 {
     public function __construct(
         private readonly DgiiEndpointResolver $builder,
-        private readonly DgiiSeedSigner $signer,
+        private readonly DgiiXmlSigner $signer,
         private readonly DgiiCertificateReader $certReader,
     ) {}
 
@@ -54,7 +54,7 @@ class HttpDgiiAuthClient implements DgiiAuthClient
         [$p12Bytes, $p12Password] = $this->loadActiveP12ForCompany($setting->company_id);
 
         $signedSeedXml = $this->sanitizeXml(
-            $this->signer->signSemillaXml($seedXml, $p12Bytes, $p12Password)
+            $this->signer->signAnyXml($seedXml, $p12Bytes, $p12Password)
         );
 
         $this->maybeDumpAuthArtifacts($setting, $seedXml, $signedSeedXml, $seedUrl, $validateUrl);

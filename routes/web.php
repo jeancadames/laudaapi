@@ -53,6 +53,10 @@ use App\Http\Controllers\LaudaErp\Support\ErpSupportController;
 use App\Http\Controllers\LaudaErp\DgiiEndpointsController;
 use App\Http\Controllers\LaudaErp\DgiiTokenController;
 use App\Http\Controllers\LaudaErp\DgiiTokenAutoController;
+use App\Http\Controllers\LaudaErp\DgiiXmlSignController;
+use App\Http\Controllers\LaudaErp\Wrapper\AcecfExcelToXmlController;
+use App\Http\Controllers\LaudaErp\Wrapper\ExcelToXmlController;
+use App\Http\Controllers\LaudaErp\Wrapper\RfceExcelToXmlController;
 
 /*
 |--------------------------------------------------------------------------
@@ -268,6 +272,37 @@ Route::middleware(['auth', 'verified', 'role:subscriber', 'erp.access'])
 
                 Route::post('/token/generate', [DgiiTokenController::class, 'generate'])->name('token.generate');
                 Route::put('/token/auto', [DgiiTokenAutoController::class, 'update'])->name('token.auto');
+
+                Route::post('/xml/sign', [DgiiXmlSignController::class, 'sign'])->name('xml.sign');
+
+                Route::prefix('set-ecf')->group(function () {
+                    Route::prefix('ecf')->group(function () {
+                        
+                        Route::post('/excel-to-xml', [ExcelToXmlController::class, 'convert'])
+                        ->name('excel-to-xml');
+                        
+                        Route::get('/excel-to-xml/download', [ExcelToXmlController::class, 'download'])
+                        ->name('excel-to-xml.download');
+                    });
+
+                    Route::prefix('acecf')->group(function () {
+
+                        Route::post('/excel-to-xml', [AcecfExcelToXmlController::class, 'convert'])
+                            ->name('acecf.excel-to-xml');
+
+                        Route::get('/download', [AcecfExcelToXmlController::class, 'download'])
+                            ->name('acecf.download');
+                    });
+                    
+                    Route::prefix('rfce')->group(function () {
+
+                        Route::post('/excel-to-xml', [RfceExcelToXmlController::class, 'convert'])
+                            ->name('rfce.excel-to-xml');
+
+                        Route::get('/download', [RfceExcelToXmlController::class, 'download'])
+                            ->name('rfce.download');
+                    });
+                });
             });
         });
 

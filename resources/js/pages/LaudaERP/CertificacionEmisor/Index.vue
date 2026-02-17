@@ -20,6 +20,49 @@ import {
     DialogFooter,
     DialogTrigger,
 } from '@/components/ui/dialog'
+import XmlEcfWrapper from '@/components/XmlEcfWrapper.vue'
+import AcecfXmlWrapper from '@/components/AcecfXmlWrapper.vue'
+import RfceXmlWrapper from '@/components/RfceXmlWrapper.vue'
+
+import axios from 'axios'
+
+function getCsrfToken() {
+  return document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || null
+}
+
+const signing = ref<Record<string, boolean>>({})
+
+const key = (kind: 'ecf'|'rfce'|'acecf', name: string) => `${kind}:${name}`
+
+async function signXml(kind: 'ecf'|'rfce'|'acecf', name: string) {
+  const k = key(kind, name)
+  if (signing.value[k]) return
+
+  signing.value[k] = true
+  try {
+    const token = getCsrfToken()
+
+    const res = await axios.post(
+      '/erp/services/certificacion-emisor/xml/sign',
+      { kind, name },
+      { headers: { ...(token ? { 'X-CSRF-TOKEN': token } : {}) } }
+    )
+
+    if (!res.data?.ok) {
+      throw new Error(res.data?.message ?? 'No se pudo firmar.')
+    }
+
+    // ✅ refresca listado (Inertia partial reload)
+    router.reload({ only: ['xml_files'] })
+  } catch (e: any) {
+    const msg = e?.response?.data?.message || e?.message || 'Error firmando.'
+    console.error(e)
+    // aquí tu toast/snackbar
+    alert(msg)
+  } finally {
+    signing.value[k] = false
+  }
+}
 
 type Cert = {
     id: number
@@ -53,24 +96,61 @@ type EndpointCatalogRow = {
     meta?: any
 }
 
+type DgiiEcftype = `E${number}` // ej: "E31", "E46"
+
+type XmlFileItem = {
+  name: string
+  type: DgiiEcftype | null // por si no se pudo inferir
+  size_bytes?: number | null // opcional si ya no te interesa (puedes borrar esto si no lo mandas)
+  last_modified_at: string // "YYYY-MM-DD HH:mm:ss" (o ISO si decides)
+  signed?: boolean // útil para UI (si lo incluyes en backend)
+}
+
+type XmlFilesBucket = {
+  kind: 'ecf' | 'rfce' | 'acecf'
+  base_dir: string
+  count: number
+  items: XmlFileItem[]
+}
+
+type XmlFilesPayload = {
+  ecf: XmlFilesBucket
+  rfce: XmlFilesBucket
+  acecf: XmlFilesBucket
+}
+
+const emptyBucket = (kind: XmlFilesBucket['kind']): XmlFilesBucket => ({
+  kind,
+  base_dir: '',
+  count: 0,
+  items: [],
+})
+
+const xml = computed<XmlFilesPayload>(() =>
+  props.xml_files ?? {
+    ecf: emptyBucket('ecf'),
+    rfce: emptyBucket('rfce'),
+    acecf: emptyBucket('acecf'),
+  }
+)
+
 const props = defineProps<{
-    company: { id: number; name: string | null; rnc: string | null }
-    setting: {
-        environment: 'precert' | 'cert' | 'prod'
-        cf_prefix: string
-        use_directory: boolean
-        endpoints: Record<string, any>
-    }
+  company: { id: number; name: string | null; rnc: string | null }
+  setting: {
+    environment: 'precert' | 'cert' | 'prod'
+    cf_prefix: string
+    use_directory: boolean
+    endpoints: Record<string, any>
+  }
 
-    certs?: Cert[]
-    certs_summary?: { count: number; default_cert_id: number | null; has_default: boolean }
+  certs?: Cert[]
+  certs_summary?: { count: number; default_cert_id: number | null; has_default: boolean }
 
-    /**
-     * ✅ catálogo sembrado (dgii_endpoint_catalog)
-     * Útil para fallback cuando setting.endpoints venga vacío.
-     */
-    endpoint_catalog?: EndpointCatalogRow[]
+  endpoint_catalog?: EndpointCatalogRow[]
+  xml_files?: XmlFilesPayload
 }>()
+
+console.log(props)
 
 const breadcrumbs: BreadcrumbItem[] = [
     { title: 'LaudaERP', href: '/erp' },
@@ -79,6 +159,8 @@ const breadcrumbs: BreadcrumbItem[] = [
 ]
 
 const tab = ref<'guia' | 'certificados' | 'endpoints' | 'sets-ecf' | 'sets-comercial'>('guia')
+
+const wrapper_tabs = ref<'ecf-wrapper' | 'rfce-wrapper' | 'acecf-wrapper'>('ecf-wrapper')
 
 /* -----------------------------------------
    ✅ Certificados
@@ -901,9 +983,202 @@ function submitEndpoints() {
                         <CardContent>
                             <p class="text-sm text-muted-foreground">Pendiente: upload Excel + grid de filas.</p>
                         </CardContent>
+                        <Tabs v-model="wrapper_tabs">
+                            <TabsList class="grid rounded-none w-full grid-cols-3">
+                                <TabsTrigger value="ecf-wrapper">e-CF Wrapper</TabsTrigger>
+                                <TabsTrigger value="rfce-wrapper">RFCE Wrapper</TabsTrigger>
+                                <TabsTrigger value="acecf-wrapper">ACECF Wrapper</TabsTrigger>
+                            </TabsList>
+
+                            <TabsContent  class="mt-4 px-6" value="ecf-wrapper">
+                                <XmlEcfWrapper/>
+                                <Card>
+                                    <CardHeader>
+                                        <div class="flex items-center justify-between gap-2">
+                                            <div>
+                                                <CardTitle>XML e-CF</CardTitle>
+                                                <CardDescription>Listado de XML generados para los e-CF del set de pruebas.</CardDescription>
+                                            </div>
+                                            <Badge variant="secondary">{{ xml_files?.ecf?.count }} archivos</Badge>
+                                        </div>
+                                    </CardHeader>
+
+                                    <CardContent>
+                                        <div class="overflow-x-auto rounded-md border">
+                                            <table class="w-full text-sm">
+                                                <thead class="bg-muted/40 text-xs text-muted-foreground">
+                                                    <tr>
+                                                        <th class="px-3 py-2 text-left">Nombre del archivo</th>
+                                                        <th class="px-3 py-2 text-left">tipo de e-CF</th>
+                                                        <th class="px-3 py-2 text-left">Tamaño</th>
+                                                        <th class="px-3 py-2 text-left">Firma</th>
+                                                        <th class="px-3 py-2 text-left">Estatus</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody>
+                                                    <tr v-for="e in xml_files?.ecf?.items" :key="e.name" class="border-t">
+                                                        <td class="px-3 py-2">
+                                                            <div class="font-mono text-xs">{{ e.name }}</div>
+                                                        </td>
+                                                        <td class="px-3 py-2">{{ e.type }}</td>
+                                                        <td class="px-3 py-2">{{ e.size_bytes }} Bytes</td>
+                                                        <td class="px-3 py-2">
+                                                            <Button
+                                                                size="sm"
+                                                                variant="secondary"
+                                                                :disabled="e.signed || signing[key('ecf', e.name)]"
+                                                                @click="signXml('ecf', e.name)"
+                                                            >
+                                                                <span v-if="e.signed">Firmado</span>
+                                                                <span v-else-if="signing[key('ecf', e.name)]">Firmando…</span>
+                                                                <span v-else>Firmar</span>
+                                                            </Button>
+                                                            </td>
+                                                        <td class="px-3 py-2 font-mono text-xs break-all">
+                                                            <td class="px-3 py-2">
+                                                                <Badge :variant="e.signed ? 'default' : 'secondary'">
+                                                                    {{ e.signed ? 'Firmado' : 'Sin firmar' }}
+                                                                </Badge>
+                                                            </td>
+                                                        </td>
+                                                    </tr>
+
+                                                    <tr v-if="xml_files?.ecf?.items?.length === 0" class="border-t">
+                                                        <td colspan="5" class="px-3 py-4 text-sm text-muted-foreground">No hay archivos.</td>
+                                                    </tr>
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    </CardContent>
+                                </Card>
+                            </TabsContent>
+                            <TabsContent  class="mt-4 px-6" value="rfce-wrapper">
+                                <RfceXmlWrapper/>
+                                <Card>
+                                    <CardHeader>
+                                        <div class="flex items-center justify-between gap-2">
+                                            <div>
+                                                <CardTitle>XML RFCE</CardTitle>
+                                                <CardDescription>Listado de XML generados para los RFCE del set de pruebas.</CardDescription>
+                                            </div>
+                                            <Badge variant="secondary">{{ xml_files?.rfce?.count }} archivos</Badge>
+                                        </div>
+                                    </CardHeader>
+
+                                    <CardContent>
+                                        <div class="overflow-x-auto rounded-md border">
+                                            <table class="w-full text-sm">
+                                                <thead class="bg-muted/40 text-xs text-muted-foreground">
+                                                    <tr>
+                                                        <th class="px-3 py-2 text-left">Nombre del archivo</th>
+                                                        <th class="px-3 py-2 text-left">tipo de e-CF</th>
+                                                        <th class="px-3 py-2 text-left">Tamaño</th>
+                                                        <th class="px-3 py-2 text-left">Firma</th>
+                                                        <th class="px-3 py-2 text-left">Estatus</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody>
+                                                    <tr v-for="e in xml_files?.rfce?.items" :key="e.name" class="border-t">
+                                                        <td class="px-3 py-2">
+                                                            <div class="font-mono text-xs">{{ e.name }}</div>
+                                                        </td>
+                                                        <td class="px-3 py-2">{{ e.type }}</td>
+                                                        <td class="px-3 py-2">{{ e.size_bytes }} Bytes</td>
+                                                        <td class="px-3 py-2">
+                                                            <Button
+                                                                size="sm"
+                                                                variant="secondary"
+                                                                :disabled="e.signed || signing[key('rfce', e.name)]"
+                                                                @click="signXml('rfce', e.name)"
+                                                            >
+                                                                <span v-if="e.signed">Firmado</span>
+                                                                <span v-else-if="signing[key('rfce', e.name)]">Firmando…</span>
+                                                                <span v-else>Firmar</span>
+                                                            </Button>
+                                                            </td>
+                                                        <td class="px-3 py-2 font-mono text-xs break-all">
+                                                            <td class="px-3 py-2">
+                                                                <Badge :variant="e.signed ? 'default' : 'secondary'">
+                                                                    {{ e.signed ? 'Firmado' : 'Sin firmar' }}
+                                                                </Badge>
+                                                            </td>
+                                                        </td>
+                                                    </tr>
+
+                                                    <tr v-if="xml_files?.rfce?.items?.length === 0" class="border-t">
+                                                        <td colspan="5" class="px-3 py-4 text-sm text-muted-foreground">No hay archivos.</td>
+                                                    </tr>
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    </CardContent>
+                                </Card>
+                            </TabsContent>
+                            <TabsContent  class="mt-4 px-6" value="acecf-wrapper">
+                                <AcecfXmlWrapper/>
+                                <Card>
+                                    <CardHeader>
+                                        <div class="flex items-center justify-between gap-2">
+                                            <div>
+                                                <CardTitle>XML ACECF</CardTitle>
+                                                <CardDescription>Listado de XML generados para los ACECF del set de pruebas.</CardDescription>
+                                            </div>
+                                            <Badge variant="secondary">{{ xml_files?.acecf?.count }} archivos</Badge>
+                                        </div>
+                                    </CardHeader>
+
+                                    <CardContent>
+                                        <div class="overflow-x-auto rounded-md border">
+                                            <table class="w-full text-sm">
+                                                <thead class="bg-muted/40 text-xs text-muted-foreground">
+                                                    <tr>
+                                                        <th class="px-3 py-2 text-left">Nombre del archivo</th>
+                                                        <th class="px-3 py-2 text-left">tipo de e-CF</th>
+                                                        <th class="px-3 py-2 text-left">Tamaño</th>
+                                                        <th class="px-3 py-2 text-left">Firma</th>
+                                                        <th class="px-3 py-2 text-left">Estatus</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody>
+                                                    <tr v-for="e in xml_files?.acecf?.items" :key="e.name" class="border-t">
+                                                        <td class="px-3 py-2">
+                                                            <div class="font-mono text-xs">{{ e.name }}</div>
+                                                        </td>
+                                                        <td class="px-3 py-2">{{ e.type }}</td>
+                                                        <td class="px-3 py-2">{{ e.size_bytes }} Bytes</td>
+                                                        <td class="px-3 py-2">
+                                                            <Button
+                                                                size="sm"
+                                                                variant="secondary"
+                                                                :disabled="e.signed || signing[key('acecf', e.name)]"
+                                                                @click="signXml('acecf', e.name)"
+                                                            >
+                                                                <span v-if="e.signed">Firmado</span>
+                                                                <span v-else-if="signing[key('acecf', e.name)]">Firmando…</span>
+                                                                <span v-else>Firmar</span>
+                                                            </Button>
+                                                            </td>
+                                                        <td class="px-3 py-2 font-mono text-xs break-all">
+                                                            <td class="px-3 py-2">
+                                                                <Badge :variant="e.signed ? 'default' : 'secondary'">
+                                                                    {{ e.signed ? 'Firmado' : 'Sin firmar' }}
+                                                                </Badge>
+                                                            </td>
+                                                        </td>
+                                                    </tr>
+
+                                                    <tr v-if="xml_files?.acecf?.items?.length === 0" class="border-t">
+                                                        <td colspan="5" class="px-3 py-4 text-sm text-muted-foreground">No hay archivos.</td>
+                                                    </tr>
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    </CardContent>
+                                </Card>
+                            </TabsContent>
+                        </Tabs>
                     </Card>
                 </TabsContent>
-
                 <!-- ✅ APROBACIÓN -->
                 <TabsContent value="sets-comercial" class="mt-4">
                     <Card>
