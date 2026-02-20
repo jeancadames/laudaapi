@@ -14,26 +14,25 @@ return new class extends Migration {
                 ->constrained('companies')
                 ->cascadeOnDelete();
 
-            // ics por ahora
             $table->string('type', 20)->default('ics');
-
             $table->string('label', 120)->default('Fiscal Compliance');
             $table->boolean('enabled')->default(true)->index();
 
-            // Guarda el token hasheado (no plano)
             $table->string('token_hash', 64)->unique();
+            $table->string('token_prefix', 16)->nullable()->index(); // mejora
+            $table->timestamp('expires_at')->nullable()->index();     // mejora
 
             $table->timestamp('last_rotated_at')->nullable();
+            $table->timestamp('last_accessed_at')->nullable()->index(); // mejora
 
             $table->foreignId('created_by_user_id')->nullable()
                 ->constrained('users')
                 ->nullOnDelete();
 
             $table->json('meta')->nullable();
-
             $table->timestamps();
 
-            $table->index(['company_id', 'enabled']);
+            $table->index(['company_id', 'enabled'], 'idx_company_enabled_feed');
         });
     }
 

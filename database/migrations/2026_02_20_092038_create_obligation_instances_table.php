@@ -14,30 +14,20 @@ return new class extends Migration {
                 ->constrained('tenant_obligations')
                 ->cascadeOnDelete();
 
-            // Denormalización útil para queries (sin join)
             $table->foreignId('company_id')
                 ->constrained('companies')
                 ->cascadeOnDelete();
 
-            // Periodo al que corresponde (mensual típico)
             $table->date('period_start')->nullable();
             $table->date('period_end')->nullable();
-
-            /**
-             * period_key NO NULL para unicidad:
-             * monthly: "2026-01"
-             * annual:  "2026"
-             * ad-hoc:  "2026-02-16#1"
-             */
             $table->string('period_key', 20);
 
-            // Fecha de vencimiento real calculada
             $table->date('due_date')->index();
+            $table->timestamp('due_at')->nullable()->index(); // mejora
 
-            // pending | due_soon | overdue | filed | paid | not_applicable
-            $table->string('status', 30)->default('pending')->index();
+            $table->string('status', 30)->default('pending')->index(); // pending|due_soon|overdue|filed|paid|not_applicable
+            $table->string('status_reason', 140)->nullable(); // mejora
 
-            // Trazabilidad / cumplimiento
             $table->timestamp('filed_at')->nullable();
             $table->timestamp('paid_at')->nullable();
 
@@ -47,15 +37,14 @@ return new class extends Migration {
 
             $table->timestamp('completed_at')->nullable();
 
-            // refs externos (ej: numero recibo, acuse, etc.)
             $table->json('external_refs')->nullable();
             $table->json('meta')->nullable();
 
             $table->timestamps();
 
-            $table->unique(['tenant_obligation_id', 'period_key']);
-            $table->index(['company_id', 'status']);
-            $table->index(['company_id', 'due_date']);
+            $table->unique(['tenant_obligation_id', 'period_key'], 'uniq_obligation_period');
+            $table->index(['company_id', 'status'], 'idx_company_status');
+            $table->index(['company_id', 'due_date'], 'idx_company_due');
         });
     }
 

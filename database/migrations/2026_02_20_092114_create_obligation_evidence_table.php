@@ -18,16 +18,14 @@ return new class extends Migration {
                 ->constrained('companies')
                 ->cascadeOnDelete();
 
-            // receipt|ack|return|other
             $table->string('kind', 30)->default('other')->index();
 
             $table->string('original_name')->nullable();
             $table->string('disk', 40)->default('private');
-            $table->string('path'); // Storage path
+            $table->string('path', 255);
 
             $table->string('mime', 120)->nullable();
             $table->unsignedBigInteger('size')->nullable();
-
             $table->string('sha256', 64)->nullable()->index();
 
             $table->foreignId('uploaded_by_user_id')->nullable()
@@ -35,10 +33,9 @@ return new class extends Migration {
                 ->nullOnDelete();
 
             $table->json('meta')->nullable();
-
             $table->timestamps();
 
-            $table->index(['company_id', 'kind']);
+            $table->index(['company_id', 'kind'], 'idx_company_kind');
         });
     }
 

@@ -24,5 +24,7 @@ class DatabaseSeeder extends Seeder
         $this->call(ServiceSeeder::class);
         $this->call(DgiiEndpointCatalogSeeder::class);
         $this->call(DgiiCompanySettingsSeeder::class);
+        $this->call(\Database\Seeders\ComplianceRDSeeder::class);
+        $this->call(FiscalDocumentTypeSeeder::class);
     }
 }

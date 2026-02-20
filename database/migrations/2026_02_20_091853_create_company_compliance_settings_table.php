@@ -14,26 +14,16 @@ return new class extends Migration {
                 ->constrained('companies')
                 ->cascadeOnDelete();
 
-            // Si null => usa companies.timezone
             $table->string('timezone')->nullable();
-
-            // next_business_day | previous_business_day | none
             $table->string('weekend_shift', 30)->default('next_business_day');
-
-            // En MVP: feriados opcional. Luego puedes crear tabla holidays por país.
             $table->boolean('use_holidays')->default(false);
 
-            // Ej: [7,3,1,0]
-            $table->json('default_reminders')->nullable();
-
-            // Canales (fase 1: email)
-            $table->json('channels')->nullable(); // ej: {"email":true,"in_app":true}
-
+            $table->json('default_reminders')->nullable(); // [7,3,1,0]
+            $table->json('channels')->nullable(); // {"email":true,"in_app":true}
             $table->json('meta')->nullable();
 
             $table->timestamps();
-
-            $table->unique('company_id');
+            $table->unique('company_id', 'uniq_company_compliance');
         });
     }
 

@@ -4,38 +4,52 @@ namespace App\Http\Middleware;
 
 use App\Models\Service;
 use App\Models\Subscription;
+use App\Services\Subscribers\SubscriberResolver;
 use Closure;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\DB;
 
 class EnsureServiceEntitled
 {
-    public function handle(Request $request, Closure $next, string $serviceSlug)
+    public function handle(Request $request, Closure $next, string $serviceSlugs)
     {
         $user = $request->user();
+        abort_unless($user, 403);
 
-        if (!$user) {
-            return redirect()->route('login');
-        }
+        // ✅ 1) Preferir subscriber ya resuelto por EnsureErpAccess (/erp)
+        $subscriberId = (int) $request->attributes->get('resolved_subscriber_id', 0);
 
-        $subscriberId = (int) ($user->subscriber_id ?? 0);
+        // ✅ 2) Fallback robusto (pivot/company)
         if ($subscriberId <= 0) {
-            abort(403, 'Subscriber not found for user.');
+            $subscriberId = (int) app(SubscriberResolver::class)->resolve($user);
         }
 
-        // Cache corto para evitar hits repetidos en navegación
-        $cacheKey = "entitled:{$subscriberId}:{$serviceSlug}";
+        abort_unless($subscriberId > 0, 403);
 
-        $allowed = Cache::remember($cacheKey, now()->addSeconds(45), function () use ($subscriberId, $serviceSlug) {
-            $serviceId = Service::query()
-                ->where('slug', $serviceSlug)
-                ->value('id');
+        // Permite "a|b|c" o "a,b,c"
+        $slugs = collect(preg_split('/[|,]/', $serviceSlugs))
+            ->map(fn($s) => trim((string) $s))
+            ->filter()
+            ->unique()
+            ->values()
+            ->all();
 
-            if (!$serviceId) {
+        abort_unless(count($slugs) > 0, 403);
+
+        $cacheKey = "entitled:{$subscriberId}:" . implode('|', $slugs);
+
+        $allowed = Cache::remember($cacheKey, now()->addSeconds(45), function () use ($subscriberId, $slugs) {
+
+            $serviceIds = Service::query()
+                ->whereIn('slug', $slugs)
+                ->pluck('id');
+
+            // si un slug no existe => mala config
+            if ($serviceIds->count() !== count($slugs)) {
                 return null; // => 404
             }
 
-            // Elegir suscripción vigente: prioriza active sobre trialing
             $subscriptionId = Subscription::query()
                 ->where('subscriber_id', $subscriberId)
                 ->whereIn('status', ['active', 'trialing'])
@@ -43,28 +57,18 @@ class EnsureServiceEntitled
                 ->latest('id')
                 ->value('id');
 
-            if (!$subscriptionId) {
-                return false;
-            }
+            if (!$subscriptionId) return false;
 
-            // Validar item vigente para ese service
-            $hasItem = \DB::connection('mysql')
-                ->table('subscription_items')
+            // ✅ alineado a tu sidebar: incluye pending
+            return DB::table('subscription_items')
                 ->where('subscription_id', $subscriptionId)
-                ->where('service_id', $serviceId)
-                ->whereIn('status', ['active', 'trialing'])
+                ->whereIn('service_id', $serviceIds->all())
+                ->whereIn('status', ['active', 'trialing', 'pending'])
                 ->exists();
-
-            return $hasItem ? true : false;
         });
 
-        if ($allowed === null) {
-            abort(404);
-        }
-
-        if ($allowed === false) {
-            abort(403);
-        }
+        if ($allowed === null) abort(404);
+        if ($allowed === false) abort(403);
 
         return $next($request);
     }

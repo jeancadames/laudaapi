@@ -15,6 +15,9 @@ class SubscriberEntitlements
     private array $dgiiCapabilitiesCache = [];
     private array $dgiiCapabilitiesDetailsCache = [];
 
+    // ✅ micro-cache subscription_id por subscriber (evita duplicar query en 3 métodos)
+    private array $subscriptionIdCache = [];
+
     /**
      * Servicios ERP por entitlements (SOLO para /erp):
      * incluye active|trialing|pending (Opción B).
@@ -25,12 +28,7 @@ class SubscriberEntitlements
             return $this->erpServicesCache[$subscriberId];
         }
 
-        $subscriptionId = Subscription::query()
-            ->where('subscriber_id', $subscriberId)
-            ->whereIn('status', ['active', 'trialing'])
-            ->orderByRaw("FIELD(status,'active','trialing')")
-            ->orderByDesc('id')
-            ->value('id');
+        $subscriptionId = $this->resolveActiveSubscriptionId($subscriberId);
 
         if (!$subscriptionId) {
             return $this->erpServicesCache[$subscriberId] = collect();
@@ -47,23 +45,46 @@ class SubscriberEntitlements
     }
 
     /**
-     * Sidebar ERP por 3 grupos (padres): api-facturacion-electronica | marketplace | laudaone
-     * - Muestra hijos permitidos.
-     * - ✅ Si el padre está permitido (root-only), lo muestra como item aunque no tenga hijos.
+     * Sidebar ERP:
+     * - Grupos (padres): api-facturacion-electronica | marketplace | laudaone
+     * - Footer fijo (si están activos): calendario-fiscal | cumplimiento-fiscal
+     *
+     * ✅ No tocamos jerarquía DB, no rompemos Admin/Subscriber dashboards.
      */
     public function erpSidebarTree(int $subscriberId): array
     {
         $services = $this->erpServicesForSubscriber($subscriberId);
 
+        // ✅ Grupos padres reales (no romper estructura actual)
+        $parentSlugs = [
+            'api-facturacion-electronica',
+            'marketplace',
+            'laudaone',
+        ];
+
+        // ✅ Items “importantísimos” que NO deben ir dentro de API; van en footer
+        $footerSlugs = [
+            'calendario-fiscal',
+            'cumplimiento-fiscal',
+        ];
+        $footerSet = array_flip($footerSlugs);
+
+        // =====
+        // Parents (grupos)
+        // =====
         $parents = Service::query()
             ->whereNull('parent_id')
-            ->whereIn('slug', ['api-facturacion-electronica', 'marketplace', 'laudaone'])
+            ->whereIn('slug', $parentSlugs)
             ->where('active', true)
-            ->orderBy('sort_order')
-            ->get();
+            ->get()
+            ->keyBy('slug');
 
+        // Pre-build groups con orden estable
         $groups = [];
-        foreach ($parents as $p) {
+        foreach ($parentSlugs as $slug) {
+            $p = $parents->get($slug);
+            if (!$p) continue;
+
             $groups[$p->id] = [
                 'title' => $p->title,
                 'slug'  => $p->slug,
@@ -74,7 +95,11 @@ class SubscriberEntitlements
 
         $servicesById = $services->keyBy('id');
 
-        foreach ($parents as $p) {
+        // 1) Si el padre está permitido, agréguelo como item (root link)
+        foreach ($parentSlugs as $slug) {
+            $p = $parents->get($slug);
+            if (!$p) continue;
+
             if (!$servicesById->has($p->id)) continue;
 
             $st = strtolower((string) ($servicesById[$p->id]->item_status ?? ''));
@@ -83,13 +108,17 @@ class SubscriberEntitlements
                 'title' => $p->title,
                 'href'  => $p->href ?: '/erp/modules/' . $p->slug,
                 'icon'  => $this->normalizeIcon($p->icon),
-                'badge' => $st === 'trialing' ? 'TRIAL' : ($st === 'pending' ? 'PAGO' : null),
+                'badge' => $this->badgeFromItemStatus($st),
             ];
         }
 
+        // 2) Hijos permitidos (EXCEPTO los del footer)
         foreach ($services as $s) {
             if (!$s->parent_id) continue;
             if (!isset($groups[$s->parent_id])) continue;
+
+            // 🚫 No mostrar Calendario/Cumplimiento dentro del grupo API
+            if (isset($footerSet[$s->slug])) continue;
 
             $st = strtolower((string) ($s->item_status ?? ''));
 
@@ -97,25 +126,42 @@ class SubscriberEntitlements
                 'title' => $s->title,
                 'href'  => $s->href ?: '/erp/modules/' . $s->slug,
                 'icon'  => $this->normalizeIcon($s->icon),
-                'badge' => $st === 'trialing' ? 'TRIAL' : ($st === 'pending' ? 'PAGO' : null),
+                'badge' => $this->badgeFromItemStatus($st),
             ];
         }
 
+        // 3) Dedupe de items por group
         foreach ($groups as $pid => $g) {
-            $seen = [];
-            $unique = [];
-            foreach ($g['items'] as $it) {
-                $key = $it['href'] . '|' . $it['title'];
-                if (isset($seen[$key])) continue;
-                $seen[$key] = true;
-                $unique[] = $it;
-            }
-            $groups[$pid]['items'] = $unique;
+            $groups[$pid]['items'] = $this->dedupeItems($g['items'] ?? []);
         }
 
+        // 4) Remueve groups vacíos y devuelve en orden
         $groups = array_values(array_filter($groups, fn($g) => count($g['items']) > 0));
+        $groups = $this->sortGroupsBySlugOrder($groups, $parentSlugs);
 
-        return ['groups' => $groups];
+        // =====
+        // Footer fijo (solo si los servicios están activos en entitlements)
+        // =====
+        $footer = [];
+        foreach ($footerSlugs as $slug) {
+            $hit = $services->firstWhere('slug', $slug);
+            if (!$hit) continue;
+
+            $st = strtolower((string) ($hit->item_status ?? ''));
+
+            $footer[] = [
+                'title' => $hit->title,
+                'href'  => $hit->href ?: '/erp/modules/' . $hit->slug,
+                'icon'  => $this->normalizeIcon($hit->icon),
+                'badge' => $this->badgeFromItemStatus($st),
+            ];
+        }
+        $footer = $this->dedupeItems($footer);
+
+        return [
+            'groups' => $groups,
+            'footer' => $footer, // ✅ NUEVO: para renderizar en el footer del sidebar ERP
+        ];
     }
 
     /**
@@ -127,12 +173,7 @@ class SubscriberEntitlements
             return $this->dgiiCapabilitiesCache[$subscriberId];
         }
 
-        $subscriptionId = Subscription::query()
-            ->where('subscriber_id', $subscriberId)
-            ->whereIn('status', ['active', 'trialing'])
-            ->orderByRaw("FIELD(status,'active','trialing')")
-            ->orderByDesc('id')
-            ->value('id');
+        $subscriptionId = $this->resolveActiveSubscriptionId($subscriberId);
 
         if (!$subscriptionId) {
             return $this->dgiiCapabilitiesCache[$subscriberId] = false;
@@ -165,12 +206,7 @@ class SubscriberEntitlements
             return $this->dgiiCapabilitiesDetailsCache[$subscriberId];
         }
 
-        $subscriptionId = Subscription::query()
-            ->where('subscriber_id', $subscriberId)
-            ->whereIn('status', ['active', 'trialing'])
-            ->orderByRaw("FIELD(status,'active','trialing')")
-            ->orderByDesc('id')
-            ->value('id');
+        $subscriptionId = $this->resolveActiveSubscriptionId($subscriberId);
 
         if (!$subscriptionId) {
             return $this->dgiiCapabilitiesDetailsCache[$subscriberId] = [
@@ -181,7 +217,6 @@ class SubscriberEntitlements
             ];
         }
 
-        // ✅ Máximo 2 filas (barato)
         $rows = Service::query()
             ->select([
                 'services.slug',
@@ -208,7 +243,6 @@ class SubscriberEntitlements
             ];
         }
 
-        // alimenta cache booleano
         $this->dgiiCapabilitiesCache[$subscriberId] = true;
 
         $priority = ['api-facturacion-electronica', 'certificacion-emisor-electronico'];
@@ -231,6 +265,66 @@ class SubscriberEntitlements
             'enabled_services' => $rows->pluck('slug')->unique()->values()->all(),
             'enabled_by_item_status' => $enabledByItemStatus,
         ];
+    }
+
+    // =========================
+    // Helpers
+    // =========================
+
+    private function resolveActiveSubscriptionId(int $subscriberId): ?int
+    {
+        if (array_key_exists($subscriberId, $this->subscriptionIdCache)) {
+            return $this->subscriptionIdCache[$subscriberId] ?: null;
+        }
+
+        $id = Subscription::query()
+            ->where('subscriber_id', $subscriberId)
+            ->whereIn('status', ['active', 'trialing'])
+            ->orderByRaw("FIELD(status,'active','trialing')")
+            ->orderByDesc('id')
+            ->value('id');
+
+        $this->subscriptionIdCache[$subscriberId] = $id ? (int) $id : 0;
+
+        return $id ? (int) $id : null;
+    }
+
+    private function badgeFromItemStatus(string $st): ?string
+    {
+        return $st === 'trialing' ? 'TRIAL' : ($st === 'pending' ? 'PAGO' : null);
+    }
+
+    private function dedupeItems(array $items): array
+    {
+        $seen = [];
+        $unique = [];
+
+        foreach ($items as $it) {
+            $href  = (string) ($it['href'] ?? '');
+            $title = (string) ($it['title'] ?? '');
+            $key   = $href . '|' . $title;
+
+            if (isset($seen[$key])) continue;
+            $seen[$key] = true;
+
+            $unique[] = $it;
+        }
+
+        return $unique;
+    }
+
+    private function sortGroupsBySlugOrder(array $groups, array $slugOrder): array
+    {
+        $rank = [];
+        foreach ($slugOrder as $i => $slug) $rank[$slug] = $i;
+
+        usort($groups, function ($a, $b) use ($rank) {
+            $ra = $rank[$a['slug']] ?? 999;
+            $rb = $rank[$b['slug']] ?? 999;
+            return $ra <=> $rb;
+        });
+
+        return $groups;
     }
 
     /**

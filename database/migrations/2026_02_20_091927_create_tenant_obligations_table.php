@@ -18,29 +18,22 @@ return new class extends Migration {
                 ->constrained('compliance_obligation_templates')
                 ->cascadeOnDelete();
 
-            // Owner interno para asignación
             $table->foreignId('owner_user_id')->nullable()
                 ->constrained('users')
                 ->nullOnDelete();
 
             $table->boolean('enabled')->default(true)->index();
-
-            // Para activar/desactivar por fechas (onboarding)
             $table->date('starts_on')->nullable();
             $table->date('ends_on')->nullable();
 
-            // Overrides por tenant (ej: cambiar day=18, o recordatorios)
             $table->json('overrides')->nullable();
-
-            // Reminders específicos por tenant (si null => default template/company)
             $table->json('reminders')->nullable();
-
             $table->json('meta')->nullable();
 
             $table->timestamps();
 
-            $table->unique(['company_id', 'template_id']);
-            $table->index(['company_id', 'enabled']);
+            $table->unique(['company_id', 'template_id'], 'uniq_company_template');
+            $table->index(['company_id', 'enabled'], 'idx_company_enabled');
         });
     }
 

@@ -58,6 +58,13 @@ use App\Http\Controllers\LaudaErp\Wrapper\AcecfExcelToXmlController;
 use App\Http\Controllers\LaudaErp\Wrapper\ExcelToXmlController;
 use App\Http\Controllers\LaudaErp\Wrapper\RfceExcelToXmlController;
 
+use App\Http\Controllers\Calendar\IcsFeedController;
+
+use App\Http\Controllers\LaudaErp\FiscalDocumentController;
+use App\Http\Controllers\LaudaErp\FiscalCalendarController;
+use App\Http\Controllers\LaudaErp\FiscalComplianceController;
+use App\Http\Controllers\LaudaErp\ApiFacturacionController;
+
 /*
 |--------------------------------------------------------------------------
 | Public / Marketing
@@ -81,6 +88,20 @@ Route::post('/activation', [ActivationRequestController::class, 'store'])->name(
 Route::get('/legal', fn() => Inertia::render('Legal/Index'))->name('legal.index');
 Route::get('/legal/terminos', fn() => Inertia::render('Legal/Terms'))->name('legal.terms');
 Route::get('/legal/privacidad', fn() => Inertia::render('Legal/Privacy'))->name('legal.privacy');
+
+/*
+|--------------------------------------------------------------------------
+| ✅ Calendar ICS feed (PÚBLICO por token)
+|--------------------------------------------------------------------------
+| IMPORTANTE:
+| - Esto NO debe estar detrás de auth/erp.access.
+| - Lo consumen clientes externos (Google Calendar/Outlook) con token en URL.
+| - Mantenemos el path bajo /erp para consistencia, pero name global "calendar.ics"
+|   para que route('calendar.ics') funcione en comandos/servicios.
+*/
+Route::get('/erp/calendar/ics/{company:slug}/{token}.ics', [IcsFeedController::class, 'show'])
+    ->where('token', '[A-Za-z0-9]{64}')
+    ->name('calendar.ics');
 
 /*
 |--------------------------------------------------------------------------
@@ -207,14 +228,6 @@ Route::middleware(['auth', 'verified', 'role:subscriber', 'activation.accepted']
             Route::delete('/{paymentMethod}', [SubscriberPaymentMethodController::class, 'destroy'])->name('destroy');
         });
 
-        /*
-        |--------------------------------------------------------------------------
-        | ✅ /tax-profile reservado para “Métodos de pago” (NO existe todavía)
-        |--------------------------------------------------------------------------
-        | Cuando lo implementes, aquí irían esas rutas.
-        | Por ahora no definimos nada para evitar comportamiento legacy.
-        */
-
         // ✅ Mi suscripción
         Route::get('/subscription', [SubscriberSubscriptionController::class, 'show'])
             ->name('subscription.show');
@@ -248,64 +261,108 @@ Route::middleware(['auth', 'verified', 'role:subscriber', 'erp.access'])
         Route::get('/', LaudaErpDashboardController::class)->name('dashboard');
 
         /*
-        |--------------------------------------------------------------------------
-        | ✅ ERP / Services (ejecución de servicios)
-        |--------------------------------------------------------------------------
-        */
+|--------------------------------------------------------------------------
+| ✅ ERP / Services (ejecución de servicios)
+|--------------------------------------------------------------------------
+*/
         Route::prefix('services')->name('services.')->group(function () {
 
-            Route::prefix('certificacion-emisor')->name('certificacion-emisor.')->group(function () {
+            Route::prefix('calendario-fiscal')
+                ->middleware('entitled:calendario-fiscal')
+                ->name('calendario-fiscal.')
+                ->group(function () {
+                    Route::get('/', [FiscalCalendarController::class, 'index'])->name('index');
+                });
 
-                Route::get('/', [DgiiCertificationController::class, 'index'])->name('index');
+            Route::prefix('cumplimiento-fiscal')
+                ->middleware('entitled:cumplimiento-fiscal')
+                ->name('cumplimiento-fiscal.')
+                ->group(function () {
+                    Route::get('/', [FiscalComplianceController::class, 'index'])->name('index');
+                });
+            /*
+    |----------------------------------------------------------------------
+    | ✅ API Facturación (interno) — Fiscal Documents (draft + issue)
+    |----------------------------------------------------------------------
+    | IMPORTANTE:
+    | - tu seeder tiene child slug: api-facturacion
+    | - y también existe el suite/parent: api-facturacion-electronica
+    | => permitimos cualquiera de los 2
+    */
+            Route::prefix('api-facturacion')->name('api-facturacion.')->group(function () {
 
-                Route::get('/certificados', [DgiiCertificateController::class, 'index'])->name('certificados.index');
-                Route::post('/certificados', [DgiiCertificateController::class, 'store'])->name('certificados.store');
-                Route::post('/certificados/{cert}/default', [DgiiCertificateController::class, 'setDefault'])->name('certificados.default');
-                Route::delete('/certificados/{cert}', [DgiiCertificateController::class, 'destroy'])->name('certificados.destroy');
+                // Opcional: landing del padre
+                Route::get('/', [ApiFacturacionController::class, 'index'])
+                    ->middleware('entitled:api-facturacion-electronica')
+                    ->name('index');
 
-                Route::get('/certificados/health', [DgiiCertificateToolsController::class, 'health'])->name('certificados.health');
-                Route::post('/certificados/{cert}/test-sign', [DgiiCertificateToolsController::class, 'testSign'])->name('certificados.test-sign');
-                Route::post('/certificados/{cert}/refresh', [DgiiCertificateToolsController::class, 'refresh'])->name('certificados.refresh');
+                // ✅ ESTE ES EL QUE TE FALTA (href actual del child: /electronica)
+                Route::get('/electronica', [ApiFacturacionController::class, 'electronica'])
+                    ->middleware('entitled:api-facturacion') // o el slug que realmente activas para ese item
+                    ->name('electronica');
 
-                Route::get('/endpoints', [DgiiEndpointsController::class, 'show'])->name('endpoints.show');
-                Route::post('/endpoints', [DgiiEndpointsController::class, 'update'])->name('endpoints.update');
-
-                Route::post('/token/generate', [DgiiTokenController::class, 'generate'])->name('token.generate');
-                Route::put('/token/auto', [DgiiTokenAutoController::class, 'update'])->name('token.auto');
-
-                Route::post('/xml/sign', [DgiiXmlSignController::class, 'sign'])->name('xml.sign');
-
-                Route::prefix('set-ecf')->group(function () {
-                    Route::prefix('ecf')->group(function () {
-                        
-                        Route::post('/excel-to-xml', [ExcelToXmlController::class, 'convert'])
-                        ->name('excel-to-xml');
-                        
-                        Route::get('/excel-to-xml/download', [ExcelToXmlController::class, 'download'])
-                        ->name('excel-to-xml.download');
-                    });
-
-                    Route::prefix('acecf')->group(function () {
-
-                        Route::post('/excel-to-xml', [AcecfExcelToXmlController::class, 'convert'])
-                            ->name('acecf.excel-to-xml');
-
-                        Route::get('/download', [AcecfExcelToXmlController::class, 'download'])
-                            ->name('acecf.download');
-                    });
-                    
-                    Route::prefix('rfce')->group(function () {
-
-                        Route::post('/excel-to-xml', [RfceExcelToXmlController::class, 'convert'])
-                            ->name('rfce.excel-to-xml');
-
-                        Route::get('/download', [RfceExcelToXmlController::class, 'download'])
-                            ->name('rfce.download');
-                    });
+                Route::prefix('fiscal-documents')->name('fiscal-documents.')->group(function () {
+                    Route::post('/', [FiscalDocumentController::class, 'store'])->name('store');
+                    Route::put('/{publicId}', [FiscalDocumentController::class, 'update'])
+                        ->where('publicId', '[A-Za-z0-9]{20,32}')
+                        ->name('update');
+                    Route::post('/{publicId}/issue', [FiscalDocumentController::class, 'issue'])
+                        ->where('publicId', '[A-Za-z0-9]{20,32}')
+                        ->name('issue');
                 });
             });
-        });
 
+            /*
+    |----------------------------------------------------------------------
+    | ✅ Certificación Emisor Electrónico
+    |----------------------------------------------------------------------
+    | service slug real: certificacion-emisor-electronico
+    | pero si el cliente compró el suite (api-facturacion-electronica),
+    | también debe pasar.
+    */
+            Route::prefix('certificacion-emisor')
+                ->middleware('service.entitled:certificacion-emisor-electronico|api-facturacion-electronica')
+                ->name('certificacion-emisor.')
+                ->group(function () {
+
+                    Route::get('/', [DgiiCertificationController::class, 'index'])->name('index');
+
+                    Route::get('/certificados', [DgiiCertificateController::class, 'index'])->name('certificados.index');
+                    Route::post('/certificados', [DgiiCertificateController::class, 'store'])->name('certificados.store');
+                    Route::post('/certificados/{cert}/default', [DgiiCertificateController::class, 'setDefault'])->name('certificados.default');
+                    Route::delete('/certificados/{cert}', [DgiiCertificateController::class, 'destroy'])->name('certificados.destroy');
+
+                    Route::get('/certificados/health', [DgiiCertificateToolsController::class, 'health'])->name('certificados.health');
+                    Route::post('/certificados/{cert}/test-sign', [DgiiCertificateToolsController::class, 'testSign'])->name('certificados.test-sign');
+                    Route::post('/certificados/{cert}/refresh', [DgiiCertificateToolsController::class, 'refresh'])->name('certificados.refresh');
+
+                    Route::get('/endpoints', [DgiiEndpointsController::class, 'show'])->name('endpoints.show');
+                    Route::post('/endpoints', [DgiiEndpointsController::class, 'update'])->name('endpoints.update');
+
+                    Route::post('/token/generate', [DgiiTokenController::class, 'generate'])->name('token.generate');
+                    Route::put('/token/auto', [DgiiTokenAutoController::class, 'update'])->name('token.auto');
+
+                    Route::post('/xml/sign', [DgiiXmlSignController::class, 'sign'])->name('xml.sign');
+
+                    Route::prefix('set-ecf')->group(function () {
+
+                        Route::prefix('ecf')->group(function () {
+                            Route::post('/excel-to-xml', [ExcelToXmlController::class, 'convert'])->name('excel-to-xml');
+                            Route::get('/excel-to-xml/download', [ExcelToXmlController::class, 'download'])->name('excel-to-xml.download');
+                        });
+
+                        Route::prefix('acecf')->group(function () {
+                            Route::post('/excel-to-xml', [AcecfExcelToXmlController::class, 'convert'])->name('acecf.excel-to-xml');
+                            Route::get('/download', [AcecfExcelToXmlController::class, 'download'])->name('acecf.download');
+                        });
+
+                        Route::prefix('rfce')->group(function () {
+                            Route::post('/excel-to-xml', [RfceExcelToXmlController::class, 'convert'])->name('rfce.excel-to-xml');
+                            Route::get('/download', [RfceExcelToXmlController::class, 'download'])->name('rfce.download');
+                        });
+                    });
+                });
+        });
 
         Route::prefix('support')->name('support.')->group(function () {
             Route::get('/', [ErpSupportController::class, 'index'])->name('index');
@@ -315,6 +372,7 @@ Route::middleware(['auth', 'verified', 'role:subscriber', 'erp.access'])
             Route::post('/faq/{faqItem}/vote', [ErpSupportController::class, 'voteFaq'])->name('faq.vote');
         });
     });
+
 /*
 |--------------------------------------------------------------------------
 | Admin Panel
@@ -326,17 +384,17 @@ Route::middleware(['auth', 'verified', 'role:admin'])
     ->group(function () {
 
         /*
-        |--------------------------------------------------------------------------
+        |----------------------------------------------------------------------
         | Activations (admin view)
-        |--------------------------------------------------------------------------
+        |----------------------------------------------------------------------
         */
         Route::get('/activations/{activation}', [ActivationController::class, 'show'])
             ->name('activations.show');
 
         /*
-        |--------------------------------------------------------------------------
+        |----------------------------------------------------------------------
         | Contacts
-        |--------------------------------------------------------------------------
+        |----------------------------------------------------------------------
         */
         Route::get('/contacts', [AdminContactRequestController::class, 'index'])->name('contacts.index');
         Route::get('/contacts/{contact}', [AdminContactRequestController::class, 'show'])->name('contacts.show');
@@ -344,9 +402,9 @@ Route::middleware(['auth', 'verified', 'role:admin'])
         Route::post('/contacts/read-all', [AdminContactRequestController::class, 'markAllAsRead'])->name('contacts.readAll');
 
         /*
-        |--------------------------------------------------------------------------
+        |----------------------------------------------------------------------
         | Activation Requests
-        |--------------------------------------------------------------------------
+        |----------------------------------------------------------------------
         */
         Route::get('/requests', [AdminActivationRequestController::class, 'index'])->name('requests.index');
         Route::get('/requests/{activationRequest}', [AdminActivationRequestController::class, 'show'])->name('requests.show');
@@ -355,9 +413,9 @@ Route::middleware(['auth', 'verified', 'role:admin'])
         Route::post('/activations/{activation}/remind', [AdminActivationController::class, 'remind'])->name('activations.remind');
 
         /*
-        |--------------------------------------------------------------------------
+        |----------------------------------------------------------------------
         | Subscriptions & Subscribers
-        |--------------------------------------------------------------------------
+        |----------------------------------------------------------------------
         */
         Route::get('/subscriptions', [AdminSubscriptionsController::class, 'index'])->name('subscriptions.index');
 
@@ -366,21 +424,21 @@ Route::middleware(['auth', 'verified', 'role:admin'])
         Route::patch('/subscribers/{subscriber}', [AdminSubscribersController::class, 'update'])->name('subscribers.update');
 
         /*
-        |--------------------------------------------------------------------------
+        |----------------------------------------------------------------------
         | Services catalog (admin)
-        |--------------------------------------------------------------------------
+        |----------------------------------------------------------------------
         */
         Route::prefix('services')->name('services.')->group(function () {
-            Route::get('{parent:slug}', [AdminServiceController::class, 'index'])->name('index');
-            Route::patch('toggle/{service}', [AdminServiceController::class, 'toggleActive'])->name('toggle');
-            Route::patch('{service}', [AdminServiceController::class, 'update'])->name('update');
-            Route::post('{parent:slug}', [AdminServiceController::class, 'storeChild'])->name('storeChild');
+            Route::get('/{parent:slug}', [AdminServiceController::class, 'index'])->name('index');
+            Route::patch('/toggle/{service}', [AdminServiceController::class, 'toggleActive'])->name('toggle');
+            Route::patch('/{service}', [AdminServiceController::class, 'update'])->name('update');
+            Route::post('/{parent:slug}', [AdminServiceController::class, 'storeChild'])->name('storeChild');
         });
 
         /*
-        |--------------------------------------------------------------------------
+        |----------------------------------------------------------------------
         | Company / Invoices / Payments
-        |--------------------------------------------------------------------------
+        |----------------------------------------------------------------------
         */
         Route::get('/company', [AdminCompanyController::class, 'index'])->name('company.index');
         Route::get('/company/{company}/tax-profile', [AdminCompanyController::class, 'taxProfile'])->name('company.tax_profile.show');
@@ -393,9 +451,9 @@ Route::middleware(['auth', 'verified', 'role:admin'])
         Route::get('/payments/{payment}', [AdminPaymentController::class, 'show'])->name('payments.show');
 
         /*
-        |--------------------------------------------------------------------------
+        |----------------------------------------------------------------------
         | Audit / Error logs
-        |--------------------------------------------------------------------------
+        |----------------------------------------------------------------------
         */
         Route::get('/auditlog', [AdminAuditLogController::class, 'index'])->name('auditlog.index');
         Route::get('/auditlog/{auditLog}', [AdminAuditLogController::class, 'show'])->name('auditlog.show');

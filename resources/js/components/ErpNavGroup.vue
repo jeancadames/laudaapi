@@ -10,7 +10,6 @@ import {
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible'
 import { ChevronDown } from 'lucide-vue-next'
 import NavMain from '@/components/NavMain.vue'
-import Button from './ui/button/Button.vue'
 
 const props = defineProps<{
     title: string

@@ -42,6 +42,9 @@ return Application::configure(basePath: dirname(__DIR__))
 
             'entitled' => EnsureServiceEntitled::class,
 
+            // ✅ agrega el nuevo (más claro)
+            'service.entitled' => EnsureServiceEntitled::class,
+
             'erp.access' => EnsureErpAccess::class,
         ]);
 

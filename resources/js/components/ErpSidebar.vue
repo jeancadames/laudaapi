@@ -25,6 +25,7 @@ import SidebarGroup from './ui/sidebar/SidebarGroup.vue'
 
 type ErpItem = { title: string; href: string; icon?: string; badge?: string | null }
 type ErpGroup = { title: string; slug: string; icon?: string; items: ErpItem[] }
+type ErpFooterItem = { title: string; href: string; icon?: string; badge?: string | null }
 
 const page = usePage()
 const props = page.props as any
@@ -34,6 +35,10 @@ const homeHref = '/erp'
 // backend: props.nav.erp.groups (payload: { erp: { groups: [...] } })
 const groupsRaw = computed<ErpGroup[]>(() => (props?.nav?.erp?.groups ?? []) as ErpGroup[])
 
+// backend: props.nav.erp.footer (payload: { erp: { footer: [...] } })
+const footerFixedRaw = computed<ErpFooterItem[]>(() => (props?.nav?.erp?.footer ?? []) as ErpFooterItem[])
+const footerFixedItems = computed<NavItem[]>(() => mapToNavItems(footerFixedRaw.value))
+
 // ✅ Dashboard arriba (primera opción)
 const topNavItems = computed<NavItem[]>(() =>
     mapToNavItems([ { title: 'Dashboard', href: '/erp', icon: 'LayoutGrid' } ]),
@@ -41,6 +46,12 @@ const topNavItems = computed<NavItem[]>(() =>
 
 // ✅ Footer ERP separado de subscriber
 const footerNavItems: NavItem[] = mapToNavItems([ { title: 'Soporte', href: '/erp/support', icon: 'LifeBuoy' } ])
+
+// ✅ Footer final (COMPACTO): fijo + soporte en un solo bloque
+const footerAllItems = computed<NavItem[]>(() => [
+    ...footerFixedItems.value,
+    ...footerNavItems,
+])
 
 /**
  * ✅ Normaliza string de icono a una key válida del registry ICONS
@@ -119,6 +130,8 @@ watch(
 function toggle(slug: string) {
     openMap.value[ slug ] = !(openMap.value[ slug ] ?? true)
 }
+
+
 </script>
 
 <template>
@@ -150,7 +163,9 @@ function toggle(slug: string) {
             <div v-if="groupsRaw.length === 0" class="px-3 py-3 group-data-[collapsible=icon]:hidden">
                 <div class="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-950">
                     <p class="text-sm font-semibold text-slate-900 dark:text-slate-100">No tienes módulos ERP disponibles</p>
-                    <p class="mt-1 text-xs text-slate-500 dark:text-slate-400">Activa módulos desde el catálogo para verlos aquí.</p>
+                    <p class="mt-1 text-xs text-slate-500 dark:text-slate-400">
+                        Activa módulos desde el catálogo para verlos aquí.
+                    </p>
 
                     <div class="mt-3">
                         <a href="/subscriber/services/my" class="inline-flex items-center gap-2 rounded-xl bg-red-600 px-3 py-2 text-xs font-semibold text-white hover:bg-red-700">
@@ -166,10 +181,10 @@ function toggle(slug: string) {
             </SidebarGroup>
         </SidebarContent>
 
-
         <!-- FOOTER -->
         <SidebarFooter>
-            <NavFooter :items="footerNavItems" />
+            <!-- ✅ Un solo bloque (menos altura): Calendario/Cumplimiento (si existen) + Soporte -->
+            <NavFooter :items="footerAllItems" />
             <NavUser />
         </SidebarFooter>
     </Sidebar>

@@ -15,47 +15,27 @@ return new class extends Migration {
                 ->cascadeOnDelete();
 
             $table->string('country_code', 2)->default('DO')->index();
-
-            // Código humano: IT-1, IR-17, 606, TSS-PAGO, etc.
             $table->string('code', 40);
-
             $table->string('name', 160);
             $table->text('description')->nullable();
 
-            // monthly|quarterly|annual|weekly|once
             $table->string('frequency', 20)->default('monthly')->index();
-
-            /**
-             * due_rule (JSON) examples:
-             * { "type":"monthly_day", "day":20, "month_offset":1, "shift":"next_business_day" }
-             * { "type":"year_table", "source":"tss", "year":2026 }
-             */
             $table->json('due_rule');
-
-            /**
-             * applicability_rule (JSON) examples:
-             * { "country":"DO", "requires":["invoicing_mode:ecf|both"] }
-             * { "tax_regime":["general"], "excludes":["rst"] }
-             */
             $table->json('applicability_rule')->nullable();
 
-            // defaults de recordatorios por template (se puede sobrescribir por tenant)
-            $table->json('default_reminders')->nullable(); // ej: [7,3,1]
-
-            // Versionado/ vigencia (no rompes histórico)
+            $table->json('default_reminders')->nullable(); // [7,3,1]
             $table->unsignedInteger('version')->default(1);
             $table->date('effective_from')->nullable();
             $table->date('effective_to')->nullable();
 
             $table->boolean('active')->default(true)->index();
-
             $table->string('official_ref_url')->nullable();
             $table->json('meta')->nullable();
 
             $table->timestamps();
 
-            $table->unique(['authority_id', 'code', 'version']);
-            $table->index(['country_code', 'authority_id', 'active']);
+            $table->unique(['authority_id', 'code', 'version'], 'uniq_tpl_authority_code_ver');
+            $table->index(['country_code', 'authority_id', 'active'], 'idx_tpl_country_authority_active');
         });
     }
 
