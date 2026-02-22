@@ -45,50 +45,59 @@ class FiscalDocumentTypeSeeder extends Seeder
 
         foreach ($ncf as $t) {
             $rows[] = [
-                'country_code'            => 'DO',
-                'code'                    => $t['code'],
-                'label'                   => $t['label'],
-                'kind'                    => 'ncf',
-                'requires_buyer_tax_id'   => (bool) $t['requires_buyer_tax_id'],
-                'allows_credit_terms'     => true,
-                'allows_discount'         => true,
-                'active'                  => true,
-                'meta'                    => json_encode(['dgii' => true, 'digits' => 8]),
-                'created_at'              => $now,
-                'updated_at'              => $now,
+                'country_code'   => 'DO',
+                'document_class' => 'NCF',
+                'code'           => $t['code'],
+                'name'           => $t['label'],
+                'active'         => true,
+                'meta'           => json_encode([
+                    'dgii' => true,
+                    'digits' => 8,
+
+                    // flags (antes eran columnas)
+                    'requires_buyer_tax_id' => (bool) $t['requires_buyer_tax_id'],
+                    'allows_credit_terms' => true,
+                    'allows_discount' => true,
+
+                    // compat: por si algo viejo esperaba kind/label
+                    'kind' => 'ncf',
+                    'label' => $t['label'],
+                ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES),
+                'created_at'     => $now,
+                'updated_at'     => $now,
             ];
         }
 
         foreach ($ecf as $t) {
             $rows[] = [
-                'country_code'            => 'DO',
-                'code'                    => $t['code'],
-                'label'                   => $t['label'],
-                'kind'                    => 'ecf',
-                'requires_buyer_tax_id'   => (bool) $t['requires_buyer_tax_id'],
-                'allows_credit_terms'     => true,
-                'allows_discount'         => true,
-                'active'                  => true,
-                'meta'                    => json_encode(['dgii' => true, 'digits' => 10]),
-                'created_at'              => $now,
-                'updated_at'              => $now,
+                'country_code'   => 'DO',
+                'document_class' => 'ECF',
+                'code'           => $t['code'],
+                'name'           => $t['label'],
+                'active'         => true,
+                'meta'           => json_encode([
+                    'dgii' => true,
+                    'digits' => 10,
+
+                    // flags (antes eran columnas)
+                    'requires_buyer_tax_id' => (bool) $t['requires_buyer_tax_id'],
+                    'allows_credit_terms' => true,
+                    'allows_discount' => true,
+
+                    // compat: por si algo viejo esperaba kind/label
+                    'kind' => 'ecf',
+                    'label' => $t['label'],
+                ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES),
+                'created_at'     => $now,
+                'updated_at'     => $now,
             ];
         }
 
-        // ✅ Upsert por (country_code, code)
+        // ✅ Upsert por la llave ÚNICA real: (country_code, document_class, code)
         DB::table('fiscal_document_types')->upsert(
             $rows,
-            ['country_code', 'code'],
-            [
-                'label',
-                'kind',
-                'requires_buyer_tax_id',
-                'allows_credit_terms',
-                'allows_discount',
-                'active',
-                'meta',
-                'updated_at',
-            ]
+            ['country_code', 'document_class', 'code'],
+            ['name', 'active', 'meta', 'updated_at']
         );
     }
 }

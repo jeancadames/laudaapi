@@ -11,11 +11,13 @@ class ComplianceRDSeeder extends Seeder
     {
         DB::transaction(function () {
 
+            $now = now();
+
             // -----------------------------
-            // Authorities
+            // Authorities (tax_authorities)
             // -----------------------------
-            $dgiiId = $this->upsertAuthority('DO', 'DGII', 'Dirección General de Impuestos Internos', 'https://dgii.gov.do');
-            $tssId  = $this->upsertAuthority('DO', 'TSS',  'Tesorería de la Seguridad Social', 'https://tss.gob.do');
+            $dgiiId = $this->upsertAuthority('DO', 'DGII', 'Dirección General de Impuestos Internos', 'https://dgii.gov.do', 10, $now);
+            $tssId  = $this->upsertAuthority('DO', 'TSS',  'Tesorería de la Seguridad Social',        'https://tss.gob.do',  20, $now);
 
             // -----------------------------
             // Templates (DGII)
@@ -29,7 +31,7 @@ class ComplianceRDSeeder extends Seeder
                 'default_reminders' => [7, 3, 1, 0],
             ];
 
-            $it1Id = $this->upsertTemplate($dgiiId, array_merge($dgiiDefaults, [
+            $this->upsertTemplate($dgiiId, array_merge($dgiiDefaults, [
                 'code' => 'IT-1',
                 'name' => 'ITBIS (IT-1)',
                 'frequency' => 'monthly',
@@ -37,12 +39,12 @@ class ComplianceRDSeeder extends Seeder
                     'type' => 'monthly_day',
                     'day' => 20,
                     'month_offset' => 1,
-                    'shift' => 'company_default', // weekend shift
+                    'shift' => 'company_default',
                 ],
                 'official_ref_url' => 'https://dgii.gov.do/cicloContribuyente/obligacionesTributarias/declaracionPagoImpuestos/Paginas/PagodeImpuesto.aspx',
-            ]));
+            ]), $now);
 
-            $ir3Id = $this->upsertTemplate($dgiiId, array_merge($dgiiDefaults, [
+            $this->upsertTemplate($dgiiId, array_merge($dgiiDefaults, [
                 'code' => 'IR-3',
                 'name' => 'Retenciones Asalariados (IR-3)',
                 'frequency' => 'monthly',
@@ -53,9 +55,9 @@ class ComplianceRDSeeder extends Seeder
                     'shift' => 'company_default',
                 ],
                 'official_ref_url' => 'https://dgii.gov.do/cicloContribuyente/obligacionesTributarias/declaracionPagoImpuestos/Paginas/PagodeImpuesto.aspx',
-            ]));
+            ]), $now);
 
-            $ir17Id = $this->upsertTemplate($dgiiId, array_merge($dgiiDefaults, [
+            $this->upsertTemplate($dgiiId, array_merge($dgiiDefaults, [
                 'code' => 'IR-17',
                 'name' => 'Otras Retenciones y Retribuciones (IR-17)',
                 'frequency' => 'monthly',
@@ -66,9 +68,9 @@ class ComplianceRDSeeder extends Seeder
                     'shift' => 'company_default',
                 ],
                 'official_ref_url' => 'https://dgii.gov.do/cicloContribuyente/obligacionesTributarias/declaracionPagoImpuestos/Paginas/PagodeImpuesto.aspx',
-            ]));
+            ]), $now);
 
-            $f606Id = $this->upsertTemplate($dgiiId, array_merge($dgiiDefaults, [
+            $this->upsertTemplate($dgiiId, array_merge($dgiiDefaults, [
                 'code' => '606',
                 'name' => 'Formato Compras (606)',
                 'frequency' => 'monthly',
@@ -79,9 +81,9 @@ class ComplianceRDSeeder extends Seeder
                     'shift' => 'company_default',
                 ],
                 'official_ref_url' => 'https://dgii.gov.do/cicloContribuyente/obligacionesTributarias/declaracionPagoImpuestos/Paginas/PagodeImpuesto.aspx',
-            ]));
+            ]), $now);
 
-            $f607Id = $this->upsertTemplate($dgiiId, array_merge($dgiiDefaults, [
+            $this->upsertTemplate($dgiiId, array_merge($dgiiDefaults, [
                 'code' => '607',
                 'name' => 'Formato Ventas (607)',
                 'frequency' => 'monthly',
@@ -92,7 +94,7 @@ class ComplianceRDSeeder extends Seeder
                     'shift' => 'company_default',
                 ],
                 'official_ref_url' => 'https://dgii.gov.do/cicloContribuyente/obligacionesTributarias/declaracionPagoImpuestos/Paginas/PagodeImpuesto.aspx',
-            ]));
+            ]), $now);
 
             // -----------------------------
             // Template (TSS) + overrides calendar 2026
@@ -120,10 +122,9 @@ class ComplianceRDSeeder extends Seeder
                 'meta' => [
                     'note' => 'Overrides seed for year 2026 (period_key payroll month => due_date next month).',
                 ],
-            ]);
+            ], $now);
 
             // Overrides 2026 (period_key = mes de contribución)
-            // Fuente: Calendario de pagos sin recargo SDSS 2026 (TSS) :contentReference[oaicite:3]{index=3}
             $overrides = [
                 '2025-12' => '2026-01-07',
                 '2026-01' => '2026-02-04',
@@ -145,25 +146,33 @@ class ComplianceRDSeeder extends Seeder
                     [
                         'due_date' => $dueDate,
                         'source' => 'tss',
-                        'meta' => json_encode(['year' => 2026], JSON_UNESCAPED_SLASHES),
-                        'updated_at' => now(),
-                        'created_at' => now(),
+                        'meta' => json_encode(['year' => 2026], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES),
+                        'updated_at' => $now,
+                        'created_at' => $now,
                     ]
                 );
             }
         });
     }
 
-    private function upsertAuthority(string $country, string $code, string $name, ?string $website): int
-    {
+    private function upsertAuthority(
+        string $country,
+        string $code,
+        string $name,
+        ?string $officialUrl,
+        int $sortOrder,
+        $now
+    ): int {
         DB::table('tax_authorities')->updateOrInsert(
             ['country_code' => $country, 'code' => $code],
             [
                 'name' => $name,
-                'website' => $website,
+                'official_url' => $officialUrl,
+                'sort_order' => $sortOrder,
                 'active' => true,
-                'updated_at' => now(),
-                'created_at' => now(),
+                'deleted_at' => null, // ✅ “revive” si estaba soft-deleted
+                'updated_at' => $now,
+                'created_at' => $now,
             ]
         );
 
@@ -173,7 +182,7 @@ class ComplianceRDSeeder extends Seeder
             ->value('id');
     }
 
-    private function upsertTemplate(int $authorityId, array $data): int
+    private function upsertTemplate(int $authorityId, array $data, $now): int
     {
         $key = [
             'authority_id' => $authorityId,
@@ -194,20 +203,21 @@ class ComplianceRDSeeder extends Seeder
             'active' => true,
             'official_ref_url' => null,
             'meta' => null,
-            'updated_at' => now(),
-            'created_at' => now(),
+            'updated_at' => $now,
+            'created_at' => $now,
         ], $data);
 
-        // JSON fields:
-        $payload['due_rule'] = json_encode($payload['due_rule'], JSON_UNESCAPED_SLASHES);
+        // JSON fields
+        $payload['due_rule'] = json_encode($payload['due_rule'], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+
         if (is_array($payload['default_reminders'])) {
-            $payload['default_reminders'] = json_encode($payload['default_reminders']);
+            $payload['default_reminders'] = json_encode($payload['default_reminders'], JSON_UNESCAPED_UNICODE);
         }
         if (is_array($payload['applicability_rule'])) {
-            $payload['applicability_rule'] = json_encode($payload['applicability_rule'], JSON_UNESCAPED_SLASHES);
+            $payload['applicability_rule'] = json_encode($payload['applicability_rule'], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
         }
         if (is_array($payload['meta'])) {
-            $payload['meta'] = json_encode($payload['meta'], JSON_UNESCAPED_SLASHES);
+            $payload['meta'] = json_encode($payload['meta'], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
         }
 
         DB::table('compliance_obligation_templates')->updateOrInsert($key, $payload);

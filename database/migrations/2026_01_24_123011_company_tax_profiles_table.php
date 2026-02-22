@@ -14,6 +14,12 @@ return new class extends Migration {
                 ->constrained('companies')
                 ->cascadeOnDelete();
 
+            $table->foreignId('fiscal_year_end_id')
+                ->nullable()
+                ->after('tax_regime')
+                ->constrained('fiscal_year_end_catalog')
+                ->nullOnDelete();
+
             // -------------------------
             // Identidad / facturación base
             // -------------------------
@@ -100,12 +106,16 @@ return new class extends Migration {
             $table->unique('company_id');
 
             // búsquedas típicas
-            $table->index(['country_code', 'tax_id']);
+            $table->index(['country_code', 'tax_id', 'company_id', 'fiscal_year_end_id'], 'idx_company_fye');
         });
     }
 
     public function down(): void
     {
         Schema::dropIfExists('company_tax_profiles');
+        Schema::table('company_tax_profiles', function (Blueprint $table) {
+            $table->dropIndex('idx_company_fye');
+            $table->dropConstrainedForeignId('fiscal_year_end_id');
+        });
     }
 };

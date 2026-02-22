@@ -5,10 +5,9 @@ namespace App\Http\Controllers\LaudaErp;
 use App\Http\Controllers\Controller;
 use App\Models\Company;
 use App\Services\Subscribers\SubscriberResolver;
-use App\Services\Dgii\DgiiCertificateRequirements;
+use Carbon\CarbonImmutable;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Schema;
 use Inertia\Inertia;
 
 class FiscalComplianceController extends Controller
@@ -18,168 +17,236 @@ class FiscalComplianceController extends Controller
         $user = $request->user();
         abort_unless($user, 403);
 
-        // ✅ si EnsureErpAccess ya lo puso, úsalo
+        // -----------------------------
+        // Tenant / Company
+        // -----------------------------
         $subscriberId = (int) $request->attributes->get('resolved_subscriber_id', 0);
-
-        // fallback (solo si por alguna razón no pasó por el middleware)
         if ($subscriberId <= 0) {
             $subscriberId = (int) app(SubscriberResolver::class)->resolve($user);
-            $request->attributes->set('resolved_subscriber_id', $subscriberId);
         }
-
         abort_unless($subscriberId > 0, 403);
 
+        /** @var Company $company */
         $company = Company::query()
             ->where('subscriber_id', $subscriberId)
-            ->orderByDesc('id')
-            ->firstOrFail();
+            ->firstOrFail(['id', 'name', 'slug', 'timezone']);
 
-        $tz = $company->timezone ?: config('app.timezone');
-        $today = now($tz)->toDateString();
+        $tz = $company->timezone ?: config('app.timezone', 'UTC');
+        $today = CarbonImmutable::now($tz)->toDateString(); // YYYY-MM-DD
 
-        // ------------------------------------------------------------------
-        // ✅ Certificados reales (MISMA fuente que Certificación Emisor)
-        // ------------------------------------------------------------------
-        $certReq = app(DgiiCertificateRequirements::class)->checkForCompany((int) $company->id);
-        $certOk  = (bool) ($certReq['has_usable_signer'] ?? false);
+        // -----------------------------
+        // Settings: company_compliance_settings
+        // -----------------------------
+        $settingsRow = DB::table('company_compliance_settings')
+            ->where('company_id', $company->id)
+            ->first();
 
-        // ------------------------------------------------------------------
-        // ✅ Obligaciones reales (nuevas migraciones)
-        // ------------------------------------------------------------------
-        $obligations = [];
+        $settings = $settingsRow ? [
+            'timezone'          => $settingsRow->timezone,
+            'weekend_shift'     => $settingsRow->weekend_shift,
+            'use_holidays'      => (bool) $settingsRow->use_holidays,
+            'default_reminders' => $this->safeJson($settingsRow->default_reminders),
+            'channels'          => $this->safeJson($settingsRow->channels),
+            'meta'              => $this->safeJson($settingsRow->meta),
+        ] : null;
 
-        if (
-            Schema::hasTable('obligation_instances') &&
-            Schema::hasTable('tenant_obligations') &&
-            Schema::hasTable('compliance_obligation_templates')
-        ) {
-            $from = now($tz)->subDays(30)->toDateString();
-            $to   = now($tz)->addDays(120)->toDateString();
-
-            $q = DB::table('obligation_instances as oi')
-                ->join('tenant_obligations as tob', 'tob.id', '=', 'oi.tenant_obligation_id')
-                ->join('compliance_obligation_templates as t', 't.id', '=', 'tob.template_id')
-                ->where('oi.company_id', (int) $company->id)
-                ->where('tob.enabled', 1)
-                ->where(function ($w) use ($from, $to) {
-                    $w->whereBetween('oi.due_date', [$from, $to])
-                        ->orWhere('oi.status', 'overdue');
-                })
-                ->orderBy('oi.due_date')
-                ->limit(250);
-
-            $select = [
+        // -----------------------------
+        // Instances: obligation_instances (+ template + authority)
+        // -----------------------------
+        $rows = DB::table('obligation_instances as oi')
+            ->join('tenant_obligations as to', 'to.id', '=', 'oi.tenant_obligation_id')
+            ->join('compliance_obligation_templates as tpl', 'tpl.id', '=', 'to.template_id')
+            ->leftJoin('tax_authorities as ta', 'ta.id', '=', 'tpl.authority_id')
+            ->where('oi.company_id', $company->id)
+            // filtros sanos (ajusta si quieres ver histórico completo)
+            ->where('to.enabled', true)
+            ->where('tpl.active', true)
+            ->select([
                 'oi.id',
                 'oi.due_date',
                 'oi.period_key',
-                'oi.status',
-                't.name as template_name',
-                't.code as template_code',
-            ];
+                'oi.status as db_status',
 
-            // Join opcional a tax_authorities (por si todavía no la creaste)
-            if (Schema::hasTable('tax_authorities')) {
-                $q->leftJoin('tax_authorities as a', 'a.id', '=', 't.authority_id');
-                $select[] = 'a.name as authority_name';
-            } else {
-                $select[] = DB::raw("'DGII/TSS' as authority_name");
-            }
+                'tpl.name as tpl_name',
+                'tpl.code as tpl_code',
 
-            $rows = $q->select($select)->get();
+                DB::raw("COALESCE(ta.name, '—') as authority_name"),
+            ])
+            ->orderBy('oi.due_date')
+            ->limit(1500)
+            ->get();
 
-            $obligations = $rows->map(function ($r) {
-                return [
-                    'id'         => (int) $r->id,
-                    'due_date'   => (string) $r->due_date,
-                    'period_key' => (string) $r->period_key,
-                    'status'     => (string) $r->status,
-                    'name'       => (string) $r->template_name,
-                    'authority'  => (string) ($r->authority_name ?? '—'),
-                    'code'       => $r->template_code ? (string) $r->template_code : null,
-                ];
-            })->values()->all();
-        }
+        $instances = [];
+        foreach ($rows as $r) {
+            $due = (string) $r->due_date;           // YYYY-MM-DD
+            $dbStatus = (string) $r->db_status;     // pending|... (o legacy)
 
-        // ------------------------------------------------------------------
-        // ✅ Checks (shape correcto para tu Index.vue nuevo)
-        // ------------------------------------------------------------------
-        $overdue = collect($obligations)->where('status', 'overdue')->count();
-        $dueSoon = collect($obligations)->where('status', 'due_soon')->count();
+            $uiStatus = $this->normalizeStatus($dbStatus, $today, $due);
+            $priority = $this->derivePriority($uiStatus, $today, $due);
 
-        $checks = [
-            [
-                'key' => 'certs',
-                'title' => 'Certificados DGII',
-                'status' => $certOk ? 'ok' : 'fail',
-                'hint' => $certOk
-                    ? 'Listo para firmar (firmador usable detectado).'
-                    : (string) (($certReq['why_blocked'] ?? null) ?: 'Revisa certificados (P12/PFX + password guardado).'),
-            ],
-            [
-                'key' => 'obligations',
-                'title' => 'Obligaciones generadas',
-                'status' => count($obligations) > 0 ? 'ok' : 'warn',
-                'hint' => count($obligations) > 0
-                    ? 'Instancias listas (obligation_instances).'
-                    : 'Aún no hay instancias: falta job/command que materialice los templates por periodo.',
-            ],
-            [
-                'key' => 'overdue',
-                'title' => 'Vencidos',
-                'status' => $overdue > 0 ? 'fail' : ($dueSoon > 0 ? 'warn' : 'ok'),
-                'hint' => $overdue > 0
-                    ? "Tienes {$overdue} obligaciones vencidas."
-                    : ($dueSoon > 0 ? "Tienes {$dueSoon} obligaciones por vencer." : 'Sin vencidos por ahora.'),
-            ],
-        ];
-
-        // ------------------------------------------------------------------
-        // ✅ Risks (simple y útil)
-        // ------------------------------------------------------------------
-        $risks = [];
-
-        if ($overdue > 0) {
-            $risks[] = [
-                'level' => 'high',
-                'title' => 'Obligaciones vencidas',
-                'detail' => "Tienes {$overdue} obligaciones vencidas. Prioriza regularización para evitar sanciones/rechazos.",
-            ];
-        } elseif ($dueSoon > 0) {
-            $risks[] = [
-                'level' => 'medium',
-                'title' => 'Obligaciones por vencer',
-                'detail' => "Tienes {$dueSoon} obligaciones por vencer. Programa recordatorios y valida pagos/acuse.",
-            ];
-        } else {
-            $risks[] = [
-                'level' => 'low',
-                'title' => 'Riesgo bajo',
-                'detail' => 'No se detectan vencidos ni próximos críticos en la ventana actual.',
+            $instances[] = [
+                'id'         => (int) $r->id,
+                'due_date'   => $due,
+                'name'       => (string) $r->tpl_name,
+                'authority'  => (string) $r->authority_name,
+                'code'       => $r->tpl_code ? (string) $r->tpl_code : null,
+                'period_key' => (string) $r->period_key,
+                'status'     => $uiStatus,
+                'priority'   => $priority,
             ];
         }
 
-        if (!$certOk) {
-            $risks[] = [
-                'level' => 'high',
-                'title' => 'Firma no lista',
-                'detail' => 'No hay firmador usable (P12/PFX con password guardado). Esto bloquea firma/envío a DGII.',
-            ];
-        }
+        // -----------------------------
+        // Stats: server-side (shape exacto del front)
+        // -----------------------------
+        $stats = $this->computeStats($instances, $today);
+
+        // -----------------------------
+        // Calendar feed: calendar_feeds
+        // -----------------------------
+        $feedRow = DB::table('calendar_feeds')
+            ->where('company_id', $company->id)
+            ->orderByDesc('enabled')
+            ->orderByDesc('id')
+            ->first();
+
+        $feed = $this->normalizeFeed($feedRow);
 
         return Inertia::render('LaudaERP/Services/CumplimientoFiscal/Index', [
             'company' => [
-                'id' => $company->id,
-                'name' => $company->name,
-                'slug' => $company->slug,
+                'id'       => $company->id,
+                'name'     => $company->name,
+                'slug'     => $company->slug,
                 'timezone' => $tz,
             ],
-            'today' => $today,
-            'checks' => $checks,
-            'risks' => $risks,
-            'obligations' => $obligations,
-
-            // opcional
-            'cert_requirements' => $certReq,
+            'today'     => $today,
+            'stats'     => $stats,
+            'instances' => $instances,
+            'settings'  => $settings,
+            'feed'      => $feed,
         ]);
+    }
+
+    // -----------------------------
+    // Helpers
+    // -----------------------------
+    private function computeStats(array $instances, string $todayYmd): array
+    {
+        $total = 0;
+        $done = 0;
+        $overdue = 0;
+        $upcoming7 = 0;
+
+        $today = CarbonImmutable::createFromFormat('Y-m-d', $todayYmd)->startOfDay();
+
+        foreach ($instances as $it) {
+            $status = (string) ($it['status'] ?? 'pending');
+            if ($status === 'not_applicable') {
+                continue;
+            }
+
+            $total++;
+
+            if ($status === 'filed' || $status === 'paid') $done++;
+            if ($status === 'overdue') $overdue++;
+
+            if ($status === 'pending' || $status === 'due_soon') {
+                $due = CarbonImmutable::createFromFormat('Y-m-d', (string) $it['due_date'])->startOfDay();
+                $diff = (int) $today->diffInDays($due, false);
+                if ($diff >= 0 && $diff <= 7) $upcoming7++;
+            }
+        }
+
+        $completion = $total > 0 ? ($done / $total) * 100 : 0;
+
+        return [
+            'total'           => $total,
+            'upcoming7'       => $upcoming7,
+            'overdue'         => $overdue,
+            'done'            => $done,
+            'completion_rate' => $completion,
+        ];
+    }
+
+    private function normalizeStatus(string $dbStatus, string $todayYmd, string $dueYmd): string
+    {
+        // Estados “UI” permitidos
+        $allowed = ['pending', 'due_soon', 'overdue', 'filed', 'paid', 'not_applicable'];
+
+        if (in_array($dbStatus, $allowed, true)) {
+            // Ajuste por fecha si viene pending/due_soon
+            if ($dbStatus === 'pending' || $dbStatus === 'due_soon') {
+                $today = CarbonImmutable::createFromFormat('Y-m-d', $todayYmd)->startOfDay();
+                $due = CarbonImmutable::createFromFormat('Y-m-d', $dueYmd)->startOfDay();
+                $diff = (int) $today->diffInDays($due, false);
+
+                if ($diff < 0) return 'overdue';
+                if ($diff <= 7) return 'due_soon';
+                return 'pending';
+            }
+
+            return $dbStatus;
+        }
+
+        // Map de legacy (ajusta si tienes otros)
+        if ($dbStatus === 'completed') return 'filed';
+        if ($dbStatus === 'closed') return 'filed';
+
+        // Derivado por fecha
+        $today = CarbonImmutable::createFromFormat('Y-m-d', $todayYmd)->startOfDay();
+        $due = CarbonImmutable::createFromFormat('Y-m-d', $dueYmd)->startOfDay();
+        $diff = (int) $today->diffInDays($due, false);
+
+        if ($diff < 0) return 'overdue';
+        if ($diff <= 7) return 'due_soon';
+        return 'pending';
+    }
+
+    private function derivePriority(string $uiStatus, string $todayYmd, string $dueYmd): string
+    {
+        if ($uiStatus === 'overdue') return 'high';
+        if ($uiStatus === 'filed' || $uiStatus === 'paid' || $uiStatus === 'not_applicable') return 'low';
+
+        $today = CarbonImmutable::createFromFormat('Y-m-d', $todayYmd)->startOfDay();
+        $due = CarbonImmutable::createFromFormat('Y-m-d', $dueYmd)->startOfDay();
+        $diff = (int) $today->diffInDays($due, false);
+
+        // Reglas sencillas (ajusta si quieres)
+        if ($diff >= 0 && $diff <= 3) return 'high';
+        if ($diff >= 0 && $diff <= 10) return 'medium';
+        return 'low';
+    }
+
+    private function normalizeFeed(?object $feedRow): ?array
+    {
+        if (!$feedRow) return null;
+
+        $meta = $this->safeJson($feedRow->meta);
+
+        /**
+         * ⚠️ IMPORTANTE:
+         * Con tu esquema guardas token_hash (sha256), eso es correcto,
+         * pero NO puedes reconstruir la URL real sin guardar algo en claro.
+         *
+         * Recomendación: guardar el URL público en meta->public_url al crearlo/rotarlo.
+         */
+        $icsUrl = is_array($meta) ? ($meta['public_url'] ?? null) : null;
+
+        return [
+            'ics_url'         => is_string($icsUrl) ? $icsUrl : null,
+            'enabled'         => (bool) $feedRow->enabled,
+            'expires_at'      => $feedRow->expires_at ? (string) $feedRow->expires_at : null,
+            'last_rotated_at' => $feedRow->last_rotated_at ? (string) $feedRow->last_rotated_at : null,
+        ];
+    }
+
+    private function safeJson($value)
+    {
+        if ($value === null) return null;
+        if (is_array($value)) return $value;
+        if (is_object($value)) return (array) $value;
+
+        $decoded = json_decode((string) $value, true);
+        return json_last_error() === JSON_ERROR_NONE ? $decoded : null;
     }
 }

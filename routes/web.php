@@ -212,6 +212,9 @@ Route::middleware(['auth', 'verified', 'role:subscriber', 'activation.accepted']
         Route::post('/company', [SubscriberCompanyController::class, 'upsert'])
             ->name('company.upsert');
 
+        Route::post('/company/obligations', [SubscriberCompanyController::class, 'upsertObligations'])
+            ->name('company.obligations.upsert');
+
         // ✅ Usage
         Route::get('/usage', [SubscriberUsageController::class, 'index'])
             ->name('usage.index');

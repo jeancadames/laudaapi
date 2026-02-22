@@ -26,5 +26,6 @@ class DatabaseSeeder extends Seeder
         $this->call(DgiiCompanySettingsSeeder::class);
         $this->call(\Database\Seeders\ComplianceRDSeeder::class);
         $this->call(FiscalDocumentTypeSeeder::class);
+        $this->call(FiscalYearEndCatalogSeeder::class);
     }
 }
