@@ -64,6 +64,7 @@ use App\Http\Controllers\LaudaErp\FiscalDocumentController;
 use App\Http\Controllers\LaudaErp\FiscalCalendarController;
 use App\Http\Controllers\LaudaErp\FiscalComplianceController;
 use App\Http\Controllers\LaudaErp\ApiFacturacionController;
+use App\Http\Controllers\LaudaErp\DgiiXmlSendController;
 
 /*
 |--------------------------------------------------------------------------
@@ -364,6 +365,9 @@ Route::middleware(['auth', 'verified', 'role:subscriber', 'erp.access'])
                             Route::get('/download', [RfceExcelToXmlController::class, 'download'])->name('rfce.download');
                         });
                     });
+
+                    Route::post('/xml/send', [DgiiXmlSendController::class, 'send']);
+
                 });
         });
 

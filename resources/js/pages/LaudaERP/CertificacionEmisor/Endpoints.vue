@@ -314,10 +314,6 @@ function submit() {
 
                 <CardContent class="space-y-3">
                     <div class="flex flex-wrap items-center gap-2">
-                        <Button :disabled="tokenForm.processing" @click="generateToken">
-                            {{ tokenForm.processing ? 'Generando…' : 'Generar Token' }}
-                        </Button>
-
                         <Badge variant="secondary" class="capitalize">Ambiente: {{ setting.environment }}</Badge>
                         <Badge variant="secondary">cf_prefix: {{ setting.cf_prefix }}</Badge>
                     </div>

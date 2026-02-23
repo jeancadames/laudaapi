@@ -262,14 +262,14 @@ const marketplaceModulesByArea = [
         area: 'Comercial',
         items: [
             { title: 'CRM', desc: 'Gestión de clientes, contactos y seguimiento.' },
-            { title: 'Sales Retail', desc: 'Ventas retail, POS y facturación rápida.', tags: [ 'Retail', 'POS' ] },
-            { title: 'Sales Mayoristas', desc: 'Ventas por volumen, listas y condiciones.', tags: [ 'Wholesale' ] },
+            { title: 'Ventas Retail', desc: 'Ventas retail, POS y facturación rápida.', tags: [ 'Retail', 'POS' ] },
+            { title: 'Ventas Mayoristas', desc: 'Ventas por volumen, listas y condiciones.', tags: [ 'Mayorista' ] },
         ],
     },
     {
         area: 'Operación',
         items: [
-            { title: 'Services', desc: 'Gestión de servicios y órdenes de trabajo.', tags: [ 'Work Orders' ] },
+            { title: 'Servicios', desc: 'Gestión de servicios y órdenes de trabajo.', tags: [ 'Ordenes de Trabajo' ] },
             { title: 'Proyectos', desc: 'Planificación, costos y seguimiento.', tags: [ 'PM' ] },
             { title: 'Eventos', desc: 'Agenda, actividades y coordinación.', tags: [ 'Agenda' ] },
             {
@@ -287,15 +287,15 @@ const marketplaceModulesByArea = [
                 desc: 'Registro de compras, gastos y bienes (requisiciones y control).',
                 tags: [ 'Compras', 'Gastos' ],
             },
-            { title: 'Recursos Humanos', desc: 'Nómina, asistencia y expedientes.', tags: [ 'Payroll' ] },
+            { title: 'Recursos Humanos', desc: 'Nómina, asistencia y expedientes.', tags: [ 'Nóminas' ] },
             { title: 'Bancos', desc: 'Cuentas, conciliación y transacciones.', tags: [ 'Conciliación' ] },
-            { title: 'Contabilidad', desc: 'Asientos, mayor, reportes y cierres.', tags: [ 'GL' ] },
+            { title: 'Contabilidad', desc: 'Asientos, mayor, reportes y cierres.', tags: [ 'Libro Mayor' ] },
         ],
     },
     {
         area: 'Verticales',
         items: [
-            { title: 'Foodshop', desc: 'Operación para food & beverage y delivery.' },
+            { title: 'Foodshop', desc: 'Operación para comida & bebidas y delivery.' },
             { title: 'Kioskos', desc: 'Kioscos y autoservicio para puntos de venta.' },
             { title: 'Car Sales', desc: 'Ventas de vehículos y gestión de inventario.' },
             { title: 'Loans', desc: 'Préstamos, cuotas y cobranza.' },
@@ -366,9 +366,9 @@ const laudaOneFeatures: Bullet[] = [
         <DetailLaudaOne :pillars="laudaOnePillars" :features="laudaOneFeatures" :open-request-form="openRequestForm" :open-contact="openContact" />
 
         <!-- ✅ ERP modular -->
-        <DetailErpModular :highlights="highlights" :modules="modules" :open-contact="openContact" />
+        <DetailErpModular :highlights="highlights" :modules="modules" :open-contact="openContact" :open-request-form="openRequestForm"/>
 
-        <SocialCommerceSection id="detail-social-commerce" />
+        <SocialCommerceSection :open-request-form="openRequestForm" id="detail-social-commerce" />
 
         <CtaLandingSection @open-contact="openContact" />
 

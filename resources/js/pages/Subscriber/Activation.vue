@@ -49,15 +49,15 @@ function activate() {
     <Head title="Solicitud de Activación" />
 
     <AppLayout :breadcrumbs="[
-        { title: 'Subscriber', href: '/subscriber' },
+        { title: 'Suscriptor', href: '/subscriber' },
         { title: 'Solicitud de Activación', href: '/subscriber/activation' },
     ]">
         <div class="flex flex-col gap-4 p-4">
             <div class="grid gap-6 md:grid-cols-4">
-                <StatCard title="Solicitud" :value="props.state.has_activation_request ? 'Creada' : 'No existe'" description="activation_requests" :trend-positive="props.state.has_activation_request" />
-                <StatCard title="Subscriber" :value="props.state.has_subscriber ? 'OK' : 'Pendiente'" description="subscribers + subscriber_user" :trend-positive="props.state.has_subscriber" />
-                <StatCard title="Empresa" :value="props.state.has_company ? 'OK' : 'Pendiente'" description="companies" :trend-positive="props.state.has_company" />
-                <StatCard title="Suscripción" :value="props.subscription?.status ?? '—'" description="subscriptions" :trend-positive="(props.subscription?.status ?? '') === 'active'" />
+                <StatCard title="Solicitud" :value="props.state.has_activation_request ? 'Creada' : 'No existe'" description="Solicitudes de activación" :trend-positive="props.state.has_activation_request" />
+                <StatCard title="Suscriptor" :value="props.state.has_subscriber ? 'OK' : 'Pendiente'" description="Suscriptores + Usuarios" :trend-positive="props.state.has_subscriber" />
+                <StatCard title="Empresa" :value="props.state.has_company ? 'OK' : 'Pendiente'" description="Compañia" :trend-positive="props.state.has_company" />
+                <StatCard title="Suscripción" :value="props.subscription?.status ?? '—'" description="Suscripciones" :trend-positive="(props.subscription?.status ?? '') === 'active'" />
             </div>
 
             <SectionCard title="Estado de activación" description="Este paso crea subscriber, empresa y suscripción trialing">
@@ -66,8 +66,8 @@ function activate() {
                 </div>
 
                 <div v-if="props.activation" class="mt-4 grid gap-6 md:grid-cols-3">
-                    <StatCard title="Status" :value="props.activation.status ?? '—'" description="activation_requests.status" />
-                    <StatCard title="Trial termina" :value="props.activation.trial_ends_at_human ?? '—'" description="trial_ends_at" :trend-positive="false" />
+                    <StatCard title="Status" :value="props.activation.status ?? '—'" description="Estatus de la solicitud de activación" />
+                    <StatCard title="Trial termina" :value="props.activation.trial_ends_at_human ?? '—'" description="termina en" :trend-positive="false" />
                     <StatCard title="Días restantes" :value="props.activation.trial_days_left ?? 0" description="aprox." />
                 </div>
 
@@ -80,8 +80,8 @@ function activate() {
 
             <SectionCard title="Resultado" description="Datos creados/vinculados">
                 <div class="grid gap-6 md:grid-cols-3">
-                    <StatCard title="Subscriber" :value="props.subscriber?.name ?? '—'" description="subscribers.name" />
-                    <StatCard title="Empresa" :value="props.company?.name ?? '—'" description="companies.name" />
+                    <StatCard title="Suscriptor" :value="props.subscriber?.name ?? '—'" description="Nombre de suscriptor" />
+                    <StatCard title="Empresa" :value="props.company?.name ?? '—'" description="Nombre de empresa" />
                     <StatCard title="Moneda" :value="props.company?.currency ?? props.subscriber?.currency ?? 'USD'" description="currency" />
                 </div>
             </SectionCard>

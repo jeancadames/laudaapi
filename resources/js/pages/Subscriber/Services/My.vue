@@ -52,7 +52,7 @@ const props = defineProps<{
 }>()
 
 const breadcrumbs: BreadcrumbItem[] = [
-    { title: 'Subscriber', href: subscriber().url },
+    { title: 'Suscriptor', href: subscriber().url },
     { title: 'Mis Servicios', href: '/subscriber/services/my' },
 ]
 
@@ -274,7 +274,7 @@ const showCancelled = computed(() => filter.value === 'all' || filter.value === 
                         Suscripción:
                         <span class="font-medium text-foreground">{{ props.subscription?.status ?? '—' }}</span>
                         <span v-if="props.subscription?.trial_ends_at_human">
-                            · Trial ends: {{ props.subscription.trial_ends_at_human }}
+                            · Prueba termina: {{ props.subscription.trial_ends_at_human }}
                         </span>
                     </div>
 
@@ -386,7 +386,7 @@ const showCancelled = computed(() => filter.value === 'all' || filter.value === 
                 </div>
             </SectionCard>
 
-            <SectionCard v-if="showPendingPayment" title="Pendientes de pago" description="Servicios en estado pending_payment (acción de pago se agrega luego)">
+            <SectionCard v-if="showPendingPayment" title="Pendientes de pago" description="Servicios en estado pendiente (acción de pago se agrega luego)">
                 <div v-if="requestedPendingPayment.length === 0" class="text-sm text-muted-foreground">
                     No hay pendientes de pago para este filtro.
                 </div>

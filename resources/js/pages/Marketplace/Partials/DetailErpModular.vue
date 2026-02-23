@@ -8,6 +8,7 @@ const props = defineProps<{
     highlights: Highlight[]
     modules: Module[]
     openContact: () => void
+    openRequestForm: () => void
 }>()
 </script>
 
@@ -66,7 +67,7 @@ const props = defineProps<{
                      focus:ring-offset-slate-50 dark:focus:ring-offset-slate-950">
                             Hablar con un especialista
                         </Button>
-                        <Button type="button" @click="openContact()" class="mt-6 inline-flex w-full items-center justify-center rounded-xl
+                        <Button type="button" @click="openRequestForm()" class="mt-6 inline-flex w-full items-center justify-center rounded-xl
            bg-blue-600 px-5 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-blue-700
            focus:outline-none focus:ring-2 focus:ring-blue-600 focus:ring-offset-2
            focus:ring-offset-slate-50 dark:focus:ring-offset-slate-950">

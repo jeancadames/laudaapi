@@ -58,7 +58,7 @@ const props = defineProps<{
 
 const breadcrumbs: BreadcrumbItem[] = [
     { title: 'Dashboard', href: dashboard().url },
-    { title: 'Subscribers', href: subscribers.index().url },
+    { title: 'Suscriptores', href: subscribers.index().url },
 ]
 
 // Loading indicator
@@ -219,7 +219,7 @@ const headerSubtitle = computed(() => {
 
 <template>
 
-    <Head title="Subscribers" />
+    <Head title="Suscriptores" />
 
     <AppLayout :breadcrumbs="breadcrumbs">
         <div class="flex h-full flex-1 flex-col gap-6 overflow-x-auto rounded-xl p-4">
@@ -228,7 +228,7 @@ const headerSubtitle = computed(() => {
             <div class="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
                 <div class="space-y-1 min-w-0">
                     <h1 class="text-2xl font-semibold tracking-tight leading-tight">
-                        Subscribers
+                        Suscriptores
                     </h1>
                     <div class="text-sm text-muted-foreground">
                         {{ headerSubtitle }}
@@ -266,7 +266,7 @@ const headerSubtitle = computed(() => {
                         </DropdownMenuContent>
                     </DropdownMenu>
 
-                    <Input v-model="search" placeholder="Buscar por nombre, slug, customer_id..." class="w-full sm:w-80" />
+                    <Input v-model="search" placeholder="Buscar por nombre, slug, cliente..." class="w-full sm:w-80" />
                 </div>
             </div>
 
@@ -325,25 +325,25 @@ const headerSubtitle = computed(() => {
                                 <Input v-model="row.currency" placeholder="USD" />
                             </div>
                             <div>
-                                <div class="text-xs text-muted-foreground">Timezone</div>
+                                <div class="text-xs text-muted-foreground">Zona Horaria</div>
                                 <Input v-model="row.timezone" placeholder="America/Bogota" />
                             </div>
                         </div>
 
                         <div class="grid grid-cols-3 gap-2">
                             <div>
-                                <div class="text-xs text-muted-foreground">Provider</div>
+                                <div class="text-xs text-muted-foreground">Proveedor</div>
                                 <Input v-model="row.provider" placeholder="stripe" />
                             </div>
                             <div>
-                                <div class="text-xs text-muted-foreground">Mode</div>
-                                <select v-model="row.provider_mode" class="mt-1 w-full rounded-md border px-3 py-2 text-sm">
-                                    <option value="live">live</option>
-                                    <option value="test">test</option>
+                                <div class="text-xs text-muted-foreground">Modo</div>
+                                <select v-model="row.provider_mode" class="w-full rounded-md border px-3 py-2 text-sm">
+                                    <option value="live">En vivo</option>
+                                    <option value="test">Prueba</option>
                                 </select>
                             </div>
                             <div>
-                                <div class="text-xs text-muted-foreground">Customer ID</div>
+                                <div class="text-xs text-muted-foreground">ID de Cliente</div>
                                 <Input v-model="row.provider_customer_id" placeholder="cus_xxx" />
                             </div>
                         </div>

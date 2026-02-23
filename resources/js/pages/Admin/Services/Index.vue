@@ -97,7 +97,7 @@ const statusOptions = computed(() => ([
 const currentStatus = computed(() => statusOptions.value.find(o => o.value === status.value) ?? statusOptions.value[ 0 ])
 
 const billingOptions = computed(() => ([
-    { value: 'all' as const, label: 'Billing: todos' },
+    { value: 'all' as const, label: 'Facturación: todos' },
     { value: 'flat' as const, label: 'flat' },
     { value: 'seat_block' as const, label: 'seat_block' },
     { value: 'usage' as const, label: 'usage' },
@@ -474,7 +474,7 @@ function createChild() {
                     </div>
 
                     <div>
-                        <div class="text-xs text-muted-foreground">Billing</div>
+                        <div class="text-xs text-muted-foreground">Facturación</div>
                         <select v-model="create.billing_model" class="mt-1 w-full rounded-md border px-3 py-2 text-sm">
                             <option value="flat">flat</option>
                             <option value="seat_block">seat_block</option>
@@ -552,7 +552,7 @@ function createChild() {
                         </div>
 
                         <div>
-                            <div class="text-xs text-muted-foreground">Billing model</div>
+                            <div class="text-xs text-muted-foreground">Modelo de Facturación</div>
                             <select v-model="row.billing_model" class="mt-1 w-full rounded-md border px-3 py-2 text-sm">
                                 <option value="flat">flat</option>
                                 <option value="seat_block">seat_block</option>
@@ -602,7 +602,7 @@ function createChild() {
                             </Button>
 
                             <Button size="sm" variant="outline" :disabled="busyIds.has(row.id)" @click="resetRow(row.id)">
-                                Reset
+                                Reiniciar
                             </Button>
                         </div>
                     </CardContent>

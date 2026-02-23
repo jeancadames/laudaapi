@@ -198,9 +198,9 @@ function statusBadgeVariant(st: SubscriptionStatus) {
 
 function statusLabel(st: SubscriptionStatus) {
     switch (st) {
-        case 'trialing': return 'Trial'
+        case 'trialing': return 'Prueba'
         case 'active': return 'Activa'
-        case 'past_due': return 'Past due'
+        case 'past_due': return 'Vencido'
         case 'cancelled': return 'Cancelada'
         case 'expired': return 'Expirada'
         default: return st
@@ -256,7 +256,7 @@ function statusLabel(st: SubscriptionStatus) {
                         </DropdownMenuContent>
                     </DropdownMenu>
 
-                    <Input v-model="search" placeholder="Buscar por subscriber, slug o provider id..." class="w-full sm:w-80" />
+                    <Input v-model="search" placeholder="Buscar por suscriptor, slug o id de pr..." class="w-full sm:w-80" />
                 </div>
             </div>
 
@@ -274,7 +274,7 @@ function statusLabel(st: SubscriptionStatus) {
                     <CardHeader>
                         <div class="flex items-center justify-between gap-3">
                             <CardTitle class="text-base font-semibold truncate">
-                                {{ s.subscriber?.name ?? 'Subscriber' }}
+                                {{ s.subscriber?.name ?? 'Suscriptor' }}
                             </CardTitle>
 
                             <div class="flex items-center gap-2">
@@ -320,19 +320,19 @@ function statusLabel(st: SubscriptionStatus) {
 
                         <div class="grid grid-cols-2 gap-2">
                             <div>
-                                <div class="text-xs text-muted-foreground">Trial ends</div>
+                                <div class="text-xs text-muted-foreground">La prueba acaba</div>
                                 <div>{{ dateShort(s.trial_ends_at) }}</div>
                             </div>
 
                             <div>
-                                <div class="text-xs text-muted-foreground">Periodo ends</div>
+                                <div class="text-xs text-muted-foreground">El periodo acaba</div>
                                 <div>{{ dateShort(s.current_period_end) }}</div>
                             </div>
                         </div>
 
                         <div class="grid grid-cols-2 gap-2">
                             <div>
-                                <div class="text-xs text-muted-foreground">Subscriber activo</div>
+                                <div class="text-xs text-muted-foreground">Suscriptor activo</div>
                                 <Badge :variant="s.subscriber?.active ? 'default' : 'secondary'">
                                     {{ s.subscriber?.active ? 'Sí' : 'No' }}
                                 </Badge>
@@ -356,7 +356,7 @@ function statusLabel(st: SubscriptionStatus) {
                             <!-- ejemplo: ir al subscriber -->
                             <Button size="sm" variant="outline" as-child>
                                 <Link :href="`/admin/subscribers/${s.subscriber.id}`">
-                                    Subscriber
+                                    Suscriptor
                                 </Link>
                             </Button>
                         </div>

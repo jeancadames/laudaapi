@@ -4,6 +4,10 @@ const scrollTo = (hash: any) => {
     el?.scrollIntoView({ behavior: 'smooth', block: 'start' })
 }
 
+const props = defineProps<{
+    openRequestForm: () => void
+}>()
+
 const highlights = [
     'Automatiza e-CF por cada venta en redes (sin procesos manuales)',
     'Trazabilidad por orden: origen, estatus DGII, acuses y evidencia',
@@ -103,7 +107,7 @@ const modules = [
                             </li>
                         </ul>
 
-                        <button type="button" @click="scrollTo('#contact')" class="mt-6 inline-flex w-full items-center justify-center rounded-xl
+                        <button type="button" @click="openRequestForm" class="mt-6 inline-flex w-full items-center justify-center rounded-xl
                      bg-red-600 px-5 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-red-700
                      focus:outline-none focus:ring-2 focus:ring-red-600 focus:ring-offset-2
                      focus:ring-offset-white dark:focus:ring-offset-slate-950">

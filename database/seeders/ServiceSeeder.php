@@ -141,18 +141,18 @@ class ServiceSeeder extends Seeder
             $marketplaceChildren = [
                 ['title' => 'CRM',                     'short_description' => 'Gestión de clientes, contactos y seguimiento.',                   'slug' => 'erp-crm',             'href' => '/erp/crm',             'icon' => 'users',        'sort_order' => 21],
                 ['title' => 'Task Manager',            'short_description' => 'Tareas, asignaciones y control operativo.',                      'slug' => 'erp-tasks',           'href' => '/erp/tasks',           'icon' => 'check-square', 'sort_order' => 22],
-                ['title' => 'Sales Retail',            'short_description' => 'Ventas retail, POS y facturación rápida.',                       'slug' => 'erp-sales-retail',    'href' => '/erp/sales/retail',    'icon' => 'shopping-bag', 'sort_order' => 23],
-                ['title' => 'Sales Mayoristas',        'short_description' => 'Ventas por volumen, listas y condiciones.',                      'slug' => 'erp-sales-wholesale', 'href' => '/erp/sales/wholesale', 'icon' => 'truck',        'sort_order' => 24],
+                ['title' => 'Ventas Retail',            'short_description' => 'Ventas retail, POS y facturación rápida.',                       'slug' => 'erp-sales-retail',    'href' => '/erp/sales/retail',    'icon' => 'shopping-bag', 'sort_order' => 23],
+                ['title' => 'Ventas Mayoristas',        'short_description' => 'Ventas por volumen, listas y condiciones.',                      'slug' => 'erp-sales-wholesale', 'href' => '/erp/sales/wholesale', 'icon' => 'truck',        'sort_order' => 24],
                 ['title' => 'Foodshop',                'short_description' => 'Operación para food & beverage y delivery.',                      'slug' => 'erp-foodshop',        'href' => '/erp/foodshop',        'icon' => 'coffee',       'sort_order' => 25],
                 ['title' => 'Kioskos',                 'short_description' => 'Kioscos y autoservicio para puntos de venta.',                    'slug' => 'erp-kiosks',          'href' => '/erp/kiosks',          'icon' => 'grid',         'sort_order' => 26],
-                ['title' => 'Services',                'short_description' => 'Gestión de servicios y órdenes de trabajo.',                      'slug' => 'erp-services',        'href' => '/erp/services',        'icon' => 'tool',         'sort_order' => 27],
+                ['title' => 'Servicios',                'short_description' => 'Gestión de servicios y órdenes de trabajo.',                      'slug' => 'erp-services',        'href' => '/erp/services',        'icon' => 'tool',         'sort_order' => 27],
                 ['title' => 'Proyectos',               'short_description' => 'Planificación, costos y seguimiento.',                            'slug' => 'erp-projects',        'href' => '/erp/projects',        'icon' => 'briefcase',    'sort_order' => 28],
 
                 // ✅ AJUSTE 1
                 ['title' => 'Transporte del Personal', 'short_description' => 'Rutas, asignaciones y control operativo para empresas que ofrecen este servicio.', 'slug' => 'erp-transport', 'href' => '/erp/transport', 'icon' => 'truck', 'sort_order' => 29],
 
-                ['title' => 'Car Sales',               'short_description' => 'Ventas de vehículos y gestión de inventario.',                     'slug' => 'erp-car-sales',       'href' => '/erp/car-sales',       'icon' => 'car',          'sort_order' => 30],
-                ['title' => 'Loans',                   'short_description' => 'Préstamos, cuotas y cobranza.',                                   'slug' => 'erp-loans',           'href' => '/erp/loans',           'icon' => 'dollar-sign',  'sort_order' => 31],
+                ['title' => 'Venta de Vehículos',               'short_description' => 'Ventas de vehículos y gestión de inventario.',                     'slug' => 'erp-car-sales',       'href' => '/erp/car-sales',       'icon' => 'car',          'sort_order' => 30],
+                ['title' => 'Préstamos',                   'short_description' => 'Préstamos, cuotas y cobranza.',                                   'slug' => 'erp-loans',           'href' => '/erp/loans',           'icon' => 'dollar-sign',  'sort_order' => 31],
                 ['title' => 'Eventos',                 'short_description' => 'Agenda, actividades y coordinación.',                              'slug' => 'erp-events',          'href' => '/erp/events',          'icon' => 'calendar',     'sort_order' => 32],
 
                 // ✅ AJUSTE 2

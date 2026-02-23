@@ -25,7 +25,7 @@ const passwordInput = useTemplateRef('passwordInput');
     <div class="space-y-6">
         <Heading
             variant="small"
-            title="Delete account"
+            title="Borrar cuenta"
             description="Delete your account and all of its resources"
         />
         <div

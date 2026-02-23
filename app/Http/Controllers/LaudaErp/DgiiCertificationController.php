@@ -159,6 +159,18 @@ class DgiiCertificationController extends Controller
             $signedRel  = $baseDir . '/' . $signedName;
 
             $mtime = $disk->lastModified($relPath);
+
+            $respSuffixByKind = [
+            'cert-ecf'   => '_arecf.xml',
+            'cert-rfce'  => '_resp_fc.xml',
+            'cert-acecf' => '_resp_aprob.xml',
+            ];
+
+            $respSuffix = $respSuffixByKind[$kind] ?? '_resp.xml';
+
+            $respName = preg_replace('/\.xml$/i', $respSuffix, $name) ?? ($name . $respSuffix);
+            $respRel  = $baseDir . '/' . $respName;
+
             $items[] = [
                 'name' => $name,
                 'type' => $this->extractTipoFromFilename($name),
@@ -167,6 +179,8 @@ class DgiiCertificationController extends Controller
                 'last_modified' => (int) $disk->lastModified($relPath),
                 'signed' => $disk->exists($signedRel),
                 'signed_name' => $disk->exists($signedRel) ? $signedName : null,
+                'sent' => $disk->exists($respRel),
+                'response_name' => $disk->exists($respRel) ? $respName : null,
             ];
         }
 

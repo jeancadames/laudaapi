@@ -53,7 +53,7 @@ const props = defineProps<{
 }>()
 
 const breadcrumbs: BreadcrumbItem[] = [
-    { title: 'Subscriber', href: subscriber().url },
+    { title: 'Suscriptor', href: subscriber().url },
     { title: 'Servicios', href: services.category(DEFAULT_CATEGORY).url },
     { title: props.category.title, href: services.category(props.category.slug).url },
 ]

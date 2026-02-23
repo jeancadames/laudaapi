@@ -43,7 +43,7 @@ const props = defineProps<{
 }>()
 
 const breadcrumbs: BreadcrumbItem[] = [
-    { title: 'Subscriber', href: subscriber().url },
+    { title: 'Suscriptor', href: subscriber().url },
     { title: 'Uso y Límites', href: '/subscriber/usage' },
 ]
 
@@ -232,7 +232,7 @@ function isMetaOpen(id: number) {
                 </div>
 
                 <div class="mt-4 flex gap-2 justify-end">
-                    <Button variant="outline" @click="resetFilters">Reset</Button>
+                    <Button variant="outline" @click="resetFilters">Reiniciar</Button>
                     <Button :disabled="!hasSubscription" @click="applyFilters">Aplicar</Button>
                 </div>
 

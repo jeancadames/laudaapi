@@ -11,7 +11,7 @@ import SectionCard from '@/components/SectionCard.vue'
 import { Button } from '@/components/ui/button'
 
 const breadcrumbs: BreadcrumbItem[] = [
-    { title: 'Subscriber', href: subscriber().url },
+    { title: 'Suscriptores', href: subscriber().url },
 ]
 
 const props = defineProps<{
@@ -59,21 +59,21 @@ const subscriptionEndsLabel = computed(() => {
 
                 <StatCard title="Servicios activos" :value="props.stats?.subscription?.active_services ?? 0" description="Items activos / trialing" />
 
-                <StatCard title="Facturas pendientes" :value="props.stats?.billing?.invoices?.pending_count ?? 0" description="Issued + Overdue" :trend-positive="false" />
+                <StatCard title="Facturas pendientes" :value="props.stats?.billing?.invoices?.pending_count ?? 0" description="Emitidas + Pendientes" :trend-positive="false" />
 
-                <StatCard title="Cuentas por pagar (AP)" :value="moneyWithCurrency(props.stats?.billing?.balance?.accounts_payable ?? 0)" description="Pendiente por pagar" :trend-positive="false" />
+                <StatCard title="Cuentas por pagar (CxP)" :value="moneyWithCurrency(props.stats?.billing?.balance?.accounts_payable ?? 0)" description="Pendiente por pagar" :trend-positive="false" />
             </div>
 
             <!-- ✅ Activación (solicitud) -->
             <SectionCard title="Activación" description="Estado de tu solicitud / onboarding">
                 <div class="grid gap-6 md:grid-cols-4">
-                    <StatCard title="Solicitud" :value="props.stats?.activation?.has_request ? 'Creada' : 'No existe'" description="Activation request" :trend-positive="!!props.stats?.activation?.has_request" />
+                    <StatCard title="Solicitud" :value="props.stats?.activation?.has_request ? 'Creada' : 'No existe'" description="Solicitud de Activación" :trend-positive="!!props.stats?.activation?.has_request" />
 
                     <StatCard title="Estado" :value="props.stats?.activation?.status ?? '—'" description="Pipeline" />
 
                     <StatCard title="Trial activo" :value="props.stats?.activation?.trial_active ? 'Sí' : 'No'" description="Por activación" :trend-positive="!!props.stats?.activation?.trial_active" />
 
-                    <StatCard title="Servicios solicitados" :value="props.stats?.activation?.services_requested ?? 0" description="activation_request_service" />
+                    <StatCard title="Servicios solicitados" :value="props.stats?.activation?.services_requested ?? 0" description="Solicitudes de activaciones recibidas" />
                 </div>
 
                 <div v-if="props.stats?.activation?.has_request" class="mt-4 grid gap-6 md:grid-cols-3">
@@ -86,10 +86,10 @@ const subscriptionEndsLabel = computed(() => {
             <!-- ✅ Suscripción (detalle) -->
             <SectionCard title="Mi suscripción" description="Periodo, totales y ciclo">
                 <div class="grid gap-6 md:grid-cols-4">
-                    <StatCard title="Ciclo" :value="props.stats?.subscription?.billing_cycle ?? '—'" description="monthly / yearly" />
-                    <StatCard title="Periodo termina" :value="subscriptionEndsLabel" description="current_period_end / trial_ends_at" :trend-positive="false" />
-                    <StatCard title="Total (snapshot)" :value="moneyWithCurrency(props.stats?.subscription?.total_amount ?? 0)" description="subscriptions.total_amount" />
-                    <StatCard title="Estado items" :value="props.stats?.subscription?.items_active_or_trialing ?? 0" description="subscription_items" />
+                    <StatCard title="Ciclo" :value="props.stats?.subscription?.billing_cycle ?? '—'" description="Mensual / Anual" />
+                    <StatCard title="Periodo termina" :value="subscriptionEndsLabel" description="Período actual finaliza / Prueba finaliza" :trend-positive="false" />
+                    <StatCard title="Total (snapshot)" :value="moneyWithCurrency(props.stats?.subscription?.total_amount ?? 0)" description="Monto total" />
+                    <StatCard title="Estado items" :value="props.stats?.subscription?.items_active_or_trialing ?? 0" description="Ítems de suscripción" />
                 </div>
             </SectionCard>
 
@@ -144,18 +144,18 @@ const subscriptionEndsLabel = computed(() => {
             <!-- ✅ Perfil fiscal -->
             <SectionCard title="Perfil fiscal" description="Completitud de datos de facturación">
                 <div class="grid gap-6 md:grid-cols-3">
-                    <StatCard title="Tax Profile" :value="props.stats?.tax_profile?.exists ? 'Completo' : 'Pendiente'" description="company_tax_profiles" :trend-positive="!!props.stats?.tax_profile?.exists" />
-                    <StatCard title="Moneda" :value="props.stats?.currency ?? 'USD'" description="companies.currency" />
-                    <StatCard title="Zona horaria" :value="props.stats?.timezone ?? 'America/Bogota'" description="companies.timezone" />
+                    <StatCard title="Perfil Fiscal" :value="props.stats?.tax_profile?.exists ? 'Completo' : 'Pendiente'" description="Perfiles fiscales de la empresa" :trend-positive="!!props.stats?.tax_profile?.exists" />
+                    <StatCard title="Moneda" :value="props.stats?.currency ?? 'USD'" description="Moneda de la empresa" />
+                    <StatCard title="Zona horaria" :value="props.stats?.timezone ?? 'America/Bogota'" description="Zona horaria de la empresa" />
                 </div>
             </SectionCard>
 
             <!-- ✅ Uso (si aplica) -->
             <SectionCard title="Uso" description="Consumo del mes (si tu modelo usa usage_records)">
                 <div class="grid gap-6 md:grid-cols-3">
-                    <StatCard title="Uso del mes" :value="props.stats?.usage?.month_units ?? 0" description="SUM(usage_records.quantity)" />
-                    <StatCard title="Días con uso" :value="props.stats?.usage?.days_with_usage ?? 0" description="Distinct occurred_on" />
-                    <StatCard title="Servicios con uso" :value="props.stats?.usage?.services_with_usage ?? 0" description="Distinct service_id" />
+                    <StatCard title="Uso del mes" :value="props.stats?.usage?.month_units ?? 0" description="Cantidad total" />
+                    <StatCard title="Días con uso" :value="props.stats?.usage?.days_with_usage ?? 0" description="Días con uso" />
+                    <StatCard title="Servicios con uso" :value="props.stats?.usage?.services_with_usage ?? 0" description="Diferentes servicios" />
                 </div>
             </SectionCard>
 

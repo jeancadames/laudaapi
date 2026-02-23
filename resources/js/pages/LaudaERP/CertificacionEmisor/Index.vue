@@ -104,6 +104,8 @@ type XmlFileItem = {
   size_bytes?: number | null // opcional si ya no te interesa (puedes borrar esto si no lo mandas)
   last_modified_at: string // "YYYY-MM-DD HH:mm:ss" (o ISO si decides)
   signed?: boolean // útil para UI (si lo incluyes en backend)
+  sent?: boolean
+  response_name?: string | null
 }
 
 type XmlFilesBucket = {
@@ -545,6 +547,32 @@ function submitEndpoints() {
         },
     })
 }
+
+const sending = ref<Record<string, boolean>>({})
+
+async function sendXml(kind: 'ecf'|'rfce'|'acecf', name: string) {
+  const k = key(kind, name)
+  if (sending.value[k]) return
+
+  sending.value[k] = true
+  try {
+    const token = getCsrfToken()
+    const res = await axios.post('/erp/services/certificacion-emisor/xml/send',
+      { kind, name },
+      { headers: { ...(token ? { 'X-CSRF-TOKEN': token } : {}) } }
+    )
+
+    if (!res.data?.ok) throw new Error(res.data?.message ?? 'No se pudo enviar.')
+
+    router.reload({ only: ['xml_files'] })
+  } catch (e: any) {
+    const msg = e?.response?.data?.message || e?.message || 'Error enviando.'
+    alert(msg)
+  } finally {
+    sending.value[k] = false
+  }
+}
+
 </script>
 
 <template>
@@ -1011,7 +1039,7 @@ function submitEndpoints() {
                                                         <th class="px-3 py-2 text-left">Nombre del archivo</th>
                                                         <th class="px-3 py-2 text-left">tipo de e-CF</th>
                                                         <th class="px-3 py-2 text-left">Tamaño</th>
-                                                        <th class="px-3 py-2 text-left">Firma</th>
+                                                        <th class="px-3 py-2 text-left">Acción</th>
                                                         <th class="px-3 py-2 text-left">Estatus</th>
                                                     </tr>
                                                 </thead>
@@ -1023,23 +1051,38 @@ function submitEndpoints() {
                                                         <td class="px-3 py-2">{{ e.type }}</td>
                                                         <td class="px-3 py-2">{{ e.size_bytes }} Bytes</td>
                                                         <td class="px-3 py-2">
-                                                            <Button
-                                                                size="sm"
-                                                                variant="secondary"
-                                                                :disabled="e.signed || signing[key('ecf', e.name)]"
-                                                                @click="signXml('ecf', e.name)"
-                                                            >
-                                                                <span v-if="e.signed">Firmado</span>
-                                                                <span v-else-if="signing[key('ecf', e.name)]">Firmando…</span>
-                                                                <span v-else>Firmar</span>
-                                                            </Button>
-                                                            </td>
-                                                        <td class="px-3 py-2 font-mono text-xs break-all">
-                                                            <td class="px-3 py-2">
-                                                                <Badge :variant="e.signed ? 'default' : 'secondary'">
-                                                                    {{ e.signed ? 'Firmado' : 'Sin firmar' }}
-                                                                </Badge>
-                                                            </td>
+                                                        <!-- 1) Sin firmar -->
+                                                        <Button
+                                                            v-if="!e.signed"
+                                                            size="sm"
+                                                            variant="secondary"
+                                                            :disabled="signing[key('ecf', e.name)]"
+                                                            @click="signXml('ecf', e.name)"
+                                                        >
+                                                            <span v-if="signing[key('ecf', e.name)]">Firmando…</span>
+                                                            <span v-else>Firmar</span>
+                                                        </Button>
+
+                                                        <!-- 2) Firmado pero NO enviado -->
+                                                        <Button
+                                                            v-else-if="!e.sent"
+                                                            size="sm"
+                                                            :disabled="sending[key('ecf', e.name)]"
+                                                            @click="sendXml('ecf', e.name)"
+                                                        >
+                                                            <span v-if="sending[key('ecf', e.name)]">Enviando…</span>
+                                                            <span v-else>Enviar</span>
+                                                        </Button>
+
+                                                        <!-- 3) Enviado -->
+                                                        <Button v-else size="sm" variant="secondary" disabled>
+                                                            Enviado
+                                                        </Button>
+                                                        </td>
+                                                        <td class="px-3 py-2">
+                                                            <Badge v-if="e.sent" variant="default">Enviado</Badge>
+                                                            <Badge v-else-if="e.signed" variant="default">Firmado</Badge>
+                                                            <Badge v-else variant="secondary">Sin firmar</Badge>
                                                         </td>
                                                     </tr>
 
@@ -1073,7 +1116,7 @@ function submitEndpoints() {
                                                         <th class="px-3 py-2 text-left">Nombre del archivo</th>
                                                         <th class="px-3 py-2 text-left">tipo de e-CF</th>
                                                         <th class="px-3 py-2 text-left">Tamaño</th>
-                                                        <th class="px-3 py-2 text-left">Firma</th>
+                                                        <th class="px-3 py-2 text-left">Acción</th>
                                                         <th class="px-3 py-2 text-left">Estatus</th>
                                                     </tr>
                                                 </thead>
@@ -1085,23 +1128,38 @@ function submitEndpoints() {
                                                         <td class="px-3 py-2">{{ e.type }}</td>
                                                         <td class="px-3 py-2">{{ e.size_bytes }} Bytes</td>
                                                         <td class="px-3 py-2">
-                                                            <Button
-                                                                size="sm"
-                                                                variant="secondary"
-                                                                :disabled="e.signed || signing[key('rfce', e.name)]"
-                                                                @click="signXml('rfce', e.name)"
-                                                            >
-                                                                <span v-if="e.signed">Firmado</span>
-                                                                <span v-else-if="signing[key('rfce', e.name)]">Firmando…</span>
-                                                                <span v-else>Firmar</span>
-                                                            </Button>
-                                                            </td>
-                                                        <td class="px-3 py-2 font-mono text-xs break-all">
-                                                            <td class="px-3 py-2">
-                                                                <Badge :variant="e.signed ? 'default' : 'secondary'">
-                                                                    {{ e.signed ? 'Firmado' : 'Sin firmar' }}
-                                                                </Badge>
-                                                            </td>
+                                                        <!-- 1) Sin firmar -->
+                                                        <Button
+                                                            v-if="!e.signed"
+                                                            size="sm"
+                                                            variant="secondary"
+                                                            :disabled="signing[key('rfce', e.name)]"
+                                                            @click="signXml('rfce', e.name)"
+                                                        >
+                                                            <span v-if="signing[key('rfce', e.name)]">Firmando…</span>
+                                                            <span v-else>Firmar</span>
+                                                        </Button>
+
+                                                        <!-- 2) Firmado pero NO enviado -->
+                                                        <Button
+                                                            v-else-if="!e.sent"
+                                                            size="sm"
+                                                            :disabled="sending[key('rfce', e.name)]"
+                                                            @click="sendXml('rfce', e.name)"
+                                                        >
+                                                            <span v-if="sending[key('rfce', e.name)]">Enviando…</span>
+                                                            <span v-else>Enviar</span>
+                                                        </Button>
+
+                                                        <!-- 3) Enviado -->
+                                                        <Button v-else size="sm" variant="secondary" disabled>
+                                                            Enviado
+                                                        </Button>
+                                                        </td>
+                                                        <td class="px-3 py-2">
+                                                            <Badge v-if="e.sent" variant="default">Enviado</Badge>
+                                                            <Badge v-else-if="e.signed" variant="default">Firmado</Badge>
+                                                            <Badge v-else variant="secondary">Sin firmar</Badge>
                                                         </td>
                                                     </tr>
 
@@ -1135,7 +1193,7 @@ function submitEndpoints() {
                                                         <th class="px-3 py-2 text-left">Nombre del archivo</th>
                                                         <th class="px-3 py-2 text-left">tipo de e-CF</th>
                                                         <th class="px-3 py-2 text-left">Tamaño</th>
-                                                        <th class="px-3 py-2 text-left">Firma</th>
+                                                        <th class="px-3 py-2 text-left">Acción</th>
                                                         <th class="px-3 py-2 text-left">Estatus</th>
                                                     </tr>
                                                 </thead>
@@ -1147,23 +1205,38 @@ function submitEndpoints() {
                                                         <td class="px-3 py-2">{{ e.type }}</td>
                                                         <td class="px-3 py-2">{{ e.size_bytes }} Bytes</td>
                                                         <td class="px-3 py-2">
-                                                            <Button
-                                                                size="sm"
-                                                                variant="secondary"
-                                                                :disabled="e.signed || signing[key('acecf', e.name)]"
-                                                                @click="signXml('acecf', e.name)"
-                                                            >
-                                                                <span v-if="e.signed">Firmado</span>
-                                                                <span v-else-if="signing[key('acecf', e.name)]">Firmando…</span>
-                                                                <span v-else>Firmar</span>
-                                                            </Button>
-                                                            </td>
-                                                        <td class="px-3 py-2 font-mono text-xs break-all">
-                                                            <td class="px-3 py-2">
-                                                                <Badge :variant="e.signed ? 'default' : 'secondary'">
-                                                                    {{ e.signed ? 'Firmado' : 'Sin firmar' }}
-                                                                </Badge>
-                                                            </td>
+                                                        <!-- 1) Sin firmar -->
+                                                        <Button
+                                                            v-if="!e.signed"
+                                                            size="sm"
+                                                            variant="secondary"
+                                                            :disabled="signing[key('acecf', e.name)]"
+                                                            @click="signXml('acecf', e.name)"
+                                                        >
+                                                            <span v-if="signing[key('acecf', e.name)]">Firmando…</span>
+                                                            <span v-else>Firmar</span>
+                                                        </Button>
+
+                                                        <!-- 2) Firmado pero NO enviado -->
+                                                        <Button
+                                                            v-else-if="!e.sent"
+                                                            size="sm"
+                                                            :disabled="sending[key('acecf', e.name)]"
+                                                            @click="sendXml('acecf', e.name)"
+                                                        >
+                                                            <span v-if="sending[key('acecf', e.name)]">Enviando…</span>
+                                                            <span v-else>Enviar</span>
+                                                        </Button>
+
+                                                        <!-- 3) Enviado -->
+                                                        <Button v-else size="sm" variant="secondary" disabled>
+                                                            Enviado
+                                                        </Button>
+                                                        </td>
+                                                        <td class="px-3 py-2">
+                                                            <Badge v-if="e.sent" variant="default">Enviado</Badge>
+                                                            <Badge v-else-if="e.signed" variant="default">Firmado</Badge>
+                                                            <Badge v-else variant="secondary">Sin firmar</Badge>
                                                         </td>
                                                     </tr>
 

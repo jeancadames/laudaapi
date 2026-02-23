@@ -53,7 +53,7 @@ const props = defineProps<{
  * Breadcrumbs
  */
 const breadcrumbs: BreadcrumbItem[] = [
-    { title: 'Subscriber', href: subscriber().url },
+    { title: 'Suscriptor', href: subscriber().url },
     { title: 'Soporte', href: '/subscriber/support' },
 ]
 

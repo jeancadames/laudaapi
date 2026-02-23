@@ -39,7 +39,7 @@ const financialSummary = computed(() => {
     const issued = props.stats?.billing?.invoices?.by_status?.issued ?? 0
     const overdue = props.stats?.billing?.invoices?.by_status?.overdue ?? 0
     const ar = props.stats?.billing?.balance?.accounts_receivable ?? 0
-    return `Resumen: ${companies} clientes • ${(issued + overdue)} facturas pendientes • AR ${moneyWithCurrency(ar)}`
+    return `Resumen: ${companies} clientes • ${(issued + overdue)} facturas pendientes • CxC ${moneyWithCurrency(ar)}`
 })
 </script>
 
@@ -137,8 +137,8 @@ const financialSummary = computed(() => {
                         <div class="mt-3 grid gap-6 md:grid-cols-4">
                             <StatCard title="Total" :value="props.stats?.company?.total ?? 0" description="Clientes registrados" />
                             <StatCard title="Activos" :value="props.stats?.company?.active ?? 0" description="Clientes activos" />
-                            <StatCard title="Tax Profile" :value="props.stats?.company?.tax_profile_count ?? 0" description="Perfiles fiscales creados" />
-                            <StatCard title="Sin Tax Profile" :value="(props.stats?.company?.total ?? 0) - (props.stats?.company?.tax_profile_count ?? 0)" description="Pendientes de completar" :trend-positive="false" />
+                            <StatCard title="Perfiles Fiscales" :value="props.stats?.company?.tax_profile_count ?? 0" description="Perfiles fiscales creados" />
+                            <StatCard title="Sin Perfiles Fiscales" :value="(props.stats?.company?.total ?? 0) - (props.stats?.company?.tax_profile_count ?? 0)" description="Pendientes de completar" :trend-positive="false" />
                         </div>
                     </div>
 
@@ -158,14 +158,14 @@ const financialSummary = computed(() => {
 
                         <div class="mt-6 grid gap-6 md:grid-cols-4">
                             <StatCard title="Total facturado" :value="moneyWithCurrency(props.stats?.billing?.invoices?.total_invoiced ?? 0)" description="Suma de facturas (sin void)" />
-                            <StatCard title="Pagado (en facturas)" :value="moneyWithCurrency(props.stats?.billing?.invoices?.total_amount_paid_on_invoices ?? 0)" description="Suma amount_paid" />
-                            <StatCard title="Pagos registrados" :value="props.stats?.billing?.payments?.posted ?? 0" description="Pagos con paid_at" />
-                            <StatCard title="Total cobrado" :value="moneyWithCurrency(props.stats?.billing?.payments?.total_paid ?? 0)" description="Suma de pagos (paid_at)" />
+                            <StatCard title="Pagado (en facturas)" :value="moneyWithCurrency(props.stats?.billing?.invoices?.total_amount_paid_on_invoices ?? 0)" description="Suma de pagados" />
+                            <StatCard title="Pagos registrados" :value="props.stats?.billing?.payments?.posted ?? 0" description="Pagos con pagados en" />
+                            <StatCard title="Total cobrado" :value="moneyWithCurrency(props.stats?.billing?.payments?.total_paid ?? 0)" description="Suma de pagos (pagados en)" />
                         </div>
 
                         <div class="mt-6 grid gap-6 md:grid-cols-4">
-                            <StatCard title="Balance por cobrar (AR)" :value="moneyWithCurrency(props.stats?.billing?.balance?.accounts_receivable ?? 0)" description="Issued + Overdue" :trend-positive="false" />
-                            <StatCard title="Pendiente (emitidas/vencidas)" :value="moneyWithCurrency(props.stats?.billing?.invoices?.outstanding_issued_overdue ?? 0)" description="Solo issued + overdue" :trend-positive="false" />
+                            <StatCard title="Balance por cobrar (AR)" :value="moneyWithCurrency(props.stats?.billing?.balance?.accounts_receivable ?? 0)" description="Emitidas + Vencidas" :trend-positive="false" />
+                            <StatCard title="Pendiente (emitidas/vencidas)" :value="moneyWithCurrency(props.stats?.billing?.invoices?.outstanding_issued_overdue ?? 0)" description="Solo emitidas + vencidas" :trend-positive="false" />
                             <StatCard title="Draft" :value="props.stats?.billing?.invoices?.by_status?.draft ?? 0" description="Borradores" />
                             <StatCard title="Void" :value="props.stats?.billing?.invoices?.by_status?.void ?? 0" description="Anuladas" />
                         </div>

@@ -126,7 +126,7 @@ const by = computed(() => props.counts?.by_status ?? {})
 const totals = computed(() => props.counts?.totals ?? ({} as any))
 
 const statusOptions = computed(() => ([
-    { value: 'all' as const, label: 'Status: todos', count: props.counts?.all ?? props.invoices.total },
+    { value: 'all' as const, label: 'Estados: todos', count: props.counts?.all ?? props.invoices.total },
     { value: 'draft' as const, label: 'draft', count: by.value.draft ?? 0 },
     { value: 'issued' as const, label: 'issued', count: by.value.issued ?? 0 },
     { value: 'overdue' as const, label: 'overdue', count: by.value.overdue ?? 0 },
@@ -187,7 +187,7 @@ function goInvoice(id: number) {
                             Pagado (en facturas): <span class="font-mono">{{ moneyWithCurrency(totals.total_amount_paid_on_invoices ?? 0) }}</span>
                         </span>
                         <span class="rounded-md border px-2 py-1">
-                            AR (issued+overdue): <span class="font-mono">{{ moneyWithCurrency(totals.accounts_receivable ?? 0) }}</span>
+                            CxC (emitidos+vencidos): <span class="font-mono">{{ moneyWithCurrency(totals.accounts_receivable ?? 0) }}</span>
                         </span>
                     </div>
                 </div>
@@ -210,7 +210,7 @@ function goInvoice(id: number) {
                         </DropdownMenuContent>
                     </DropdownMenu>
 
-                    <Input v-model="search" placeholder="Buscar por #, fiscal, gateway id o cliente..." class="w-full sm:w-80" />
+                    <Input v-model="search" placeholder="Buscar por n.º, comprobante fiscal, cliente..." class="w-full sm:w-80" />
                 </div>
             </div>
 

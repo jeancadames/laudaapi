@@ -52,7 +52,7 @@ const props = defineProps<{
 
 const breadcrumbs: BreadcrumbItem[] = [
     { title: 'Dashboard', href: dashboard().url },
-    { title: 'Payments', href: payments.index().url },
+    { title: 'Pagos', href: payments.index().url },
 ]
 
 // loading indicator
@@ -130,7 +130,7 @@ const methodOptions = computed(() => ([
 ]))
 
 const statusOptions = computed(() => ([
-    { value: 'all' as const, label: 'Status: todos', count: getCount('all', props.payments.total) },
+    { value: 'all' as const, label: 'Estados: todos', count: getCount('all', props.payments.total) },
     { value: 'paid' as const, label: 'paid', count: getCount('paid', 0) },
     { value: 'unpaid' as const, label: 'unpaid', count: getCount('unpaid', 0) },
 ]))
@@ -149,7 +149,7 @@ function goPayment(id: number) {
 
 <template>
 
-    <Head title="Payments" />
+    <Head title="Pagos" />
 
     <AppLayout :breadcrumbs="breadcrumbs">
         <div class="flex h-full flex-1 flex-col gap-6 overflow-x-auto rounded-xl p-4">
@@ -157,7 +157,7 @@ function goPayment(id: number) {
             <!-- Header -->
             <div class="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
                 <div class="space-y-1 min-w-0">
-                    <h1 class="text-2xl font-semibold tracking-tight leading-tight truncate">Payments</h1>
+                    <h1 class="text-2xl font-semibold tracking-tight leading-tight truncate">Pagos</h1>
                     <div class="text-sm text-muted-foreground">{{ headerSubtitle }}</div>
                 </div>
 
@@ -194,7 +194,7 @@ function goPayment(id: number) {
                         </DropdownMenuContent>
                     </DropdownMenu>
 
-                    <Input v-model="search" placeholder="Buscar por referencia, invoice # o cliente..." class="w-full sm:w-72" />
+                    <Input v-model="search" placeholder="Buscar por referencia, factura # o cliente..." class="w-full sm:w-72" />
                 </div>
             </div>
 

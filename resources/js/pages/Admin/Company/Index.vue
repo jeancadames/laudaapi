@@ -111,7 +111,7 @@ function goCompany(id: number) {
                                 </Badge>
 
                                 <Badge :variant="c.tax_profile.exists ? 'default' : 'secondary'">
-                                    {{ c.tax_profile.exists ? 'Tax OK' : 'Tax pendiente' }}
+                                    {{ c.tax_profile.exists ? 'Impuestos al día' : 'Impuestos pendiente' }}
                                 </Badge>
                             </div>
                         </div>
@@ -125,7 +125,7 @@ function goCompany(id: number) {
                     <CardContent class="space-y-4 text-sm">
                         <div class="grid gap-3 sm:grid-cols-2">
                             <div>
-                                <div class="text-xs text-muted-foreground">Tax ID</div>
+                                <div class="text-xs text-muted-foreground">ID de Impuesto</div>
                                 <div class="font-mono">
                                     {{ c.tax_profile.tax_id ? `${c.tax_profile.tax_id_type}: ${c.tax_profile.tax_id}` : '—' }}
                                 </div>
@@ -133,23 +133,23 @@ function goCompany(id: number) {
 
                             <div>
                                 <div class="text-xs text-muted-foreground">País</div>
-                                <div class="font-mono">{{ c.tax_profile.country_code }}</div>
+                                <div class="font-mono">{{ c.tax_profile?.country_code }}</div>
                             </div>
 
                             <div>
                                 <div class="text-xs text-muted-foreground">Transacciones</div>
-                                <div class="font-mono">{{ c.transactions.total }}</div>
+                                <div class="font-mono">{{ c.transactions?.total }}</div>
                             </div>
 
                             <div>
                                 <div class="text-xs text-muted-foreground">Pendientes</div>
-                                <div class="font-mono">{{ c.transactions.pending }}</div>
+                                <div class="font-mono">{{ c.transactions?.pending }}</div>
                             </div>
                         </div>
 
                         <div class="pt-2 flex justify-end gap-2">
                             <Button size="sm" variant="outline" @click.stop="router.visit(`/admin/company/${c.id}/tax-profile`)">
-                                Tax Profile
+                                Perfil de Impuestos
                             </Button>
 
                             <Button size="sm" variant="outline" @click.stop="router.visit(`/admin/company/${c.id}/transactions`)">

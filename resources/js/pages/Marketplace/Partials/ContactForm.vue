@@ -290,7 +290,7 @@ const submit = async () => {
                     </div>
 
                     <!-- Footer fijo con el botón -->
-                    <div class="border-t border-slate-200 dark:border-slate-800 p-6">
+                    <div class="border-t border-slate-200 dark:border-slate-800 p-6 sm:col-span-2">
                         <Button type="submit" :disabled="form.processing" class="w-full inline-flex items-center justify-center rounded-xl bg-red-600 px-6 py-3 text-sm font-semibold text-white transition hover:bg-red-700 disabled:opacity-60">
                             {{ form.processing ? 'Enviando…' : 'Enviar solicitud' }}
                         </Button>
