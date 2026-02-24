@@ -14,12 +14,6 @@ return new class extends Migration {
                 ->constrained('companies')
                 ->cascadeOnDelete();
 
-            $table->foreignId('fiscal_year_end_id')
-                ->nullable()
-                ->after('tax_regime')
-                ->constrained('fiscal_year_end_catalog')
-                ->nullOnDelete();
-
             // -------------------------
             // Identidad / facturación base
             // -------------------------
@@ -47,7 +41,7 @@ return new class extends Migration {
             $table->json('meta')->nullable();
 
             // -------------------------
-            // ✅ DGII / Identidad tributaria (mejoras)
+            // DGII / Identidad tributaria
             // -------------------------
             $table->enum('taxpayer_type', ['persona_fisica', 'persona_juridica'])
                 ->nullable()
@@ -59,6 +53,12 @@ return new class extends Migration {
                 ->index()
                 ->comment('Regimen DGII');
 
+            // ✅ Ahora sí: este campo queda físicamente DESPUÉS de tax_regime (por orden de declaración)
+            $table->foreignId('fiscal_year_end_id')
+                ->nullable()
+                ->constrained('fiscal_year_end_catalog')
+                ->nullOnDelete();
+
             $table->enum('rst_modality', ['ingresos', 'compras'])
                 ->nullable()
                 ->comment('Solo si tax_regime=rst');
@@ -68,7 +68,7 @@ return new class extends Migration {
                 ->comment('Clasificacion RST (RS1/RS2/...)');
 
             // -------------------------
-            // ✅ Actividad económica (DGII)
+            // Actividad económica (DGII)
             // -------------------------
             $table->string('economic_activity_primary_code', 20)
                 ->nullable()
@@ -79,13 +79,12 @@ return new class extends Migration {
                 ->nullable()
                 ->comment('Nombre actividad principal DGII');
 
-            // [{code,name}, ...]
             $table->json('economic_activities_secondary')
                 ->nullable()
                 ->comment('Actividades secundarias DGII (json)');
 
             // -------------------------
-            // ✅ Facturación / comprobantes
+            // Facturación / comprobantes
             // -------------------------
             $table->enum('invoicing_mode', ['ncf', 'ecf', 'both'])
                 ->nullable()
@@ -102,20 +101,18 @@ return new class extends Migration {
 
             $table->timestamps();
 
-            // 1:1 real
             $table->unique('company_id');
 
-            // búsquedas típicas
-            $table->index(['country_code', 'tax_id', 'company_id', 'fiscal_year_end_id'], 'idx_company_fye');
+            $table->index(
+                ['country_code', 'tax_id', 'company_id', 'fiscal_year_end_id'],
+                'idx_company_fye'
+            );
         });
     }
 
     public function down(): void
     {
+        // En down() NO puedes dropear la tabla y luego intentar alterarla.
         Schema::dropIfExists('company_tax_profiles');
-        Schema::table('company_tax_profiles', function (Blueprint $table) {
-            $table->dropIndex('idx_company_fye');
-            $table->dropConstrainedForeignId('fiscal_year_end_id');
-        });
     }
 };
