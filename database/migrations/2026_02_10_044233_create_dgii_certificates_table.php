@@ -14,7 +14,7 @@ return new class extends Migration {
 
             // Identificación / UI
             $table->string('label')->nullable();
-            $table->enum('type', ['p12', 'pfx', 'cer'])->index();
+            $table->enum('type', ['p12', 'pfx', 'cer', 'crt'])->index();
             $table->boolean('is_default')->default(false)->index();
 
             // Storage

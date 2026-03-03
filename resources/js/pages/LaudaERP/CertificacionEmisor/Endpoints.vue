@@ -52,12 +52,6 @@ const tokenError = computed(() => (page.props.flash as any)?.error ?? null)
 const tokenSuccess = computed(() => (page.props.flash as any)?.success ?? null)
 const tokenDebug = computed(() => (page.props.flash as any)?.dgii_token_debug ?? null)
 
-function generateToken() {
-    tokenForm.post('/erp/services/certificacion-emisor/token/generate', {
-        preserveScroll: true,
-    })
-}
-
 const breadcrumbs: BreadcrumbItem[] = [
     { title: 'LaudaERP', href: '/erp' },
     { title: 'Servicios', href: '/erp' },
@@ -298,9 +292,12 @@ function submit() {
                         </DialogContent>
                     </Dialog>
 
-                    <Link href="/erp/services/certificacion-emisor" class="text-sm text-muted-foreground hover:underline">
-                        Volver
-                    </Link>
+                    <Button as-child variant="outline" class="gap-2" title="Volver a Certificación Emisor">
+                        <Link href="/erp/services/certificacion-emisor">
+                            <!-- <ArrowLeft class="h-4 w-4" /> -->
+                            Volver
+                        </Link>
+                    </Button>
                 </div>
             </header>
 

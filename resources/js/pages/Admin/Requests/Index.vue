@@ -4,7 +4,7 @@ import { onBeforeUnmount, onMounted, ref, watch, computed } from 'vue'
 
 import AppLayout from '@/layouts/AppLayout.vue'
 import { dashboard } from '@/routes'
-import requests from '@/routes/admin/requests'
+import requestsRoutes from '@/routes/admin/requests'
 import { type BreadcrumbItem } from '@/types'
 
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card'
@@ -85,7 +85,7 @@ const props = defineProps<{
 
 const breadcrumbs: BreadcrumbItem[] = [
     { title: 'Dashboard', href: dashboard().url },
-    { title: 'Solicitudes de Activación', href: requests.index().url },
+    { title: 'Solicitudes de Activación', href: requestsRoutes.index().url },
 ]
 
 const search = ref(props.filters.search ?? '')

@@ -10,6 +10,9 @@ use App\Http\Middleware\EnsureActiveSubscription;
 use App\Http\Middleware\EnsureActivationAccepted;
 use App\Http\Middleware\EnsureServiceEntitled;
 use App\Http\Middleware\EnsureErpAccess;
+use App\Http\Middleware\ResolveCompanyFromHost;
+use App\Http\Middleware\ResolveCompanyFromSubdomain;
+use Illuminate\Support\Facades\Route;
 use Illuminate\Http\Middleware\AddLinkHeadersForPreloadedAssets;
 
 /**
@@ -24,10 +27,21 @@ use Illuminate\Http\Middleware\AddLinkHeadersForPreloadedAssets;
 
 return Application::configure(basePath: dirname(__DIR__))
     ->withRouting(
-        web: __DIR__ . '/../routes/web.php',
+        web: [
+            __DIR__ . '/../routes/web.php',
+            __DIR__ . '/../routes/erp.php',
+            __DIR__ . '/../routes/admin.php',
+            __DIR__ . '/../routes/subscriber.php',
+        ],
         commands: __DIR__ . '/../routes/console.php',
         health: '/up',
+        then: function () {
+            // ✅ DGII WS: sin prefix /api, pero con middleware 'api' (stateless)
+            Route::middleware('api')
+                ->group(base_path('routes/dgii_ws.php'));
+        },
     )
+
     ->withMiddleware(function (Middleware $middleware): void {
         $middleware->encryptCookies(except: ['appearance', 'sidebar_state']);
 
@@ -46,6 +60,10 @@ return Application::configure(basePath: dirname(__DIR__))
             'service.entitled' => EnsureServiceEntitled::class,
 
             'erp.access' => EnsureErpAccess::class,
+
+            'dgii.tenant' => ResolveCompanyFromHost::class,
+
+            'tenant' => ResolveCompanyFromSubdomain::class,
         ]);
 
         $middleware->web(append: [

@@ -4,7 +4,6 @@ namespace App\Services\Dgii\Wrapper\ExcelToXml;
 
 use App\Services\Dgii\Wrapper\ExcelToXml\Xsd\SchemaIndex;
 use App\Services\Dgii\Wrapper\ExcelToXml\Xsd\XsdInlineParser;
-use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Storage;
 use PhpOffice\PhpSpreadsheet\Cell\Coordinate;
 use PhpOffice\PhpSpreadsheet\IOFactory;
@@ -25,7 +24,7 @@ final class ExcelToXmlService
     /**
      * @return string relative storage path like "output/xml_YYYYMMDD_HHMMSS_xxx.zip"
      */
-    public function convertToZip(string $excelFullPath, string $mode = 'compact', int $companyId = 0): string 
+    public function convertToZip(string $excelFullPath, string $mode = 'compact', int $companyId = 0): string
     {
         $disk = Storage::disk('private');
 
@@ -35,7 +34,7 @@ final class ExcelToXmlService
         if ($disk->exists($baseDir)) {
             $disk->deleteDirectory($baseDir);
         }
-        
+
         $disk->makeDirectory($baseDir);
 
         $reader = IOFactory::createReaderForFile($excelFullPath);

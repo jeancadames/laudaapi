@@ -325,7 +325,9 @@ function goTo(url: string | null) {
 
                 <!-- Pagination -->
                 <div v-if="props.payments.links?.length" class="mt-4 flex flex-wrap gap-2">
-                    <Button v-for="l in props.payments.links" :key="l.label" size="sm" variant="outline" :disabled="!l.url" :class="l.active ? 'bg-muted' : ''" @click="goTo(l.url)" v-html="l.label" />
+                    <Button v-for="l in props.payments.links" :key="l.label" size="sm" variant="outline" :disabled="!l.url" :class="l.active ? 'bg-muted' : ''" @click="goTo(l.url)">
+                        <span v-html="l.label"></span>
+                    </Button>
                 </div>
             </SectionCard>
         </div>

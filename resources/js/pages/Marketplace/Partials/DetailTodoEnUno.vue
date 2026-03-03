@@ -3,7 +3,7 @@ import Button from '@/components/ui/button/Button.vue';
 
 type Feature = { title: string; desc: string }
 
-const props = defineProps<{
+defineProps<{
     features: Feature[]
     openRequestForm: () => void
     scrollTo: (selector: string) => void

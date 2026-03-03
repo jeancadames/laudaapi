@@ -208,7 +208,7 @@ const isBank = computed(() => form.type === 'bank_transfer')
 const isGateway = computed(() => form.type === 'gateway')
 
 function fieldError(path: string): string | null {
-    // @ts-ignore
+    // "@ts-expect-error"
     return (form.errors as any)?.[ path ] ?? null
 }
 
@@ -282,9 +282,10 @@ function statusBadgeVariant(s: PaymentMethod[ 'status' ]) {
     return s === 'active' ? 'secondary' : 'destructive'
 }
 
-function modeBadgeVariant(m: PaymentMethod[ 'mode' ]) {
-    return m === 'live' ? 'secondary' : 'secondary'
-}
+// se comenta porque no se usa actualmente
+// function modeBadgeVariant(m: PaymentMethod[ 'mode' ]) {
+//     return m === 'live' ? 'secondary' : 'secondary'
+// }
 
 const providerPresets = [
     { value: '', label: '—' },

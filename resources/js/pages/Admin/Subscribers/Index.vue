@@ -5,7 +5,7 @@ import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
 
 import AppLayout from '@/layouts/AppLayout.vue'
 import { dashboard } from '@/routes'
-import subscribers from '@/routes/admin/subscribers'
+import subscribersRoutes from '@/routes/admin/subscribers'
 import { type BreadcrumbItem } from '@/types'
 
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card'
@@ -58,7 +58,7 @@ const props = defineProps<{
 
 const breadcrumbs: BreadcrumbItem[] = [
     { title: 'Dashboard', href: dashboard().url },
-    { title: 'Suscriptores', href: subscribers.index().url },
+    { title: 'Suscriptores', href: subscribersRoutes.index().url },
 ]
 
 // Loading indicator

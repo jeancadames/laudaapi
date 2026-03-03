@@ -39,10 +39,14 @@ class DgiiCompanySetting extends Model
         'dgii_token_auto' => 'boolean',
         'dgii_token_refresh_before_seconds' => 'integer',
 
+        // ✅ token cifrado en DB (Laravel encripta/descifra automático)
+        'dgii_access_token' => 'encrypted',
+
         'dgii_token_issued_at' => 'datetime',
         'dgii_token_expires_at' => 'datetime',
         'dgii_token_last_requested_at' => 'datetime',
     ];
+
 
     public function company(): BelongsTo
     {
@@ -69,56 +73,13 @@ class DgiiCompanySetting extends Model
     public function isTokenValid(int $skewSeconds = 90): bool
     {
         if (!$this->dgii_access_token || !$this->dgii_token_expires_at) return false;
-        return now()->lt($this->dgii_token_expires_at->copy()->subSeconds($skewSeconds));
-    }
-}
 
-class DgiiTokenManager
-{
-    public function ensureValidToken(DgiiCompanySetting $setting, bool $force = false): void
-    {
-        // si auto está apagado y no es force, no hace nada
-        if (!$force && !$setting->dgii_token_auto) {
-            return;
-        }
+        // ✅ respeta el “refresh_before” configurado por compañía
+        $refreshBefore = (int) ($this->dgii_token_refresh_before_seconds ?? 0);
 
-        // si ya es válido, no hace nada (a menos que force)
-        if (!$force && $setting->isTokenValid()) {
-            return;
-        }
+        // ✅ mínimo de seguridad (clock skew/red/colas)
+        $effectiveSkew = max(120, $refreshBefore, $skewSeconds);
 
-        // ✅ aquí llamas a DGII y obtienes token + expiresAt (1 hora)
-        // $token = ...
-        // $issuedAt = now();
-        // $expiresAt = now()->addSeconds(3600); // o la exp real que devuelva DGII
-
-        // EJEMPLO: reemplaza con tu implementación real
-        [$token, $issuedAt, $expiresAt] = $this->requestTokenFromDgii($setting);
-
-        $setting->update([
-            'dgii_access_token' => $token,
-            'dgii_token_issued_at' => $issuedAt,
-            'dgii_token_expires_at' => $expiresAt,
-            'dgii_token_last_requested_at' => now(),
-            'dgii_token_last_error' => null,
-        ]);
-    }
-
-    private function requestTokenFromDgii(DgiiCompanySetting $setting): array
-    {
-        // TODO: tu lógica real (endpoints + credenciales + http client)
-        throw new \RuntimeException('Implement requestTokenFromDgii()');
-    }
-
-    public function getTokenStatus(DgiiCompanySetting $setting): array
-    {
-        return [
-            'auto' => (bool) $setting->dgii_token_auto,
-            'status' => $setting->tokenStatus(),
-            'secondsLeft' => $setting->tokenSecondsLeft(),
-            'expiresAt' => optional($setting->dgii_token_expires_at)->toISOString(),
-            'lastError' => $setting->dgii_token_last_error,
-            'lastRequestedAt' => optional($setting->dgii_token_last_requested_at)->toISOString(),
-        ];
+        return now()->lt($this->dgii_token_expires_at->copy()->subSeconds($effectiveSkew));
     }
 }

@@ -15,29 +15,64 @@ class DgiiTokenManager
 
     public function getValidToken(DgiiCompanySetting $setting, int $skewSeconds = 90): string
     {
-        // Si es válido y NO aplica prewarm => devolver
-        if ($setting->isTokenValid($skewSeconds) && !$this->shouldPreWarm($setting)) {
-            return (string)$setting->dgii_access_token;
+        // 0) Cache-first (reduce DB hits)
+        $cacheKey = $this->cacheKey($setting);
+        $cached = Cache::get($cacheKey);
+
+        if (!$this->shouldPreWarm($setting) && is_array($cached)) {
+            $token = (string)($cached['token'] ?? '');
+            $expiresAtTs = (int)($cached['expires_at'] ?? 0);
+
+            $effectiveSkew = max(
+                120,
+                $skewSeconds,
+                (int)($setting->dgii_token_refresh_before_seconds ?? 0)
+            );
+
+            if ($token !== '' && $expiresAtTs > 0 && now()->timestamp < ($expiresAtTs - $effectiveSkew)) {
+                return $token;
+            }
         }
 
-        // Si no permites auto => modo manual
+        // 1) Si es válido y NO aplica prewarm => devolver
+        if ($setting->isTokenValid($skewSeconds) && !$this->shouldPreWarm($setting)) {
+            // mantiene cache caliente
+            $this->putCacheFromSetting($setting);
+            return (string) $setting->dgii_access_token;
+        }
+
+        // 2) Si no permites auto => modo manual
         if (!$setting->dgii_token_auto) {
             throw new \RuntimeException(
                 'DGII token vencido/no disponible. Modo manual activo (dgii_token_auto=false).'
             );
         }
 
-        $lockKey = "dgii:token:company:{$setting->company_id}:env:{$setting->environment}";
-        $lock = Cache::lock($lockKey, 10);
+        // ✅ Lock TTL SUBIDO: 60s (DGII + red + colas)
+        $lockKey = $this->lockKey($setting);
+        $lock = Cache::lock($lockKey, 60);
 
-        return $lock->block(5, function () use ($setting, $skewSeconds) {
+        return $lock->block(15, function () use ($setting, $skewSeconds, $cacheKey) {
 
             $fresh = DgiiCompanySetting::query()
                 ->where('company_id', $setting->company_id)
                 ->firstOrFail();
 
+            // re-check cache dentro del lock (por si otro proceso refrescó justo antes)
+            $cached = Cache::get($cacheKey);
+            if (!$this->shouldPreWarm($fresh) && is_array($cached)) {
+                $token = (string)($cached['token'] ?? '');
+                $expiresAtTs = (int)($cached['expires_at'] ?? 0);
+                $effectiveSkew = max(120, $skewSeconds, (int)($fresh->dgii_token_refresh_before_seconds ?? 0));
+
+                if ($token !== '' && $expiresAtTs > 0 && now()->timestamp < ($expiresAtTs - $effectiveSkew)) {
+                    return $token;
+                }
+            }
+
             if ($fresh->isTokenValid($skewSeconds) && !$this->shouldPreWarm($fresh)) {
-                return (string)$fresh->dgii_access_token;
+                $this->putCacheFromSetting($fresh);
+                return (string) $fresh->dgii_access_token;
             }
 
             $fresh->dgii_token_last_requested_at = now();
@@ -46,18 +81,22 @@ class DgiiTokenManager
                 $res = $this->authClient->requestToken($fresh);
                 // esperado: ['token' => '...', 'expires_in' => 3600]
 
-                $issuedAt = CarbonImmutable::now();
+                $issuedAt  = CarbonImmutable::now();
                 $expiresAt = $issuedAt->addSeconds((int)($res['expires_in'] ?? 3600));
 
                 DB::transaction(function () use ($fresh, $res, $issuedAt, $expiresAt) {
-                    $fresh->dgii_access_token = (string)$res['token'];
-                    $fresh->dgii_token_issued_at = $issuedAt->toDateTimeString();
-                    $fresh->dgii_token_expires_at = $expiresAt->toDateTimeString();
+                    // ✅ no guardes strings si el cast es datetime; deja que Eloquent lo maneje
+                    $fresh->dgii_access_token = (string) $res['token'];
+                    $fresh->dgii_token_issued_at = $issuedAt;
+                    $fresh->dgii_token_expires_at = $expiresAt;
                     $fresh->dgii_token_last_error = null;
                     $fresh->save();
                 });
 
-                return (string)$fresh->dgii_access_token;
+                // ✅ cache token hasta expirar - buffer
+                $this->putCache($cacheKey, (string)$fresh->dgii_access_token, $expiresAt->getTimestamp());
+
+                return (string) $fresh->dgii_access_token;
             } catch (\Throwable $e) {
                 $fresh->dgii_token_last_error = mb_substr($e->getMessage(), 0, 255);
                 $fresh->save();
@@ -72,6 +111,9 @@ class DgiiTokenManager
         $setting->dgii_token_issued_at = null;
         $setting->dgii_token_expires_at = null;
         $setting->save();
+
+        // ✅ limpia cache
+        Cache::forget($this->cacheKey($setting));
     }
 
     public function getTokenStatus(DgiiCompanySetting $setting): array
@@ -83,15 +125,11 @@ class DgiiTokenManager
         $lastError = $setting->dgii_token_last_error;
         $lastReq   = $setting->dgii_token_last_requested_at;
 
-        // “Reciente” = últimos 10 minutos (ajusta a gusto)
         $errorRecent = false;
         if ($lastError && $lastReq) {
             $errorRecent = $lastReq->greaterThanOrEqualTo(now()->subMinutes(10));
         }
 
-        // ONLINE si:
-        // - token válido, o
-        // - no hay error reciente (para no quedar “offline” pegado por un error viejo)
         $isOnline = $isValid || !$errorRecent;
 
         return [
@@ -101,8 +139,6 @@ class DgiiTokenManager
             'expiresAt' => $setting->dgii_token_expires_at?->toIso8601String(),
             'lastError' => $lastError,
             'lastRequestedAt' => $lastReq?->toIso8601String(),
-
-            // ✅ NUEVO
             'is_online' => (bool) $isOnline,
             'offline_reason' => (!$isOnline && $lastError) ? $lastError : null,
         ];
@@ -131,5 +167,32 @@ class DgiiTokenManager
         }
 
         return $this->getValidToken($fresh, $skewSeconds);
+    }
+
+    private function cacheKey(DgiiCompanySetting $setting): string
+    {
+        return "dgii:token:company:{$setting->company_id}:env:{$setting->environment}";
+    }
+
+    private function lockKey(DgiiCompanySetting $setting): string
+    {
+        return "dgii:token:lock:company:{$setting->company_id}:env:{$setting->environment}";
+    }
+
+    private function putCacheFromSetting(DgiiCompanySetting $setting): void
+    {
+        if (!$setting->dgii_access_token || !$setting->dgii_token_expires_at) return;
+
+        $this->putCache(
+            $this->cacheKey($setting),
+            (string)$setting->dgii_access_token,
+            $setting->dgii_token_expires_at->getTimestamp()
+        );
+    }
+
+    private function putCache(string $cacheKey, string $token, int $expiresAtTs): void
+    {
+        $ttl = max(30, $expiresAtTs - now()->timestamp - 60); // buffer 60s
+        Cache::put($cacheKey, ['token' => $token, 'expires_at' => $expiresAtTs], $ttl);
     }
 }

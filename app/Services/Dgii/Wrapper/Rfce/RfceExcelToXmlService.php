@@ -34,7 +34,7 @@ final class RfceExcelToXmlService
         if ($disk->exists($baseDir)) {
             $disk->deleteDirectory($baseDir);
         }
-        
+
         $disk->makeDirectory($baseDir);
         // ✅ 1) XSD fijo
         $schemaIndex = $this->loadRfceSchemaIndex();

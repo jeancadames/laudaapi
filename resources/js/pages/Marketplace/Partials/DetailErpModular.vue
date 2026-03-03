@@ -4,7 +4,7 @@ import Button from '@/components/ui/button/Button.vue';
 type Highlight = string
 type Module = { title: string; desc: string; tags?: string[] }
 
-const props = defineProps<{
+defineProps<{
     highlights: Highlight[]
     modules: Module[]
     openContact: () => void

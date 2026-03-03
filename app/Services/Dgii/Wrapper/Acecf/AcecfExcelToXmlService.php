@@ -30,7 +30,7 @@ final class AcecfExcelToXmlService
      * - Mapea headers a leaves usando el XSD ACECF actual (storage/app/public/xsd/acecf.xsd).
      * - Arma jerarquía padre/hijo con XmlFromXsdBuilder (compact => omite secciones vacías).
      */
-    public function convertToZip(string $excelFullPath, string $mode = 'compact', int $companyId = 0): string 
+    public function convertToZip(string $excelFullPath, string $mode = 'compact', int $companyId = 0): string
     {
         $disk = Storage::disk('private');
 
@@ -40,7 +40,7 @@ final class AcecfExcelToXmlService
         if ($disk->exists($baseDir)) {
             $disk->deleteDirectory($baseDir);
         }
-        
+
         $disk->makeDirectory($baseDir);
 
         $schemaIndex = $this->loadAcecfSchemaIndex();

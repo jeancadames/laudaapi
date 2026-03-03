@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { Head, Link, router, useForm } from '@inertiajs/vue3'
-import { ref, computed, watch } from 'vue'
+import { ref, computed, watch, onMounted, onBeforeUnmount } from 'vue'
 
 import ErpLayout from '@/layouts/ErpLayout.vue'
 import type { BreadcrumbItem } from '@/types'
@@ -20,54 +20,21 @@ import {
     DialogFooter,
     DialogTrigger,
 } from '@/components/ui/dialog'
+
 import XmlEcfWrapper from '@/components/XmlEcfWrapper.vue'
 import AcecfXmlWrapper from '@/components/AcecfXmlWrapper.vue'
 import RfceXmlWrapper from '@/components/RfceXmlWrapper.vue'
+import DgiiRootCertAuthUploader from '@/components/DgiiRootCertAuthUploader.vue'
 
 import axios from 'axios'
 
-function getCsrfToken() {
-  return document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || null
-}
-
-const signing = ref<Record<string, boolean>>({})
-
-const key = (kind: 'ecf'|'rfce'|'acecf', name: string) => `${kind}:${name}`
-
-async function signXml(kind: 'ecf'|'rfce'|'acecf', name: string) {
-  const k = key(kind, name)
-  if (signing.value[k]) return
-
-  signing.value[k] = true
-  try {
-    const token = getCsrfToken()
-
-    const res = await axios.post(
-      '/erp/services/certificacion-emisor/xml/sign',
-      { kind, name },
-      { headers: { ...(token ? { 'X-CSRF-TOKEN': token } : {}) } }
-    )
-
-    if (!res.data?.ok) {
-      throw new Error(res.data?.message ?? 'No se pudo firmar.')
-    }
-
-    // ✅ refresca listado (Inertia partial reload)
-    router.reload({ only: ['xml_files'] })
-  } catch (e: any) {
-    const msg = e?.response?.data?.message || e?.message || 'Error firmando.'
-    console.error(e)
-    // aquí tu toast/snackbar
-    alert(msg)
-  } finally {
-    signing.value[k] = false
-  }
-}
-
+/* -----------------------------------------
+   ✅ Props
+------------------------------------------ */
 type Cert = {
     id: number
     label: string | null
-    type: 'p12' | 'pfx' | 'cer'
+    type: 'p12' | 'pfx' | 'cer' | 'crt'
     is_default: boolean
     subject_cn: string | null
     subject_rnc?: string | null
@@ -99,70 +66,183 @@ type EndpointCatalogRow = {
 type DgiiEcftype = `E${number}` // ej: "E31", "E46"
 
 type XmlFileItem = {
-  name: string
-  type: DgiiEcftype | null // por si no se pudo inferir
-  size_bytes?: number | null // opcional si ya no te interesa (puedes borrar esto si no lo mandas)
-  last_modified_at: string // "YYYY-MM-DD HH:mm:ss" (o ISO si decides)
-  signed?: boolean // útil para UI (si lo incluyes en backend)
-  sent?: boolean
-  response_name?: string | null
+    name: string
+    type: DgiiEcftype | null
+    size_bytes?: number | null
+    last_modified_at: string
+    signed?: boolean
+    sent?: boolean
+    response_name?: string | null
 }
 
 type XmlFilesBucket = {
-  kind: 'ecf' | 'rfce' | 'acecf'
-  base_dir: string
-  count: number
-  items: XmlFileItem[]
+    kind: 'ecf' | 'rfce' | 'acecf'
+    base_dir: string
+    count: number
+    items: XmlFileItem[]
 }
 
 type XmlFilesPayload = {
-  ecf: XmlFilesBucket
-  rfce: XmlFilesBucket
-  acecf: XmlFilesBucket
+    ecf: XmlFilesBucket
+    rfce: XmlFilesBucket
+    acecf: XmlFilesBucket
 }
 
-const emptyBucket = (kind: XmlFilesBucket['kind']): XmlFilesBucket => ({
-  kind,
-  base_dir: '',
-  count: 0,
-  items: [],
-})
+/**
+ * ✅ WS Activity payload (desde tu logger JSONL)
+ */
+type WsActivityItem = {
+    ts: string
+    level: 'info' | 'warning' | 'error'
+    event: string
+    cid?: string | null
+    host?: string | null
+    path?: string | null
+    method?: string | null
+    ip?: string | null
+    status?: number | null
+    duration_ms?: number | null
 
-const xml = computed<XmlFilesPayload>(() =>
-  props.xml_files ?? {
-    ecf: emptyBucket('ecf'),
-    rfce: emptyBucket('rfce'),
-    acecf: emptyBucket('acecf'),
-  }
-)
+    // rutas opcionales a artifacts (si las logueas)
+    in_path?: string | null
+    out_path?: string | null
+    dgii_resp_path?: string | null
+
+    // cualquier otro ctx
+    [ k: string ]: any
+}
 
 const props = defineProps<{
-  company: { id: number; name: string | null; rnc: string | null }
-  setting: {
-    environment: 'precert' | 'cert' | 'prod'
-    cf_prefix: string
-    use_directory: boolean
-    endpoints: Record<string, any>
-  }
+    company: {
+        id: number
+        name: string | null
+        rnc: string | null
+        slug?: string | null
+        ws_subdomain?: string | null
+    }
+    setting: {
+        environment: 'precert' | 'cert' | 'prod'
+        cf_prefix: string
+        use_directory: boolean
+        endpoints: Record<string, any>
+    }
 
-  certs?: Cert[]
-  certs_summary?: { count: number; default_cert_id: number | null; has_default: boolean }
+    certs?: Cert[]
+    certs_summary?: { count: number; default_cert_id: number | null; has_default: boolean }
 
-  endpoint_catalog?: EndpointCatalogRow[]
-  xml_files?: XmlFilesPayload
+    endpoint_catalog?: EndpointCatalogRow[]
+    xml_files?: XmlFilesPayload
+
+    // opcional (si quieres precargar por Inertia)
+    ws_activity?: WsActivityItem[]
 }>()
 
-console.log(props)
+/* -----------------------------------------
+   ✅ Helpers
+------------------------------------------ */
+function getCsrfToken() {
+    return document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || null
+}
 
+async function copyText(text?: string | null) {
+    const v = (text ?? '').toString()
+    if (!v) return
+    try {
+        await navigator.clipboard.writeText(v)
+    } catch {
+        // fallback
+        window.prompt('Copia este texto:', v)
+    }
+}
+
+const signing = ref<Record<string, boolean>>({})
+const sending = ref<Record<string, boolean>>({})
+
+const key = (kind: 'ecf' | 'rfce' | 'acecf', name: string) => `${kind}:${name}`
+
+async function signXml(kind: 'ecf' | 'rfce' | 'acecf', name: string) {
+    const k = key(kind, name)
+    if (signing.value[ k ]) return
+
+    signing.value[ k ] = true
+    try {
+        const token = getCsrfToken()
+
+        const res = await axios.post(
+            '/erp/services/certificacion-emisor/xml/sign',
+            { kind, name },
+            { headers: { ...(token ? { 'X-CSRF-TOKEN': token } : {}) } }
+        )
+
+        if (!res.data?.ok) throw new Error(res.data?.message ?? 'No se pudo firmar.')
+
+        router.reload({ only: [ 'xml_files' ] })
+    } catch (e: any) {
+        const msg = e?.response?.data?.message || e?.message || 'Error firmando.'
+        console.error(e)
+        alert(msg)
+    } finally {
+        signing.value[ k ] = false
+    }
+}
+
+async function sendXml(kind: 'ecf' | 'rfce' | 'acecf', name: string) {
+    const k = key(kind, name)
+    if (sending.value[ k ]) return
+
+    sending.value[ k ] = true
+    try {
+        const token = getCsrfToken()
+
+        const res = await axios.post(
+            '/erp/services/certificacion-emisor/xml/send',
+            { kind, name },
+            { headers: { ...(token ? { 'X-CSRF-TOKEN': token } : {}) } }
+        )
+
+        if (!res.data?.ok) throw new Error(res.data?.message ?? 'No se pudo enviar.')
+
+        router.reload({ only: [ 'xml_files' ] })
+    } catch (e: any) {
+        const msg = e?.response?.data?.message || e?.message || 'Error enviando.'
+        console.error(e)
+        alert(msg)
+    } finally {
+        sending.value[ k ] = false
+    }
+}
+
+/* -----------------------------------------
+   ✅ Breadcrumbs / Tabs
+------------------------------------------ */
 const breadcrumbs: BreadcrumbItem[] = [
     { title: 'LaudaERP', href: '/erp' },
     { title: 'Servicios', href: '/erp' },
     { title: 'Certificación Emisor', href: '/erp/services/certificacion-emisor' },
 ]
 
-const tab = ref<'guia' | 'certificados' | 'endpoints' | 'sets-ecf' | 'sets-comercial'>('guia')
+const tab = ref<'guia' | 'certificados' | 'endpoints' | 'sets-ecf' | 'servicios-web'>('guia')
+const wrapper_tabs = ref<'dgii-cert' | 'ecf-wrapper' | 'rfce-wrapper' | 'acecf-wrapper'>('dgii-cert')
 
-const wrapper_tabs = ref<'ecf-wrapper' | 'rfce-wrapper' | 'acecf-wrapper'>('ecf-wrapper')
+/* -----------------------------------------
+   ✅ XML payload helper
+------------------------------------------ */
+const emptyBucket = (kind: XmlFilesBucket[ 'kind' ]): XmlFilesBucket => ({
+    kind,
+    base_dir: '',
+    count: 0,
+    items: [],
+})
+
+const xml_files = computed<XmlFilesPayload>(() => {
+    return (
+        props.xml_files ?? {
+            ecf: emptyBucket('ecf'),
+            rfce: emptyBucket('rfce'),
+            acecf: emptyBucket('acecf'),
+        }
+    )
+})
 
 /* -----------------------------------------
    ✅ Certificados
@@ -352,7 +432,7 @@ const guia = {
 }
 
 /* -----------------------------------------
-   ✅ Endpoints helpers (preview) - FIXED
+   ✅ Endpoints helpers (preview)
 ------------------------------------------ */
 function envLabel(env: 'precert' | 'cert' | 'prod') {
     if (env === 'precert') return 'precert (DGII pruebas)'
@@ -363,10 +443,6 @@ function envLabel(env: 'precert' | 'cert' | 'prod') {
 const settingEndpoints = computed<Record<string, any>>(() => props.setting?.endpoints ?? {})
 const hasSettingEndpoints = computed(() => Object.keys(settingEndpoints.value || {}).length > 0)
 
-/**
- * ✅ Fallback desde catálogo:
- * Usa keys REALES como las que tú mostraste: auth.seed, auth.validate_seed, consulta.resultado, etc.
- */
 function endpointsFromCatalog(env: 'precert' | 'cert' | 'prod'): Record<string, any> {
     const rows = (props.endpoint_catalog ?? []).filter((r) => (r.environment ?? env) === env && (r.is_active ?? true))
     if (!rows.length) return {}
@@ -405,12 +481,6 @@ const baseHost = computed(() => {
     return host ? host : '—'
 })
 
-/**
- * ✅ cfPrefix correcto:
- * 1) override en endpoints (si existiera)
- * 2) setting.cf_prefix desde backend
- * 3) fallback por env: testecf / certecf / ecf
- */
 const cfPrefix = computed(() => {
     const v = (effectiveEndpointsForPreview.value?.CfPrefix ?? effectiveEndpointsForPreview.value?.cf_prefix ?? '').toString().trim()
     if (v) return v
@@ -429,11 +499,10 @@ function buildUrl(path?: string | null) {
     const host = baseHost.value
     if (!host || host === '—') return p
 
-    // normaliza cualquier hardcode previo a {cf}
     const normalized = p
         .replace('/certecf/', '/{cf}/')
         .replace('/testecf/', '/{cf}/')
-        .replace('/testcf/', '/{cf}/') // compat
+        .replace('/testcf/', '/{cf}/')
         .replace('/ecf/', '/{cf}/')
         .replace('/eCF/', '/{cf}/')
 
@@ -464,7 +533,7 @@ const endpointEntries = computed(() => {
 })
 
 /* -----------------------------------------
-   ✅ Endpoints Editor (FIX)
+   ✅ Endpoints Editor
 ------------------------------------------ */
 const openEndpointsEditor = ref(false)
 const endpointsJsonError = ref<string | null>(null)
@@ -490,12 +559,10 @@ function resetEndpointsEditor() {
     endpointsForm.endpoints_json = JSON.stringify(ep ?? {}, null, 2)
 }
 
-// ✅ al abrir modal, siempre reset
 watch(openEndpointsEditor, (isOpen) => {
     if (isOpen) resetEndpointsEditor()
 })
 
-// ✅ si setting cambia y modal está abierto, refresca
 watch(
     () => props.setting,
     () => {
@@ -504,7 +571,6 @@ watch(
     { deep: true }
 )
 
-// ✅ mejora UX: si cambias ambiente en el modal y NO hay overrides, repuebla desde catálogo
 watch(
     () => endpointsForm.environment,
     (env) => {
@@ -532,7 +598,6 @@ function submitEndpoints() {
         endpoints: parsed,
     }))
 
-    // ✅ tu ruta real (según routes/web.php)
     endpointsForm.post('/erp/services/certificacion-emisor/endpoints', {
         preserveScroll: true,
         onSuccess: () => {
@@ -548,31 +613,149 @@ function submitEndpoints() {
     })
 }
 
-const sending = ref<Record<string, boolean>>({})
+/* -----------------------------------------
+   ✅ Servicios Web (DGII WS) helpers
+------------------------------------------ */
+const appBaseDomain = computed(() => {
+    return ((import.meta as any)?.env?.VITE_APP_BASE_DOMAIN || 'laudaapi.com').toString().trim()
+})
 
-async function sendXml(kind: 'ecf'|'rfce'|'acecf', name: string) {
-  const k = key(kind, name)
-  if (sending.value[k]) return
+const wsTenant = computed(() => {
+    const c: any = props.company || {}
+    return (c.ws_subdomain || c.slug || 'demo').toString().trim()
+})
 
-  sending.value[k] = true
-  try {
-    const token = getCsrfToken()
-    const res = await axios.post('/erp/services/certificacion-emisor/xml/send',
-      { kind, name },
-      { headers: { ...(token ? { 'X-CSRF-TOKEN': token } : {}) } }
-    )
+const wsUsingFallback = computed(() => {
+    const c: any = props.company || {}
+    return !c.ws_subdomain && !!c.slug
+})
 
-    if (!res.data?.ok) throw new Error(res.data?.message ?? 'No se pudo enviar.')
+const wsOrigin = computed(() => `https://${wsTenant.value}.${appBaseDomain.value}`)
 
-    router.reload({ only: ['xml_files'] })
-  } catch (e: any) {
-    const msg = e?.response?.data?.message || e?.message || 'Error enviando.'
-    alert(msg)
-  } finally {
-    sending.value[k] = false
-  }
+const wsUrls = computed(() => ({
+    semilla: `${wsOrigin.value}/fe/autenticacion/api/semilla`,
+    validacion: `${wsOrigin.value}/fe/autenticacion/api/validacioncertificado`,
+    recepcion: `${wsOrigin.value}/fe/recepcion/api/ecf`,
+    aprobacion: `${wsOrigin.value}/fe/aprobacioncomercial/api/ecf`,
+}))
+
+/* -----------------------------------------
+   ✅ WS Activity (UI)
+------------------------------------------ */
+const wsActivity = ref<WsActivityItem[]>(props.ws_activity ?? [])
+const wsLoading = ref(false)
+const wsError = ref<string | null>(null)
+
+const wsLevel = ref<'all' | 'info' | 'warning' | 'error'>('all')
+const wsSearch = ref('')
+const wsAutoRefresh = ref(true)
+
+let wsTimer: ReturnType<typeof setInterval> | null = null
+
+function levelBadge(item: WsActivityItem) {
+    if (item.level === 'error') return { variant: 'destructive' as const, cls: '' }
+    if (item.level === 'warning') return { variant: 'secondary' as const, cls: 'bg-yellow-400 text-black hover:bg-yellow-400' }
+    return { variant: 'secondary' as const, cls: '' }
 }
 
+function shortCid(cid?: string | null) {
+    const v = (cid ?? '').toString()
+    if (!v) return '—'
+    return v.length > 12 ? `${v.slice(0, 8)}…${v.slice(-4)}` : v
+}
+
+async function fetchWsActivity() {
+    wsError.value = null
+    wsLoading.value = true
+    try {
+        const res = await axios.get('/erp/services/certificacion-emisor/ws/activity', {
+            params: {
+                company_id: props.company.id,
+                limit: 250,
+            },
+        })
+
+        if (!res.data?.ok) throw new Error(res.data?.message ?? 'No se pudo cargar la actividad.')
+        wsActivity.value = (res.data?.items ?? []) as WsActivityItem[]
+    } catch (e: any) {
+        wsError.value = e?.response?.data?.message || e?.message || 'Error cargando actividad.'
+    } finally {
+        wsLoading.value = false
+    }
+}
+
+function startWsTimer() {
+    if (wsTimer) clearInterval(wsTimer)
+    wsTimer = setInterval(() => {
+        // solo refrescar si sigues en el tab
+        if (tab.value === 'servicios-web' && wsAutoRefresh.value) fetchWsActivity()
+    }, 15000)
+}
+
+function stopWsTimer() {
+    if (wsTimer) clearInterval(wsTimer)
+    wsTimer = null
+}
+
+const wsFiltered = computed(() => {
+    const q = wsSearch.value.trim().toLowerCase()
+    return (wsActivity.value ?? [])
+        .filter((x) => {
+            if (wsLevel.value !== 'all' && x.level !== wsLevel.value) return false
+            if (!q) return true
+            const blob = JSON.stringify(x).toLowerCase()
+            return blob.includes(q)
+        })
+        .slice(0, 250)
+})
+
+const wsStats = computed(() => {
+    const items = wsActivity.value ?? []
+    const errors = items.filter((x) => x.level === 'error').length
+    const warnings = items.filter((x) => x.level === 'warning').length
+    const last = items[ 0 ]?.ts ?? null
+    return { total: items.length, errors, warnings, last }
+})
+
+const lastByEvent = computed(() => {
+    const out: Record<string, string> = {}
+    for (const it of wsActivity.value ?? []) {
+        if (!out[ it.event ]) out[ it.event ] = it.ts
+    }
+    return out
+})
+
+function lastEventTs(eventPrefix: string) {
+    const map = lastByEvent.value
+    const keys = Object.keys(map)
+    const found = keys.find((k) => k.startsWith(eventPrefix))
+    return found ? map[ found ] : null
+}
+
+watch(tab, (t) => {
+    if (t === 'servicios-web') {
+        fetchWsActivity()
+        if (wsAutoRefresh.value) startWsTimer()
+    } else {
+        stopWsTimer()
+    }
+})
+
+watch(wsAutoRefresh, (v) => {
+    if (tab.value !== 'servicios-web') return
+    if (v) startWsTimer()
+    else stopWsTimer()
+})
+
+onMounted(() => {
+    // no spamear; solo si entras al tab
+    if (tab.value === 'servicios-web') {
+        fetchWsActivity()
+        if (wsAutoRefresh.value) startWsTimer()
+    }
+})
+
+onBeforeUnmount(() => stopWsTimer())
 </script>
 
 <template>
@@ -602,7 +785,7 @@ async function sendXml(kind: 'ecf'|'rfce'|'acecf', name: string) {
                     <TabsTrigger value="certificados">Certificados</TabsTrigger>
                     <TabsTrigger value="endpoints">Endpoints</TabsTrigger>
                     <TabsTrigger value="sets-ecf">Set e-CF</TabsTrigger>
-                    <TabsTrigger value="sets-comercial">Aprobación</TabsTrigger>
+                    <TabsTrigger value="servicios-web">Servicios Web</TabsTrigger>
                 </TabsList>
 
                 <!-- ✅ GUÍA -->
@@ -908,9 +1091,9 @@ async function sendXml(kind: 'ecf'|'rfce'|'acecf', name: string) {
                                             </DialogContent>
                                         </Dialog>
 
-                                        <Link href="/erp/services/certificacion-emisor/endpoints" class="text-sm text-muted-foreground hover:underline">
-                                            Abrir pantalla endpoints
-                                        </Link>
+                                        <Button as-child variant="outline" class="gap-2" title="Abrir pantalla endpoints">
+                                            <Link href="/erp/services/certificacion-emisor/endpoints">Abrir pantalla endpoints</Link>
+                                        </Button>
                                     </div>
                                 </div>
                             </CardHeader>
@@ -994,7 +1177,7 @@ async function sendXml(kind: 'ecf'|'rfce'|'acecf', name: string) {
                                 </div>
 
                                 <div class="rounded-lg border p-4 text-sm text-muted-foreground">
-                                    Próximo: prueba real token (semilla → firmar → validarsemilla).
+                                    Próximo: prueba real token DGII (semilla → firmar → validarsemilla) + WS token (ValidaciónCertificado).
                                 </div>
                             </CardContent>
                         </Card>
@@ -1008,18 +1191,25 @@ async function sendXml(kind: 'ecf'|'rfce'|'acecf', name: string) {
                             <CardTitle>Set de Pruebas e-CF</CardTitle>
                             <CardDescription>Sube Excel, genera XML por fila, firma, envía, trackId/estado.</CardDescription>
                         </CardHeader>
-                        <CardContent>
-                            <p class="text-sm text-muted-foreground">Pendiente: upload Excel + grid de filas.</p>
-                        </CardContent>
+
                         <Tabs v-model="wrapper_tabs">
-                            <TabsList class="grid rounded-none w-full grid-cols-3">
+                            <TabsList class="grid rounded-none w-full grid-cols-4">
+                                <TabsTrigger value="dgii-cert">Certificado DGII</TabsTrigger>
                                 <TabsTrigger value="ecf-wrapper">e-CF Wrapper</TabsTrigger>
                                 <TabsTrigger value="rfce-wrapper">RFCE Wrapper</TabsTrigger>
-                                <TabsTrigger value="acecf-wrapper">ACECF Wrapper</TabsTrigger>
+                                <TabsTrigger value="acecf-wrapper">ACECF (respuesta)</TabsTrigger>
                             </TabsList>
 
-                            <TabsContent  class="mt-4 px-6" value="ecf-wrapper">
-                                <XmlEcfWrapper/>
+                            <TabsContent class="mt-4 px-6" value="dgii-cert">
+                                <DgiiRootCertAuthUploader
+                                    :company-id="company.id"
+                                    :company-name="company.name"
+                                    :active="wrapper_tabs === 'dgii-cert'"
+                                />
+                            </TabsContent>
+
+                            <TabsContent class="mt-4 px-6" value="ecf-wrapper">
+                                <XmlEcfWrapper />
                                 <Card>
                                     <CardHeader>
                                         <div class="flex items-center justify-between gap-2">
@@ -1037,7 +1227,7 @@ async function sendXml(kind: 'ecf'|'rfce'|'acecf', name: string) {
                                                 <thead class="bg-muted/40 text-xs text-muted-foreground">
                                                     <tr>
                                                         <th class="px-3 py-2 text-left">Nombre del archivo</th>
-                                                        <th class="px-3 py-2 text-left">tipo de e-CF</th>
+                                                        <th class="px-3 py-2 text-left">Tipo e-CF</th>
                                                         <th class="px-3 py-2 text-left">Tamaño</th>
                                                         <th class="px-3 py-2 text-left">Acción</th>
                                                         <th class="px-3 py-2 text-left">Estatus</th>
@@ -1049,36 +1239,22 @@ async function sendXml(kind: 'ecf'|'rfce'|'acecf', name: string) {
                                                             <div class="font-mono text-xs">{{ e.name }}</div>
                                                         </td>
                                                         <td class="px-3 py-2">{{ e.type }}</td>
-                                                        <td class="px-3 py-2">{{ e.size_bytes }} Bytes</td>
+                                                        <td class="px-3 py-2">{{ formatBytes(e.size_bytes ?? null) }}</td>
+
                                                         <td class="px-3 py-2">
-                                                        <!-- 1) Sin firmar -->
-                                                        <Button
-                                                            v-if="!e.signed"
-                                                            size="sm"
-                                                            variant="secondary"
-                                                            :disabled="signing[key('ecf', e.name)]"
-                                                            @click="signXml('ecf', e.name)"
-                                                        >
-                                                            <span v-if="signing[key('ecf', e.name)]">Firmando…</span>
-                                                            <span v-else>Firmar</span>
-                                                        </Button>
+                                                            <Button v-if="!e.signed" size="sm" variant="secondary" :disabled="signing[ key('ecf', e.name) ]" @click="signXml('ecf', e.name)">
+                                                                <span v-if="signing[ key('ecf', e.name) ]">Firmando…</span>
+                                                                <span v-else>Firmar</span>
+                                                            </Button>
 
-                                                        <!-- 2) Firmado pero NO enviado -->
-                                                        <Button
-                                                            v-else-if="!e.sent"
-                                                            size="sm"
-                                                            :disabled="sending[key('ecf', e.name)]"
-                                                            @click="sendXml('ecf', e.name)"
-                                                        >
-                                                            <span v-if="sending[key('ecf', e.name)]">Enviando…</span>
-                                                            <span v-else>Enviar</span>
-                                                        </Button>
+                                                            <Button v-else-if="!e.sent" size="sm" :disabled="sending[ key('ecf', e.name) ]" @click="sendXml('ecf', e.name)">
+                                                                <span v-if="sending[ key('ecf', e.name) ]">Enviando…</span>
+                                                                <span v-else>Enviar</span>
+                                                            </Button>
 
-                                                        <!-- 3) Enviado -->
-                                                        <Button v-else size="sm" variant="secondary" disabled>
-                                                            Enviado
-                                                        </Button>
+                                                            <Button v-else size="sm" variant="secondary" disabled>Enviado</Button>
                                                         </td>
+
                                                         <td class="px-3 py-2">
                                                             <Badge v-if="e.sent" variant="default">Enviado</Badge>
                                                             <Badge v-else-if="e.signed" variant="default">Firmado</Badge>
@@ -1095,8 +1271,10 @@ async function sendXml(kind: 'ecf'|'rfce'|'acecf', name: string) {
                                     </CardContent>
                                 </Card>
                             </TabsContent>
-                            <TabsContent  class="mt-4 px-6" value="rfce-wrapper">
-                                <RfceXmlWrapper/>
+
+                            <TabsContent class="mt-4 px-6" value="rfce-wrapper">
+                                <RfceXmlWrapper />
+
                                 <Card>
                                     <CardHeader>
                                         <div class="flex items-center justify-between gap-2">
@@ -1114,7 +1292,7 @@ async function sendXml(kind: 'ecf'|'rfce'|'acecf', name: string) {
                                                 <thead class="bg-muted/40 text-xs text-muted-foreground">
                                                     <tr>
                                                         <th class="px-3 py-2 text-left">Nombre del archivo</th>
-                                                        <th class="px-3 py-2 text-left">tipo de e-CF</th>
+                                                        <th class="px-3 py-2 text-left">Tipo e-CF</th>
                                                         <th class="px-3 py-2 text-left">Tamaño</th>
                                                         <th class="px-3 py-2 text-left">Acción</th>
                                                         <th class="px-3 py-2 text-left">Estatus</th>
@@ -1126,36 +1304,22 @@ async function sendXml(kind: 'ecf'|'rfce'|'acecf', name: string) {
                                                             <div class="font-mono text-xs">{{ e.name }}</div>
                                                         </td>
                                                         <td class="px-3 py-2">{{ e.type }}</td>
-                                                        <td class="px-3 py-2">{{ e.size_bytes }} Bytes</td>
+                                                        <td class="px-3 py-2">{{ formatBytes(e.size_bytes ?? null) }}</td>
+
                                                         <td class="px-3 py-2">
-                                                        <!-- 1) Sin firmar -->
-                                                        <Button
-                                                            v-if="!e.signed"
-                                                            size="sm"
-                                                            variant="secondary"
-                                                            :disabled="signing[key('rfce', e.name)]"
-                                                            @click="signXml('rfce', e.name)"
-                                                        >
-                                                            <span v-if="signing[key('rfce', e.name)]">Firmando…</span>
-                                                            <span v-else>Firmar</span>
-                                                        </Button>
+                                                            <Button v-if="!e.signed" size="sm" variant="secondary" :disabled="signing[ key('rfce', e.name) ]" @click="signXml('rfce', e.name)">
+                                                                <span v-if="signing[ key('rfce', e.name) ]">Firmando…</span>
+                                                                <span v-else>Firmar</span>
+                                                            </Button>
 
-                                                        <!-- 2) Firmado pero NO enviado -->
-                                                        <Button
-                                                            v-else-if="!e.sent"
-                                                            size="sm"
-                                                            :disabled="sending[key('rfce', e.name)]"
-                                                            @click="sendXml('rfce', e.name)"
-                                                        >
-                                                            <span v-if="sending[key('rfce', e.name)]">Enviando…</span>
-                                                            <span v-else>Enviar</span>
-                                                        </Button>
+                                                            <Button v-else-if="!e.sent" size="sm" :disabled="sending[ key('rfce', e.name) ]" @click="sendXml('rfce', e.name)">
+                                                                <span v-if="sending[ key('rfce', e.name) ]">Enviando…</span>
+                                                                <span v-else>Enviar</span>
+                                                            </Button>
 
-                                                        <!-- 3) Enviado -->
-                                                        <Button v-else size="sm" variant="secondary" disabled>
-                                                            Enviado
-                                                        </Button>
+                                                            <Button v-else size="sm" variant="secondary" disabled>Enviado</Button>
                                                         </td>
+
                                                         <td class="px-3 py-2">
                                                             <Badge v-if="e.sent" variant="default">Enviado</Badge>
                                                             <Badge v-else-if="e.signed" variant="default">Firmado</Badge>
@@ -1172,8 +1336,10 @@ async function sendXml(kind: 'ecf'|'rfce'|'acecf', name: string) {
                                     </CardContent>
                                 </Card>
                             </TabsContent>
-                            <TabsContent  class="mt-4 px-6" value="acecf-wrapper">
-                                <AcecfXmlWrapper/>
+
+                            <TabsContent class="mt-4 px-6" value="acecf-wrapper">
+                                <AcecfXmlWrapper />
+
                                 <Card>
                                     <CardHeader>
                                         <div class="flex items-center justify-between gap-2">
@@ -1191,7 +1357,7 @@ async function sendXml(kind: 'ecf'|'rfce'|'acecf', name: string) {
                                                 <thead class="bg-muted/40 text-xs text-muted-foreground">
                                                     <tr>
                                                         <th class="px-3 py-2 text-left">Nombre del archivo</th>
-                                                        <th class="px-3 py-2 text-left">tipo de e-CF</th>
+                                                        <th class="px-3 py-2 text-left">Tipo e-CF</th>
                                                         <th class="px-3 py-2 text-left">Tamaño</th>
                                                         <th class="px-3 py-2 text-left">Acción</th>
                                                         <th class="px-3 py-2 text-left">Estatus</th>
@@ -1203,36 +1369,22 @@ async function sendXml(kind: 'ecf'|'rfce'|'acecf', name: string) {
                                                             <div class="font-mono text-xs">{{ e.name }}</div>
                                                         </td>
                                                         <td class="px-3 py-2">{{ e.type }}</td>
-                                                        <td class="px-3 py-2">{{ e.size_bytes }} Bytes</td>
+                                                        <td class="px-3 py-2">{{ formatBytes(e.size_bytes ?? null) }}</td>
+
                                                         <td class="px-3 py-2">
-                                                        <!-- 1) Sin firmar -->
-                                                        <Button
-                                                            v-if="!e.signed"
-                                                            size="sm"
-                                                            variant="secondary"
-                                                            :disabled="signing[key('acecf', e.name)]"
-                                                            @click="signXml('acecf', e.name)"
-                                                        >
-                                                            <span v-if="signing[key('acecf', e.name)]">Firmando…</span>
-                                                            <span v-else>Firmar</span>
-                                                        </Button>
+                                                            <Button v-if="!e.signed" size="sm" variant="secondary" :disabled="signing[ key('acecf', e.name) ]" @click="signXml('acecf', e.name)">
+                                                                <span v-if="signing[ key('acecf', e.name) ]">Firmando…</span>
+                                                                <span v-else>Firmar</span>
+                                                            </Button>
 
-                                                        <!-- 2) Firmado pero NO enviado -->
-                                                        <Button
-                                                            v-else-if="!e.sent"
-                                                            size="sm"
-                                                            :disabled="sending[key('acecf', e.name)]"
-                                                            @click="sendXml('acecf', e.name)"
-                                                        >
-                                                            <span v-if="sending[key('acecf', e.name)]">Enviando…</span>
-                                                            <span v-else>Enviar</span>
-                                                        </Button>
+                                                            <Button v-else-if="!e.sent" size="sm" :disabled="sending[ key('acecf', e.name) ]" @click="sendXml('acecf', e.name)">
+                                                                <span v-if="sending[ key('acecf', e.name) ]">Enviando…</span>
+                                                                <span v-else>Enviar</span>
+                                                            </Button>
 
-                                                        <!-- 3) Enviado -->
-                                                        <Button v-else size="sm" variant="secondary" disabled>
-                                                            Enviado
-                                                        </Button>
+                                                            <Button v-else size="sm" variant="secondary" disabled>Enviado</Button>
                                                         </td>
+
                                                         <td class="px-3 py-2">
                                                             <Badge v-if="e.sent" variant="default">Enviado</Badge>
                                                             <Badge v-else-if="e.signed" variant="default">Firmado</Badge>
@@ -1252,17 +1404,342 @@ async function sendXml(kind: 'ecf'|'rfce'|'acecf', name: string) {
                         </Tabs>
                     </Card>
                 </TabsContent>
-                <!-- ✅ APROBACIÓN -->
-                <TabsContent value="sets-comercial" class="mt-4">
-                    <Card>
-                        <CardHeader>
-                            <CardTitle>Aprobación / Rechazo Comercial</CardTitle>
-                            <CardDescription>Procesamiento separado del set comercial y tracking.</CardDescription>
-                        </CardHeader>
-                        <CardContent>
-                            <p class="text-sm text-muted-foreground">Pendiente: upload + jobs + tracking.</p>
-                        </CardContent>
-                    </Card>
+
+                <!-- ✅ SERVICIOS WEB (DGII WS + LOGS) -->
+                <TabsContent value="servicios-web" class="mt-4">
+                    <div class="space-y-4">
+                        <Card>
+                            <CardHeader>
+                                <CardTitle class="flex items-center gap-2">
+                                    Servicios Web (DGII) — Comunicación obligatoria
+                                    <Badge v-if="wsUsingFallback" variant="secondary" class="bg-yellow-400 text-black hover:bg-yellow-400">
+                                        Usando slug como fallback
+                                    </Badge>
+                                </CardTitle>
+                                <CardDescription>
+                                    DGII exige exponer endpoints públicos por subdominio para: Semilla, Validación de certificado,
+                                    Recepción e-CF (ARECF) y Aprobación Comercial (ACECF).
+                                </CardDescription>
+                            </CardHeader>
+
+                            <CardContent class="space-y-6">
+                                <div class="grid gap-3 md:grid-cols-3">
+                                    <div class="rounded-lg border p-4">
+                                        <div class="text-xs text-muted-foreground">Subdominio WS (empresa)</div>
+                                        <div class="mt-1 flex items-center justify-between gap-2">
+                                            <div class="text-sm font-medium font-mono break-all">
+                                                {{ wsTenant }}.{{ appBaseDomain }}
+                                            </div>
+                                            <Button size="sm" variant="outline" @click="copyText(`${wsTenant}.${appBaseDomain}`)">Copiar</Button>
+                                        </div>
+                                        <p class="mt-2 text-xs text-muted-foreground">
+                                            Se usa <span class="font-mono">companies.ws_subdomain</span> (o <span class="font-mono">slug</span> como fallback).
+                                        </p>
+                                    </div>
+
+                                    <div class="rounded-lg border p-4">
+                                        <div class="text-xs text-muted-foreground">TLS / Wildcard</div>
+                                        <div class="mt-1 text-sm font-medium">
+                                            Requiere certificado para <span class="font-mono">*.{{ appBaseDomain }}</span>
+                                        </div>
+                                        <p class="mt-2 text-xs text-muted-foreground">
+                                            Sin wildcard, DGII no podrá llamar <span class="font-mono">{{ wsTenant }}.{{ appBaseDomain }}</span>.
+                                        </p>
+                                    </div>
+
+                                    <div class="rounded-lg border p-4">
+                                        <div class="text-xs text-muted-foreground">Ambiente DGII</div>
+                                        <div class="mt-1 text-sm font-medium">{{ envLabel(setting.environment) }}</div>
+                                        <p class="mt-2 text-xs text-muted-foreground">
+                                            cf_prefix efectivo: <span class="font-mono">{{ cfPrefix }}</span>
+                                        </p>
+                                    </div>
+                                </div>
+
+                                <div class="rounded-lg border p-4">
+                                    <div class="flex items-center justify-between gap-2">
+                                        <div>
+                                            <div class="text-sm font-semibold">Flujo requerido (pasos 7 → 11)</div>
+                                            <p class="mt-1 text-xs text-muted-foreground">
+                                                Token WS (Bearer) lo emites tú en <span class="font-mono">ValidaciónCertificado</span> y lo usas para proteger
+                                                <span class="font-mono">Recepción</span> y <span class="font-mono">Aprobación Comercial</span>.
+                                            </p>
+                                        </div>
+                                        <Badge variant="secondary">WS Token ≠ DGII Token</Badge>
+                                    </div>
+
+                                    <ol class="mt-4 space-y-3 text-sm">
+                                        <li class="flex gap-3">
+                                            <Badge variant="secondary" class="min-w-10 justify-center">7</Badge>
+                                            <div>
+                                                <div class="font-medium">DGII solicita Semilla (GET)</div>
+                                                <div class="text-xs text-muted-foreground font-mono break-all">{{ wsUrls.semilla }}</div>
+                                            </div>
+                                        </li>
+
+                                        <li class="flex gap-3">
+                                            <Badge variant="secondary" class="min-w-10 justify-center">8</Badge>
+                                            <div>
+                                                <div class="font-medium">DGII valida certificado / semilla (POST) → tú respondes token WS</div>
+                                                <div class="text-xs text-muted-foreground font-mono break-all">{{ wsUrls.validacion }}</div>
+                                            </div>
+                                        </li>
+
+                                        <li class="flex gap-3">
+                                            <Badge variant="secondary" class="min-w-10 justify-center">9</Badge>
+                                            <div>
+                                                <div class="font-medium">Recepción e-CF (POST) → tú devuelves ARECF firmado</div>
+                                                <div class="text-xs text-muted-foreground font-mono break-all">{{ wsUrls.recepcion }}</div>
+                                                <div class="mt-1 text-xs text-muted-foreground">
+                                                    Requiere <span class="font-mono">Authorization: Bearer (token WS)</span>.
+                                                </div>
+                                            </div>
+                                        </li>
+
+                                        <li class="flex gap-3">
+                                            <Badge variant="secondary" class="min-w-10 justify-center">10</Badge>
+                                            <div>
+                                                <div class="font-medium">Aprobación Comercial e-CF (POST) → tú devuelves ACECF firmado</div>
+                                                <div class="text-xs text-muted-foreground font-mono break-all">{{ wsUrls.aprobacion }}</div>
+                                                <div class="mt-1 text-xs text-muted-foreground">
+                                                    Requiere <span class="font-mono">Authorization: Bearer (token WS)</span>.
+                                                </div>
+                                            </div>
+                                        </li>
+
+                                        <li class="flex gap-3">
+                                            <Badge variant="secondary" class="min-w-10 justify-center">11</Badge>
+                                            <div>
+                                                <div class="font-medium">Tu sistema reenvía ACECF a DGII usando tu token DGII real</div>
+                                                <div class="mt-1 text-xs text-muted-foreground">
+                                                    Esto usa <span class="font-mono">DgiiTokenManager</span> y <span class="font-mono">{{ cfPrefix }}</span> para armar el host DGII.
+                                                </div>
+                                            </div>
+                                        </li>
+                                    </ol>
+                                </div>
+
+                                <div class="rounded-lg border p-4">
+                                    <div class="flex items-center justify-between gap-2">
+                                        <div>
+                                            <div class="text-sm font-semibold">Endpoints expuestos (públicos)</div>
+                                            <p class="mt-1 text-xs text-muted-foreground">
+                                                Estos endpoints deben correr sin sesión/CSRF y aceptar XML (multipart).
+                                            </p>
+                                        </div>
+                                        <Badge variant="secondary">DGII → Tu Subdominio</Badge>
+                                    </div>
+
+                                    <div class="mt-3 overflow-x-auto rounded-md border">
+                                        <table class="w-full text-sm">
+                                            <thead class="bg-muted/40 text-xs text-muted-foreground">
+                                                <tr>
+                                                    <th class="px-3 py-2 text-left">Método</th>
+                                                    <th class="px-3 py-2 text-left">Ruta</th>
+                                                    <th class="px-3 py-2 text-left">URL final</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                <tr class="border-t">
+                                                    <td class="px-3 py-2 font-mono text-xs">GET</td>
+                                                    <td class="px-3 py-2 font-mono text-xs">/fe/autenticacion/api/semilla</td>
+                                                    <td class="px-3 py-2 font-mono text-xs break-all">{{ wsUrls.semilla }}</td>
+                                                </tr>
+                                                <tr class="border-t">
+                                                    <td class="px-3 py-2 font-mono text-xs">POST</td>
+                                                    <td class="px-3 py-2 font-mono text-xs">/fe/autenticacion/api/validacioncertificado</td>
+                                                    <td class="px-3 py-2 font-mono text-xs break-all">{{ wsUrls.validacion }}</td>
+                                                </tr>
+                                                <tr class="border-t">
+                                                    <td class="px-3 py-2 font-mono text-xs">POST</td>
+                                                    <td class="px-3 py-2 font-mono text-xs">/fe/recepcion/api/ecf</td>
+                                                    <td class="px-3 py-2 font-mono text-xs break-all">{{ wsUrls.recepcion }}</td>
+                                                </tr>
+                                                <tr class="border-t">
+                                                    <td class="px-3 py-2 font-mono text-xs">POST</td>
+                                                    <td class="px-3 py-2 font-mono text-xs">/fe/aprobacioncomercial/api/ecf</td>
+                                                    <td class="px-3 py-2 font-mono text-xs break-all">{{ wsUrls.aprobacion }}</td>
+                                                </tr>
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+
+                                <!-- ✅ ACTIVIDAD DGII (LOGS) -->
+                                <Card>
+                                    <CardHeader>
+                                        <div class="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+                                            <div>
+                                                <CardTitle>Actividad DGII (WS Logs)</CardTitle>
+                                                <CardDescription>
+                                                    Eventos instrumentados por <span class="font-mono">DgiiWsActivityLogger</span> (correlation id, status, duración, paths).
+                                                </CardDescription>
+                                            </div>
+
+                                            <div class="flex flex-wrap items-center gap-2">
+                                                <Badge variant="secondary">{{ wsStats.total }} eventos</Badge>
+                                                <Badge v-if="wsStats.warnings" variant="secondary" class="bg-yellow-400 text-black hover:bg-yellow-400">
+                                                    {{ wsStats.warnings }} warnings
+                                                </Badge>
+                                                <Badge v-if="wsStats.errors" variant="destructive">
+                                                    {{ wsStats.errors }} errores
+                                                </Badge>
+
+                                                <Button variant="outline" size="sm" :disabled="wsLoading" @click="fetchWsActivity">
+                                                    {{ wsLoading ? 'Actualizando…' : 'Refrescar' }}
+                                                </Button>
+                                            </div>
+                                        </div>
+                                    </CardHeader>
+
+                                    <CardContent class="space-y-4">
+                                        <div class="grid gap-3 md:grid-cols-3">
+                                            <div class="rounded-lg border p-4">
+                                                <div class="text-xs text-muted-foreground">Última actividad</div>
+                                                <div class="mt-1 text-sm font-medium font-mono">{{ wsStats.last ?? '—' }}</div>
+                                            </div>
+
+                                            <div class="rounded-lg border p-4">
+                                                <div class="text-xs text-muted-foreground">Última Semilla / Validación</div>
+                                                <div class="mt-1 text-xs text-muted-foreground">
+                                                    <div class="flex items-center justify-between gap-2">
+                                                        <span>Semilla:</span>
+                                                        <span class="font-mono">{{ lastEventTs('ws.semilla') ?? '—' }}</span>
+                                                    </div>
+                                                    <div class="flex items-center justify-between gap-2">
+                                                        <span>Validación:</span>
+                                                        <span class="font-mono">{{ lastEventTs('ws.validacion') ?? '—' }}</span>
+                                                    </div>
+                                                </div>
+                                            </div>
+
+                                            <div class="rounded-lg border p-4">
+                                                <div class="text-xs text-muted-foreground">Auto-refresh</div>
+                                                <div class="mt-2 flex items-center gap-2 text-sm">
+                                                    <input type="checkbox" class="h-4 w-4" v-model="wsAutoRefresh" />
+                                                    <span class="text-muted-foreground">cada 15s (solo en este tab)</span>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <div class="grid gap-3 md:grid-cols-3">
+                                            <div class="space-y-2">
+                                                <div class="text-xs text-muted-foreground">Nivel</div>
+                                                <select v-model="wsLevel" class="h-9 w-full rounded-md border bg-background px-3 text-sm">
+                                                    <option value="all">Todos</option>
+                                                    <option value="info">Info</option>
+                                                    <option value="warning">Warning</option>
+                                                    <option value="error">Error</option>
+                                                </select>
+                                            </div>
+
+                                            <div class="space-y-2 md:col-span-2">
+                                                <div class="text-xs text-muted-foreground">Buscar</div>
+                                                <input v-model="wsSearch" type="text" class="h-9 w-full rounded-md border bg-background px-3 text-sm" placeholder="cid, event, path, status, encf, rnc..." />
+                                            </div>
+                                        </div>
+
+                                        <div v-if="wsError" class="rounded-lg border border-red-500/30 bg-red-500/5 p-4 text-sm text-destructive">
+                                            {{ wsError }}
+                                        </div>
+
+                                        <div class="overflow-x-auto rounded-md border">
+                                            <table class="w-full text-sm">
+                                                <thead class="bg-muted/40 text-xs text-muted-foreground">
+                                                    <tr>
+                                                        <th class="px-3 py-2 text-left">TS</th>
+                                                        <th class="px-3 py-2 text-left">Level</th>
+                                                        <th class="px-3 py-2 text-left">Event</th>
+                                                        <th class="px-3 py-2 text-left">Request</th>
+                                                        <th class="px-3 py-2 text-left">Status</th>
+                                                        <th class="px-3 py-2 text-left">Dur</th>
+                                                        <th class="px-3 py-2 text-left">CID</th>
+                                                        <th class="px-3 py-2 text-left">Artifacts</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody>
+                                                    <tr v-for="(it, idx) in wsFiltered" :key="`${it.ts}-${it.event}-${it.cid}-${idx}`" class="border-t">
+                                                        <td class="px-3 py-2 font-mono text-xs whitespace-nowrap">{{ it.ts }}</td>
+
+                                                        <td class="px-3 py-2">
+                                                            <Badge :variant="levelBadge(it).variant" :class="levelBadge(it).cls" class="capitalize">
+                                                                {{ it.level }}
+                                                            </Badge>
+                                                        </td>
+
+                                                        <td class="px-3 py-2">
+                                                            <div class="font-mono text-xs break-all">{{ it.event }}</div>
+                                                        </td>
+
+                                                        <td class="px-3 py-2">
+                                                            <div class="font-mono text-xs break-all">
+                                                                {{ (it.method ?? '—') }} {{ it.path ?? '—' }}
+                                                            </div>
+                                                        </td>
+
+                                                        <td class="px-3 py-2 font-mono text-xs whitespace-nowrap">
+                                                            {{ it.status ?? '—' }}
+                                                        </td>
+
+                                                        <td class="px-3 py-2 font-mono text-xs whitespace-nowrap">
+                                                            {{ typeof it.duration_ms === 'number' ? `${it.duration_ms}ms` : '—' }}
+                                                        </td>
+
+                                                        <td class="px-3 py-2">
+                                                            <div class="flex items-center gap-2">
+                                                                <span class="font-mono text-xs">{{ shortCid(it.cid) }}</span>
+                                                                <Button size="sm" variant="outline" @click="copyText(it.cid)">Copiar</Button>
+                                                            </div>
+                                                        </td>
+
+                                                        <td class="px-3 py-2">
+                                                            <div class="space-y-1 text-xs font-mono text-muted-foreground">
+                                                                <div v-if="it.in_path" class="flex items-center justify-between gap-2">
+                                                                    <span class="truncate">in: {{ it.in_path }}</span>
+                                                                    <Button size="sm" variant="outline" @click="copyText(it.in_path)">Copiar</Button>
+                                                                </div>
+                                                                <div v-if="it.out_path" class="flex items-center justify-between gap-2">
+                                                                    <span class="truncate">out: {{ it.out_path }}</span>
+                                                                    <Button size="sm" variant="outline" @click="copyText(it.out_path)">Copiar</Button>
+                                                                </div>
+                                                                <div v-if="it.dgii_resp_path" class="flex items-center justify-between gap-2">
+                                                                    <span class="truncate">dgii: {{ it.dgii_resp_path }}</span>
+                                                                    <Button size="sm" variant="outline" @click="copyText(it.dgii_resp_path)">Copiar</Button>
+                                                                </div>
+                                                                <div v-if="!it.in_path && !it.out_path && !it.dgii_resp_path">—</div>
+                                                            </div>
+                                                        </td>
+                                                    </tr>
+
+                                                    <tr v-if="wsFiltered.length === 0" class="border-t">
+                                                        <td colspan="8" class="px-3 py-4 text-sm text-muted-foreground">
+                                                            No hay actividad (o no hay eventos persistidos todavía).
+                                                        </td>
+                                                    </tr>
+                                                </tbody>
+                                            </table>
+                                        </div>
+
+                                        <div class="rounded-lg border p-4 text-xs text-muted-foreground">
+                                            Nota: si aquí no aparece nada, revisa que el logger esté persistiendo JSONL y que el endpoint
+                                            <span class="font-mono">/erp/services/certificacion-emisor/ws/activity</span> esté activo.
+                                        </div>
+                                    </CardContent>
+                                </Card>
+
+                                <div class="rounded-lg border p-4">
+                                    <div class="text-sm font-semibold">Checklist rápido</div>
+                                    <ul class="mt-3 list-disc space-y-2 pl-5 text-sm text-muted-foreground">
+                                        <li>DNS: <span class="font-mono">*.{{ appBaseDomain }}</span> apunta al VPS (A record).</li>
+                                        <li>Nginx: <span class="font-mono">server_name {{ appBaseDomain }} *.{{ appBaseDomain }}</span> con cert wildcard.</li>
+                                        <li>Laravel: rutas WS en stack <span class="font-mono">api</span> (sin cookies/CSRF) + límite de size.</li>
+                                        <li>Auth WS: token generado en ValidaciónCertificado, exigido en Recepción/Aprobación.</li>
+                                        <li>Firma: ARECF/ACECF firmado con el cert default de la empresa (enveloped, SHA256, C14N según tu regla).</li>
+                                    </ul>
+                                </div>
+                            </CardContent>
+                        </Card>
+                    </div>
                 </TabsContent>
             </Tabs>
         </div>

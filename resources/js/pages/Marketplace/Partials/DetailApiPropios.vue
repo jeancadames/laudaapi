@@ -2,7 +2,7 @@
 import Button from '@/components/ui/button/Button.vue';
 
 type Characteristic = { title: string; desc: string }
-const props = defineProps<{
+defineProps<{
     characteristics: Characteristic[]
     deliverables: string[]
     openRequestForm: () => void

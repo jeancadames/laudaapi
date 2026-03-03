@@ -119,6 +119,11 @@ const certUiState = computed<'ok' | 'incomplete' | 'unknown'>(() => {
     return hasRequiredCerts.value ? 'ok' : 'incomplete'
 })
 
+/**
+ * Se comenta estas 3 variables ya que no se usan y github presenta mensaje de error por esto
+ */
+
+/* 
 const certBadgeText = computed(() => {
     if (certUiState.value === 'unknown') return 'NO VERIFICADO'
     return certUiState.value === 'ok' ? 'OK' : 'INCOMPLETO'
@@ -129,20 +134,23 @@ const certBadgeClass = computed(() => {
         return 'border-slate-200 text-slate-600 dark:border-slate-700 dark:text-slate-300'
     }
     return certUiState.value === 'ok'
-        ? 'border-emerald-200 text-emerald-700 dark:border-emerald-900/60 dark:text-emerald-200'
-        : 'border-amber-200 text-amber-800 dark:border-amber-900/60 dark:text-amber-200'
+    ? 'border-emerald-200 text-emerald-700 dark:border-emerald-900/60 dark:text-emerald-200'
+    : 'border-amber-200 text-amber-800 dark:border-amber-900/60 dark:text-amber-200'
 })
+
+const pillClass = (present: boolean | null) => {
+    if (present === null) return 'bg-slate-100/80 text-slate-700 dark:bg-slate-800/70 dark:text-slate-100'
+    return present
+    ? 'bg-emerald-50 text-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-200'
+    : 'bg-amber-50 text-amber-900 dark:bg-amber-950/40 dark:text-amber-200'
+}
+*/
+
 
 const presentCer = computed<boolean | null>(() => (certReqAvailable.value ? !!certReq.value?.present?.cer : null))
 const presentP12 = computed<boolean | null>(() => (certReqAvailable.value ? !!certReq.value?.present?.p12 : null))
 const presentPfx = computed<boolean | null>(() => (certReqAvailable.value ? !!certReq.value?.present?.pfx : null))
 
-const pillClass = (present: boolean | null) => {
-    if (present === null) return 'bg-slate-100/80 text-slate-700 dark:bg-slate-800/70 dark:text-slate-100'
-    return present
-        ? 'bg-emerald-50 text-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-200'
-        : 'bg-amber-50 text-amber-900 dark:bg-amber-950/40 dark:text-amber-200'
-}
 
 const dotClass = (present: boolean | null) => {
     if (present === null) return 'bg-slate-400'

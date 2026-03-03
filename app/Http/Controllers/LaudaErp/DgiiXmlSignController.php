@@ -117,7 +117,7 @@ final class DgiiXmlSignController extends Controller
             ->whereIn('type', ['p12', 'pfx'])
             ->when(
                 Schema::hasColumn('dgii_certificates', 'status'),
-                fn ($q) => $q->where('status', 'active')
+                fn($q) => $q->where('status', 'active')
             )
             ->orderByDesc('is_default')
             ->orderByDesc('id')

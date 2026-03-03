@@ -1,10 +1,6 @@
 <script setup lang="ts">
-const scrollTo = (hash: any) => {
-    const el = document.querySelector(hash)
-    el?.scrollIntoView({ behavior: 'smooth', block: 'start' })
-}
 
-const props = defineProps<{
+defineProps<{
     openRequestForm: () => void
 }>()
 

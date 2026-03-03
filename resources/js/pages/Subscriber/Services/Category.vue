@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button'
 import type { BreadcrumbItem } from '@/types'
 import { computed, ref, watch } from 'vue'
 import { subscriber } from '@/routes'
-import services from '@/routes/subscriber/services'
+import servicesRoutes from '@/routes/subscriber/services'
 import { useToast } from '@/components/ui/toast/use-toast'
 import { Badge } from '@/components/ui/badge'
 import { BadgeCheckIcon } from 'lucide-vue-next'
@@ -54,8 +54,8 @@ const props = defineProps<{
 
 const breadcrumbs: BreadcrumbItem[] = [
     { title: 'Suscriptor', href: subscriber().url },
-    { title: 'Servicios', href: services.category(DEFAULT_CATEGORY).url },
-    { title: props.category.title, href: services.category(props.category.slug).url },
+    { title: 'Servicios', href: servicesRoutes.category(DEFAULT_CATEGORY).url },
+    { title: props.category.title, href: servicesRoutes.category(props.category.slug).url },
 ]
 
 const canSelect = computed(() => !!props.can_select_services)

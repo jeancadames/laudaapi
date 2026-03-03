@@ -21,7 +21,7 @@ final class RfceExcelToXmlController extends Controller
 
         $stored = $request->file('file')->store('uploads'); // disk local
         $inputAbs = Storage::disk('local')->path($stored);
-        
+
         $zipRelPath = $service->convertToZip($inputAbs, 'compact', $company->id);
 
         return response()->json([

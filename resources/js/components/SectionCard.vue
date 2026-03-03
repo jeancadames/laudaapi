@@ -7,7 +7,7 @@ import {
     CardContent
 } from '@/components/ui/card'
 
-const props = defineProps<{
+defineProps<{
     title: string
     description?: string
 }>()

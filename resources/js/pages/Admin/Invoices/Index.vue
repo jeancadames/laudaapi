@@ -1,10 +1,10 @@
 <script setup lang="ts">
-import { Head, router, Link } from '@inertiajs/vue3'
+import { Head, router } from '@inertiajs/vue3'
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 
 import AppLayout from '@/layouts/AppLayout.vue'
 import { dashboard } from '@/routes'
-import invoices from '@/routes/admin/invoices'
+import invoicesRoutes from '@/routes/admin/invoices'
 import type { BreadcrumbItem } from '@/types'
 
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card'
@@ -70,7 +70,7 @@ const props = defineProps<{
 
 const breadcrumbs: BreadcrumbItem[] = [
     { title: 'Dashboard', href: dashboard().url },
-    { title: 'Facturas', href: invoices.index().url },
+    { title: 'Facturas', href: invoicesRoutes.index().url },
 ]
 
 // loading indicator

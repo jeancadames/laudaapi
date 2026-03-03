@@ -22,7 +22,7 @@ class ExcelToXmlController extends Controller
 
         $stored = $request->file('file')->store('uploads'); // disk "local" por defecto
         $inputAbs = Storage::disk('local')->path($stored);
-        
+
         // genera ZIP y devuelve ruta relativa dentro de storage/app, ej:
         // "output/xml_20260117_035725_864ef349.zip"
         $zipRelPath = $service->convertToZip($inputAbs, 'compact', $company->id);

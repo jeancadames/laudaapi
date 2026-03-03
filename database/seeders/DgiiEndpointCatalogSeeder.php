@@ -12,15 +12,12 @@ class DgiiEndpointCatalogSeeder extends Seeder
     {
         $now = Carbon::now();
 
-        // Ambientes internos (tú decides cómo lo manejas en settings/UI)
         $envs = ['precert', 'cert', 'prod'];
 
-        // Base hosts
         $EcfBase    = 'https://ecf.dgii.gov.do';
         $FcBase     = 'https://fc.dgii.gov.do';
         $StatusBase = 'https://statusecf.dgii.gov.do';
 
-        // Helper
         $make = function (
             string $key,
             string $name,
@@ -31,6 +28,8 @@ class DgiiEndpointCatalogSeeder extends Seeder
             bool $isActive = true,
             array $meta = []
         ) use ($now) {
+            $isTemplated = str_contains($path, '{');
+
             return [
                 'key'          => $key,
                 'name'         => $name,
@@ -38,65 +37,94 @@ class DgiiEndpointCatalogSeeder extends Seeder
                 'base_url'     => $baseUrl,
                 'path'         => $path,
                 'method'       => strtoupper($method),
-                'is_templated' => str_contains($path, '{') || str_contains($path, '/{cf}/'),
+                'is_templated' => $isTemplated,
                 'is_default'   => $isDefault,
                 'is_active'    => $isActive,
-                'meta'         => empty($meta) ? null : json_encode($meta),
+                // JSON column: usa json_encode para evitar inconsistencias entre drivers
+                'meta'         => empty($meta) ? null : json_encode($meta, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES),
                 'created_at'   => $now,
                 'updated_at'   => $now,
             ];
         };
 
-        // Endpoints templated (usan {cf} y/o placeholders)
-        $templated = [
-            // ✅ Auth (ALINEADO con DgiiEndpointCatalog::items(): auth.seed / auth.validate_seed)
+        // =========================
+        // Core Auth (alineado UI)
+        // =========================
+        $auth = [
+            $make('auth.seed', 'Get Seed (Semilla)', $EcfBase, '/{cf}/autenticacion/api/autenticacion/semilla', 'GET', true),
+            $make('auth.validate_seed', 'Validar Semilla', $EcfBase, '/{cf}/autenticacion/api/autenticacion/validarsemilla', 'POST', true),
+        ];
+
+        // =========================
+        // Consultas / Directorio (alias UI)
+        // =========================
+        $consultas = [
+            // ✅ alias estable para tu mapping actual en front: consulta.resultado -> UrlConsultaResultado
             $make(
-                key: 'auth.seed',
-                name: 'Get Seed (Semilla)',
-                baseUrl: $EcfBase,
-                path: '/{cf}/autenticacion/api/autenticacion/semilla',
-                method: 'GET',
-                isDefault: true,
-            ),
-            $make(
-                key: 'auth.validate_seed',
-                name: 'Validar Semilla',
-                baseUrl: $EcfBase,
-                path: '/{cf}/autenticacion/api/autenticacion/validarsemilla',
-                method: 'POST',
-                isDefault: true,
-            ),
-
-            // Recepción / Aprobación / Consultas
-            $make('recepcion.facturas_electronicas', 'Recepción e-CF', $EcfBase, '/{cf}/recepcion/api/facturaselectronicas', 'POST'),
-            $make('aprobacion_comercial', 'Aprobación Comercial', $EcfBase, '/{cf}/aprobacioncomercial/api/aprobacioncomercial', 'POST'),
-
-            $make('emision.consulta_acuse', 'Consulta Acuse Recibo (Emisor-Receptor)', $EcfBase, '/{cf}/emisorreceptor/api/emision/consultaacuserecibo', 'POST'),
-
-            $make('anulacion_rangos', 'Anulación Rangos', $EcfBase, '/{cf}/anulacionrangos/api/operaciones/anularrango', 'POST'),
-
-            // ✅ FC / FCE (CORREGIDO: host fc.dgii.gov.do)
-            $make('recepcion_fc', 'Recepción FC', $FcBase, '/{cf}/recepcionfc/api/recepcion/ecf', 'POST'),
-            $make('consultar_fce', 'Consultar FCE', $FcBase, '/{cf}/consultarfce/api/Consultas', 'POST'),
-
-            // Resultado/Estado/TrackId
-            $make(
-                'consulta_resultado_estado_trackid',
+                'consulta.resultado',
                 'Consulta Resultado e-CF (estado?trackid=)',
                 $EcfBase,
                 '/{cf}/consultaresultado/api/consultas/estado?trackid={trackid}',
                 'GET',
-                meta: ['placeholders' => ['trackid']]
+                true,
+                true,
+                ['placeholders' => ['trackid']]
             ),
-            $make('consulta_estado', 'Consulta Estado e-CF', $EcfBase, '/{cf}/consultaestado/api/consultas', 'POST'),
-            $make('consulta_trackids', 'Consulta TrackIds', $EcfBase, '/{cf}/consultatrackids/api/consulta', 'POST'),
+            // Mantén tu key previa si ya la usas en código legacy
+            $make(
+                'consulta_resultado_estado_trackid',
+                'Consulta Resultado e-CF (legacy key)',
+                $EcfBase,
+                '/{cf}/consultaresultado/api/consultas/estado?trackid={trackid}',
+                'GET',
+                false,
+                true,
+                ['placeholders' => ['trackid']]
+            ),
 
-            // Directorio / Timbres
-            $make('directorio_servicios', 'Directorio Servicios', $EcfBase, '/{cf}/consultadirectorio/api/consultas/listado', 'GET'),
-            $make('consulta_timbre_qr', 'Consulta Timbre (QR)', $EcfBase, '/{cf}/consultatimbre', 'GET'),
-            $make('consulta_timbre_fc_qr', 'Consulta Timbre FC (QR)', $EcfBase, '/{cf}/consultatimbrefc', 'GET'),
+            $make('consulta.estado', 'Consulta Estado e-CF', $EcfBase, '/{cf}/consultaestado/api/consultas', 'POST'),
+            $make('consulta_trackids', 'Consulta TrackIds (legacy)', $EcfBase, '/{cf}/consultatrackids/api/consulta', 'POST'),
+            $make('consulta.trackids', 'Consulta TrackIds', $EcfBase, '/{cf}/consultatrackids/api/consulta', 'POST'),
 
-            // Emisor-Receptor FE
+            // ✅ alias estable para tu mapping actual en front: consulta.directorio -> UrlDirectorioServicios
+            $make('consulta.directorio', 'Directorio Servicios', $EcfBase, '/{cf}/consultadirectorio/api/consultas/listado', 'GET', true),
+            $make('directorio_servicios', 'Directorio Servicios (legacy key)', $EcfBase, '/{cf}/consultadirectorio/api/consultas/listado', 'GET'),
+        ];
+
+        // =========================
+        // Status servicios (alias UI)
+        // =========================
+        $status = [
+            // ✅ alias estable para tu mapping actual en front: status.obtener -> UrlStatusServicios
+            $make('status.obtener', 'DGII Estatus Servicios', $StatusBase, '/api/estatusservicios/obtenerestatus', 'GET', true),
+            // Mantén tus keys anteriores
+            $make('dgii.estatus_servicios', 'DGII Estatus Servicios (legacy key)', $StatusBase, '/api/estatusservicios/obtenerestatus', 'GET', false),
+            $make('dgii.ventanas_mantenimiento', 'DGII Ventanas Mantenimiento', $StatusBase, '/api/estatusservicios/obtenerventanasmantenimiento', 'GET'),
+            $make('dgii.verificar_estado', 'DGII Verificar Estado', $StatusBase, '/api/estatusservicios/verificarestado', 'GET'),
+        ];
+
+        // =========================
+        // Recepción / Aprobación (general)
+        // =========================
+        $operaciones = [
+            $make('recepcion.facturas_electronicas', 'Recepción e-CF', $EcfBase, '/{cf}/recepcion/api/facturaselectronicas', 'POST'),
+            $make('aprobacion_comercial', 'Aprobación Comercial', $EcfBase, '/{cf}/aprobacioncomercial/api/aprobacioncomercial', 'POST'),
+            $make('emision.consulta_acuse', 'Consulta Acuse Recibo (Emisor-Receptor)', $EcfBase, '/{cf}/emisorreceptor/api/emision/consultaacuserecibo', 'POST'),
+            $make('anulacion_rangos', 'Anulación Rangos', $EcfBase, '/{cf}/anulacionrangos/api/operaciones/anularrango', 'POST'),
+        ];
+
+        // =========================
+        // FC / FCE (host fc.dgii.gov.do)
+        // =========================
+        $fc = [
+            $make('recepcion_fc', 'Recepción FC', $FcBase, '/{cf}/recepcionfc/api/recepcion/ecf', 'POST'),
+            $make('consultar_fce', 'Consultar FCE', $FcBase, '/{cf}/consultarfce/api/Consultas', 'POST'),
+        ];
+
+        // =========================
+        // Emisor-Receptor FE (ComER)
+        // =========================
+        $comEr = [
             $make('com_er.get_seed', 'ComER Get Seed', $EcfBase, '/{cf}/emisorreceptor/fe/autenticacion/api/semilla', 'GET'),
             $make('com_er.test_seed', 'ComER Test/Validación Certificado', $EcfBase, '/{cf}/emisorreceptor/fe/autenticacion/api/validacioncertificado', 'POST'),
 
@@ -106,30 +134,44 @@ class DgiiEndpointCatalogSeeder extends Seeder
 
             $make('com_er.recepcion_ecf', 'ComER Recepción e-CF', $EcfBase, '/{cf}/emisorreceptor/fe/recepcion/api/ecf', 'POST'),
             $make('com_er.recepcion_aprobacion', 'ComER Recepción Aprobación Comercial', $EcfBase, '/{cf}/emisorreceptor/fe/aprobacioncomercial/api/ecf', 'POST'),
+
+            // ✅ alias “bonitos” para tu código (puntos 8–11)
+            $make('ws.recepcion_ecf', 'WS Recepción e-CF (alias)', $EcfBase, '/{cf}/emisorreceptor/fe/recepcion/api/ecf', 'POST'),
+            $make('ws.envio_aprobacion_comercial', 'WS Envío Aprobación Comercial (alias)', $EcfBase, '/{cf}/emisorreceptor/api/emision/envioaprobacioncomercial', 'POST'),
         ];
 
-        // Endpoints NO templated (status servicios)
-        $status = [
-            $make('dgii.estatus_servicios', 'DGII Estatus Servicios', $StatusBase, '/api/estatusservicios/obtenerestatus', 'GET', true),
-            $make('dgii.ventanas_mantenimiento', 'DGII Ventanas Mantenimiento', $StatusBase, '/api/estatusservicios/obtenerventanasmantenimiento', 'GET'),
-            $make('dgii.verificar_estado', 'DGII Verificar Estado', $StatusBase, '/api/estatusservicios/verificarestado', 'GET'),
-        ];
+        $all = array_merge($auth, $consultas, $status, $operaciones, $fc, $comEr);
 
-        // Sembrar por ambiente
-        DB::transaction(function () use ($envs, $templated, $status, $now) {
+        DB::transaction(function () use ($envs, $all, $now) {
+            $rows = [];
+
             foreach ($envs as $env) {
-                foreach (array_merge($templated, $status) as $row) {
-                    $payload = array_merge($row, [
+                foreach ($all as $row) {
+                    $rows[] = array_merge($row, [
                         'environment' => $env,
                         'updated_at'  => $now,
                     ]);
-
-                    DB::table('dgii_endpoint_catalog')->updateOrInsert(
-                        ['environment' => $env, 'key' => $row['key']],
-                        $payload
-                    );
                 }
             }
+
+            // upsert por unique(environment, key)
+            DB::table('dgii_endpoint_catalog')->upsert(
+                $rows,
+                ['environment', 'key'],
+                [
+                    'name',
+                    'description',
+                    'base_url',
+                    'path',
+                    'method',
+                    'is_templated',
+                    'is_default',
+                    'is_active',
+                    'meta',
+                    'updated_at',
+                    // created_at NO se toca en updates
+                ]
+            );
         });
     }
 }

@@ -503,16 +503,23 @@ function resultUri(r?: TestSignResponse | null) {
                         </p>
                     </div>
 
-                    <div class="flex items-center gap-2">
-                        <Button variant="secondary" @click="openToolsModal">Tools (Health/Test)</Button>
+                    <div class="flex flex-wrap items-center gap-2">
+                        <!-- Tools -->
+                        <Button variant="outline" class="gap-2" @click="openToolsModal" title="Abrir herramientas de salud / pruebas">
+                            <!-- si usas lucide-vue-next, descomenta:
+    <Wrench class="h-4 w-4" />
+    -->
+                            Tools
+                            <span class="text-muted-foreground">(Health/Test)</span>
+                        </Button>
 
-                        <Link href="/erp/services/certificacion-emisor" class="text-sm text-muted-foreground hover:underline">
-                            Volver
-                        </Link>
-
+                        <!-- Subir certificado -->
                         <Dialog v-model:open="openUpload" @update:open="(v) => { if (!v) resetUploadForm() }">
                             <DialogTrigger as-child>
-                                <Button>Subir certificado</Button>
+                                <Button class="gap-2">
+                                    <!-- <Upload class="h-4 w-4" /> -->
+                                    Subir certificado
+                                </Button>
                             </DialogTrigger>
 
                             <DialogContent class="sm:max-w-140">
@@ -561,6 +568,13 @@ function resultUri(r?: TestSignResponse | null) {
                                 </DialogFooter>
                             </DialogContent>
                         </Dialog>
+                        <!-- Volver (se ve como botón, actúa como link) -->
+                        <Button as-child variant="outline" class="gap-2" title="Volver a Certificación Emisor">
+                            <Link href="/erp/services/certificacion-emisor">
+                                <!-- <ArrowLeft class="h-4 w-4" /> -->
+                                Volver
+                            </Link>
+                        </Button>
                     </div>
                 </div>
             </header>

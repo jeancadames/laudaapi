@@ -23,17 +23,17 @@ final class DgiiXmlSendController extends Controller
     private const KIND_MAP = [
         'ecf' => [
             'base_dir'    => 'dgii/cert-ecf',
-            'endpoint_key'=> 'recepcion.facturas_electronicas',           // ✅ AJUSTA si tu key se llama distinto
+            'endpoint_key' => 'recepcion.facturas_electronicas',           // ✅ AJUSTA si tu key se llama distinto
             'resp_suffix' => '_arecf.xml',
         ],
         'rfce' => [
             'base_dir'    => 'dgii/cert-rfce',
-            'endpoint_key'=> 'recepcion_fc',           // ✅ tú lo dijiste
+            'endpoint_key' => 'recepcion_fc',           // ✅ tú lo dijiste
             'resp_suffix' => '_resp_fc.xml',
         ],
         'acecf' => [
             'base_dir'    => 'dgii/cert-acecf',
-            'endpoint_key'=> 'aprobacion_comercial',   // ✅ tú lo dijiste
+            'endpoint_key' => 'aprobacion_comercial',   // ✅ tú lo dijiste
             'resp_suffix' => '_resp_aprob.xml',
         ],
     ];
@@ -135,7 +135,6 @@ final class DgiiXmlSendController extends Controller
                 'endpoint_key' => $endpointKey,
                 'response_name' => $respName,
             ]);
-
         } catch (Throwable $e) {
             $status = $e instanceof HttpExceptionInterface ? $e->getStatusCode() : 500;
 

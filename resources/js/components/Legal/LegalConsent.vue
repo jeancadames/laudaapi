@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { Label } from '@/components/ui/label'
 
-const props = defineProps({
+defineProps({
     error: {
         type: String,
         default: '',
@@ -9,7 +9,7 @@ const props = defineProps({
 })
 </script>
 
-<<template>
+<template>
     <div class="flex-1">
         <Label for="terms" class="text-sm leading-relaxed text-muted-foreground block">
             Confirmo que he leído y acepto los

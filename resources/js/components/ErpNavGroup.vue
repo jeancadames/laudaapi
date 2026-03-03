@@ -11,7 +11,7 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/component
 import { ChevronDown } from 'lucide-vue-next'
 import NavMain from '@/components/NavMain.vue'
 
-const props = defineProps<{
+defineProps<{
     title: string
     slug: string
     icon?: Component

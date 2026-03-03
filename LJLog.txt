@@ -1,0 +1,62 @@
+LJ Log Marzo 1/2026
+
+1. app/Support/Dgii/DgiiPath.php, implementar para mayor seguridad
+
+2. routes/dgii_public.php:
+
+3. bootstrap/app.php
+
+4. separe las rutas en erp.php, admin.php, subscriber.php, el web.php quedo mas limpio
+
+5. bootstrap app.php
+
+  then: function () {
+            // ✅ DGII WS: sin prefix /api, pero con middleware 'api' (stateless)
+            Route::middleware('api')
+                ->group(base_path('routes/dgii_ws.php'));
+        }, 
+
+6. .env APP_BASE_DOMAIN=laudaapi.com
+
+7. config/app.php
+  
+   'base_domain' => env('APP_BASE_DOMAIN', 'laudaapi.com'),
+
+8. routes/dgii_ws.php
+
+
+
+5. .env en produccion
+
+agregar para multitenant
+
+APP_URL=https://laudaapi.com
+
+# ✅ La cookie de sesión aplica a TODOS los subdominios
+SESSION_DOMAIN=.laudaapi.com
+SESSION_SECURE_COOKIE=true
+SESSION_SAME_SITE=lax
+
+Si usas Sanctum (SPA auth / API stateful), añade también:
+
+SANCTUM_STATEFUL_DOMAINS=laudaapi.com,demo.laudaapi.com
+
+Verifica config/session.php
+
+Asegúrate de que el domain esté leyendo del env:
+
+'domain' => env('SESSION_DOMAIN'),
+'secure' => env('SESSION_SECURE_COOKIE', null),
+'same_site' => env('SESSION_SAME_SITE', 'lax'),
+
+cd /var/www/laudaapi
+php artisan optimize:clear
+
+sudo systemctl reload php8.4-fpm
+sudo systemctl reload nginx
+
+-- CAMBIOS JEAN ADAMES
+
+1. Se crea controlador y componente para la subida del certificado de autorizacion de la dgii
+        -DgiiRootCertAuthController
+        -DgiiRootCertAuthUploader

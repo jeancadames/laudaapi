@@ -16,8 +16,8 @@ import DetailErpModular from './Partials/DetailErpModular.vue'
 import DetailLaudaOne from './Partials/DetailLaudaOne.vue'
 
 import SocialCommerceSection from './Partials/SocialCommerceSection.vue'
-import CtaLandingSection from './Partials/CtaLandingSection.vue'
 import ContactForm from './Partials/ContactForm.vue'
+import CtaLandingSection from './Partials/CtaLandingSection.vue'
 import RequestForm from './Partials/RequestForm.vue'
 
 /**

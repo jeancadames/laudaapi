@@ -65,7 +65,6 @@ const breadcrumbs = computed<BreadcrumbItem[]>(() => [
 ])
 
 const isLoading = ref(false)
-const isUpdating = ref(false)
 
 function statusLabel(s: Status) {
     const map: Record<Status, string> = {

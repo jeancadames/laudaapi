@@ -254,7 +254,7 @@ const form = useForm({
 const isSaving = computed(() => form.processing)
 
 function fieldError(key: string): string | null {
-    // @ts-ignore
+    // "@ts-expect-error"
     return (form.errors as any)?.[ key ] ?? null
 }
 
