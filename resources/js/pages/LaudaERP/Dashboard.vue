@@ -341,9 +341,9 @@ const priorityItems = computed(() => {
 
     if (!props.taxProfileReady) items.push({ level: 'critical', title: 'Perfil fiscal pendiente', hint: 'Completa los datos fiscales para habilitar impuestos/calendario.', href: '/erp/finance/pnl' })
 
-    if (dgii.value.tokenStatus === 'expired') items.push({ level: 'critical', title: 'Token DGII vencido', hint: 'No podrás autenticar/firmar/envíar.', href: '/erp/dgii/token' })
-    if (dgii.value.tokenStatus === 'missing') items.push({ level: 'critical', title: 'Token DGII faltante', hint: 'Genera token para operar DGII.', href: '/erp/dgii/token' })
-    if (dgii.value.tokenStatus === 'warn') items.push({ level: 'warning', title: 'Token DGII por vencer', hint: `Expira: ${dgii.value.tokenExpiresAt ?? '—'}`, href: '/erp/dgii/token' })
+    if (dgii.value.tokenStatus === 'expired') items.push({ level: 'critical', title: 'Token DGII vencido', hint: 'No podrás autenticar/firmar/envíar.', href: 'erp/services/certificacion-emisor' })
+    if (dgii.value.tokenStatus === 'missing') items.push({ level: 'critical', title: 'Token DGII faltante', hint: 'Genera token para operar DGII.', href: 'erp/services/certificacion-emisor' })
+    if (dgii.value.tokenStatus === 'warn') items.push({ level: 'warning', title: 'Token DGII por vencer', hint: `Expira: ${dgii.value.tokenExpiresAt ?? '—'}`, href: 'erp/services/certificacion-emisor' })
 
     if (complianceRollup.value.overdue > 0) items.push({ level: 'critical', title: 'Obligaciones vencidas', hint: `${complianceRollup.value.overdue} vencida(s).`, href: '/erp/compliance' })
     if (liquidationRollup.value.overdue > 0) items.push({ level: 'critical', title: 'Liquidaciones vencidas', hint: `${liquidationRollup.value.overdue} vencida(s).`, href: '/erp/finance/liquidations' })

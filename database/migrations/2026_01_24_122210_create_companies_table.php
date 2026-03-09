@@ -15,7 +15,7 @@ return new class extends Migration {
             $table->string('ws_subdomain', 63)->nullable()->unique();
 
             $table->string('currency')->default('USD');
-            $table->string('timezone')->default('America/Bogota');
+            $table->string('timezone')->default('America/Santo_Domingo');
 
             // Owner opcional (NO cascada)
             $table->foreignId('owner_user_id')->nullable()

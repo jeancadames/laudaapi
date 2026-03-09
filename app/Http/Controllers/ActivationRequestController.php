@@ -95,6 +95,8 @@ class ActivationRequestController extends Controller
                         'name' => $payload['name'] ?? 'Usuario LaudaAPI',
                         'email' => $payload['email'],
                         'password' => Hash::make(Str::random(32)),
+                        'must_change_password' => true,
+                        'password_changed_at' => null,
                         'role' => 'subscriber',
                     ]);
                 }

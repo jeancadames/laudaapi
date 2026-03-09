@@ -23,7 +23,6 @@ use App\Http\Controllers\LaudaErp\FiscalCalendarController;
 use App\Http\Controllers\LaudaErp\FiscalComplianceController;
 use App\Http\Controllers\LaudaErp\ApiFacturacionController;
 use App\Http\Controllers\LaudaErp\DgiiXmlSendController;
-use App\Http\Controllers\LaudaErp\DgiiRootCertAuthController;
 
 use App\Http\Controllers\Calendar\IcsFeedController;
 
@@ -121,6 +120,9 @@ Route::middleware(['auth', 'verified', 'role:subscriber', 'erp.access'])
                 ->name('certificacion-emisor.')
                 ->group(function () {
 
+                    Route::get('/ws/activity', [DgiiCertificationController::class, 'wsActivity'])
+                        ->name('ws.activity');
+
                     Route::get('/', [DgiiCertificationController::class, 'index'])->name('index');
 
                     Route::get('/certificados', [DgiiCertificateController::class, 'index'])->name('certificados.index');
@@ -141,16 +143,7 @@ Route::middleware(['auth', 'verified', 'role:subscriber', 'erp.access'])
                     Route::post('/xml/sign', [DgiiXmlSignController::class, 'sign'])->name('xml.sign');
 
                     Route::prefix('set-ecf')->group(function () {
-                        
-                        Route::prefix('dgii-cert')->group(function () {
-                            Route::post('/upload', [DgiiRootCertAuthController::class, 'upload'])
-                            ->name('dgii-cert.upload');
-                            Route::get('/list', [DgiiRootCertAuthController::class, 'list'])
-                            ->name('dgii-cert.list');
-                            Route::get('/download', [DgiiRootCertAuthController::class, 'download'])
-                            ->name('dgii-cert.download');
-                        });
-                        
+
                         Route::prefix('ecf')->group(function () {
                             Route::post('/excel-to-xml', [ExcelToXmlController::class, 'convert'])->name('excel-to-xml');
                             Route::get('/excel-to-xml/download', [ExcelToXmlController::class, 'download'])->name('excel-to-xml.download');

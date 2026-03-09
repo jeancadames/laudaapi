@@ -150,6 +150,8 @@ class DgiiCertificateController extends Controller
             'cert_requirements' => $certCheck,
         ]);
     }
+
+
     public function store(Request $request)
     {
         $company = $this->companyFromErp($request);
@@ -165,9 +167,9 @@ class DgiiCertificateController extends Controller
         $file = $data['file'];
 
         $ext = strtolower($file->getClientOriginalExtension());
-        abort_unless(in_array($ext, ['p12', 'pfx', 'cer'], true), 422);
+        abort_unless(in_array($ext, ['p12', 'pfx', 'cer', 'crt'], true), 422);
 
-        if ($ext === 'cer') {
+        if (in_array($ext, ['cer', 'crt'], true)) {
             $data['password'] = null;
         }
 
@@ -195,7 +197,8 @@ class DgiiCertificateController extends Controller
         $passwordOk = false;
 
         try {
-            $info = $reader->readFromUpload($ext, $bytes, $pwd);
+            $extForReader = ($ext === 'crt') ? 'cer' : $ext;
+            $info = $reader->readFromUpload($extForReader, $bytes, $pwd);
             $status = (string) ($info['status'] ?? 'active');
             $passwordOk = (bool) ($info['password_ok'] ?? true);
 
@@ -301,7 +304,9 @@ class DgiiCertificateController extends Controller
 
                 return DgiiCertificate::create([
                     'company_id' => $company->id,
-                    'label' => $data['label'] ?? null,
+                    'label' => $ext === 'crt'
+                        ? 'DGIIRootCertificateAuthority'
+                        : ($data['label'] ?? null),
                     'type' => $ext,
 
                     'file_disk' => $disk,
@@ -399,7 +404,10 @@ class DgiiCertificateController extends Controller
         /** @var DgiiCertificateReader $reader */
         $reader = app(DgiiCertificateReader::class);
 
-        $info = $reader->readFromUpload((string) $cert->type, $bytes, $pwd);
+        $type = (string) $cert->type;
+        $typeForReader = ($type === 'crt') ? 'cer' : $type;
+
+        $info = $reader->readFromUpload($typeForReader, $bytes, $pwd);
 
         $status     = (string) ($info['status'] ?? 'invalid');
         $passwordOk = (bool) ($info['password_ok'] ?? false);

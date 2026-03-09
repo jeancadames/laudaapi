@@ -19,7 +19,6 @@ class SubscriberCompanyController extends Controller
     {
         $user = $request->user();
         abort_unless($user, 403);
-
         $company = $this->resolveCompanyForUser($user->id, $user->company_id, $user->subscriber_id);
 
         if (!$company) {
@@ -514,7 +513,6 @@ class SubscriberCompanyController extends Controller
 
         return $fallback ? (int)$fallback : null;
     }
-
     private function resolveCompanyForUser(int $userId, $userCompanyId, $userSubscriberId): ?Company
     {
         if (!empty($userCompanyId)) {

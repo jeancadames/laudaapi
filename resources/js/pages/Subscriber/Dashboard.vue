@@ -1,7 +1,8 @@
 <!-- resources/js/Pages/Subscriber/Dashboard.vue -->
 <script setup lang="ts">
-import { Head, router, useRemember } from '@inertiajs/vue3'
+import { Head, router, usePage, useRemember } from '@inertiajs/vue3'
 import { computed } from 'vue'
+import { TriangleAlert, ShieldAlert, KeyRound } from 'lucide-vue-next'
 
 import AppLayout from '@/layouts/AppLayout.vue'
 import { type BreadcrumbItem } from '@/types'
@@ -9,6 +10,7 @@ import { subscriber } from '@/routes'
 import StatCard from '@/components/StatCard.vue'
 import SectionCard from '@/components/SectionCard.vue'
 import { Button } from '@/components/ui/button'
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 
 const breadcrumbs: BreadcrumbItem[] = [
     { title: 'Suscriptores', href: subscriber().url },
@@ -18,6 +20,19 @@ const props = defineProps<{
     stats: any
 }>()
 
+type AuthUser = {
+    id: number
+    name: string
+    email: string
+    must_change_password?: boolean
+    password_changed_at?: string | null
+}
+
+const page = usePage()
+
+const authUser = computed(() => page.props.auth?.user as AuthUser | null)
+const mustChangePassword = computed(() => !!authUser.value?.must_change_password)
+
 const ui = useRemember({ showBilling: false }, 'subscriber.dashboard.ui')
 
 const currency = computed(() => props.stats?.currency ?? 'USD')
@@ -25,8 +40,12 @@ const currency = computed(() => props.stats?.currency ?? 'USD')
 function money(n: any) {
     const v = Number(n ?? 0)
     if (!Number.isFinite(v)) return '0.00'
-    return new Intl.NumberFormat('es-DO', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(v)
+    return new Intl.NumberFormat('es-DO', {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2,
+    }).format(v)
 }
+
 function moneyWithCurrency(n: any) {
     return `${money(n)} ${currency.value}`
 }
@@ -44,6 +63,10 @@ const subscriptionEndsLabel = computed(() => {
         ?? props.stats?.subscription?.trial_ends_at_human
         ?? '—'
 })
+
+function goToChangePassword() {
+    router.visit('/subscriber/security')
+}
 </script>
 
 <template>
@@ -52,6 +75,29 @@ const subscriptionEndsLabel = computed(() => {
 
     <AppLayout :breadcrumbs="breadcrumbs">
         <div class="flex h-full flex-1 flex-col gap-4 overflow-x-auto rounded-xl p-4">
+
+            <!-- ✅ Aviso de seguridad: password temporal -->
+            <Alert v-if="mustChangePassword" class="border-amber-200 bg-amber-50 text-amber-900 dark:border-amber-900/40 dark:bg-amber-950/30 dark:text-amber-100">
+                <ShieldAlert class="h-4 w-4" />
+                <AlertTitle>Cambio de contraseña requerido</AlertTitle>
+
+                <AlertDescription class="mt-2">
+                    <div class="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+                        <div class="max-w-4xl text-sm leading-6">
+                            Estás usando la contraseña temporal enviada en el enlace de activación.
+                            Por seguridad, debes cambiarla para continuar usando tu cuenta con normalidad
+                            y proteger el acceso a tu suscripción, facturación y servicios.
+                        </div>
+
+                        <div class="flex shrink-0 flex-wrap gap-2">
+                            <Button size="sm" @click="goToChangePassword">
+                                <KeyRound class="mr-2 h-4 w-4" />
+                                Cambiar contraseña
+                            </Button>
+                        </div>
+                    </div>
+                </AlertDescription>
+            </Alert>
 
             <!-- ✅ TOP: 4 cards clave -->
             <div class="grid gap-6 md:grid-cols-4">
@@ -95,6 +141,13 @@ const subscriptionEndsLabel = computed(() => {
 
             <!-- ✅ Facturación (toggle) -->
             <SectionCard title="Facturación" :description="`Facturas, pagos y AP (${currency})`">
+                <div v-if="mustChangePassword" class="mb-4 flex items-start gap-3 rounded-xl border border-amber-200 bg-amber-50 p-4 text-amber-900 dark:border-amber-900/40 dark:bg-amber-950/30 dark:text-amber-100">
+                    <TriangleAlert class="mt-0.5 h-4 w-4 shrink-0" />
+                    <div class="text-sm leading-6">
+                        Cambia tu contraseña primero para gestionar con más seguridad la información de facturación y pagos.
+                    </div>
+                </div>
+
                 <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                     <div class="text-sm text-muted-foreground">
                         <template v-if="ui.showBilling">
@@ -111,8 +164,13 @@ const subscriptionEndsLabel = computed(() => {
                         </Button>
 
                         <template v-if="ui.showBilling">
-                            <Button size="sm" variant="outline" @click="router.visit('/subscriber/invoices')">Facturas</Button>
-                            <Button size="sm" variant="outline" @click="router.visit('/subscriber/payments')">Pagos</Button>
+                            <Button size="sm" variant="outline" :disabled="mustChangePassword" @click="router.visit('/subscriber/invoices')">
+                                Facturas
+                            </Button>
+
+                            <Button size="sm" variant="outline" :disabled="mustChangePassword" @click="router.visit('/subscriber/payments')">
+                                Pagos
+                            </Button>
                         </template>
                     </div>
                 </div>
@@ -146,7 +204,7 @@ const subscriptionEndsLabel = computed(() => {
                 <div class="grid gap-6 md:grid-cols-3">
                     <StatCard title="Perfil Fiscal" :value="props.stats?.tax_profile?.exists ? 'Completo' : 'Pendiente'" description="Perfiles fiscales de la empresa" :trend-positive="!!props.stats?.tax_profile?.exists" />
                     <StatCard title="Moneda" :value="props.stats?.currency ?? 'USD'" description="Moneda de la empresa" />
-                    <StatCard title="Zona horaria" :value="props.stats?.timezone ?? 'America/Bogota'" description="Zona horaria de la empresa" />
+                    <StatCard title="Zona horaria" :value="props.stats?.timezone ?? 'America/Santo_Domingo'" description="Zona horaria de la empresa" />
                 </div>
             </SectionCard>
 

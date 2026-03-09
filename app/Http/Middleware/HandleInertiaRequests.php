@@ -56,6 +56,8 @@ class HandleInertiaRequests extends Middleware
                     'email'         => $user->email,
                     'role'          => $user->role,
                     'subscriber_id' => $resolvedSubscriberId,
+                    'must_change_password' => (bool) $request->user()->must_change_password,
+                    'password_changed_at' => $request->user()->password_changed_at,
                 ] : null,
             ],
 

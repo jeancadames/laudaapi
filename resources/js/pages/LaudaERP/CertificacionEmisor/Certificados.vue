@@ -24,7 +24,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 type Cert = {
     id: number
     label: string | null
-    type: 'p12' | 'pfx' | 'cer'
+    type: 'p12' | 'pfx' | 'cer' | 'crt'
     is_default: boolean
     subject_cn: string | null
     issuer_cn: string | null
@@ -183,7 +183,7 @@ const fileInputRef = ref<HTMLInputElement | null>(null)
 
 function isAllowedCertFile(f: File) {
     const ext = (f.name.split('.').pop() || '').toLowerCase()
-    return [ 'p12', 'pfx', 'cer' ].includes(ext)
+    return [ 'p12', 'pfx', 'cer', 'crt' ].includes(ext)
 }
 
 const fileExt = computed(() => {
@@ -200,7 +200,7 @@ function onPickFile(e: Event) {
     form.clearErrors('file')
 
     if (f && !isAllowedCertFile(f)) {
-        form.setError('file', 'Solo se permiten archivos .p12, .pfx o .cer')
+        form.setError('file', 'Solo se permiten archivos .p12, .pfx, .cer o .crt')
         if (fileInputRef.value) fileInputRef.value.value = ''
         form.file = null
         return
@@ -220,7 +220,7 @@ function submitUpload() {
     if (!form.file) return
 
     if (!isAllowedCertFile(form.file)) {
-        form.setError('file', 'Solo se permiten archivos .p12, .pfx o .cer')
+        form.setError('file', 'Solo se permiten archivos .p12, .pfx, .cer o .crt')
         return
     }
 
@@ -526,7 +526,7 @@ function resultUri(r?: TestSignResponse | null) {
                                 <DialogHeader>
                                     <DialogTitle>Subir certificado</DialogTitle>
                                     <DialogDescription>
-                                        Sube un archivo <span class="font-medium">.p12 / .pfx / .cer</span>. Se guardará en almacenamiento privado.
+                                        Sube un archivo <span class="font-medium">.p12 / .pfx / .cer / .crt</span>. Se guardará en almacenamiento privado.
                                         <br />
                                         Para P12/PFX, agrega la contraseña si aplica.
                                     </DialogDescription>
@@ -541,7 +541,7 @@ function resultUri(r?: TestSignResponse | null) {
 
                                     <div class="space-y-2">
                                         <Label>Archivo</Label>
-                                        <Input ref="fileInputRef" type="file" accept=".p12,.pfx,.cer" @change="onPickFile" />
+                                        <Input ref="fileInputRef" type="file" accept=".p12,.pfx,.cer,.crt" @change="onPickFile" />
                                         <div v-if="form.file" class="text-xs text-muted-foreground">
                                             Seleccionado: <span class="font-medium">{{ form.file.name }}</span>
                                             <span class="mx-2">•</span>

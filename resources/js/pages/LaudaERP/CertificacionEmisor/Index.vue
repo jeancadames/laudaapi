@@ -24,7 +24,6 @@ import {
 import XmlEcfWrapper from '@/components/XmlEcfWrapper.vue'
 import AcecfXmlWrapper from '@/components/AcecfXmlWrapper.vue'
 import RfceXmlWrapper from '@/components/RfceXmlWrapper.vue'
-import DgiiRootCertAuthUploader from '@/components/DgiiRootCertAuthUploader.vue'
 
 import axios from 'axios'
 
@@ -63,7 +62,7 @@ type EndpointCatalogRow = {
     meta?: any
 }
 
-type DgiiEcftype = `E${number}` // ej: "E31", "E46"
+type DgiiEcftype = `E${number}`
 
 type XmlFileItem = {
     name: string
@@ -88,9 +87,6 @@ type XmlFilesPayload = {
     acecf: XmlFilesBucket
 }
 
-/**
- * ✅ WS Activity payload (desde tu logger JSONL)
- */
 type WsActivityItem = {
     ts: string
     level: 'info' | 'warning' | 'error'
@@ -102,13 +98,9 @@ type WsActivityItem = {
     ip?: string | null
     status?: number | null
     duration_ms?: number | null
-
-    // rutas opcionales a artifacts (si las logueas)
     in_path?: string | null
     out_path?: string | null
     dgii_resp_path?: string | null
-
-    // cualquier otro ctx
     [ k: string ]: any
 }
 
@@ -126,14 +118,10 @@ const props = defineProps<{
         use_directory: boolean
         endpoints: Record<string, any>
     }
-
     certs?: Cert[]
     certs_summary?: { count: number; default_cert_id: number | null; has_default: boolean }
-
     endpoint_catalog?: EndpointCatalogRow[]
     xml_files?: XmlFilesPayload
-
-    // opcional (si quieres precargar por Inertia)
     ws_activity?: WsActivityItem[]
 }>()
 
@@ -150,7 +138,6 @@ async function copyText(text?: string | null) {
     try {
         await navigator.clipboard.writeText(v)
     } catch {
-        // fallback
         window.prompt('Copia este texto:', v)
     }
 }
@@ -222,7 +209,7 @@ const breadcrumbs: BreadcrumbItem[] = [
 ]
 
 const tab = ref<'guia' | 'certificados' | 'endpoints' | 'sets-ecf' | 'servicios-web'>('guia')
-const wrapper_tabs = ref<'dgii-cert' | 'ecf-wrapper' | 'rfce-wrapper' | 'acecf-wrapper'>('dgii-cert')
+const wrapper_tabs = ref< 'ecf-wrapper' | 'rfce-wrapper' | 'acecf-wrapper'>('ecf-wrapper')
 
 /* -----------------------------------------
    ✅ XML payload helper
@@ -336,7 +323,7 @@ const certWarnings = computed(() => {
 })
 
 /* -----------------------------------------
-   ✅ Guía (igual)
+   ✅ Guía
 ------------------------------------------ */
 const guia = {
     meta: {
@@ -667,16 +654,17 @@ function shortCid(cid?: string | null) {
 async function fetchWsActivity() {
     wsError.value = null
     wsLoading.value = true
+
     try {
         const res = await axios.get('/erp/services/certificacion-emisor/ws/activity', {
             params: {
-                company_id: props.company.id,
+                level: wsLevel.value,
+                search: wsSearch.value,
                 limit: 250,
             },
         })
 
-        if (!res.data?.ok) throw new Error(res.data?.message ?? 'No se pudo cargar la actividad.')
-        wsActivity.value = (res.data?.items ?? []) as WsActivityItem[]
+        wsActivity.value = Array.isArray(res.data?.items) ? res.data.items : []
     } catch (e: any) {
         wsError.value = e?.response?.data?.message || e?.message || 'Error cargando actividad.'
     } finally {
@@ -685,10 +673,12 @@ async function fetchWsActivity() {
 }
 
 function startWsTimer() {
-    if (wsTimer) clearInterval(wsTimer)
+    stopWsTimer()
+
     wsTimer = setInterval(() => {
-        // solo refrescar si sigues en el tab
-        if (tab.value === 'servicios-web' && wsAutoRefresh.value) fetchWsActivity()
+        if (tab.value === 'servicios-web' && wsAutoRefresh.value) {
+            fetchWsActivity()
+        }
     }, 15000)
 }
 
@@ -697,17 +687,7 @@ function stopWsTimer() {
     wsTimer = null
 }
 
-const wsFiltered = computed(() => {
-    const q = wsSearch.value.trim().toLowerCase()
-    return (wsActivity.value ?? [])
-        .filter((x) => {
-            if (wsLevel.value !== 'all' && x.level !== wsLevel.value) return false
-            if (!q) return true
-            const blob = JSON.stringify(x).toLowerCase()
-            return blob.includes(q)
-        })
-        .slice(0, 250)
-})
+const wsFiltered = computed(() => wsActivity.value.slice(0, 250))
 
 const wsStats = computed(() => {
     const items = wsActivity.value ?? []
@@ -747,8 +727,13 @@ watch(wsAutoRefresh, (v) => {
     else stopWsTimer()
 })
 
+watch([ wsLevel, wsSearch ], () => {
+    if (tab.value === 'servicios-web') {
+        fetchWsActivity()
+    }
+})
+
 onMounted(() => {
-    // no spamear; solo si entras al tab
     if (tab.value === 'servicios-web') {
         fetchWsActivity()
         if (wsAutoRefresh.value) startWsTimer()
@@ -788,7 +773,6 @@ onBeforeUnmount(() => stopWsTimer())
                     <TabsTrigger value="servicios-web">Servicios Web</TabsTrigger>
                 </TabsList>
 
-                <!-- ✅ GUÍA -->
                 <TabsContent value="guia" class="mt-4">
                     <Card>
                         <CardHeader>
@@ -878,7 +862,6 @@ onBeforeUnmount(() => stopWsTimer())
                     </Card>
                 </TabsContent>
 
-                <!-- ✅ CERTIFICADOS -->
                 <TabsContent value="certificados" class="mt-4">
                     <Card>
                         <CardHeader>
@@ -1016,7 +999,6 @@ onBeforeUnmount(() => stopWsTimer())
                     </Card>
                 </TabsContent>
 
-                <!-- ✅ ENDPOINTS -->
                 <TabsContent value="endpoints" class="mt-4">
                     <div class="space-y-4">
                         <Card>
@@ -1184,7 +1166,6 @@ onBeforeUnmount(() => stopWsTimer())
                     </div>
                 </TabsContent>
 
-                <!-- ✅ SET e-CF -->
                 <TabsContent value="sets-ecf" class="mt-4">
                     <Card>
                         <CardHeader>
@@ -1193,20 +1174,11 @@ onBeforeUnmount(() => stopWsTimer())
                         </CardHeader>
 
                         <Tabs v-model="wrapper_tabs">
-                            <TabsList class="grid rounded-none w-full grid-cols-4">
-                                <TabsTrigger value="dgii-cert">Certificado DGII</TabsTrigger>
+                            <TabsList class="grid rounded-none w-full grid-cols-3">
                                 <TabsTrigger value="ecf-wrapper">e-CF Wrapper</TabsTrigger>
                                 <TabsTrigger value="rfce-wrapper">RFCE Wrapper</TabsTrigger>
                                 <TabsTrigger value="acecf-wrapper">ACECF (respuesta)</TabsTrigger>
                             </TabsList>
-
-                            <TabsContent class="mt-4 px-6" value="dgii-cert">
-                                <DgiiRootCertAuthUploader
-                                    :company-id="company.id"
-                                    :company-name="company.name"
-                                    :active="wrapper_tabs === 'dgii-cert'"
-                                />
-                            </TabsContent>
 
                             <TabsContent class="mt-4 px-6" value="ecf-wrapper">
                                 <XmlEcfWrapper />
@@ -1405,7 +1377,6 @@ onBeforeUnmount(() => stopWsTimer())
                     </Card>
                 </TabsContent>
 
-                <!-- ✅ SERVICIOS WEB (DGII WS + LOGS) -->
                 <TabsContent value="servicios-web" class="mt-4">
                     <div class="space-y-4">
                         <Card>
@@ -1565,7 +1536,6 @@ onBeforeUnmount(() => stopWsTimer())
                                     </div>
                                 </div>
 
-                                <!-- ✅ ACTIVIDAD DGII (LOGS) -->
                                 <Card>
                                     <CardHeader>
                                         <div class="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
@@ -1643,7 +1613,11 @@ onBeforeUnmount(() => stopWsTimer())
                                             {{ wsError }}
                                         </div>
 
-                                        <div class="overflow-x-auto rounded-md border">
+                                        <div v-if="wsLoading" class="rounded-lg border p-4 text-sm text-muted-foreground">
+                                            Cargando actividad WS…
+                                        </div>
+
+                                        <div v-else class="overflow-x-auto rounded-md border">
                                             <table class="w-full text-sm">
                                                 <thead class="bg-muted/40 text-xs text-muted-foreground">
                                                     <tr>
@@ -1722,7 +1696,8 @@ onBeforeUnmount(() => stopWsTimer())
 
                                         <div class="rounded-lg border p-4 text-xs text-muted-foreground">
                                             Nota: si aquí no aparece nada, revisa que el logger esté persistiendo JSONL y que el endpoint
-                                            <span class="font-mono">/erp/services/certificacion-emisor/ws/activity</span> esté activo.
+                                            <span class="font-mono">/erp/services/certificacion-emisor/ws/activity</span>
+                                            esté devolviendo datos para esta empresa.
                                         </div>
                                     </CardContent>
                                 </Card>

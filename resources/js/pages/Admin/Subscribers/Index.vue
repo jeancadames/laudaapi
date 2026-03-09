@@ -148,7 +148,7 @@ function normalizeRow(r: any): SubscriberRow {
         slug: r.slug ?? '',
         country_code: r.country_code ?? 'DO',
         currency: r.currency ?? 'USD',
-        timezone: r.timezone ?? 'America/Bogota',
+        timezone: r.timezone ?? 'America/Santo_Domingo',
 
         // ✅ UI: nunca null
         provider: r.provider ?? '',
@@ -326,7 +326,7 @@ const headerSubtitle = computed(() => {
                             </div>
                             <div>
                                 <div class="text-xs text-muted-foreground">Zona Horaria</div>
-                                <Input v-model="row.timezone" placeholder="America/Bogota" />
+                                <Input v-model="row.timezone" placeholder="America/Santo_Domingo" />
                             </div>
                         </div>
 

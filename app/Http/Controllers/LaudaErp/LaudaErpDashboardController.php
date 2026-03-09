@@ -23,6 +23,8 @@ class LaudaErpDashboardController extends Controller
         // -------------------------
         $company = null;
 
+        $company = $this->resolveCompanyForUser($user->id, $user->company_id, $user->subscriber_id);
+
         if (!empty($user->company_id)) {
             $company = Company::query()->find((int)$user->company_id);
         }
@@ -287,5 +289,31 @@ class LaudaErpDashboardController extends Controller
             'lastTokenRefreshAt' => null,
             'certStatus' => 'missing',  // ok|warn|missing|invalid
         ];
+    }
+
+    private function resolveCompanyForUser(int $userId, $userCompanyId, $userSubscriberId): ?Company
+    {
+        if (!empty($userCompanyId)) {
+            $c = Company::query()->find((int)$userCompanyId);
+            if ($c) return $c;
+        }
+
+        $c = Company::query()->where('owner_user_id', $userId)->first();
+        if ($c) return $c;
+
+        $subscriberId = (int) DB::table('subscriber_user')
+            ->where('user_id', $userId)
+            ->where('active', 1)
+            ->value('subscriber_id');
+
+        if ($subscriberId <= 0 && !empty($userSubscriberId)) {
+            $subscriberId = (int)$userSubscriberId;
+        }
+
+        if ($subscriberId > 0) {
+            return Company::query()->where('subscriber_id', $subscriberId)->first();
+        }
+
+        return null;
     }
 }

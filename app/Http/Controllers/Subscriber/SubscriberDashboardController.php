@@ -286,7 +286,7 @@ class SubscriberDashboardController extends Controller
     {
         return [
             'currency' => 'USD',
-            'timezone' => 'America/Bogota',
+            'timezone' => 'America/Santo_Domingo',
 
             'activation' => [
                 'has_request' => false,

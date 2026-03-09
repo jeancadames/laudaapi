@@ -42,7 +42,7 @@ const comparisonColor = computed(() => {
 </script>
 
 <template>
-    <Card class="rounded-xl border border-border/40 bg-card/60 backdrop-blur-sm
+    <Card class="rounded-xl wrap-break-word whitespace-normal border border-border/40 bg-card/60 backdrop-blur-sm
                transition-all duration-300 hover:shadow-md hover:-translate-y-0.5">
         <CardHeader class="flex flex-row items-center justify-between pb-1">
             <div>

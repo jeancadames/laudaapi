@@ -1,3 +1,74 @@
+LJ Log Marzo 8/2026
+
+1. tabla users la agregue, para notificar el usuario que debe cambiar su password
+
+    $table->boolean('must_change_password')->default(false)->after('password');
+    $table->timestamp('password_changed_at')->nullable()->after('must_change_password');
+
+       // Crear subscriber si no existe
+                if (!$user) {
+                    $user = User::create([
+                        'name' => $payload['name'] ?? 'Usuario LaudaAPI',
+                        'email' => $payload['email'],
+                        'password' => Hash::make(Str::random(32)),
+                        'must_change_password' => true,
+                        'password_changed_at' => null,
+                        'role' => 'subscriber',
+                    ]);
+                }
+     
+2. el dashboard susbcriber incluye la alerta de cambio de password 
+
+
+   
+
+
+LJ Log Marzo 5/2026 revision general
+
+1. ejecuto sin problemas
+
+   php artisan optimize:clear
+   php artisan migrate:fresh --seed
+
+   php artisan queue:restart
+   php artisan cache:clear
+   php artisan config:clear
+   php artisan view:clear
+
+2. enviar solicitud de informacion adicional, hablar con un especialista
+
+   el email de contactconfirmationmail, fue recibido en luisjadames@live.com
+   el email de internalcontactconfirmationemal fue recibido en contact@laudaapi.com
+
+3. solicitar activacion
+
+   el email de activa tu prueba gratuita fue recibido en luisjadames@live.com
+   el link de activar mi prueba gratuita funciono bien 
+
+4. cambie la zona horaria por defecto a America/Santo_Domingo, estaba en America/Bogota
+
+5. reset all de nuevo
+
+6. CORREJIR dashboard susbcriber en la seccion de perfil fiscal, el recuadro zona horaria / zona horaria de la empresa
+   el text del timezone salia del recuadro, verificar //LISTO
+
+7. CORREJIR esta faltanto como indicar al susbcritor como cambiar su clave asignada al entrar por primera vez y si no la ha cambiado //LISTO, ESTA EN EL LOGIN BOTON REINICIAR CONTRASEñA
+   
+   puede ser incluir el resent link del login cuando dice olvide password
+
+8. CORREJIR en el dashboard de laudaerp en la seccion de prioridad, se esta presentando //LISTO
+   
+   No tienes empresa asignada
+   Completa tu activación primero para ver el dashboard.
+   
+   eso es falso y no debe tener link a ir activacion , todos esos temas se deben resolver desde el menu de susbcriber
+
+9. CORREJIR para subir el arhivo de autoridad de la dgii, la extencion de .crt //LISTO
+
+   debes validar todas las extensiones .crt .cer .p12 .pfx para enviar problemas
+   y la seleccion del tipo de certificado esta fallando
+
+
 LJ Log Marzo 1/2026
 
 1. app/Support/Dgii/DgiiPath.php, implementar para mayor seguridad
@@ -23,6 +94,18 @@ LJ Log Marzo 1/2026
    'base_domain' => env('APP_BASE_DOMAIN', 'laudaapi.com'),
 
 8. routes/dgii_ws.php
+
+9. configuracion de token de hostinger para los certificado ssl para que puedan permitir wild subdominios
+
+laudaerp@laudaerp:~$ sudo grep -R "dns_hostinger" -n /etc/letsencrypt/renewal
+sudo grep -R "hostinger.ini" -n /etc/letsencrypt
+/etc/letsencrypt/renewal/laudaapi.com.conf:15:dns_hostinger_propagation_seconds = 120
+/etc/letsencrypt/renewal/laudaapi.com.conf:16:dns_hostinger_credentials = /root/.secrets/certbot/hostinger.ini
+/etc/letsencrypt/renewal/laudaapi.com.conf:16:dns_hostinger_credentials = /root/.secrets/certbot/hostinger.ini
+laudaerp@laudaerp:~$
+
+necesitan un token de hostinger que fue generado sin fecha de vencimiento
+se genera en la opcion de api con el nombre laudaapi
 
 
 

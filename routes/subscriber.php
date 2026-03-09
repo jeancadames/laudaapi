@@ -14,6 +14,7 @@ use App\Http\Controllers\ActivationController;
 /** Subscribers Controllers */
 
 use App\Http\Controllers\Subscriber\SubscriberDashboardController;
+use App\Http\Controllers\Subscriber\SecurityController;
 use App\Http\Controllers\Subscriber\SubscriberServiceCatalogController;
 use App\Http\Controllers\Subscriber\SubscriberServiceRequestController;
 use App\Http\Controllers\Subscriber\SubscriberActivationController;
@@ -83,6 +84,12 @@ Route::middleware(['auth', 'verified', 'role:subscriber', 'activation.accepted']
     ->prefix('subscriber')
     ->name('subscriber.')
     ->group(function () {
+
+        Route::get('/security', [SecurityController::class, 'edit'])
+            ->name('security.edit');
+
+        Route::put('/security/password', [SecurityController::class, 'updatePassword'])
+            ->name('security.password.update');
 
         // ✅ Activation
         Route::get('/activation', [SubscriberActivationController::class, 'show'])

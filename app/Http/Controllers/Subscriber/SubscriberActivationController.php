@@ -251,7 +251,7 @@ class SubscriberActivationController extends Controller
             'slug' => $slug,
             'country_code' => 'DO',
             'currency' => 'USD',
-            'timezone' => 'America/Bogota',
+            'timezone' => 'America/Santo_Domingo',
             'active' => true,
             'meta' => null,
         ]);
@@ -301,7 +301,7 @@ class SubscriberActivationController extends Controller
             'name' => $name,
             'slug' => $slug,
             'currency' => $subscriber->currency ?? 'USD',
-            'timezone' => $subscriber->timezone ?? 'America/Bogota',
+            'timezone' => $subscriber->timezone ?? 'America/Santo_Domingo',
             'owner_user_id' => $user->id,
             'subscriber_id' => $subscriber->id,
             'active' => true,
