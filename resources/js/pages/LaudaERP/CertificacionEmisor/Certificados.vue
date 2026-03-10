@@ -668,7 +668,7 @@ function resultUri(r?: TestSignResponse | null) {
 
                                     <td class="px-3 py-3 align-top text-right">
                                         <div class="flex justify-end gap-2">
-                                            <Button variant="secondary" size="sm" :disabled="c.is_default" @click="setDefault(c.id)">
+                                            <Button v-if="c.type === 'p12'" variant="secondary" size="sm" :disabled="c.is_default" @click="setDefault(c.id)">
                                                 Predeterminar
                                             </Button>
 

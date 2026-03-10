@@ -147,7 +147,7 @@ function normalizeRow(r: any): SubscriberRow {
         name: r.name ?? '',
         slug: r.slug ?? '',
         country_code: r.country_code ?? 'DO',
-        currency: r.currency ?? 'USD',
+        currency: r.currency ?? 'DOP',
         timezone: r.timezone ?? 'America/Santo_Domingo',
 
         // ✅ UI: nunca null

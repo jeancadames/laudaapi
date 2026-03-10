@@ -208,7 +208,7 @@ const tab = ref<TabKey>('company')
 // Form principal
 const form = useForm({
     company_name: props.company?.name ?? '',
-    company_currency: props.company?.currency ?? 'USD',
+    company_currency: props.company?.currency ?? 'DOP',
     company_timezone: props.company?.timezone ?? 'America/Santo_Domingo',
     company_active: props.company?.active ?? true,
 

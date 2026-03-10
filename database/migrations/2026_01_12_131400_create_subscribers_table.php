@@ -16,7 +16,7 @@ return new class extends Migration {
 
             // Facturación
             $table->string('country_code', 2)->default('DO');
-            $table->string('currency', 3)->default('USD');
+            $table->enum('currency', ['USD', 'DOP', 'EUR'])->default('DOP');
             $table->string('timezone')->default('America/Santo_Domingo');
 
             // Integración pagos online

@@ -15,6 +15,10 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 // optional placeholder (si lo tienes)
 import PlaceholderPattern from '@/components/PlaceholderPattern.vue'
 
+import { useDateFormatter } from '@/composables/useDateFormatter'
+
+const { formatDate, formatDateTime } = useDateFormatter()
+
 type AlertLevel = 'info' | 'warning' | 'critical'
 
 type CompanyPayload = {
@@ -393,7 +397,7 @@ function priorityBadge(level: 'critical' | 'warning' | 'info') {
                             <div class="mt-3 flex flex-wrap items-center gap-2">
                                 <Badge variant="outline">
                                     Periodo:
-                                    <span class="ml-2 font-mono">{{ range.from }}</span> → <span class="font-mono">{{ range.to }}</span>
+                                    <span class="ml-2 font-mono">{{ formatDate(range.from) }}</span> → <span class="font-mono">{{ formatDate(range.to) }}</span>
                                     <span class="ml-2 opacity-70">({{ presetLabel(range.preset) }})</span>
                                 </Badge>
 

@@ -242,7 +242,7 @@ class SubscriberServiceActivationController extends Controller
 
             'unit_price' => 0,
             'amount' => 0,
-            'currency' => $service->currency ?: ($subscription->currency ?? 'USD'),
+            'currency' => $service->currency ?: ($subscription->currency ?? 'DOP'),
 
             'block_size' => $service->block_size,
             'unit_name' => $service->unit_name,
@@ -273,7 +273,7 @@ class SubscriberServiceActivationController extends Controller
         if ($model === 'usage') {
             return [
                 'billing_model' => 'usage',
-                'currency' => $service->currency ?: ($subscription->currency ?? 'USD'),
+                'currency' => $service->currency ?: ($subscription->currency ?? 'DOP'),
                 'included_units' => (int) ($service->included_units ?? 0),
                 'unit_name' => $service->unit_name,
                 'overage_unit_price' => (float) ($service->overage_unit_price ?? 0),
@@ -285,7 +285,7 @@ class SubscriberServiceActivationController extends Controller
         // flat / seat_block: price representa el “precio base” del ciclo
         return [
             'billing_model' => $model,
-            'currency' => $service->currency ?: ($subscription->currency ?? 'USD'),
+            'currency' => $service->currency ?: ($subscription->currency ?? 'DOP'),
             'cycle' => $cycle,
             'unit_price' => $price,
             'quantity' => 1,

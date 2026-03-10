@@ -29,7 +29,7 @@ return new class extends Migration {
             $table->timestamp('period_start')->nullable();
             $table->timestamp('period_end')->nullable();
 
-            $table->string('currency')->default('USD');
+            $table->enum('currency', ['USD', 'DOP', 'EUR'])->default('DOP');
 
             $table->decimal('subtotal', 10, 2)->default(0);
             $table->decimal('discount_total', 10, 2)->default(0);

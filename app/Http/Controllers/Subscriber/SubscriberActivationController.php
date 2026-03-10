@@ -300,7 +300,7 @@ class SubscriberActivationController extends Controller
         $company = Company::create([
             'name' => $name,
             'slug' => $slug,
-            'currency' => $subscriber->currency ?? 'USD',
+            'currency' => $subscriber->currency ?? 'DOP',
             'timezone' => $subscriber->timezone ?? 'America/Santo_Domingo',
             'owner_user_id' => $user->id,
             'subscriber_id' => $subscriber->id,
@@ -415,7 +415,7 @@ class SubscriberActivationController extends Controller
 
             'status' => ActivationRequest::STATUS_TRIALING,
             'billing_cycle' => 'monthly',
-            'currency' => $subscriber->currency ?? 'USD',
+            'currency' => $subscriber->currency ?? 'DOP',
 
             'subtotal_amount' => 0,
             'discount_amount' => 0,

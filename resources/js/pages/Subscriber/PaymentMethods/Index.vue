@@ -129,7 +129,7 @@ function openCreate() {
 
     // defaults útiles
     form.type = 'gateway'
-    form.currency = props.company?.currency ?? 'USD'
+    form.currency = props.company?.currency ?? 'DOP'
     form.status = 'active'
     form.mode = 'test'
     form.is_default = props.paymentMethods?.length ? false : true // si es el primero, default
@@ -148,7 +148,7 @@ function openEdit(m: PaymentMethod) {
     form.type = m.type
     form.provider = m.provider ?? ''
     form.name = m.name ?? ''
-    form.currency = m.currency ?? (props.company?.currency ?? 'USD')
+    form.currency = m.currency ?? (props.company?.currency ?? 'DOP')
 
     form.status = m.status
     form.mode = m.mode
@@ -182,7 +182,7 @@ const form = useForm({
     type: 'gateway' as PaymentMethod[ 'type' ],
     provider: '' as string,
     name: '' as string,
-    currency: (props.company?.currency ?? 'USD') as string,
+    currency: (props.company?.currency ?? 'DOP') as string,
 
     status: 'active' as PaymentMethod[ 'status' ],
     mode: 'test' as PaymentMethod[ 'mode' ],

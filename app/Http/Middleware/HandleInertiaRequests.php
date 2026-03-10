@@ -36,6 +36,28 @@ class HandleInertiaRequests extends Middleware
             ? app(SubscriberEntitlements::class)
             : null;
 
+        $shared = parent::share($request);
+
+        $user = $request->user();
+        $company = null;
+
+        if ($user?->company_id) {
+            $company = \App\Models\Company::find($user->company_id);
+        }
+
+        $currency = $company?->currency ?? 'DOP';
+
+        $dateFormat = match ($currency) {
+            'USD', 'EUR' => 'MM/dd/yyyy',
+            default => 'dd/MM/yyyy',
+        };
+
+        $locale = match ($currency) {
+            'USD' => 'en-US',
+            'EUR' => 'en-GB', // o el que tú quieras
+            default => 'es-DO',
+        };
+
         return array_merge(parent::share($request), [
             'name' => config('app.name'),
 
@@ -76,6 +98,14 @@ class HandleInertiaRequests extends Middleware
 
             'sidebarOpen' => ! $request->hasCookie('sidebar_state')
                 || $request->cookie('sidebar_state') === 'true',
+
+            ...$shared,
+            'appSettings' => [
+                'currency' => $currency,
+                'dateFormat' => $dateFormat,
+                'locale' => $locale,
+                'timezone' => $company?->timezone ?? 'America/Santo_Domingo',
+            ],
         ]);
     }
 

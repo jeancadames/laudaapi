@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Company;
 use App\Models\CompanyTaxProfile;
 use Illuminate\Http\Request;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\DB;
@@ -109,7 +110,7 @@ class LaudaErpDashboardController extends Controller
             // -------------------------
             // ✅ DGII status (opcional / tolerante)
             // -------------------------
-            $dgii = $this->emptyDgii();
+            $dgii = $this->resolveDgiiStatusForCompany($company, $tz);
 
             // Si tienes tablas DGII, aquí detectas token/cert.
             // if (Schema::hasTable('dgii_company_settings')) { ... }
@@ -289,6 +290,79 @@ class LaudaErpDashboardController extends Controller
             'lastTokenRefreshAt' => null,
             'certStatus' => 'missing',  // ok|warn|missing|invalid
         ];
+    }
+
+    private function resolveDgiiStatusForCompany(Company $company, string $tz): array
+    {
+        $dgii = $this->emptyDgii();
+
+        if (!Schema::hasTable('dgii_company_settings')) {
+            return $dgii;
+        }
+
+        try {
+            $settings = DB::table('dgii_company_settings')
+                ->where('company_id', $company->id)
+                ->first([
+                    'environment',
+                    'cf_prefix',
+                    'dgii_access_token',
+                    'dgii_token_issued_at',
+                    'dgii_token_expires_at',
+                    'dgii_token_last_requested_at',
+                    'dgii_token_last_error',
+                    'dgii_token_auto',
+                    'dgii_token_refresh_before_seconds',
+                ]);
+
+            if (!$settings) {
+                return $dgii;
+            }
+
+            // Environment real del tenant
+            $dgii['environment'] = $settings->environment ?: null;
+
+            // Último refresh exitoso del token
+            if (!empty($settings->dgii_token_issued_at)) {
+                try {
+                    $dgii['lastTokenRefreshAt'] = Carbon::parse($settings->dgii_token_issued_at, $tz)->toISOString();
+                } catch (\Throwable $e) {
+                    report($e);
+                }
+            }
+
+            // Expiración del token
+            if (!empty($settings->dgii_token_expires_at)) {
+                try {
+                    $expiresAt = Carbon::parse($settings->dgii_token_expires_at, $tz);
+                    $dgii['tokenExpiresAt'] = $expiresAt->toISOString();
+
+                    $now = now($tz);
+                    $refreshBefore = (int) ($settings->dgii_token_refresh_before_seconds ?? 0);
+
+                    if ($expiresAt->isPast()) {
+                        $dgii['tokenStatus'] = 'expired';
+                    } elseif ($refreshBefore > 0 && $expiresAt->lte($now->copy()->addSeconds($refreshBefore))) {
+                        $dgii['tokenStatus'] = 'warn';
+                    } else {
+                        $dgii['tokenStatus'] = 'ok';
+                    }
+                } catch (\Throwable $e) {
+                    report($e);
+                    $dgii['tokenStatus'] = !empty($settings->dgii_access_token) ? 'warn' : 'missing';
+                }
+            } else {
+                $dgii['tokenStatus'] = !empty($settings->dgii_access_token) ? 'warn' : 'missing';
+            }
+
+            // Esta tabla no tiene info suficiente de certificado
+            $dgii['certStatus'] = 'missing';
+
+            return $dgii;
+        } catch (\Throwable $e) {
+            report($e);
+            return $dgii;
+        }
     }
 
     private function resolveCompanyForUser(int $userId, $userCompanyId, $userSubscriberId): ?Company

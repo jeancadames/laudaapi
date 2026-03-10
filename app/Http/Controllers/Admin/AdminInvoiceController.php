@@ -107,7 +107,7 @@ class AdminInvoiceController extends Controller
                 'id' => $inv->id,
                 'number' => $inv->number,
                 'status' => $inv->status,
-                'currency' => $inv->currency ?? 'USD',
+                'currency' => $inv->currency ?? 'DOP',
 
                 'issued_on' => $inv->issued_on?->toDateString(),
                 'due_on' => $inv->due_on?->toDateString(),

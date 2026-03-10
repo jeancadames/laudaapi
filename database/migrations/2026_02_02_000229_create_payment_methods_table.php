@@ -32,7 +32,7 @@ return new class extends Migration {
 
             $table->string('provider', 50)->nullable()->index(); // azul|cardnet|visanet|mio|stripe|manual|...
             $table->string('name', 120);                         // Nombre visible (ej: "Tarjeta (Azul)", "Transferencia Banco Popular")
-            $table->string('currency', 3)->default('USD');       // moneda principal para este método (puede variar por empresa)
+            $table->enum('currency', ['USD', 'DOP', 'EUR'])->default('DOP');       // moneda principal para este método (puede variar por empresa)
 
             /*
             |--------------------------------------------------------------------------

@@ -10,28 +10,50 @@ return new class extends Migration {
         Schema::create('services', function (Blueprint $table) {
             $table->id();
 
+            // Identidad visible
             $table->string('title');
-
-            // ✅ NUEVO: descripción corta (ideal para cards)
             $table->string('short_description', 160)->nullable();
+            $table->text('description')->nullable();
 
+            // Identidad técnica / catálogo
             $table->string('slug')->unique();
+            $table->string('service_key')->nullable()->unique();
+
+            // Navegación / acceso
             $table->string('href')->nullable();
 
+            // ✅ Nuevo: cómo se abre el servicio
+            $table->enum('launch_mode', ['internal', 'external', 'embedded', 'api'])
+                ->default('internal');
+
+            // ✅ Nuevo: destino real si es externo
+            $table->string('external_url')->nullable();
+            $table->string('launch_path')->nullable();
+
+            // ✅ Nuevo: cómo se integra con LaudaAPI
+            $table->enum('integration_mode', ['none', 'sso', 'token', 'api_key', 'oauth'])
+                ->default('none');
+
+            // ✅ Nuevo: si puede operar fuera del ERP
+            $table->boolean('is_standalone')->default(false);
+
+            // Seguridad / visibilidad
             $table->json('roles')->nullable();
-
-            $table->string('icon')->nullable();
-            $table->string('badge')->nullable();
-
             $table->string('required_plan')->nullable();
 
+            // UI
+            $table->string('icon')->nullable();
+            $table->string('badge')->nullable();
+            $table->string('category')->nullable();
+
             // Jerarquía
-            $table->foreignId('parent_id')->nullable()
+            $table->foreignId('parent_id')
+                ->nullable()
                 ->constrained('services')
                 ->nullOnDelete();
 
-            // Catálogo
-            $table->enum('type', ['core', 'addon', 'usage', 'external'])->default('addon');
+            // Catálogo comercial
+            $table->enum('type', ['core', 'addon', 'usage'])->default('addon');
 
             // Venta
             $table->boolean('billable')->default(true);
@@ -39,7 +61,7 @@ return new class extends Migration {
             // Cobro
             $table->enum('billing_model', ['flat', 'seat_block', 'usage'])->default('flat');
 
-            $table->string('currency', 3)->default('USD');
+            $table->enum('currency', ['USD', 'DOP', 'EUR'])->default('DOP');
             $table->decimal('monthly_price', 10, 2)->nullable();
             $table->decimal('yearly_price', 10, 2)->nullable();
 
@@ -49,16 +71,22 @@ return new class extends Migration {
             $table->string('unit_name')->nullable();
             $table->decimal('overage_unit_price', 12, 4)->nullable();
 
-            $table->text('description')->nullable();
+            // ✅ Nuevo: metadata flexible por servicio
+            $table->json('config')->nullable();
 
+            // Estado / orden
             $table->boolean('active')->default(true);
             $table->integer('sort_order')->default(0);
 
             $table->timestamps();
 
+            // Índices
             $table->index('parent_id');
             $table->index(['active', 'sort_order']);
             $table->index(['type', 'billing_model']);
+            $table->index(['launch_mode', 'active']);
+            $table->index(['category', 'active']);
+            $table->index(['required_plan', 'active']);
         });
     }
 

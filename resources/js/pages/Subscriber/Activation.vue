@@ -7,6 +7,11 @@ import StatCard from '@/components/StatCard.vue'
 import SectionCard from '@/components/SectionCard.vue'
 import { Button } from '@/components/ui/button'
 
+// import { useDateFormatter } from '@/composables/useDateFormatter'
+import { useDateFormatter } from '@/composables/useDateFormatter'
+
+const { formatDate, formatDateTime } = useDateFormatter()
+
 const props = defineProps<{
     activation: any | null
     state: {
@@ -67,7 +72,7 @@ function activate() {
 
                 <div v-if="props.activation" class="mt-4 grid gap-6 md:grid-cols-3">
                     <StatCard title="Status" :value="props.activation.status ?? '—'" description="Estatus de la solicitud de activación" />
-                    <StatCard title="Trial termina" :value="props.activation.trial_ends_at_human ?? '—'" description="termina en" :trend-positive="false" />
+                    <StatCard title="Trial termina" :value="formatDate(props.activation.trial_ends_at_human) ?? '—'" description="termina en" :trend-positive="false" />
                     <StatCard title="Días restantes" :value="props.activation.trial_days_left ?? 0" description="aprox." />
                 </div>
 
@@ -82,7 +87,7 @@ function activate() {
                 <div class="grid gap-6 md:grid-cols-3">
                     <StatCard title="Suscriptor" :value="props.subscriber?.name ?? '—'" description="Nombre de suscriptor" />
                     <StatCard title="Empresa" :value="props.company?.name ?? '—'" description="Nombre de empresa" />
-                    <StatCard title="Moneda" :value="props.company?.currency ?? props.subscriber?.currency ?? 'USD'" description="currency" />
+                    <StatCard title="Moneda" :value="props.company?.currency ?? props.subscriber?.currency ?? 'DOP'" description="currency" />
                 </div>
             </SectionCard>
         </div>

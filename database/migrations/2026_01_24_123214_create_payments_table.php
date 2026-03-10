@@ -19,7 +19,7 @@ return new class extends Migration {
                 ->cascadeOnDelete();
 
             $table->enum('method', ['card', 'bank_transfer', 'cash', 'check', 'other'])->default('other');
-            $table->string('currency')->default('USD');
+            $table->enum('currency', ['USD', 'DOP', 'EUR'])->default('DOP');
             $table->decimal('amount', 10, 2);
 
             $table->timestamp('paid_at')->nullable();

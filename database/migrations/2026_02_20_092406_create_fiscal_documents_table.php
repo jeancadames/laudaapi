@@ -64,7 +64,7 @@ return new class extends Migration {
 
             $table->enum('target_environment', ['precert', 'cert', 'prod'])->default('precert')->index();
 
-            $table->string('currency', 3)->default('DOP')->index();
+            $table->enum('currency', ['USD', 'DOP', 'EUR'])->default('DOP');
             $table->decimal('exchange_rate', 18, 6)->nullable();
 
             $table->decimal('subtotal', 18, 2)->default(0);

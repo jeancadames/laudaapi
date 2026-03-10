@@ -8,6 +8,9 @@ import type { BreadcrumbItem } from '@/types'
 import { computed, ref, watch } from 'vue'
 import { subscriber } from '@/routes'
 import { useToast } from '@/components/ui/toast/use-toast'
+import { useDateFormatter } from '@/composables/useDateFormatter'
+
+const { formatDate, formatDateTime } = useDateFormatter()
 
 const { toast } = useToast()
 const page = usePage()
@@ -274,7 +277,7 @@ const showCancelled = computed(() => filter.value === 'all' || filter.value === 
                         Suscripción:
                         <span class="font-medium text-foreground">{{ props.subscription?.status ?? '—' }}</span>
                         <span v-if="props.subscription?.trial_ends_at_human">
-                            · Prueba termina: {{ props.subscription.trial_ends_at_human }}
+                            · Prueba termina: {{ formatDate(props.subscription.trial_ends_at_human) }}
                         </span>
                     </div>
 

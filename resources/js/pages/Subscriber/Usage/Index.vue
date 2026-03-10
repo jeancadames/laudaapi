@@ -7,6 +7,9 @@ import { Badge } from '@/components/ui/badge'
 import type { BreadcrumbItem } from '@/types'
 import { computed, ref } from 'vue'
 import { subscriber } from '@/routes'
+import { useDateFormatter } from '@/composables/useDateFormatter'
+
+const { formatDate, formatDateTime } = useDateFormatter()
 
 type ServiceOpt = { id: number; title: string; slug?: string | null }
 
@@ -172,7 +175,7 @@ function isMetaOpen(id: number) {
                     <div>
                         Suscripción:
                         <span class="font-medium text-foreground">{{ props.subscription?.status ?? '—' }}</span>
-                        <span v-if="props.subscription?.period_end_human"> · Period ends: {{ props.subscription.period_end_human }}</span>
+                        <span v-if="props.subscription?.period_end_human"> · Periodo termina: {{ formatDate(props.subscription.period_end_human) }}</span>
                     </div>
                 </div>
 

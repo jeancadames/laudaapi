@@ -11,6 +11,9 @@ import StatCard from '@/components/StatCard.vue'
 import SectionCard from '@/components/SectionCard.vue'
 import { Button } from '@/components/ui/button'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
+import { useDateFormatter } from '@/composables/useDateFormatter' 
+
+const { formatDate, formatDateTime } = useDateFormatter()
 
 const breadcrumbs: BreadcrumbItem[] = [
     { title: 'Suscriptores', href: subscriber().url },
@@ -35,7 +38,7 @@ const mustChangePassword = computed(() => !!authUser.value?.must_change_password
 
 const ui = useRemember({ showBilling: false }, 'subscriber.dashboard.ui')
 
-const currency = computed(() => props.stats?.currency ?? 'USD')
+const currency = computed(() => props.stats?.currency ?? 'DOP')
 
 function money(n: any) {
     const v = Number(n ?? 0)
@@ -123,8 +126,8 @@ function goToChangePassword() {
                 </div>
 
                 <div v-if="props.stats?.activation?.has_request" class="mt-4 grid gap-6 md:grid-cols-3">
-                    <StatCard title="Inicio trial" :value="props.stats?.activation?.trial_starts_at_human ?? '—'" description="Fecha" />
-                    <StatCard title="Fin trial" :value="props.stats?.activation?.trial_ends_at_human ?? '—'" description="Fecha" :trend-positive="false" />
+                    <StatCard title="Inicio trial" :value="formatDate(props.stats?.activation?.trial_starts_at_human) ?? '—'" description="Fecha" />
+                    <StatCard title="Fin trial" :value="formatDate(props.stats?.activation?.trial_ends_at_human) ?? '—'" description="Fecha" :trend-positive="false" />
                     <StatCard title="Días restantes" :value="props.stats?.activation?.trial_days_left ?? 0" description="Aprox." />
                 </div>
             </SectionCard>
@@ -133,7 +136,7 @@ function goToChangePassword() {
             <SectionCard title="Mi suscripción" description="Periodo, totales y ciclo">
                 <div class="grid gap-6 md:grid-cols-4">
                     <StatCard title="Ciclo" :value="props.stats?.subscription?.billing_cycle ?? '—'" description="Mensual / Anual" />
-                    <StatCard title="Periodo termina" :value="subscriptionEndsLabel" description="Período actual finaliza / Prueba finaliza" :trend-positive="false" />
+                    <StatCard title="Periodo termina" :value="formatDate(subscriptionEndsLabel)" description="Período actual finaliza / Prueba finaliza" :trend-positive="false" />
                     <StatCard title="Total (snapshot)" :value="moneyWithCurrency(props.stats?.subscription?.total_amount ?? 0)" description="Monto total" />
                     <StatCard title="Estado items" :value="props.stats?.subscription?.items_active_or_trialing ?? 0" description="Ítems de suscripción" />
                 </div>
@@ -203,7 +206,7 @@ function goToChangePassword() {
             <SectionCard title="Perfil fiscal" description="Completitud de datos de facturación">
                 <div class="grid gap-6 md:grid-cols-3">
                     <StatCard title="Perfil Fiscal" :value="props.stats?.tax_profile?.exists ? 'Completo' : 'Pendiente'" description="Perfiles fiscales de la empresa" :trend-positive="!!props.stats?.tax_profile?.exists" />
-                    <StatCard title="Moneda" :value="props.stats?.currency ?? 'USD'" description="Moneda de la empresa" />
+                    <StatCard title="Moneda" :value="props.stats?.currency ?? 'DOP'" description="Moneda de la empresa" />
                     <StatCard title="Zona horaria" :value="props.stats?.timezone ?? 'America/Santo_Domingo'" description="Zona horaria de la empresa" />
                 </div>
             </SectionCard>

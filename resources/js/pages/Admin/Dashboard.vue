@@ -21,7 +21,7 @@ const props = defineProps<{
 const ui = useRemember({ showFinancial: false }, 'admin.dashboard.ui')
 
 // ✅ si solo manejas USD
-const currency = computed(() => 'USD')
+const currency = computed(() => 'DOP')
 
 function money(n: any) {
     const v = Number(n ?? 0)

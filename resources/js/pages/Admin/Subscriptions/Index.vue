@@ -20,6 +20,10 @@ import {
     DropdownMenuItem,
 } from '@/components/ui/dropdown-menu'
 
+import { useDateFormatter } from '@/composables/useDateFormatter'
+
+const { formatDate, formatDateTime } = useDateFormatter()
+
 type SubscriptionStatus = 'trialing' | 'active' | 'past_due' | 'cancelled' | 'expired'
 type Cycle = 'monthly' | 'yearly'
 type StatusFilter = 'all' | SubscriptionStatus
@@ -182,12 +186,6 @@ function money(amount: number, currency: string) {
     }
 }
 
-function dateShort(iso: string | null) {
-    if (!iso) return '—'
-    const d = new Date(iso)
-    if (Number.isNaN(d.getTime())) return '—'
-    return d.toLocaleDateString()
-}
 
 function statusBadgeVariant(st: SubscriptionStatus) {
     if (st === 'active') return 'default'
@@ -306,14 +304,14 @@ function statusLabel(st: SubscriptionStatus) {
                             <div>
                                 <div class="text-xs text-muted-foreground">Total</div>
                                 <div class="font-semibold">
-                                    {{ money(s.total_amount ?? 0, s.currency ?? 'USD') }}
+                                    {{ money(s.total_amount ?? 0, s.currency ?? 'DOP') }}
                                 </div>
                             </div>
 
                             <div>
                                 <div class="text-xs text-muted-foreground">Impuestos</div>
                                 <div>
-                                    {{ money(s.tax_amount ?? 0, s.currency ?? 'USD') }}
+                                    {{ money(s.tax_amount ?? 0, s.currency ?? 'DOP') }}
                                 </div>
                             </div>
                         </div>
@@ -321,12 +319,12 @@ function statusLabel(st: SubscriptionStatus) {
                         <div class="grid grid-cols-2 gap-2">
                             <div>
                                 <div class="text-xs text-muted-foreground">La prueba acaba</div>
-                                <div>{{ dateShort(s.trial_ends_at) }}</div>
+                                <div>{{ formatDate(s.trial_ends_at) }}</div>
                             </div>
 
                             <div>
                                 <div class="text-xs text-muted-foreground">El periodo acaba</div>
-                                <div>{{ dateShort(s.current_period_end) }}</div>
+                                <div>{{ formatDate(s.current_period_end) }}</div>
                             </div>
                         </div>
 

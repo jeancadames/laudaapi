@@ -5,6 +5,9 @@ import SectionCard from '@/components/SectionCard.vue'
 import { Badge } from '@/components/ui/badge'
 import type { BreadcrumbItem } from '@/types'
 import { subscriber } from '@/routes'
+import { useDateFormatter } from '@/composables/useDateFormatter'
+
+const { formatDate, formatDateTime } = useDateFormatter()
 
 const props = defineProps<{
     company: { id: number; name: string; currency: string; timezone: string }
@@ -59,12 +62,12 @@ function label(status: string) {
                     <div>Moneda: <span class="font-medium">{{ props.subscription.currency }}</span></div>
 
                     <div v-if="props.subscription.trial_ends_at_human">
-                        Trial ends: <span class="font-medium">{{ props.subscription.trial_ends_at_human }}</span>
+                        Trial termina: <span class="font-medium">{{ formatDate(props.subscription.trial_ends_at_human) }}</span>
                     </div>
 
                     <div v-if="props.subscription.period_start_human || props.subscription.period_end_human">
-                        Periodo: <span class="font-medium">{{ props.subscription.period_start_human ?? '—' }}</span>
-                        → <span class="font-medium">{{ props.subscription.period_end_human ?? '—' }}</span>
+                        Periodo: <span class="font-medium">{{ formatDate(props.subscription.period_start_human) ?? '—' }}</span>
+                        → <span class="font-medium">{{ formatDate(props.subscription.period_end_human) ?? '—' }}</span>
                     </div>
                 </div>
             </SectionCard>

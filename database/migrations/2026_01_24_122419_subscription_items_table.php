@@ -28,7 +28,7 @@ return new class extends Migration {
             // Precio snapshot
             $table->decimal('unit_price', 12, 2)->default(0);
             $table->decimal('amount', 12, 2)->default(0);
-            $table->string('currency', 3)->default('USD');
+            $table->enum('currency', ['USD', 'DOP', 'EUR'])->default('DOP');
 
             $table->unsignedInteger('block_size')->nullable();
 

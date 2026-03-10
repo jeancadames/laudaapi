@@ -89,7 +89,7 @@ function money(v: any) {
 }
 
 function moneyWithCurrency(v: any) {
-    const cur = props.invoice?.currency ?? 'USD'
+    const cur = props.invoice?.currency ?? 'DOP'
     return `${money(v)} ${cur}`
 }
 

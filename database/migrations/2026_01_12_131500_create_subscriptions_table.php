@@ -24,7 +24,7 @@ return new class extends Migration {
             // monthly | yearly
             $table->string('billing_cycle')->default('monthly')->index();
 
-            $table->string('currency', 3)->default('USD');
+            $table->enum('currency', ['USD', 'DOP', 'EUR'])->default('DOP');
 
             // Totales snapshot
             $table->decimal('subtotal_amount', 12, 2)->default(0);
