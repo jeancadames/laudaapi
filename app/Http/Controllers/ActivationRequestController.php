@@ -34,11 +34,10 @@ class ActivationRequestController extends Controller
                 $payload['email'] = strtolower(trim($payload['email']));
 
                 /**
-                 * ✅ Anti-duplicados: SOLO 1 activa por email
+                 * Anti-duplicados: SOLO 1 activa por email
                  * Activa = pending | accepted | trialing
                  *
-                 * ⚠️ FIX IMPORTANTE:
-                 * si existe pending pero su link expiró (24h), marcarla expired y permitir crear una nueva.
+                 * FIX: si existe pending pero su link expiró (24h), marcarla expired y permitir crear una nueva.
                  */
                 $existingActive = ActivationRequest::query()
                     ->where('email', $payload['email'])
@@ -51,7 +50,7 @@ class ActivationRequestController extends Controller
                     ->first();
 
                 if ($existingActive) {
-                    // ✅ Si es pending, validar expiración real (24h)
+                    // Si es pending, validar expiración real (24h)
                     if ($existingActive->status === ActivationRequest::STATUS_PENDING) {
                         $meta = $existingActive->metadata ?? [];
 
@@ -59,7 +58,7 @@ class ActivationRequestController extends Controller
                             ? Carbon::parse($meta['activation_email_expires_at'])
                             : $existingActive->created_at->copy()->addHours(24);
 
-                        // ✅ Si expiró: marcar como expired y permitir crear una nueva solicitud
+                        // Si expiró: marcar como expired y permitir crear una nueva solicitud
                         if ($expiresAt->isPast()) {
                             $existingActive->update(['status' => ActivationRequest::STATUS_EXPIRED]);
 
@@ -143,9 +142,7 @@ class ActivationRequestController extends Controller
             ], 500);
         }
 
-        /**
-         * ✅ Respuesta estable para frontend
-         */
+        // Respuesta estable para frontend
         $status = strtolower((string) $activation->status);
 
         $nextUrl = '';
@@ -166,9 +163,7 @@ class ActivationRequestController extends Controller
             $nextLabel = '';
         }
 
-        /**
-         * ✅ Correos fuera de la transacción (solo si está pending)
-         */
+        // Correos fuera de la transacción (solo si está pending)
         try {
             if ($status === ActivationRequest::STATUS_PENDING) {
                 $meta = $activation->metadata ?? [];
@@ -177,7 +172,7 @@ class ActivationRequestController extends Controller
                     ? Carbon::parse($meta['activation_email_expires_at'])
                     : $activation->created_at->copy()->addHours(24);
 
-                // ✅ Si expiró, marcar expired para no bloquear nuevas solicitudes
+                // Si expiró, marcar expired para no bloquear nuevas solicitudes
                 if ($expiresAt->isPast()) {
                     $activation->update(['status' => ActivationRequest::STATUS_EXPIRED]);
 
@@ -197,14 +192,45 @@ class ActivationRequestController extends Controller
                     ['activation' => $activation->id]
                 );
 
-                Mail::to($activation->email)->queue(
-                    new ActivationConfirmationMail($activation, $activationUrl)
-                );
+                // Envíos defensivos y síncronos para evitar throttling y errores silenciosos
+                try {
+                    try {
+                        Mail::to($activation->email)
+                            ->send(new ActivationConfirmationMail($activation, $activationUrl));
+                    } catch (\Throwable $e) {
+                        Log::warning('Falló envío de ActivationConfirmationMail al usuario: ' . $e->getMessage(), [
+                            'activation_request_id' => $activation->id,
+                            'email' => $activation->email,
+                            'mailer' => config('mail.default'),
+                            'exception' => $e,
+                        ]);
+                    }
 
-                Mail::to('contacto@laudaapi.com')->queue(
-                    new ActivationInternalNotificationMail($activation)
-                );
+                    // Pequeña pausa para reducir probabilidad de throttling en proveedores SMTP como Hostinger
+                    usleep(300000); // 300 ms
 
+                    try {
+                        Mail::to('contacto@laudaapi.com')
+                            ->send(new ActivationInternalNotificationMail($activation));
+                    } catch (\Throwable $e) {
+                        Log::warning('Falló envío de ActivationInternalNotificationMail interno: ' . $e->getMessage(), [
+                            'activation_request_id' => $activation->id,
+                            'mailer' => config('mail.default'),
+                            'exception' => $e,
+                        ]);
+                    }
+                } catch (\Throwable $e) {
+                    // Catch global por si algo inesperado ocurre en la lógica de envío
+                    Log::warning('ActivationRequest creada/recuperada pero ocurrió un error inesperado en el flujo de correos: ' . $e->getMessage(), [
+                        'activation_request_id' => $activation->id,
+                        'was_existing' => $wasExisting,
+                        'mailer' => config('mail.default'),
+                        'queue_connection' => config('queue.default'),
+                        'exception' => $e,
+                    ]);
+                }
+
+                // Actualizar metadata de envío independientemente de si los mails fallaron
                 $meta['activation_email_sent_at'] = now()->toISOString();
                 $meta['activation_email_expires_at'] = $expiresAt->toISOString();
                 $meta['activation_email_send_count'] = (int) ($meta['activation_email_send_count'] ?? 0) + 1;

@@ -14,6 +14,7 @@ use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Inertia\Inertia;
+use Illuminate\Validation\ValidationException;
 
 class DgiiCertificateController extends Controller
 {
@@ -169,6 +170,16 @@ class DgiiCertificateController extends Controller
         $ext = strtolower($file->getClientOriginalExtension());
         abort_unless(in_array($ext, ['p12', 'pfx', 'cer', 'crt'], true), 422);
 
+        $alreadyExists = DgiiCertificate::where('company_id', $company->id)
+            ->where('type', $ext)
+            ->exists();
+
+        if ($alreadyExists) {
+            throw ValidationException::withMessages([
+                'file' => "Ya existe un certificado .{$ext} para esta empresa. Elimínalo antes de subir otro.",
+            ]);
+        }
+
         if (in_array($ext, ['cer', 'crt'], true)) {
             $data['password'] = null;
         }
@@ -281,26 +292,38 @@ class DgiiCertificateController extends Controller
                 $status,
                 $passwordOk
             ) {
-                // 🔒 lock para evitar doble-default por concurrencia
-                $hasAny = DgiiCertificate::where('company_id', $company->id)->lockForUpdate()->exists();
 
-                $hasPrivateKey = (bool) ($info['has_private_key'] ?? in_array($ext, ['p12', 'pfx'], true));
+            // ✅ CAMBIO 2:
+            // Lock defensivo sobre certificados de la empresa para reducir carreras
+            DgiiCertificate::where('company_id', $company->id)
+                ->lockForUpdate()
+                ->get();
 
-                // ✅ default solo si sirve para firmar (y es el primero)
-                $canBeDefaultForSigning = $this->canSignSeed(
-                    $ext,
-                    $passwordOk,
-                    $status,
-                    (array) ($info['meta'] ?? []),
-                    $hasPrivateKey,
-                    $meta
-                );
+            // ✅ CAMBIO 3:
+            // Revalidar dentro de la transacción que no exista ya ese tipo.
+            $sameTypeExists = DgiiCertificate::where('company_id', $company->id)
+                ->where('type', $ext)
+                ->exists();
 
-                $isFirst = !$hasAny && $canBeDefaultForSigning;
+            if ($sameTypeExists) {
+                throw ValidationException::withMessages([
+                    'file' => "Ya existe un certificado .{$ext} para esta empresa. Elimínalo antes de subir otro.",
+                ]);
+            }
 
-                if ($isFirst) {
-                    DgiiCertificate::where('company_id', $company->id)->update(['is_default' => false]);
-                }
+            $hasPrivateKey = (bool) ($info['has_private_key'] ?? in_array($ext, ['p12', 'pfx'], true));
+
+            // ✅ CAMBIO 4:
+            // Nueva regla:
+            // - solo p12 puede ser default
+            // - si suben p12, ese p12 se vuelve el default automáticamente
+            $isDefault = $ext === 'p12';
+
+            if ($isDefault) {
+                DgiiCertificate::where('company_id', $company->id)
+                    ->where('is_default', true)
+                    ->update(['is_default' => false]);
+            }
 
                 return DgiiCertificate::create([
                     'company_id' => $company->id,
@@ -328,7 +351,7 @@ class DgiiCertificateController extends Controller
                     'status' => $status,
 
                     'meta' => $meta,
-                    'is_default' => $isFirst,
+                    'is_default' => $isDefault,
                 ]);
             });
         } catch (\Throwable $e) {

@@ -38,9 +38,11 @@ class LaunchController extends Controller
 
         session([
             'launch.company_id' => data_get($payload, 'company.id'),
+            'launch.company_name' => data_get($payload, 'company.name'),
             'launch.subscriber_id' => data_get($payload, 'company.subscriber_id'),
             'launch.service_slug' => data_get($payload, 'service.slug'),
             'launch.service_key' => data_get($payload, 'service.service_key'),
+            'launch.mode' => data_get($payload, 'service.config.mode', 'corporate'),
             'launch.launched_via_sso' => true,
         ]);
 
@@ -83,6 +85,8 @@ class LaunchController extends Controller
 
     private function upsertCompanyContext(array $payload): WorkspaceCompany
     {
+        $mode = (string) (data_get($payload, 'service.config.mode') ?? data_get($payload, 'company.mode') ?? 'corporate');
+
         $externalCompanyId = (int) data_get($payload, 'company.id');
         $subscriberId = (int) data_get($payload, 'company.subscriber_id');
         $name = (string) (data_get($payload, 'company.name') ?? 'Empresa');

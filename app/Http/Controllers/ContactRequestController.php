@@ -45,15 +45,35 @@ class ContactRequestController extends Controller
         }
 
         // Correos fuera de transacción (DB ya consistente)
+        // Enviar cada correo por separado y manejar fallos individualmente.
         try {
-            Mail::to('contacto@laudaapi.com')
-                ->queue(new ContactInternalNotificationMail($contact));
+            try {
+                Mail::to('contacto@laudaapi.com')
+                    ->send(new ContactInternalNotificationMail($contact));
+            } catch (\Throwable $e) {
+                Log::warning('Falló envío de correo interno (contact notification): ' . $e->getMessage(), [
+                    'contact_request_id' => $contact->id,
+                    'mailer' => config('mail.default'),
+                    'exception' => $e,
+                ]);
+            }
 
-            Mail::to($contact->email)
-                ->queue(new ContactConfirmationMail($contact));
+            // Pequeña pausa para evitar throttling en proveedores SMTP como Hostinger
+            usleep(300000); // 300 ms
+
+            try {
+                Mail::to($contact->email)
+                    ->send(new ContactConfirmationMail($contact));
+            } catch (\Throwable $e) {
+                Log::warning('Falló envío de correo al usuario (contact confirmation): ' . $e->getMessage(), [
+                    'contact_request_id' => $contact->id,
+                    'mailer' => config('mail.default'),
+                    'exception' => $e,
+                ]);
+            }
         } catch (\Throwable $e) {
-            // No rompemos la respuesta por fallo de correo
-            Log::warning('ContactRequest creada pero falló envío de correos: ' . $e->getMessage(), [
+            // Catch global por si algo inesperado ocurre en la lógica de envío
+            Log::warning('ContactRequest creada pero ocurrió un error inesperado en el flujo de correos: ' . $e->getMessage(), [
                 'contact_request_id' => $contact->id,
                 'exception' => $e,
             ]);

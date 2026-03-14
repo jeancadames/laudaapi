@@ -304,14 +304,14 @@ function statusLabel(st: SubscriptionStatus) {
                             <div>
                                 <div class="text-xs text-muted-foreground">Total</div>
                                 <div class="font-semibold">
-                                    {{ money(s.total_amount ?? 0, s.currency ?? 'DOP') }}
+                                    {{ money(s.total_amount ?? 0, s.currency ?? 'USD') }}
                                 </div>
                             </div>
 
                             <div>
                                 <div class="text-xs text-muted-foreground">Impuestos</div>
                                 <div>
-                                    {{ money(s.tax_amount ?? 0, s.currency ?? 'DOP') }}
+                                    {{ money(s.tax_amount ?? 0, s.currency ?? 'USD') }}
                                 </div>
                             </div>
                         </div>

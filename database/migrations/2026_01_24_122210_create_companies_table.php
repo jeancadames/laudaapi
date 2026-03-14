@@ -14,7 +14,7 @@ return new class extends Migration {
             $table->string('slug')->unique();
             $table->string('ws_subdomain', 63)->nullable()->unique();
 
-            $table->enum('currency', ['USD', 'DOP', 'EUR'])->default('DOP');
+            $table->enum('currency', ['DOP', 'USD', 'EUR'])->default('DOP');
             $table->string('timezone')->default('America/Santo_Domingo');
 
             // Owner opcional (NO cascada)

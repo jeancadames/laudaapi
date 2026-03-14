@@ -1,3 +1,22 @@
+LJ Log Marzo 12/2026
+
+1. http://localhost:8000/subscriber/payments
+
+   esta saliendo DOP debe ser USD porque son los servicios contratados y nuestros servicios son en USD
+
+2. http://localhost:8000/subscriber
+
+   esta saliendo DOP debe ser USD porque son los servicios contratados y nuestros servicios son en USD
+
+   perfil fiscal no cambiar, porque esta es la moneda de la empresa
+
+LJ Log Marzo 10/2026
+
+2. al crear empresa por defecto la moneda que sale es USD
+
+3. no presenta certificado por defecto
+
+
 LJ Log Marzo 8/2026
 
 1. tabla users la agregue, para notificar el usuario que debe cambiar su password

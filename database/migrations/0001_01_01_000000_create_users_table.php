@@ -22,6 +22,7 @@ return new class extends Migration
             $table->boolean('must_change_password')->default(false);
             $table->timestamp('password_changed_at')->nullable();
             $table->string('role')->default('user');
+            // $table->enum('subscriber_role', ['admin', 'user', 'supervisor])->default('admin');
             $table->rememberToken();
             $table->timestamps();
         });

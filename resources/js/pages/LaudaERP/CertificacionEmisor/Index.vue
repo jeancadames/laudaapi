@@ -311,13 +311,28 @@ function certDisplayName(c: Cert) {
 }
 
 const certWarnings = computed(() => {
-    if (!hasCerts.value) return []
     const warnings: string[] = []
 
-    if (!hasDefault.value) warnings.push('No tienes certificado predeterminado (default).')
-    if (certs.value.some((c) => (c.status || '').toLowerCase() === 'expired')) warnings.push('Hay certificados vencidos.')
-    if (certs.value.some((c) => (c.status || '').toLowerCase() === 'invalid')) warnings.push('Hay certificados inválidos (parse falló).')
-    if (certs.value.some((c) => c.type !== 'cer' && !c.password_ok)) warnings.push('Hay P12/PFX con password incorrecto o faltante.')
+    if (!hasDefault.value) {
+        warnings.push('No tienes certificado predeterminado (default).')
+    }
+
+    if (!hasCerts.value) {
+        warnings.push('No tienes certificados cargados.')
+        return warnings
+    }
+
+    if (certs.value.some((c) => (c.status || '').toLowerCase() === 'expired')) {
+        warnings.push('Hay certificados vencidos.')
+    }
+
+    if (certs.value.some((c) => (c.status || '').toLowerCase() === 'invalid')) {
+        warnings.push('Hay certificados inválidos (parse falló).')
+    }
+
+    if (certs.value.some((c) => c.type !== 'cer' && !c.password_ok)) {
+        warnings.push('Hay P12/PFX con password incorrecto o faltante.')
+    }
 
     return warnings
 })

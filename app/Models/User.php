@@ -21,8 +21,11 @@ class User extends Authenticatable
         'email',
         'password',
         'role',
+        'subscriber_role',
         'must_change_password',
         'password_changed_at',
+        'external_user_id',
+        'workspace_company_id',
     ];
 
     protected $hidden = [

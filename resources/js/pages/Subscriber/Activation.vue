@@ -87,7 +87,7 @@ function activate() {
                 <div class="grid gap-6 md:grid-cols-3">
                     <StatCard title="Suscriptor" :value="props.subscriber?.name ?? '—'" description="Nombre de suscriptor" />
                     <StatCard title="Empresa" :value="props.company?.name ?? '—'" description="Nombre de empresa" />
-                    <StatCard title="Moneda" :value="props.company?.currency ?? props.subscriber?.currency ?? 'DOP'" description="currency" />
+                    <StatCard title="Moneda" :value="props.company?.currency ?? props.subscriber?.currency ?? 'USD'" description="currency" />
                 </div>
             </SectionCard>
         </div>

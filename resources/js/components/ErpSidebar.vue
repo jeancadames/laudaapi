@@ -35,6 +35,38 @@ const homeHref = '/erp'
 // backend: props.nav.erp.groups (payload: { erp: { groups: [...] } })
 const groupsRaw = computed<ErpGroup[]>(() => (props?.nav?.erp?.groups ?? []) as ErpGroup[])
 
+// --- NUEVO: fusionar marketplace + laudaone en "Mis servicios"
+const groupsMerged = computed<ErpGroup[]>(() => {
+    const raw = groupsRaw.value.slice() // copia
+    const marketplace = raw.find(g => g.slug === 'marketplace')
+    const laudaone = raw.find(g => g.slug === 'laudaone')
+
+    if (!marketplace && !laudaone) return raw
+
+    const combinedItems: ErpItem[] = [
+        ...(marketplace?.items ?? []),
+        ...(laudaone?.items ?? []),
+    ]
+
+    // Forzar icono del grupo fusionado a 'Briefcase' (puedes cambiar por otra key)
+    const mergedGroup: ErpGroup = {
+        title: 'Mis servicios',
+        slug: 'mis-servicios',
+        icon: 'Briefcase',
+        items: combinedItems,
+    }
+
+    const filtered = raw.filter(g => g.slug !== 'marketplace' && g.slug !== 'laudaone')
+
+    const insertIndex = raw.findIndex(g => g.slug === 'marketplace') >= 0
+        ? raw.findIndex(g => g.slug === 'marketplace')
+        : (raw.findIndex(g => g.slug === 'laudaone') >= 0 ? raw.findIndex(g => g.slug === 'laudaone') : filtered.length)
+
+    filtered.splice(insertIndex, 0, mergedGroup)
+
+    return filtered
+})
+
 // backend: props.nav.erp.footer (payload: { erp: { footer: [...] } })
 const footerFixedRaw = computed<ErpFooterItem[]>(() => (props?.nav?.erp?.footer ?? []) as ErpFooterItem[])
 const footerFixedItems = computed<NavItem[]>(() => mapToNavItems(footerFixedRaw.value))
@@ -53,27 +85,17 @@ const footerAllItems = computed<NavItem[]>(() => [
     ...footerNavItems,
 ])
 
-/**
- * ✅ Normaliza string de icono a una key válida del registry ICONS
- * Soporta:
- * - "Webhook" / "webhook"
- * - "file-text" / "file_text" => "FileText"
- * - "shield-check" => "ShieldCheck"
- */
 function normalizeIconKey(iconName?: string): string | undefined {
     if (!iconName) return undefined
 
     const raw = String(iconName).trim()
     if (!raw) return undefined
 
-    // 1) match exact
     if ((ICONS as any)[ raw ]) return raw
 
-    // 2) intenta Capitalizar primera letra si viene en lower
     const cap = raw.charAt(0).toUpperCase() + raw.slice(1)
     if ((ICONS as any)[ cap ]) return cap
 
-    // 3) kebab/snake -> PascalCase
     const pascal = raw
         .toLowerCase()
         .replace(/[_-]+/g, ' ')
@@ -93,10 +115,17 @@ function resolveIcon(iconName?: string): Component | undefined {
 
 /**
  * ✅ Pre-resolver iconos por slug (no recalcular en template)
+ * Forzamos icono para 'mis-servicios' a Briefcase
  */
 const groupIconBySlug = computed<Record<string, Component | undefined>>(() => {
     const out: Record<string, Component | undefined> = {}
-    for (const g of groupsRaw.value) out[ g.slug ] = resolveIcon(g.icon)
+    for (const g of groupsMerged.value) {
+        if (g.slug === 'mis-servicios') {
+            out[ g.slug ] = resolveIcon('Briefcase')
+        } else {
+            out[ g.slug ] = resolveIcon(g.icon)
+        }
+    }
     return out
 })
 
@@ -106,6 +135,7 @@ const openMap = ref<Record<string, boolean>>({
     'api-facturacion-electronica': true,
     marketplace: true,
     laudaone: true,
+    'mis-servicios': true,
 })
 
 onMounted(() => {
@@ -130,7 +160,6 @@ watch(
 function toggle(slug: string) {
     openMap.value[ slug ] = !(openMap.value[ slug ] ?? true)
 }
-
 
 </script>
 
@@ -160,7 +189,7 @@ function toggle(slug: string) {
             <div class="mx-3 h-px bg-slate-200/70 dark:bg-slate-800/70 group-data-[collapsible=icon]:mx-2" />
 
             <!-- ✅ Empty state (se oculta cuando colapsa) -->
-            <div v-if="groupsRaw.length === 0" class="px-3 py-3 group-data-[collapsible=icon]:hidden">
+            <div v-if="groupsMerged.length === 0" class="px-3 py-3 group-data-[collapsible=icon]:hidden">
                 <div class="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-950">
                     <p class="text-sm font-semibold text-slate-900 dark:text-slate-100">No tienes módulos ERP disponibles</p>
                     <p class="mt-1 text-xs text-slate-500 dark:text-slate-400">
@@ -177,7 +206,7 @@ function toggle(slug: string) {
 
             <!-- ✅ GROUPS -->
             <SidebarGroup class="px-2 py-0">
-                <ErpNavGroup v-for="g in groupsRaw" :key="g.slug" :title="g.title" :slug="g.slug" :icon="groupIconBySlug[ g.slug ]" :items="mapToNavItems(g.items)" :open="openMap[ g.slug ] ?? true" :onToggle="toggle" />
+                <ErpNavGroup v-for="g in groupsMerged" :key="g.slug" :title="g.title" :slug="g.slug" :icon="groupIconBySlug[ g.slug ]" :items="mapToNavItems(g.items)" :open="openMap[ g.slug ] ?? true" :onToggle="toggle" />
             </SidebarGroup>
         </SidebarContent>
 

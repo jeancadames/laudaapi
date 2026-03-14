@@ -29,10 +29,18 @@ class DgiiCertificate extends Model
     protected static function booted(): void
     {
         static::creating(function (self $m) {
+            if ($m->type !== 'p12') {
+                $m->is_default = false;
+            }
+
             $m->packUnknownAttributesIntoMeta();
         });
 
         static::updating(function (self $m) {
+            if ($m->type !== 'p12' && $m->is_default) {
+                $m->is_default = false;
+            }
+
             $m->packUnknownAttributesIntoMeta();
         });
     }

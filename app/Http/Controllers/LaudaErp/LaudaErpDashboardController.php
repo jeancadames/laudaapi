@@ -125,36 +125,44 @@ class LaudaErpDashboardController extends Controller
                 try {
                     $today = now($tz)->format('Y-m-d');
 
-                    // Próximas 30 (vencidas o por vencer)
-                    $rows = DB::table('obligation_instances')
-                        ->where('company_id', $company->id)
-                        ->whereNotIn('status', ['done', 'completed', 'filed']) // ajusta a tus status reales
-                        ->orderBy('due_on')
+                    $rows = DB::table('obligation_instances as oi')
+                        ->join('tenant_obligations as to', 'to.id', '=', 'oi.tenant_obligation_id')
+                        ->join('compliance_obligation_templates as tpl', 'tpl.id', '=', 'to.template_id')
+                        ->join('tax_authorities as auth', 'auth.id', '=', 'tpl.authority_id')
+                        ->where('oi.company_id', $company->id)
+                        ->whereNotIn('oi.status', ['done', 'completed', 'filed'])
+                        ->orderBy('oi.due_date')
                         ->limit(30)
-                        ->get(['authority_code', 'obligation_code', 'name', 'due_on', 'status']);
+                        ->get([
+                            'auth.code as authority_code',
+                            'tpl.code as obligation_code',
+                            'tpl.name as obligation_name',
+                            'oi.due_date',
+                            'oi.status',
+                        ]);
 
                     $nextDue = [];
                     $overdue = 0;
                     $dueSoon7d = 0;
 
                     foreach ($rows as $r) {
-                        $due = (string)$r->due_on;
+                        $due = (string)($r->due_date ?? '');
                         $isOverdue = $due < $today;
 
                         if ($isOverdue) $overdue++;
 
-                        // dueSoon 7d: (hoy..hoy+7)
                         $in7 = now($tz)->addDays(7)->format('Y-m-d');
                         if ($due >= $today && $due <= $in7) $dueSoon7d++;
 
                         $nextDue[] = [
                             'authority' => (string)($r->authority_code ?? '—'),
-                            'code' => (string)($r->obligation_code ?? '—'),
-                            'name' => (string)($r->name ?? '—'),
-                            'due_on' => $due ?: '—',
-                            'status' => $isOverdue ? 'overdue' : 'due',
+                            'code'      => (string)($r->obligation_code ?? '—'),
+                            'name'      => (string)($r->obligation_name ?? '—'),
+                            'due_on'    => $due ?: '—',
+                            'status'    => $isOverdue ? 'overdue' : 'due',
                         ];
                     }
+
 
                     $compliance['nextDue'] = $nextDue;
                     $kpis['compliance'] = [

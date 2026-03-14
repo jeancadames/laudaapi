@@ -13,6 +13,7 @@ return new class extends Migration {
             $table->unsignedBigInteger('subscriber_id')->index();
             $table->string('name');
             $table->string('slug')->unique();
+            $table->string('mode')->default('corporate'); // corporate | ranchero
             $table->boolean('is_active')->default(true);
             $table->timestamps();
         });

@@ -1,118 +1,47 @@
 <?php
 
-namespace App\Http\Controllers\LaudaErp;
+namespace App\Services\LaudaErp;
 
-use App\Http\Controllers\Controller;
 use App\Models\Company;
 use App\Models\Service;
-use App\Services\LaudaErp\ServiceAccessResolver;
-use App\Services\LaudaErp\ServiceLaunchTokenFactory;
-use App\Services\Subscribers\SubscriberResolver;
-use Illuminate\Http\RedirectResponse;
-use Illuminate\Http\Request;
-use Symfony\Component\HttpKernel\Exception\HttpException;
+use App\Models\User;
 
-class ServiceLaunchController extends Controller
+class ServiceLaunchTokenFactory
 {
-    public function __construct(
-        private readonly ServiceAccessResolver $accessResolver,
-        private readonly ServiceLaunchTokenFactory $launchTokenFactory,
-    ) {}
-
-    private function companyFromErp(Request $request): Company
+    public function make(User $user, Company $company, Service $service): string
     {
-        $user = $request->user();
-        abort_unless($user, 403);
+        $expiresAt = now()->addMinutes(5);
 
-        $subscriberId = (int) $request->attributes->get('resolved_subscriber_id', 0);
+        $payload = [
+            'iss' => config('app.url'),
+            'aud' => (string) ($service->service_key ?: $service->slug),
+            'sub' => (string) $user->id,
 
-        if ($subscriberId <= 0) {
-            $subscriberId = (int) app(SubscriberResolver::class)->resolve($user);
-        }
+            'service' => [
+                'id' => $service->id,
+                'slug' => $service->slug,
+                'service_key' => $service->service_key,
+                'launch_mode' => $service->launch_mode,
+            ],
 
-        abort_unless($subscriberId > 0, 403);
+            'company' => [
+                'id' => $company->id,
+                'subscriber_id' => $company->subscriber_id,
+                'name' => $company->name ?? $company->business_name ?? null,
+            ],
 
-        return Company::query()
-            ->where('subscriber_id', $subscriberId)
-            ->firstOrFail();
-    }
+            'user' => [
+                'id' => $user->id,
+                'name' => $user->name ?? null,
+                'email' => $user->email ?? null,
+                'role' => $user->role ?? null,
+            ],
 
-    public function open(Request $request, Service $service): RedirectResponse
-    {
-        $user = $request->user();
-        abort_unless($user, 403);
+            'iat' => now()->timestamp,
+            'exp' => $expiresAt->timestamp,
+            'nonce' => bin2hex(random_bytes(16)),
+        ];
 
-        $company = $this->companyFromErp($request);
-
-        if (! $service->active) {
-            throw new HttpException(404, 'Servicio no disponible.');
-        }
-
-        if (! $this->accessResolver->userCanAccess($user, $company, $service)) {
-            throw new HttpException(403, 'No tienes acceso a este servicio.');
-        }
-
-        $launchMode = (string) ($service->launch_mode ?? 'internal');
-
-        return match ($launchMode) {
-            'internal' => $this->openInternal($service),
-            'external' => $this->openExternal($user, $company, $service),
-            'embedded' => $this->openEmbedded($service),
-            'api' => $this->openApi($service),
-            default => throw new HttpException(500, 'launch_mode no soportado.'),
-        };
-    }
-
-    private function openInternal(Service $service): RedirectResponse
-    {
-        $href = trim((string) ($service->href ?? ''));
-
-        if ($href === '') {
-            throw new HttpException(404, 'El servicio interno no tiene href configurado.');
-        }
-
-        return redirect()->to($href);
-    }
-
-    private function openExternal($user, Company $company, Service $service): RedirectResponse
-    {
-        $externalUrl = rtrim((string) ($service->external_url ?? ''), '/');
-        $launchPath = trim((string) ($service->launch_path ?? '/launch'));
-
-        if ($externalUrl === '') {
-            throw new HttpException(500, 'El servicio externo no tiene external_url configurado.');
-        }
-
-        $token = $this->launchTokenFactory->make(
-            user: $user,
-            company: $company,
-            service: $service,
-        );
-
-        $path = $launchPath !== '' ? '/' . ltrim($launchPath, '/') : '/launch';
-
-        return redirect()->away($externalUrl . $path . '?token=' . urlencode($token));
-    }
-
-    private function openEmbedded(Service $service): RedirectResponse
-    {
-        $href = trim((string) ($service->href ?? ''));
-
-        if ($href === '') {
-            throw new HttpException(404, 'El servicio embebido no tiene href configurado.');
-        }
-
-        return redirect()->to($href);
-    }
-
-    private function openApi(Service $service): RedirectResponse
-    {
-        $href = trim((string) ($service->href ?? ''));
-
-        if ($href === '') {
-            throw new HttpException(404, 'El servicio API no tiene href configurado.');
-        }
-
-        return redirect()->to($href);
+        return encrypt(json_encode($payload, JSON_UNESCAPED_SLASHES));
     }
 }

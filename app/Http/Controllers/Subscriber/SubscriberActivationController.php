@@ -250,7 +250,7 @@ class SubscriberActivationController extends Controller
             'name' => $name,
             'slug' => $slug,
             'country_code' => 'DO',
-            'currency' => 'USD',
+            'currency' => 'DOP',
             'timezone' => 'America/Santo_Domingo',
             'active' => true,
             'meta' => null,
@@ -373,6 +373,7 @@ class SubscriberActivationController extends Controller
             'trade_name' => null,
 
             'country_code' => 'DO',
+            'currency' => 'DOP',
 
             'tax_id' => null,
             'tax_id_type' => 'RNC',
@@ -415,7 +416,7 @@ class SubscriberActivationController extends Controller
 
             'status' => ActivationRequest::STATUS_TRIALING,
             'billing_cycle' => 'monthly',
-            'currency' => $subscriber->currency ?? 'DOP',
+            'currency' => $subscriber->currency ?? 'USD',
 
             'subtotal_amount' => 0,
             'discount_amount' => 0,

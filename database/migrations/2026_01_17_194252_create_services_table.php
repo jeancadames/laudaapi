@@ -61,7 +61,7 @@ return new class extends Migration {
             // Cobro
             $table->enum('billing_model', ['flat', 'seat_block', 'usage'])->default('flat');
 
-            $table->enum('currency', ['USD', 'DOP', 'EUR'])->default('DOP');
+            $table->string('currency', 3)->default('USD');
             $table->decimal('monthly_price', 10, 2)->nullable();
             $table->decimal('yearly_price', 10, 2)->nullable();
 

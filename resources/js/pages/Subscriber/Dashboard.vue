@@ -38,7 +38,7 @@ const mustChangePassword = computed(() => !!authUser.value?.must_change_password
 
 const ui = useRemember({ showBilling: false }, 'subscriber.dashboard.ui')
 
-const currency = computed(() => props.stats?.currency ?? 'DOP')
+const currency = computed(() => props.stats?.currency ?? 'USD')
 
 function money(n: any) {
     const v = Number(n ?? 0)
@@ -206,7 +206,7 @@ function goToChangePassword() {
             <SectionCard title="Perfil fiscal" description="Completitud de datos de facturación">
                 <div class="grid gap-6 md:grid-cols-3">
                     <StatCard title="Perfil Fiscal" :value="props.stats?.tax_profile?.exists ? 'Completo' : 'Pendiente'" description="Perfiles fiscales de la empresa" :trend-positive="!!props.stats?.tax_profile?.exists" />
-                    <StatCard title="Moneda" :value="props.stats?.currency ?? 'DOP'" description="Moneda de la empresa" />
+                    <StatCard title="Moneda" :value="props.stats?.currency ?? 'USD'" description="Moneda de la empresa" />
                     <StatCard title="Zona horaria" :value="props.stats?.timezone ?? 'America/Santo_Domingo'" description="Zona horaria de la empresa" />
                 </div>
             </SectionCard>

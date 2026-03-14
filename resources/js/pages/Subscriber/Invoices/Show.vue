@@ -6,6 +6,9 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import type { BreadcrumbItem } from '@/types'
 import { subscriber } from '@/routes'
+import { useDateFormatter } from '@/composables/useDateFormatter'
+
+const { formatDate, formatDateTime } = useDateFormatter()
 
 type Invoice = {
     id: number

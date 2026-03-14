@@ -11,6 +11,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Str;
 use Inertia\Inertia;
 
 class SubscriberCompanyController extends Controller
@@ -333,14 +334,15 @@ class SubscriberCompanyController extends Controller
             if (!isset($validSet[$tplId])) continue;
 
             $rows[] = [
-                'company_id' => (int)$company->id,
-                'template_id' => (int)$tplId,
-                'enabled' => (bool)$it['enabled'] ? 1 : 0,
-                'starts_on' => $it['starts_on'] ?? null,
-                'ends_on' => $it['ends_on'] ?? null,
+                'company_id'   => (int)$company->id,
+                'template_id'  => (int)$tplId,
+                'public_id'    => (string) Str::ulid(),
+                'enabled'      => (bool)$it['enabled'] ? 1 : 0,
+                'starts_on'    => $it['starts_on'] ?? null,
+                'ends_on'      => $it['ends_on'] ?? null,
                 'owner_user_id' => null,
-                'updated_at' => $now,
-                'created_at' => $now,
+                'updated_at'   => $now,
+                'created_at'   => $now,
             ];
         }
 

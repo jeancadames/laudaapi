@@ -49,12 +49,12 @@ return new class extends Migration
             $table->decimal('fee_amount', 12, 2)->nullable();   // fee del proveedor
             $table->decimal('net_amount', 12, 2)->nullable();   // amount - fee (opcional)
 
-            $table->enum('currency', ['USD', 'DOP', 'EUR'])->default('DOP');
+            $table->string('currency', 3)->default('USD');
 
             // Para RD (si facturas en DOP): guardar tasa y equivalente
             $table->decimal('exchange_rate', 12, 6)->nullable(); // USD->DOP
             $table->decimal('amount_local', 12, 2)->nullable();  // equivalente DOP
-            $table->enum('local_currency', ['USD', 'DOP', 'EUR'])->nullable();    // DOP
+            $table->string('local_currency', 3)->nullable();  
 
             // Para evitar dobles cobros / reintentos
             $table->string('idempotency_key')->nullable()->unique();

@@ -16,7 +16,7 @@ const props = withDefaults(defineProps<{
     label?: string | null
     size?: 'sm' | 'xs'
 }>(), {
-    label: 'Platform',
+    label: 'Plataforma',
     size: 'sm',
 })
 
@@ -39,10 +39,11 @@ const textClass = computed(() =>
         <SidebarMenu>
             <SidebarMenuItem v-for="item in items" :key="item.title">
                 <SidebarMenuButton as-child :is-active="isCurrentUrl(item.href)" :tooltip="item.title" class="h-auto! items-start! py-2!">
-                    <Link :href="item.href" class="flex w-full min-w-0 items-start gap-2">
+                    <Link :href="item.href" class="flex w-full min-w-0 items-start justify-between gap-2">
                         <component v-if="props.size !== 'xs'" :is="item.icon" class="mt-0.5 h-4 w-4 shrink-0" />
                         <div class="min-w-0 flex-1 overflow-hidden whitespace-normal wrap-break-word line-clamp-2 leading-4" :class="textClass" :title="item.title">
                             {{ item.title }}
+                            {{ item.href }}
                         </div>
                         <component v-if="props.size === 'xs'" :is="item.icon" class="mt-0.5 h-4 w-4 shrink-0 opacity-80" />
                     </Link>

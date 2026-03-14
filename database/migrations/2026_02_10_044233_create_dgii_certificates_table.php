@@ -53,6 +53,8 @@ return new class extends Migration {
             $table->index(['company_id', 'type']);
             $table->index(['company_id', 'status']);
             $table->index(['company_id', 'is_default']);
+
+            $table->unique(['company_id', 'type'], 'dgii_certificates_company_type_unique');
         });
     }
 

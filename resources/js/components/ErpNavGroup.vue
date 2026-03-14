@@ -19,26 +19,30 @@ defineProps<{
     open: boolean
     onToggle: (slug: string) => void
 }>()
+
+// script setup (añade esto)
+const shortTitles: Record<string, string> = {
+    'api-facturacion-electronica': 'API Facturación',
+    // agrega más mapeos según necesites
+}
+
 </script>
 
 <template>
     <Collapsible :open="open">
         <!-- ✅ Trigger: 1:1 con SidebarMenuButton (hover/active/collapsed perfecto) -->
+        <!-- template -->
         <SidebarMenuItem>
             <CollapsibleTrigger as-child>
-                <SidebarMenuButton class="w-full" :tooltip="title" @click.prevent="onToggle(slug)">
-
-                    <span class="flex min-w-0 items-start gap-2">
+                <SidebarMenuButton class="w-full relative" :tooltip="title" @click.prevent="onToggle(slug)">
+                    <div class="flex items-start min-w-0 w-full gap-2 pr-8">
                         <component v-if="icon" :is="icon" class="mt-0.5 h-4 w-4 shrink-0 opacity-90" />
-
-                        <!-- ✅ 2 líneas + ellipsis real -->
-                        <span class="min-w-0 flex-1 line-clamp-2 whitespace-normal leading-4 group-data-[collapsible=icon]:hidden" :title="title">
-                            {{ title }}
+                        <span class="min-w-0 flex-1 line-clamp-2 whitespace-normal leading-4 text-sm" :title="title">
+                            {{ shortTitles[ slug ] ?? title }}
                         </span>
-                    </span>
+                    </div>
 
-                    <ChevronDown class="mt-0.5 h-4 w-4 shrink-0 transition-transform group-data-[collapsible=icon]:hidden" :class="open ? 'rotate-180' : ''" />
-
+                    <ChevronDown class="absolute right-2 top-1/2 -translate-y-1/2 h-4 w-4 transition-transform" :class="open ? 'rotate-180' : ''" aria-hidden="true" />
                 </SidebarMenuButton>
             </CollapsibleTrigger>
         </SidebarMenuItem>
