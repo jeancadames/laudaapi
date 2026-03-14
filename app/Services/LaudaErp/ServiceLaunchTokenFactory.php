@@ -5,6 +5,7 @@ namespace App\Services\LaudaErp;
 use App\Models\Company;
 use App\Models\Service;
 use App\Models\User;
+use Illuminate\Support\Facades\Crypt;
 
 class ServiceLaunchTokenFactory
 {
@@ -42,6 +43,6 @@ class ServiceLaunchTokenFactory
             'nonce' => bin2hex(random_bytes(16)),
         ];
 
-        return encrypt(json_encode($payload, JSON_UNESCAPED_SLASHES));
+        return Crypt::encryptString(json_encode($payload, JSON_UNESCAPED_SLASHES));
     }
 }

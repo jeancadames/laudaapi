@@ -1,3 +1,15 @@
+LJ Log Marzo 14/2026
+
+Para el funcionamiento de Laudago/laudaone y todo lo que tenga funcionalidad parecida
+
+cuando se esten haciendo pruebas en dev la ruta externa en la migracion de la base de datos debe apuntar al servidor/localhost donde corre, no el productivo, cuando se cambie a prod ahi se cambia en la tabla
+
+la ruta para los servicios externos no pueden usar componente Link o route.visit, debe ser window.href.location, se agrego la logica para que dependiendo del enlace cargue el link o un href con el window.href.location
+
+Ambos proyectos deben de tener el mismo api key
+
+deben tener el mismo cipher en config/app.php
+
 LJ Log Marzo 12/2026
 
 1. http://localhost:8000/subscriber/payments
