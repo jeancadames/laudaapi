@@ -3,7 +3,6 @@
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 
-use App\Http\Controllers\Auth\LaunchController;
 use App\Http\Controllers\Marketing\ServiceCatalogController;
 
 /** Contact, ActivactionRequest, ActivationControllers */
@@ -18,8 +17,6 @@ use App\Http\Controllers\ActivationController;
 |--------------------------------------------------------------------------
 | Landing + formularios públicos (sin auth).
 */
-
-Route::get('/launch', [LaunchController::class, 'handle'])->name('launch');
 
 Route::get('/', ServiceCatalogController::class)->name('home');
 

@@ -210,20 +210,29 @@ class HttpDgiiAuthClient implements DgiiAuthClient
         string $validateUrl
     ): void {
         $debug = (bool) config('dgii.auth_debug', (bool) env('DGII_AUTH_DEBUG', false));
-        if (!$debug) {
-            return;
-        }
+        if (!$debug) return;
 
-        $disk = 'private';
+        $disk = Storage::disk('private');
+
+        // ✅ carpeta fija por company
         $dir = "dgii/auth_debug/company_{$setting->company_id}";
-        $ts = now()->format('Ymd_His');
-        $seedPath = "{$dir}/{$ts}_seed.xml";
-        $signedPath = "{$dir}/{$ts}_signed.xml";
 
-        Storage::disk($disk)->put($seedPath, $seedXml);
-        Storage::disk($disk)->put($signedPath, $signedXml);
+        // ✅ asegúrate que exista
+        $disk->makeDirectory($dir);
 
-        Log::info('DGII auth debug artifacts saved', [
+        // ✅ BORRAR TODO lo anterior (solo auth_debug de esa company)
+        // (si solo guardas seed/signed aquí, esto está perfecto)
+        $disk->deleteDirectory($dir);
+        $disk->makeDirectory($dir);
+
+        // ✅ nombres fijos (siempre se sobreescriben)
+        $seedPath   = "{$dir}/seed.xml";
+        $signedPath = "{$dir}/seed_signed.xml";
+
+        $disk->put($seedPath, $seedXml);
+        $disk->put($signedPath, $signedXml);
+
+        Log::info('DGII auth debug artifacts saved (latest only)', [
             'company_id' => $setting->company_id,
             'env' => $setting->environment,
             'seed_url' => $seedUrl,

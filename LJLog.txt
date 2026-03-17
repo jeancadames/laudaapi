@@ -1,3 +1,17 @@
+LJ Log Marzo 15/2026
+
+   1. cargar url externos
+   
+      1. seeder le agregue   $externalDefault  = config('services.lauda.external_url') ?? env('LAUDA_EXTERNAL_URL', 'https://go.laudaapi.com');
+      2. .env LAUDA_EXTERNAL_URL=http://localhost:8001
+      3. config services  'lauda' => [
+          'external_url' => env('LAUDA_EXTERNAL_URL', 'https://go.laudaapi.com'),
+       ],
+
+      con esto se resuelve cargar en dev/produccion el external_url
+
+
+
 LJ Log Marzo 14/2026
 
 Para el funcionamiento de Laudago/laudaone y todo lo que tenga funcionalidad parecida
@@ -9,6 +23,31 @@ la ruta para los servicios externos no pueden usar componente Link o route.visit
 Ambos proyectos deben de tener el mismo api key
 
 deben tener el mismo cipher en config/app.php
+
+PARTE 2
+
+Se modifico el controlador de SubscriberServiceActivationController
+
+Qué va a pasar con este flujo
+Si activa trial y el servicio es Laudago
+crea subscription_item
+marca activation_request_service.status = active
+crea/actualiza workspace_companies en LaudaAPI
+luego del commit crea/actualiza workspace_companies en Laudago
+Si hace clic en Activar (Pago)
+no crea workspace
+solo deja pending_payment
+Y eso es correcto con tu flujo actual.
+
+Cuando luego confirmes el pago
+Cuando tengas el endpoint o webhook que convierta el servicio pagado a active, ahí debes reutilizar exactamente esta misma acción:
+$workspaceSync->syncLocal($company, $service);
+$workspaceSync->syncRemote($company, $service);
+O mejor:
+local dentro de la transacción
+remote en afterCommit
+
+Se modifico el controlador de SubscriberServiceCacellationController
 
 LJ Log Marzo 12/2026
 

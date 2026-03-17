@@ -27,8 +27,7 @@ const textClass = computed(() =>
         ? 'text-xs leading-4'
         : 'text-sm'
 )
-
-function isExternalLaunch(item: NavItem) {
+function isExternalLaunch(item: NavItem): item is NavItem & { href: string } {
     // ✅ regla práctica:
     // cualquier servicio que pase por /erp/services/open/ lo abrimos
     // con navegación completa del browser
@@ -76,7 +75,7 @@ function isExternalLaunch(item: NavItem) {
                             class="mt-0.5 h-4 w-4 shrink-0 opacity-80"
                         />
                     </a>
-
+                    
                     <!-- ✅ Normal internal Inertia navigation -->
                     <Link
                         v-else

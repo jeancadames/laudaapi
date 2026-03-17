@@ -83,6 +83,36 @@ class HandleInertiaRequests extends Middleware
                 ] : null,
             ],
 
+            'activeCompany' => function () use ($request) {
+                $user = $request->user();
+
+                if (! $user) {
+                    return null;
+                }
+
+                // Solo compartir esto en rutas /subscriber y /erp
+                if (! $request->is('subscriber*') && ! $request->is('erp*')) {
+                    return null;
+                }
+
+                $company = Company::query()
+                    ->select('id', 'name', 'slug', 'ws_subdomain', 'owner_user_id')
+                    ->where('owner_user_id', $user->id)
+                    ->where('active', true)
+                    ->first();
+
+                if (! $company) {
+                    return null;
+                }
+
+                return [
+                    'id' => $company->id,
+                    'name' => $company->name,
+                    'slug' => $company->slug,
+                    'ws_subdomain' => $company->ws_subdomain,
+                ];
+            },
+
             'menu' => ($user && $user->role === 'subscriber')
                 ? fn() => $this->subscriberMenu($user)
                 : null,

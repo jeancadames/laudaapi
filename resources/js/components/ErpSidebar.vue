@@ -23,6 +23,13 @@ import type { Component } from 'vue'
 import AppLogoErp from './AppLogoErp.vue'
 import SidebarGroup from './ui/sidebar/SidebarGroup.vue'
 
+type ActiveCompany = {
+    id: number
+    name: string
+    slug: string
+    ws_subdomain: string | null
+} | null
+
 type ErpItem = { title: string; href: string; icon?: string; badge?: string | null }
 type ErpGroup = { title: string; slug: string; icon?: string; items: ErpItem[] }
 type ErpFooterItem = { title: string; href: string; icon?: string; badge?: string | null }
@@ -34,6 +41,11 @@ const homeHref = '/erp'
 
 // backend: props.nav.erp.groups (payload: { erp: { groups: [...] } })
 const groupsRaw = computed<ErpGroup[]>(() => (props?.nav?.erp?.groups ?? []) as ErpGroup[])
+
+const activeCompany = computed(() => (page.props as any)?.activeCompany as ActiveCompany)
+
+const companyName = computed(() => activeCompany.value?.name ?? '')
+const companySlug = computed(() => activeCompany.value?.slug ?? '')
 
 // --- NUEVO: fusionar marketplace + laudaone en "Mis servicios"
 const groupsMerged = computed<ErpGroup[]>(() => {
@@ -176,6 +188,27 @@ function toggle(slug: string) {
                     </SidebarMenuButton>
                 </SidebarMenuItem>
             </SidebarMenu>
+
+            <div
+                v-if="companyName"
+                class="mx-2 rounded-xl border border-sidebar-border/70 bg-sidebar-accent/30 px-3 py-2 group-data-[collapsible=icon]:hidden"
+            >
+                <p class="text-[10px] font-medium uppercase tracking-[0.16em] text-sidebar-foreground/50">
+                    Empresa activa
+                </p>
+
+                <p class="mt-1 wrap-break-words text-sm font-semibold leading-5 text-sidebar-foreground">
+                    {{ companyName }}
+                </p>
+
+                <p
+                    v-if="companySlug"
+                    class="mt-1 truncate text-[11px] text-sidebar-foreground/60"
+                >
+                    {{ companySlug }}
+                </p>
+            </div>
+
         </SidebarHeader>
 
         <!-- CONTENT -->
