@@ -7,6 +7,12 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import type { BreadcrumbItem } from '@/types'
 import { subscriber } from '@/routes'
+import Select from '@/components/ui/select/Select.vue'
+import SelectTrigger from '@/components/ui/select/SelectTrigger.vue'
+import SelectValue from '@/components/ui/select/SelectValue.vue'
+import SelectContent from '@/components/ui/select/SelectContent.vue'
+import SelectGroup from '@/components/ui/select/SelectGroup.vue'
+import SelectItem from '@/components/ui/select/SelectItem.vue'
 
 type PaymentRow = {
     id: number
@@ -220,14 +226,22 @@ function goTo(url: string | null) {
                 <div class="grid gap-3 md:grid-cols-5">
                     <div>
                         <div class="text-xs text-muted-foreground mb-1">Método</div>
-                        <select v-model="method" class="w-full rounded-md border px-3 py-2 text-sm bg-background">
-                            <option value="all">Todos</option>
-                            <option value="card">Tarjeta</option>
-                            <option value="bank_transfer">Transferencia</option>
-                            <option value="cash">Efectivo</option>
-                            <option value="check">Cheque</option>
-                            <option value="other">Otro</option>
-                        </select>
+                        <Select v-model="method">
+                            <SelectTrigger class="w-full rounded-md border px-3 py-2 text-sm bg-background">
+                                <SelectValue placeholder="Todos" />
+                            </SelectTrigger>
+
+                            <SelectContent>
+                                <SelectGroup>
+                                    <SelectItem value="all">Todos</SelectItem>
+                                    <SelectItem value="card">Tarjeta</SelectItem>
+                                    <SelectItem value="bank_transfer">Transferencia</SelectItem>
+                                    <SelectItem value="cash">Efectivo</SelectItem>
+                                    <SelectItem value="check">Cheque</SelectItem>
+                                    <SelectItem value="other">Otro</SelectItem>
+                                </SelectGroup>
+                            </SelectContent>
+                        </Select>
                     </div>
 
                     <div class="md:col-span-2">

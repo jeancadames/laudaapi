@@ -3,14 +3,16 @@
 namespace App\Http\Controllers\LaudaErp\Wrapper;
 
 use App\Http\Controllers\Controller;
+use App\Models\Company;
 use App\Services\Dgii\Wrapper\Acecf\AcecfExcelToXmlService;
+use App\Services\Subscribers\SubscriberResolver;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
-use App\Models\Company;
-use App\Services\Subscribers\SubscriberResolver;
 
 final class AcecfExcelToXmlController extends Controller
 {
+    private const DOWNLOAD_ROUTE = 'erp.services.certificacion-emisor.set-ecf.acecf.download';
+
     public function convert(Request $request, AcecfExcelToXmlService $service)
     {
         $request->validate([
@@ -19,11 +21,14 @@ final class AcecfExcelToXmlController extends Controller
 
         $company = $this->companyFromErp($request);
 
-        $stored = $request->file('file')->store('uploads'); // disk default (local)
-        $zipRelPath = $service->convertToZip(Storage::path($stored), 'compact', $company->id);
+        // ✅ TODO en private
+        $storedRel = $request->file('file')->store('dgii/uploads', 'private');
+        $inputAbs  = Storage::disk('private')->path($storedRel);
+
+        $zipRelPath = $service->convertToZip($inputAbs, 'compact', $company->id);
 
         return response()->json([
-            'download_url' => route('erp.services.certificacion-emisor.acecf.download', ['path' => $zipRelPath], false),
+            'download_url' => route(self::DOWNLOAD_ROUTE, ['path' => $zipRelPath], false),
         ]);
     }
 
@@ -33,25 +38,12 @@ final class AcecfExcelToXmlController extends Controller
 
         if ($rel === '' || str_contains($rel, '..')) abort(404);
 
-        $disk = Storage::disk('local');
-
+        $disk = Storage::disk('private');
         if (!$disk->exists($rel)) abort(404);
 
-        $abs = $disk->path($rel);
-        
-        logger()->info('ACECF DOWNLOAD request', [
-            'path_param' => $request->query('path'),
-            'rel' => $rel,
-            'abs' => $abs,
-            'exists' => $disk->exists($rel),
-            'size' => $disk->exists($rel) ? $disk->size($rel) : null,
+        return $disk->download($rel, basename($rel), [
+            'Content-Type' => 'application/zip',
         ]);
-
-        return response()->download(
-            $abs,
-            basename($rel),
-            ['Content-Type' => 'application/zip']
-        );
     }
 
     private function companyFromErp(Request $request): Company

@@ -20,6 +20,7 @@ import {
     DialogTrigger,
 } from '@/components/ui/dialog'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import Textarea from '@/components/ui/textarea/Textarea.vue'
 
 type Cert = {
     id: number
@@ -819,7 +820,7 @@ function resultUri(r?: TestSignResponse | null) {
                                 <p class="text-xs text-muted-foreground">
                                     Si lo dejas vacío, el backend firma un XML mínimo de prueba.
                                 </p>
-                                <textarea v-model="testXml" rows="6" class="w-full rounded-md border bg-background p-2 text-xs font-mono" placeholder="(Opcional) pega un XML aquí para firmarlo…" />
+                                <Textarea v-model="testXml" rows="6" class="w-full rounded-md border bg-background p-2 text-xs font-mono" placeholder="(Opcional) pega un XML aquí para firmarlo…" />
                             </div>
 
                             <div v-if="testResult" class="rounded-lg border p-4 space-y-3">
@@ -841,7 +842,7 @@ function resultUri(r?: TestSignResponse | null) {
                                         </Button>
                                     </div>
 
-                                    <textarea :value="testResult.signed_xml" rows="12" readonly class="w-full rounded-md border bg-background p-2 text-xs font-mono" />
+                                    <Textarea :value="testResult.signed_xml" rows="12" readonly class="w-full rounded-md border bg-background p-2 text-xs font-mono" />
                                 </div>
 
                                 <div v-else class="text-sm text-muted-foreground">

@@ -8,6 +8,13 @@ import { Button } from '@/components/ui/button'
 import type { BreadcrumbItem } from '@/types'
 import { subscriber } from '@/routes'
 import { useToast } from '@/components/ui/toast/use-toast'
+import Select from '@/components/ui/select/Select.vue'
+import SelectTrigger from '@/components/ui/select/SelectTrigger.vue'
+import SelectValue from '@/components/ui/select/SelectValue.vue'
+import SelectContent from '@/components/ui/select/SelectContent.vue'
+import SelectGroup from '@/components/ui/select/SelectGroup.vue'
+import SelectItem from '@/components/ui/select/SelectItem.vue'
+import Textarea from '@/components/ui/textarea/Textarea.vue'
 
 const { toast } = useToast()
 const page = usePage()
@@ -203,13 +210,21 @@ function createTicket() {
 
                     <div class="space-y-1">
                         <label class="text-sm font-medium">Estado</label>
-                        <select v-model="status" class="w-full rounded-md border px-3 py-2 text-sm bg-background" @change="applyFilters">
-                            <option value="all">Todos</option>
-                            <option value="open">Abierto</option>
-                            <option value="pending">Pendiente</option>
-                            <option value="answered">Respondido</option>
-                            <option value="closed">Cerrado</option>
-                        </select>
+                        <Select v-model="status" @update:model-value="applyFilters">
+                            <SelectTrigger class="w-full rounded-md border px-3 py-2 text-sm bg-background">
+                                <SelectValue placeholder="Todos" />
+                            </SelectTrigger>
+
+                            <SelectContent>
+                                <SelectGroup>
+                                    <SelectItem value="all">Todos</SelectItem>
+                                    <SelectItem value="open">Abierto</SelectItem>
+                                    <SelectItem value="pending">Pendiente</SelectItem>
+                                    <SelectItem value="answered">Respondido</SelectItem>
+                                    <SelectItem value="closed">Cerrado</SelectItem>
+                                </SelectGroup>
+                            </SelectContent>
+                        </Select>
                     </div>
                 </div>
 
@@ -248,12 +263,20 @@ function createTicket() {
 
                         <div class="space-y-1">
                             <label class="text-sm font-medium">Prioridad</label>
-                            <select v-model="form.priority" class="w-full rounded-md border px-3 py-2 text-sm bg-background">
-                                <option value="low">Baja</option>
-                                <option value="normal">Normal</option>
-                                <option value="high">Alta</option>
-                                <option value="urgent">Urgente</option>
-                            </select>
+                            <Select v-model="form.priority">
+                                <SelectTrigger class="w-full rounded-md border px-3 py-2 text-sm bg-background">
+                                    <SelectValue placeholder="Selecciona la prioridad" />
+                                </SelectTrigger>
+
+                                <SelectContent>
+                                    <SelectGroup>
+                                        <SelectItem value="low">Baja</SelectItem>
+                                        <SelectItem value="normal">Normal</SelectItem>
+                                        <SelectItem value="high">Alta</SelectItem>
+                                        <SelectItem value="urgent">Urgente</SelectItem>
+                                    </SelectGroup>
+                                </SelectContent>
+                            </Select>
                             <div v-if="form.errors.priority" class="text-xs text-rose-600">
                                 {{ form.errors.priority }}
                             </div>
@@ -261,7 +284,7 @@ function createTicket() {
 
                         <div class="space-y-1 md:col-span-2">
                             <label class="text-sm font-medium">Mensaje</label>
-                            <textarea v-model="form.message" rows="5" class="w-full rounded-md border px-3 py-2 text-sm bg-background" placeholder="Describe el problema con detalles..." />
+                            <Textarea v-model="form.message" rows="5" class="w-full rounded-md border px-3 py-2 text-sm bg-background" placeholder="Describe el problema con detalles..." />
                             <div v-if="form.errors.message" class="text-xs text-rose-600">
                                 {{ form.errors.message }}
                             </div>

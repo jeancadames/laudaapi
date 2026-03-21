@@ -20,6 +20,15 @@ import {
     DialogTrigger,
 } from '@/components/ui/dialog'
 
+import {
+  SelectRoot,
+  SelectTrigger,
+  SelectValue,
+  SelectContent,
+  SelectGroup,
+  SelectItem,
+} from 'reka-ui'
+
 type Setting = {
     environment: 'precert' | 'cert' | 'prod'
     cf_prefix: string
@@ -112,6 +121,17 @@ function endpointsFromCatalog(): Record<string, any> {
     return out
 }
 
+function prefixForEnvironment(env: 'precert' | 'cert' | 'prod') {
+    switch (env) {
+        case 'precert':
+            return 'testecf'
+        case 'cert':
+            return 'certcf'
+        case 'prod':
+            return 'ecf'
+    }
+}
+
 /* -----------------------------
   Editor
 ------------------------------ */
@@ -139,13 +159,21 @@ const form = useForm<{
     ),
 })
 
+watch(
+    () => form.environment,
+    (env) => {
+        form.cf_prefix = prefixForEnvironment(env)
+    },
+    { immediate: true }
+)
+
 function resetEditor() {
     jsonError.value = null
     baseUrlsError.value = null
     form.clearErrors()
 
     form.environment = props.setting.environment
-    form.cf_prefix = props.setting.cf_prefix
+    form.cf_prefix = prefixForEnvironment(form.environment)
     form.use_directory = !!props.setting.use_directory
 
     const ep = hasEndpoints.value ? (props.setting.endpoints ?? {}) : endpointsFromCatalog()
@@ -157,9 +185,9 @@ function resetEditor() {
             fc: 'https://fc.dgii.gov.do',
             status: 'https://statusecf.dgii.gov.do',
         }
+
     form.base_urls_json = prettyJson(bu)
 }
-
 watch(openEditor, (v) => {
     if (v) resetEditor()
 })
@@ -186,7 +214,7 @@ function submit() {
 
     form.transform(() => ({
         environment: form.environment,
-        cf_prefix: form.cf_prefix?.trim(),
+        cf_prefix: prefixForEnvironment(form.environment),
         use_directory: form.use_directory,
         endpoints: ep.value ?? {},
         base_urls: bu.value ?? {},
@@ -251,7 +279,11 @@ function submit() {
 
                                     <div class="space-y-2">
                                         <Label>cf_prefix</Label>
-                                        <input v-model="form.cf_prefix" class="h-9 w-full rounded-md border bg-background px-3 text-sm" placeholder="testecf | certecf | ecf" />
+                                        <input
+                                            :value="prefixForEnvironment(form.environment)"
+                                            readonly
+                                            class="h-9 w-full rounded-md border bg-muted px-3 text-sm text-muted-foreground"
+                                        />
                                     </div>
 
                                     <div class="space-y-2">

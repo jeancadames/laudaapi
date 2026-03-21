@@ -66,8 +66,9 @@ class DgiiTransmission extends Model
     ];
 
     protected $casts = [
+        'request_headers' => 'array',
+        'response_headers' => 'array',
         'dgii_mensajes' => 'array',
-        'meta' => 'array',
         'sent_at' => 'datetime',
         'received_at' => 'datetime',
     ];

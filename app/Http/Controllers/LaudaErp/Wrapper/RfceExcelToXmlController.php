@@ -3,14 +3,16 @@
 namespace App\Http\Controllers\LaudaErp\Wrapper;
 
 use App\Http\Controllers\Controller;
+use App\Models\Company;
 use App\Services\Dgii\Wrapper\Rfce\RfceExcelToXmlService;
+use App\Services\Subscribers\SubscriberResolver;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
-use App\Models\Company;
-use App\Services\Subscribers\SubscriberResolver;
 
 final class RfceExcelToXmlController extends Controller
 {
+    private const DOWNLOAD_ROUTE = 'erp.services.certificacion-emisor.set-ecf.rfce.download';
+
     public function convert(Request $request, RfceExcelToXmlService $service)
     {
         $request->validate([
@@ -19,13 +21,14 @@ final class RfceExcelToXmlController extends Controller
 
         $company = $this->companyFromErp($request);
 
-        $stored = $request->file('file')->store('uploads'); // disk local
-        $inputAbs = Storage::disk('local')->path($stored);
+        // ✅ TODO en private (mismo disk que el ZIP)
+        $storedRel = $request->file('file')->store('dgii/uploads', 'private');
+        $inputAbs  = Storage::disk('private')->path($storedRel);
 
         $zipRelPath = $service->convertToZip($inputAbs, 'compact', $company->id);
 
         return response()->json([
-            'download_url' => route('erp.services.certificacion-emisor.rfce.download', ['path' => $zipRelPath], false),
+            'download_url' => route(self::DOWNLOAD_ROUTE, ['path' => $zipRelPath], false),
         ]);
     }
 
@@ -35,16 +38,12 @@ final class RfceExcelToXmlController extends Controller
 
         if ($rel === '' || str_contains($rel, '..')) abort(404);
 
-        $disk = Storage::disk('local');
+        $disk = Storage::disk('private');
         if (!$disk->exists($rel)) abort(404);
 
-        $abs = $disk->path($rel);
-
-        return response()->download(
-            $abs,
-            basename($rel),
-            ['Content-Type' => 'application/zip']
-        );
+        return $disk->download($rel, basename($rel), [
+            'Content-Type' => 'application/zip',
+        ]);
     }
 
     private function companyFromErp(Request $request): Company

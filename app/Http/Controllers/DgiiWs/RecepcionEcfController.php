@@ -6,9 +6,13 @@ use DOMDocument;
 use Illuminate\Http\Request;
 use App\Services\DgiiWs\DgiiWsActivityLogger;
 use App\Http\Controllers\DgiiWs\BaseDgiiWsController;
+use App\Services\Dgii\DgiiXmlSigner;
 
 class RecepcionEcfController extends BaseDgiiWsController
 {
+    public function __construct(
+        private readonly DgiiXmlSigner $xmlSigner,
+    ) {}
     public function __invoke(Request $request)
     {
         $t0  = hrtime(true);
@@ -122,11 +126,17 @@ class RecepcionEcfController extends BaseDgiiWsController
             $detalle->appendChild($doc->createElement('Estado', $estado));
             $detalle->appendChild($doc->createElement('FechaHoraAcuseRecibo', gmdate('d-m-Y H:i:s')));
 
-            // ✅ firmar con cert de la compañía
-            [$pkey, $cert] = $this->loadCompanyPemPair($company, $setting);
-            $this->signDom($doc, $pkey, $cert);
+            $unsignedXml = $doc->saveXML();
+            if (! is_string($unsignedXml) || trim($unsignedXml) === '') {
+                throw new \RuntimeException('No se pudo construir el ARECF antes de firmar.');
+            }
 
-            $outXml = $doc->saveXML();
+            [$p12Bytes, $p12Password] = $this->loadCompanyP12BinaryAndPassword($company);
+
+            // IMPORTANTE:
+            // no pases kind='ecf' aquí, porque ARECF no es un ECF.
+            // null hace que use la firma central sin prepareXmlForSigning().
+            $outXml = $this->xmlSigner->signAnyXml($unsignedXml, $p12Bytes, $p12Password, null);
 
             // ✅ auditoría salida (archivo)
             $outName = 'arecf_out_' . now()->format('Ymd_His') . '_' . bin2hex(random_bytes(3)) . '.xml';
@@ -158,6 +168,8 @@ class RecepcionEcfController extends BaseDgiiWsController
             return $this->respondXml(200, $outXml)
                 ->header('X-Correlation-Id', $cid);
         } catch (\Throwable $e) {
+            report($e);
+
             $durationMs = (int) ((hrtime(true) - $t0) / 1_000_000);
 
             DgiiWsActivityLogger::logInbound($request, [
@@ -174,7 +186,8 @@ class RecepcionEcfController extends BaseDgiiWsController
                 ],
             ]);
 
-            throw $e;
+            return $this->errorXml(500, 'InternalServerError')
+                ->header('X-Correlation-Id', $cid);
         }
     }
 }

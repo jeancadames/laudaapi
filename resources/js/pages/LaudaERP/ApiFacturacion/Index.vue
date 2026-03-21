@@ -8,6 +8,12 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import Select from '@/components/ui/select/Select.vue'
+import SelectTrigger from '@/components/ui/select/SelectTrigger.vue'
+import SelectValue from '@/components/ui/select/SelectValue.vue'
+import SelectContent from '@/components/ui/select/SelectContent.vue'
+import SelectGroup from '@/components/ui/select/SelectGroup.vue'
+import SelectItem from '@/components/ui/select/SelectItem.vue'
 
 type Company = { id: number; name: string; slug: string; timezone: string }
 
@@ -330,18 +336,26 @@ function sourceLabel(src: InboundItem[ 'source' ]) {
 
                                 <div class="flex flex-col gap-2 sm:flex-row sm:items-center">
                                     <Input v-model="q" placeholder="Buscar por id, RNC, cliente, tipo..." class="h-10 rounded-xl sm:w-[320px]" />
-                                    <select v-model="statusFilter" class="h-10 rounded-xl border border-slate-200 bg-white px-3 text-sm dark:border-slate-800 dark:bg-slate-950">
-                                        <option value="all">Todos</option>
-                                        <option value="received">Recibidos</option>
-                                        <option value="validated">Validados</option>
-                                        <option value="queued_sign">Cola firma</option>
-                                        <option value="signed">Firmados</option>
-                                        <option value="queued_send">Cola envío</option>
-                                        <option value="sent">Enviados</option>
-                                        <option value="accepted">Aceptados</option>
-                                        <option value="rejected">Rechazados</option>
-                                        <option value="error">Error</option>
-                                    </select>
+                                    <Select v-model="statusFilter">
+                                        <SelectTrigger class="h-10 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm dark:border-slate-800 dark:bg-slate-950">
+                                            <SelectValue placeholder="Filtrar por estado" />
+                                        </SelectTrigger>
+
+                                        <SelectContent>
+                                            <SelectGroup>
+                                                <SelectItem value="all">Todos</SelectItem>
+                                                <SelectItem value="received">Recibidos</SelectItem>
+                                                <SelectItem value="validated">Validados</SelectItem>
+                                                <SelectItem value="queued_sign">Cola firma</SelectItem>
+                                                <SelectItem value="signed">Firmados</SelectItem>
+                                                <SelectItem value="queued_send">Cola envío</SelectItem>
+                                                <SelectItem value="sent">Enviados</SelectItem>
+                                                <SelectItem value="accepted">Aceptados</SelectItem>
+                                                <SelectItem value="rejected">Rechazados</SelectItem>
+                                                <SelectItem value="error">Error</SelectItem>
+                                            </SelectGroup>
+                                        </SelectContent>
+                                    </Select>
 
                                     <Button variant="outline" class="rounded-xl" disabled>
                                         Refrescar

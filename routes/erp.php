@@ -13,8 +13,8 @@ use App\Http\Controllers\LaudaErp\DgiiCertificateToolsController;
 use App\Http\Controllers\LaudaErp\DgiiEndpointsController;
 use App\Http\Controllers\LaudaErp\DgiiTokenController;
 use App\Http\Controllers\LaudaErp\DgiiTokenAutoController;
-use App\Http\Controllers\LaudaErp\DgiiXmlSignController;
 use App\Http\Controllers\LaudaErp\DgiiXmlSendController;
+use App\Http\Controllers\LaudaErp\DgiiXmlSignController;
 
 use App\Http\Controllers\LaudaErp\Wrapper\AcecfExcelToXmlController;
 use App\Http\Controllers\LaudaErp\Wrapper\ExcelToXmlController;
@@ -24,6 +24,12 @@ use App\Http\Controllers\LaudaErp\FiscalDocumentController;
 use App\Http\Controllers\LaudaErp\FiscalCalendarController;
 use App\Http\Controllers\LaudaErp\FiscalComplianceController;
 use App\Http\Controllers\LaudaErp\ApiFacturacionController;
+use App\Http\Controllers\LaudaErp\Crm\CrmController;
+use App\Http\Controllers\LaudaErp\Crm\CrmCustomerController;
+use App\Http\Controllers\LaudaErp\Crm\CrmContactController;
+use App\Http\Controllers\LaudaErp\Crm\CrmLeadController;
+use App\Http\Controllers\LaudaErp\Crm\CrmOpportunityController;
+use App\Http\Controllers\LaudaErp\Crm\CrmActivityController;
 
 use App\Http\Controllers\LaudaErp\Support\ErpSupportController;
 use App\Http\Controllers\Calendar\IcsFeedController;
@@ -57,6 +63,44 @@ Route::middleware(['auth', 'verified', 'role:subscriber', 'erp.access'])
 
         Route::get('/', LaudaErpDashboardController::class)->name('dashboard');
 
+        /*
+|--------------------------------------------------------------------------
+| ✅ CRM
+|--------------------------------------------------------------------------
+| Servicio interno del marketplace.
+| href actual del servicio: /erp/crm
+*/
+        Route::prefix('crm')
+            ->name('crm.')
+            ->middleware('entitled:erp-crm')
+            ->group(function () {
+                Route::get('/', [CrmController::class, 'index'])->name('index');
+
+                Route::get('/customers/{crmCustomer}', [CrmCustomerController::class, 'show'])->name('customers.show');
+
+                Route::get('/contacts', [CrmContactController::class, 'index'])->name('contacts.index');
+                Route::post('/contacts', [CrmContactController::class, 'store'])->name('contacts.store');
+                Route::put('/contacts/{crmContact}', [CrmContactController::class, 'update'])->name('contacts.update');
+                Route::delete('/contacts/{crmContact}', [CrmContactController::class, 'destroy'])->name('contacts.destroy');
+
+                Route::get('/leads', [CrmLeadController::class, 'index'])->name('leads.index');
+                Route::post('/leads', [CrmLeadController::class, 'store'])->name('leads.store');
+                Route::put('/leads/{crmLead}', [CrmLeadController::class, 'update'])->name('leads.update');
+                Route::delete('/leads/{crmLead}', [CrmLeadController::class, 'destroy'])->name('leads.destroy');
+
+                Route::get('/opportunities', [CrmOpportunityController::class, 'index'])->name('opportunities.index');
+                Route::post('/opportunities', [CrmOpportunityController::class, 'store'])->name('opportunities.store');
+                Route::put('/opportunities/{crmOpportunity}', [CrmOpportunityController::class, 'update'])->name('opportunities.update');
+                Route::delete('/opportunities/{crmOpportunity}', [CrmOpportunityController::class, 'destroy'])->name('opportunities.destroy');
+
+                Route::get('/activities', [CrmActivityController::class, 'index'])->name('activities.index');
+                Route::post('/activities', [CrmActivityController::class, 'store'])->name('activities.store');
+                Route::put('/activities/{crmActivity}', [CrmActivityController::class, 'update'])->name('activities.update');
+                Route::delete('/activities/{crmActivity}', [CrmActivityController::class, 'destroy'])->name('activities.destroy');
+
+                Route::post('/leads/{crmLead}/convert', [CrmLeadController::class, 'convert'])
+                    ->name('leads.convert');
+            });
         /*
         |--------------------------------------------------------------------------
         | ✅ ERP / Services
@@ -191,6 +235,9 @@ Route::middleware(['auth', 'verified', 'role:subscriber', 'erp.access'])
                     |--------------------------------------------------------------------------
                     */
                     Route::prefix('set-ecf')->name('set-ecf.')->group(function () {
+
+                        Route::get('/xml/download', [DgiiXmlSignController::class, 'download'])
+                            ->name('xml.download');
 
                         Route::prefix('ecf')->name('ecf.')->group(function () {
                             Route::post('/excel-to-xml', [ExcelToXmlController::class, 'convert'])->name('excel-to-xml');

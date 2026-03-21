@@ -9,6 +9,12 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Switch } from '@/components/ui/switch'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import Select from '@/components/ui/select/Select.vue'
+import SelectTrigger from '@/components/ui/select/SelectTrigger.vue'
+import SelectContent from '@/components/ui/select/SelectContent.vue'
+import SelectGroup from '@/components/ui/select/SelectGroup.vue'
+import SelectItem from '@/components/ui/select/SelectItem.vue'
+import SelectValue from '@/components/ui/select/SelectValue.vue'
 
 type Company = { id: number; name: string; slug: string; timezone: string }
 
@@ -360,15 +366,23 @@ async function copyIcs() {
                                 <div class="flex flex-col gap-2 sm:flex-row sm:items-center">
                                     <Input v-model="q" placeholder="Buscar (606, IT-1, DGII, periodo...)" class="h-10 rounded-xl sm:w-[320px]" />
 
-                                    <select v-model="statusFilter" class="h-10 rounded-xl border border-slate-200 bg-white px-3 text-sm dark:border-slate-800 dark:bg-slate-950">
-                                        <option value="all">Todos</option>
-                                        <option value="pending">Pendientes</option>
-                                        <option value="due_soon">Por vencer</option>
-                                        <option value="overdue">Vencidos</option>
-                                        <option value="filed">Declarados</option>
-                                        <option value="paid">Pagados</option>
-                                        <option value="not_applicable">N/A</option>
-                                    </select>
+                                    <Select v-model="statusFilter">
+                                        <SelectTrigger class="h-10 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm dark:border-slate-800 dark:bg-slate-950">
+                                            <SelectValue placeholder="Todos" />
+                                        </SelectTrigger>
+
+                                        <SelectContent>
+                                            <SelectGroup>
+                                                <SelectItem value="all">Todos</SelectItem>
+                                                <SelectItem value="pending">Pendientes</SelectItem>
+                                                <SelectItem value="due_soon">Por vencer</SelectItem>
+                                                <SelectItem value="overdue">Vencidos</SelectItem>
+                                                <SelectItem value="filed">Declarados</SelectItem>
+                                                <SelectItem value="paid">Pagados</SelectItem>
+                                                <SelectItem value="not_applicable">N/A</SelectItem>
+                                            </SelectGroup>
+                                        </SelectContent>
+                                    </Select>
 
                                     <div class="flex items-center gap-2 rounded-xl border border-slate-200 px-3 py-2 text-sm dark:border-slate-800">
                                         <Switch v-model="onlyOverdue" class="data-[state=checked]:bg-green-600" />

@@ -8,6 +8,13 @@ import type { BreadcrumbItem } from '@/types'
 import { computed, ref, watch } from 'vue'
 import { subscriber } from '@/routes'
 import { useToast } from '@/components/ui/toast/use-toast'
+import Select from '@/components/ui/select/Select.vue'
+import SelectTrigger from '@/components/ui/select/SelectTrigger.vue'
+import SelectValue from '@/components/ui/select/SelectValue.vue'
+import SelectContent from '@/components/ui/select/SelectContent.vue'
+import SelectGroup from '@/components/ui/select/SelectGroup.vue'
+import SelectItem from '@/components/ui/select/SelectItem.vue'
+import Textarea from '@/components/ui/textarea/Textarea.vue'
 
 const { toast } = useToast()
 const page = usePage()
@@ -331,32 +338,56 @@ const providerPresets = [
 
                     <div class="space-y-1">
                         <label class="text-sm font-medium">Tipo</label>
-                        <select v-model="fType" class="w-full rounded-md border px-3 py-2 text-sm bg-background">
-                            <option value="all">Todos</option>
-                            <option value="gateway">Gateway</option>
-                            <option value="bank_transfer">Transferencia</option>
-                            <option value="cash">Efectivo</option>
-                            <option value="check">Cheque</option>
-                            <option value="other">Otro</option>
-                        </select>
+                        <Select v-model="fType">
+                            <SelectTrigger class="w-full rounded-md border px-3 py-2 text-sm bg-background">
+                                <SelectValue placeholder="Todos" />
+                            </SelectTrigger>
+
+                            <SelectContent>
+                                <SelectGroup>
+                                    <SelectItem value="all">Todos</SelectItem>
+                                    <SelectItem value="gateway">Gateway</SelectItem>
+                                    <SelectItem value="bank_transfer">Transferencia</SelectItem>
+                                    <SelectItem value="cash">Efectivo</SelectItem>
+                                    <SelectItem value="check">Cheque</SelectItem>
+                                    <SelectItem value="other">Otro</SelectItem>
+                                </SelectGroup>
+                            </SelectContent>
+                        </Select>
                     </div>
 
                     <div class="space-y-1">
                         <label class="text-sm font-medium">Estado</label>
-                        <select v-model="fStatus" class="w-full rounded-md border px-3 py-2 text-sm bg-background">
-                            <option value="all">Todos</option>
-                            <option value="active">Activo</option>
-                            <option value="inactive">Inactivo</option>
-                        </select>
+                        <Select v-model="fStatus">
+                            <SelectTrigger class="w-full rounded-md border px-3 py-2 text-sm bg-background">
+                                <SelectValue placeholder="Todos" />
+                            </SelectTrigger>
+
+                            <SelectContent>
+                                <SelectGroup>
+                                    <SelectItem value="all">Todos</SelectItem>
+                                    <SelectItem value="active">Activo</SelectItem>
+                                    <SelectItem value="inactive">Inactivo</SelectItem>
+                                </SelectGroup>
+                            </SelectContent>
+                        </Select>
                     </div>
 
                     <div class="space-y-1">
                         <label class="text-sm font-medium">Modo</label>
-                        <select v-model="fMode" class="w-full rounded-md border px-3 py-2 text-sm bg-background">
-                            <option value="all">Todos</option>
-                            <option value="test">Test</option>
-                            <option value="live">Live</option>
-                        </select>
+                        <Select v-model="fMode">
+                            <SelectTrigger class="w-full rounded-md border px-3 py-2 text-sm bg-background">
+                                <SelectValue placeholder="Todos" />
+                            </SelectTrigger>
+
+                            <SelectContent>
+                                <SelectGroup>
+                                    <SelectItem value="all">Todos</SelectItem>
+                                    <SelectItem value="test">Test</SelectItem>
+                                    <SelectItem value="live">Live</SelectItem>
+                                </SelectGroup>
+                            </SelectContent>
+                        </Select>
                     </div>
                 </div>
             </SectionCard>
@@ -366,13 +397,21 @@ const providerPresets = [
                 <div class="grid gap-4 md:grid-cols-2">
                     <div class="space-y-1">
                         <label class="text-sm font-medium">Tipo</label>
-                        <select v-model="form.type" class="w-full rounded-md border px-3 py-2 text-sm bg-background">
-                            <option value="gateway">Gateway</option>
-                            <option value="bank_transfer">Transferencia bancaria</option>
-                            <option value="cash">Efectivo</option>
-                            <option value="check">Cheque</option>
-                            <option value="other">Otro</option>
-                        </select>
+                        <Select v-model="form.type">
+                            <SelectTrigger class="w-full rounded-md border px-3 py-2 text-sm bg-background">
+                                <SelectValue placeholder="Selecciona el tipo" />
+                            </SelectTrigger>
+
+                            <SelectContent>
+                                <SelectGroup>
+                                    <SelectItem value="gateway">Gateway</SelectItem>
+                                    <SelectItem value="bank_transfer">Transferencia bancaria</SelectItem>
+                                    <SelectItem value="cash">Efectivo</SelectItem>
+                                    <SelectItem value="check">Cheque</SelectItem>
+                                    <SelectItem value="other">Otro</SelectItem>
+                                </SelectGroup>
+                            </SelectContent>
+                        </Select>
                         <div v-if="fieldError('type')" class="text-xs text-rose-600">{{ fieldError('type') }}</div>
                     </div>
 
@@ -384,11 +423,19 @@ const providerPresets = [
 
                     <div class="space-y-1" v-if="isGateway">
                         <label class="text-sm font-medium">Provider</label>
-                        <select v-model="form.provider" class="w-full rounded-md border px-3 py-2 text-sm bg-background">
-                            <option v-for="p in providerPresets" :key="p.value" :value="p.value">
-                                {{ p.label }}
-                            </option>
-                        </select>
+                        <Select v-model="form.provider">
+                            <SelectTrigger class="w-full rounded-md border px-3 py-2 text-sm bg-background">
+                                <SelectValue placeholder="Selecciona un proveedor" />
+                            </SelectTrigger>
+
+                            <SelectContent>
+                                <SelectGroup>
+                                    <SelectItem v-for="p in providerPresets" :key="p.value" :value="p.value">
+                                        {{ p.label }}
+                                    </SelectItem>
+                                </SelectGroup>
+                            </SelectContent>
+                        </Select>
                         <div class="text-xs text-muted-foreground mt-1">
                             Si necesitas uno custom, puedes escribirlo abajo.
                         </div>
@@ -404,19 +451,35 @@ const providerPresets = [
 
                     <div class="space-y-1">
                         <label class="text-sm font-medium">Estado</label>
-                        <select v-model="form.status" class="w-full rounded-md border px-3 py-2 text-sm bg-background">
-                            <option value="active">Activo</option>
-                            <option value="inactive">Inactivo</option>
-                        </select>
+                        <Select v-model="form.status">
+                            <SelectTrigger class="w-full rounded-md border px-3 py-2 text-sm bg-background">
+                                <SelectValue placeholder="Selecciona el estado" />
+                            </SelectTrigger>
+
+                            <SelectContent>
+                                <SelectGroup>
+                                    <SelectItem value="active">Activo</SelectItem>
+                                    <SelectItem value="inactive">Inactivo</SelectItem>
+                                </SelectGroup>
+                            </SelectContent>
+                        </Select>
                         <div v-if="fieldError('status')" class="text-xs text-rose-600">{{ fieldError('status') }}</div>
                     </div>
 
                     <div class="space-y-1">
                         <label class="text-sm font-medium">Modo</label>
-                        <select v-model="form.mode" class="w-full rounded-md border px-3 py-2 text-sm bg-background">
-                            <option value="test">Test</option>
-                            <option value="live">Live</option>
-                        </select>
+                        <Select v-model="form.mode">
+                            <SelectTrigger class="w-full rounded-md border px-3 py-2 text-sm bg-background">
+                                <SelectValue placeholder="Selecciona el modo" />
+                            </SelectTrigger>
+
+                            <SelectContent>
+                                <SelectGroup>
+                                    <SelectItem value="test">Test</SelectItem>
+                                    <SelectItem value="live">Live</SelectItem>
+                                </SelectGroup>
+                            </SelectContent>
+                        </Select>
                         <div v-if="fieldError('mode')" class="text-xs text-rose-600">{{ fieldError('mode') }}</div>
                     </div>
 
@@ -483,7 +546,7 @@ const providerPresets = [
 
                 <div class="mt-6 space-y-1">
                     <label class="text-sm font-medium">Instrucciones (opcional)</label>
-                    <textarea v-model="form.instructions" rows="4" class="w-full rounded-md border px-3 py-2 text-sm bg-background" placeholder="Ej: Enviar comprobante al correo billing@..., referencia..., etc." />
+                    <Textarea v-model="form.instructions" rows="4" class="w-full rounded-md border px-3 py-2 text-sm bg-background" placeholder="Ej: Enviar comprobante al correo billing@..., referencia..., etc." />
                     <div v-if="fieldError('instructions')" class="text-xs text-rose-600">{{ fieldError('instructions') }}</div>
                 </div>
 

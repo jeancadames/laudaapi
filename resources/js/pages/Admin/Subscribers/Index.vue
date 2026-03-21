@@ -19,6 +19,12 @@ import {
     DropdownMenuContent,
     DropdownMenuItem,
 } from '@/components/ui/dropdown-menu'
+import Select from '@/components/ui/select/Select.vue'
+import SelectTrigger from '@/components/ui/select/SelectTrigger.vue'
+import SelectValue from '@/components/ui/select/SelectValue.vue'
+import SelectContent from '@/components/ui/select/SelectContent.vue'
+import SelectGroup from '@/components/ui/select/SelectGroup.vue'
+import SelectItem from '@/components/ui/select/SelectItem.vue'
 
 type StatusFilter = 'all' | 'active' | 'inactive'
 type ProviderFilter = 'all' | 'stripe'
@@ -337,10 +343,18 @@ const headerSubtitle = computed(() => {
                             </div>
                             <div>
                                 <div class="text-xs text-muted-foreground">Modo</div>
-                                <select v-model="row.provider_mode" class="w-full rounded-md border px-3 py-2 text-sm">
-                                    <option value="live">En vivo</option>
-                                    <option value="test">Prueba</option>
-                                </select>
+                                <Select v-model="row.provider_mode">
+                                    <SelectTrigger class="w-full">
+                                        <SelectValue placeholder="Selecciona el modo" />
+                                    </SelectTrigger>
+
+                                    <SelectContent>
+                                        <SelectGroup>
+                                            <SelectItem value="live">En vivo</SelectItem>
+                                            <SelectItem value="test">Prueba</SelectItem>
+                                        </SelectGroup>
+                                    </SelectContent>
+                                </Select>
                             </div>
                             <div>
                                 <div class="text-xs text-muted-foreground">ID de Cliente</div>

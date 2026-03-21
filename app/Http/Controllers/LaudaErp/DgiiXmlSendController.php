@@ -9,31 +9,29 @@ use App\Services\Subscribers\SubscriberResolver;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Storage;
+use RuntimeException;
 use Symfony\Component\HttpKernel\Exception\HttpExceptionInterface;
 use Throwable;
 
 final class DgiiXmlSendController extends Controller
 {
-    /**
-     * Map central:
-     * - base_dir: carpeta donde están los XML del set (por kind)
-     * - endpoint_key: key en dgii_endpoint_catalog
-     * - resp_suffix: archivo que vamos a guardar como “respuesta”
-     */
     private const KIND_MAP = [
         'ecf' => [
-            'base_dir'    => 'dgii/cert-ecf',
-            'endpoint_key' => 'recepcion.facturas_electronicas',           // ✅ AJUSTA si tu key se llama distinto
+            'root_dir' => 'dgii/cert-ecf',
+            'subdir' => 'ecf',
+            'endpoint_key' => 'recepcion.facturas_electronicas',
             'resp_suffix' => '_arecf.xml',
         ],
         'rfce' => [
-            'base_dir'    => 'dgii/cert-rfce',
-            'endpoint_key' => 'recepcion_fc',           // ✅ tú lo dijiste
+            'root_dir' => 'dgii/cert-ecf',
+            'subdir' => 'rfce',
+            'endpoint_key' => 'recepcion_fc',
             'resp_suffix' => '_resp_fc.xml',
         ],
         'acecf' => [
-            'base_dir'    => 'dgii/cert-acecf',
-            'endpoint_key' => 'aprobacion_comercial',   // ✅ tú lo dijiste
+            'root_dir' => 'dgii/cert-acecf',
+            'subdir' => null,
+            'endpoint_key' => 'aprobacion_comercial',
             'resp_suffix' => '_resp_aprob.xml',
         ],
     ];
@@ -53,14 +51,8 @@ final class DgiiXmlSendController extends Controller
         return Company::where('subscriber_id', $subscriberId)->firstOrFail();
     }
 
-    /**
-     * Resuelve el environment real.
-     * - si ya tienes dgii_company_settings => úsalo
-     * - si no existe => fallback a precert (tu estado actual)
-     */
     private function resolveEnvironmentForCompany(int $companyId): string
     {
-        // ✅ si la tabla existe, úsala (evita romper si aún no has migrado)
         if (Schema::hasTable('dgii_company_settings')) {
             $row = \App\Models\DgiiCompanySetting::query()
                 ->where('company_id', $companyId)
@@ -85,46 +77,42 @@ final class DgiiXmlSendController extends Controller
 
             $company = $this->companyFromErp($request);
             $companyId = (int) $company->id;
+            $kind = (string) $data['kind'];
 
-            // ✅ Seguridad: name debe ser solo filename, sin path traversal
             $name = basename($data['name']);
             abort_unless($name === $data['name'], 422, 'Nombre inválido.');
             abort_unless(preg_match('/\.xml$/i', $name) === 1, 422, 'Debe ser .xml');
-            abort_unless(!str_contains($name, '..'), 422, 'Nombre inválido.');
-
-            $kind = $data['kind'];
-            $cfg = self::KIND_MAP[$kind];
+            abort_unless(! str_contains($name, '..'), 422, 'Nombre inválido.');
 
             $disk = Storage::disk('private');
-            $baseDir = $cfg['base_dir'] . "/company_{$companyId}";
 
-            // ✅ Siempre enviamos el firmado
-            $signedName = preg_replace('/\.xml$/i', '_signed.xml', $name) ?? ($name . '_signed.xml');
-            $signedRel  = "{$baseDir}/{$signedName}";
+            $xmlRel = $this->xmlRelPathForKindWithFallback($disk, $kind, $companyId, $name);
+            abort_unless($disk->exists($xmlRel), 422, "No existe XML: {$name}");
 
-            abort_unless($disk->exists($signedRel), 422, "No existe firmado: {$signedName}");
+            // Regla de negocio:
+            // ECF 32 < 250,000 no se envía; solo se firma y se descarga.
+            if ($kind === 'ecf') {
+                $meta = $this->findManifestItem($companyId, 'ecf', $name);
 
-            $signedXml = (string) $disk->get($signedRel);
+                if (($meta['workflow'] ?? null) === 'sign_download_only') {
+                    throw new RuntimeException("Este ECF 32 menor a RD$250,000 no se envía a DGII. Solo debe firmarse y descargarse.");
+                }
+            }
 
-            // ✅ Environment real
+            $signedXml = (string) $disk->get($xmlRel);
             $environment = $this->resolveEnvironmentForCompany($companyId);
+            $endpointKey = (string) self::KIND_MAP[$kind]['endpoint_key'];
 
-            // ✅ Endpoint dinámico por kind
-            $endpointKey = (string) $cfg['endpoint_key'];
-
-            // 1) enviar
             $out = $sender->sendFromCatalog(
                 companyId: $companyId,
                 environment: $environment,
                 endpointKey: $endpointKey,
                 xml: $signedXml,
-                filename: $signedName
+                filename: $name
             );
 
-            // 2) guardar respuesta en private, mismo folder de la compañía
-            $respSuffix = (string) $cfg['resp_suffix'];
-            $respName = preg_replace('/\.xml$/i', $respSuffix, $name) ?? ($name . $respSuffix);
-            $respRel  = "{$baseDir}/{$respName}";
+            $respRel = $this->responseRelPathForKind($kind, $companyId, $name);
+            $respName = basename($respRel);
 
             $disk->put($respRel, (string) $out['body']);
 
@@ -152,5 +140,100 @@ final class DgiiXmlSendController extends Controller
                 'message' => $e->getMessage() ?: 'Error enviando XML.',
             ], $status);
         }
+    }
+
+    private function xmlBaseDirForKind(string $kind, int $companyId): string
+    {
+        $cfg = self::KIND_MAP[$kind] ?? null;
+        if (! is_array($cfg)) {
+            throw new RuntimeException("Kind inválido: {$kind}");
+        }
+
+        $base = rtrim((string) $cfg['root_dir'], '/') . "/company_{$companyId}";
+        $subdir = $cfg['subdir'] ?? null;
+
+        return $subdir ? "{$base}/{$subdir}" : $base;
+    }
+
+    private function xmlRelPathForKind(string $kind, int $companyId, string $name): string
+    {
+        return $this->xmlBaseDirForKind($kind, $companyId) . '/' . ltrim($name, '/');
+    }
+
+    private function xmlRelPathForKindWithFallback($disk, string $kind, int $companyId, string $name): string
+    {
+        $primary = $this->xmlRelPathForKind($kind, $companyId, $name);
+
+        if ($disk->exists($primary)) {
+            return $primary;
+        }
+
+        $legacy = match ($kind) {
+            'ecf' => "dgii/cert-ecf/company_{$companyId}/{$name}",
+            'rfce' => "dgii/cert-rfce/company_{$companyId}/{$name}",
+            'acecf' => "dgii/cert-acecf/company_{$companyId}/{$name}",
+            default => $primary,
+        };
+
+        return $disk->exists($legacy) ? $legacy : $primary;
+    }
+
+    private function responseRelPathForKind(string $kind, int $companyId, string $xmlName): string
+    {
+        $baseDir = $this->xmlBaseDirForKind($kind, $companyId);
+        $suffix = (string) self::KIND_MAP[$kind]['resp_suffix'];
+
+        $respName = preg_replace('/\.xml$/i', $suffix, $xmlName) ?? ($xmlName . $suffix);
+
+        return "{$baseDir}/{$respName}";
+    }
+
+    private function manifestRelPath(int $companyId): string
+    {
+        return "dgii/cert-ecf/company_{$companyId}/_xml_order.json";
+    }
+
+    private function loadManifestItems(int $companyId): array
+    {
+        $disk = Storage::disk('private');
+        $rel = $this->manifestRelPath($companyId);
+
+        if (! $disk->exists($rel)) {
+            return [];
+        }
+
+        $raw = (string) $disk->get($rel);
+        if (trim($raw) === '') {
+            return [];
+        }
+
+        $decoded = json_decode($raw, true);
+        if (! is_array($decoded)) {
+            return [];
+        }
+
+        $items = $decoded['items'] ?? [];
+        return is_array($items) ? $items : [];
+    }
+
+    private function findManifestItem(int $companyId, string $kind, string $name): ?array
+    {
+        foreach ($this->loadManifestItems($companyId) as $item) {
+            if (! is_array($item)) {
+                continue;
+            }
+
+            if (($item['kind'] ?? null) !== $kind) {
+                continue;
+            }
+
+            if (trim((string) ($item['name'] ?? '')) !== $name) {
+                continue;
+            }
+
+            return $item;
+        }
+
+        return null;
     }
 }

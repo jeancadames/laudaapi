@@ -9,6 +9,12 @@ import { Badge } from '@/components/ui/badge'
 import type { BreadcrumbItem } from '@/types'
 import { subscriber } from '@/routes'
 import { useToast } from '@/components/ui/toast/use-toast'
+import Select from '@/components/ui/select/Select.vue'
+import SelectTrigger from '@/components/ui/select/SelectTrigger.vue'
+import SelectValue from '@/components/ui/select/SelectValue.vue'
+import SelectContent from '@/components/ui/select/SelectContent.vue'
+import SelectGroup from '@/components/ui/select/SelectGroup.vue'
+import SelectItem from '@/components/ui/select/SelectItem.vue'
 
 const { toast } = useToast()
 const page = usePage()
@@ -828,12 +834,21 @@ onBeforeUnmount(() => {
                             <div class="space-y-1">
                                 <label class="text-sm font-medium">Fiscal Year End</label>
 
-                                <select v-model="form.fiscal_year_end_id" class="w-full rounded-md border px-3 py-2 text-sm bg-background" :disabled="fiscalYearEnds.length === 0">
-                                    <option :value="null">— Seleccionar —</option>
-                                    <option v-for="f in fiscalYearEnds" :key="f.id" :value="f.id">
-                                        {{ f.label }}
-                                    </option>
-                                </select>
+                                <Select v-model="form.fiscal_year_end_id" :disabled="fiscalYearEnds.length === 0">
+                                    <SelectTrigger class="w-full rounded-md border px-3 py-2 text-sm bg-background">
+                                        <SelectValue placeholder="— Seleccionar —" />
+                                    </SelectTrigger>
+
+                                    <SelectContent>
+                                        <SelectGroup>
+                                            <SelectItem :value="null">— Seleccionar —</SelectItem>
+
+                                            <SelectItem v-for="f in fiscalYearEnds" :key="f.id" :value="f.id">
+                                                {{ f.label }}
+                                            </SelectItem>
+                                        </SelectGroup>
+                                    </SelectContent>
+                                </Select>
 
                                 <div v-if="fiscalYearEnds.length === 0" class="text-xs text-muted-foreground">
                                     No hay catálogo de cierres fiscales para este país.
@@ -905,29 +920,53 @@ onBeforeUnmount(() => {
                 <div class="grid gap-4 md:grid-cols-2">
                     <div class="space-y-1">
                         <label class="text-sm font-medium">Tipo de contribuyente</label>
-                        <select v-model="form.taxpayer_type" class="w-full rounded-md border px-3 py-2 text-sm bg-background">
-                            <option value="">—</option>
-                            <option value="persona_fisica">Persona física</option>
-                            <option value="persona_juridica">Persona jurídica</option>
-                        </select>
+                        <Select v-model="form.taxpayer_type">
+                            <SelectTrigger class="w-full rounded-md border px-3 py-2 text-sm bg-background">
+                                <SelectValue placeholder="—" />
+                            </SelectTrigger>
+
+                            <SelectContent>
+                                <SelectGroup>
+                                    <SelectItem value="">—</SelectItem>
+                                    <SelectItem value="persona_fisica">Persona física</SelectItem>
+                                    <SelectItem value="persona_juridica">Persona jurídica</SelectItem>
+                                </SelectGroup>
+                            </SelectContent>
+                        </Select>
                     </div>
 
                     <div class="space-y-1">
                         <label class="text-sm font-medium">Régimen</label>
-                        <select v-model="form.tax_regime" class="w-full rounded-md border px-3 py-2 text-sm bg-background">
-                            <option value="general">General</option>
-                            <option value="rst">RST</option>
-                            <option value="special">Especial</option>
-                        </select>
+                        <Select v-model="form.tax_regime">
+                            <SelectTrigger class="w-full rounded-md border px-3 py-2 text-sm bg-background">
+                                <SelectValue placeholder="Selecciona el régimen" />
+                            </SelectTrigger>
+
+                            <SelectContent>
+                                <SelectGroup>
+                                    <SelectItem value="general">General</SelectItem>
+                                    <SelectItem value="rst">RST</SelectItem>
+                                    <SelectItem value="special">Especial</SelectItem>
+                                </SelectGroup>
+                            </SelectContent>
+                        </Select>
                     </div>
 
                     <div v-if="form.tax_regime === 'rst'" class="space-y-1">
                         <label class="text-sm font-medium">RST modalidad</label>
-                        <select v-model="form.rst_modality" class="w-full rounded-md border px-3 py-2 text-sm bg-background">
-                            <option value="">—</option>
-                            <option value="ingresos">Ingresos</option>
-                            <option value="compras">Compras</option>
-                        </select>
+                        <Select v-model="form.rst_modality">
+                            <SelectTrigger class="w-full rounded-md border px-3 py-2 text-sm bg-background">
+                                <SelectValue placeholder="—" />
+                            </SelectTrigger>
+
+                            <SelectContent>
+                                <SelectGroup>
+                                    <SelectItem value="">—</SelectItem>
+                                    <SelectItem value="ingresos">Ingresos</SelectItem>
+                                    <SelectItem value="compras">Compras</SelectItem>
+                                </SelectGroup>
+                            </SelectContent>
+                        </Select>
                     </div>
 
                     <div v-if="form.tax_regime === 'rst'" class="space-y-1">
@@ -977,12 +1016,20 @@ onBeforeUnmount(() => {
 
                     <div class="space-y-1">
                         <label class="text-sm font-medium">Modo de facturación</label>
-                        <select v-model="form.invoicing_mode" class="w-full rounded-md border px-3 py-2 text-sm bg-background">
-                            <option value="">—</option>
-                            <option value="ncf">NCF</option>
-                            <option value="ecf">e-CF</option>
-                            <option value="both">Ambos</option>
-                        </select>
+                        <Select v-model="form.invoicing_mode">
+                            <SelectTrigger class="w-full rounded-md border px-3 py-2 text-sm bg-background">
+                                <SelectValue placeholder="—" />
+                            </SelectTrigger>
+
+                            <SelectContent>
+                                <SelectGroup>
+                                    <SelectItem value="">—</SelectItem>
+                                    <SelectItem value="ncf">NCF</SelectItem>
+                                    <SelectItem value="ecf">e-CF</SelectItem>
+                                    <SelectItem value="both">Ambos</SelectItem>
+                                </SelectGroup>
+                            </SelectContent>
+                        </Select>
                     </div>
 
                     <div class="space-y-1">
@@ -1021,10 +1068,21 @@ onBeforeUnmount(() => {
 
                     <div class="flex flex-wrap gap-2">
                         <input v-model="tplQuery" type="text" class="rounded-md border px-3 py-2 text-sm bg-background" placeholder="Buscar (606, IT-1, DGII, vence...)" />
-                        <select v-model="authorityFilter" class="rounded-md border px-3 py-2 text-sm bg-background">
-                            <option value="all">Todas las autoridades</option>
-                            <option v-for="a in authorityOptions" :key="a.code" :value="a.code">{{ a.code }} — {{ a.name }}</option>
-                        </select>
+                        <Select v-model="authorityFilter">
+                            <SelectTrigger class="rounded-md border px-3 py-2 text-sm bg-background">
+                                <SelectValue placeholder="Todas las autoridades" />
+                            </SelectTrigger>
+
+                            <SelectContent>
+                                <SelectGroup>
+                                    <SelectItem value="all">Todas las autoridades</SelectItem>
+
+                                    <SelectItem v-for="a in authorityOptions" :key="a.code" :value="a.code">
+                                        {{ a.code }} — {{ a.name }}
+                                    </SelectItem>
+                                </SelectGroup>
+                            </SelectContent>
+                        </Select>
                         <label class="inline-flex items-center gap-2 rounded-md border px-3 py-2 text-sm bg-background">
                             <input v-model="onlyEnabled" type="checkbox" class="h-4 w-4" />
                             Solo activas

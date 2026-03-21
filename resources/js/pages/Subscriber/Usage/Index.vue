@@ -8,6 +8,12 @@ import type { BreadcrumbItem } from '@/types'
 import { computed, ref } from 'vue'
 import { subscriber } from '@/routes'
 import { useDateFormatter } from '@/composables/useDateFormatter'
+import Select from '@/components/ui/select/Select.vue'
+import SelectTrigger from '@/components/ui/select/SelectTrigger.vue'
+import SelectValue from '@/components/ui/select/SelectValue.vue'
+import SelectContent from '@/components/ui/select/SelectContent.vue'
+import SelectGroup from '@/components/ui/select/SelectGroup.vue'
+import SelectItem from '@/components/ui/select/SelectItem.vue'
 
 const { formatDate, formatDateTime } = useDateFormatter()
 
@@ -225,12 +231,21 @@ function isMetaOpen(id: number) {
 
                     <div class="space-y-1 md:col-span-2">
                         <label class="text-sm font-medium">Servicio</label>
-                        <select v-model="serviceId" class="w-full rounded-md border px-3 py-2 text-sm bg-background">
-                            <option :value="null">Todos</option>
-                            <option v-for="s in props.services" :key="s.id" :value="s.id">
-                                {{ s.title }}
-                            </option>
-                        </select>
+                        <Select v-model="serviceId">
+                            <SelectTrigger class="w-full rounded-md border px-3 py-2 text-sm bg-background">
+                                <SelectValue placeholder="Todos" />
+                            </SelectTrigger>
+
+                            <SelectContent>
+                                <SelectGroup>
+                                    <SelectItem :value="null">Todos</SelectItem>
+
+                                    <SelectItem v-for="s in props.services" :key="s.id" :value="s.id">
+                                        {{ s.title }}
+                                    </SelectItem>
+                                </SelectGroup>
+                            </SelectContent>
+                        </Select>
                     </div>
                 </div>
 

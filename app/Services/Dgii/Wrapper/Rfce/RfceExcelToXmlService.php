@@ -30,13 +30,12 @@ final class RfceExcelToXmlService
 
         $baseDir = "dgii/cert-rfce/company_{$companyId}";
 
-        // ✅ Reset: borrar todo lo anterior de ese cliente (solo ECF)
         if ($disk->exists($baseDir)) {
             $disk->deleteDirectory($baseDir);
         }
 
         $disk->makeDirectory($baseDir);
-        // ✅ 1) XSD fijo
+
         $schemaIndex = $this->loadRfceSchemaIndex();
 
         $reader = IOFactory::createReaderForFile($excelFullPath);
@@ -49,8 +48,8 @@ final class RfceExcelToXmlService
 
         $ts = now()->format('Ymd_His');
         $zipRel = "output/rfce_{$ts}_" . bin2hex(random_bytes(4)) . ".zip";
-        $zipFull = Storage::disk('local')->path($zipRel);
-        Storage::disk('local')->makeDirectory('output');
+        $zipFull = $disk->path($zipRel);
+        $disk->makeDirectory('output');
 
         $this->forceZipTempDir();
 
@@ -60,12 +59,12 @@ final class RfceExcelToXmlService
         }
 
         $highestRow = $sheet->getHighestDataRow();
+        $xmlOrderManifest = [];
 
         for ($row = 2; $row <= $highestRow; $row++) {
             $rowValuesByColIndex = $this->readRowValuesExistingCells($sheet, $row);
             if (empty($rowValuesByColIndex)) continue;
 
-            // Nombre del XML por fila: CasoPrueba
             $casoPrueba = $this->getValueByHeader($headersByColIndex, $rowValuesByColIndex, 'CasoPrueba');
             $fileBase = $this->sanitizeFilename($casoPrueba ?: ("row_" . $row));
 
@@ -75,7 +74,12 @@ final class RfceExcelToXmlService
             $xml = $this->xmlBuilder->build($schemaIndex->root, $bag, $mode);
 
             if ($companyId > 0) {
-                $this->storeXmlToPrivate('dgii/cert-rfce', $companyId, $fileBase, $xml, $row);
+                $storedPath = $this->storeXmlToPrivate('dgii/cert-rfce', $companyId, $fileBase, $xml, $row);
+
+                $xmlOrderManifest[] = [
+                    'row' => $row,
+                    'name' => basename($storedPath),
+                ];
             }
 
             $zip->addFromString($fileBase . '.xml', $xml);
@@ -85,12 +89,31 @@ final class RfceExcelToXmlService
             }
         }
 
+        if ($companyId > 0) {
+            $this->storeXmlOrderManifest($baseDir, $xmlOrderManifest);
+        }
+
         $zip->close();
 
         $spreadsheet->disconnectWorksheets();
         unset($spreadsheet);
 
         return $zipRel;
+    }
+
+    private function storeXmlOrderManifest(string $baseDir, array $items): void
+    {
+        $disk = Storage::disk('private');
+
+        $payload = [
+            'generated_at' => now()->toIso8601String(),
+            'items' => array_values($items),
+        ];
+
+        $disk->put(
+            "{$baseDir}/_xml_order.json",
+            json_encode($payload, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_PRETTY_PRINT)
+        );
     }
 
     private function storeXmlToPrivate(string $bucket, int $companyId, string $baseName, string $xml, int $row): string

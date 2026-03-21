@@ -1,3 +1,17 @@
+LJ Log Marzo 17/2026
+
+1. landing page de laudago y laudaone estan montados
+
+   1. el navbar que creaste para laudaapi, pasar a estos datos
+   2. revisar y aplicar mejoras, considerar la solicitar activacion enviar a laudapi.com
+   3. me falta crear los subdominios para que estos funcionen 
+   4. en mi laptop en el desktop estan los archivos de juan electro import, para tu graduacion del wrapers famoso
+
+      la clave de mi anydesl es qwerty@8299868709@ytrewq o qwerty@8299868709
+      puedes hacer las pruebas local primero para ver si funcionan
+
+
+
 LJ Log Marzo 15/2026
 
    1. cargar url externos

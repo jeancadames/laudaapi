@@ -1,11 +1,13 @@
 <?php
 
-use Illuminate\Support\Facades\Route;
-use App\Http\Middleware\ResolveCompanyFromSubdomain;
+use App\Http\Controllers\DgiiWs\AprobacionComercialEcfController;
+use App\Http\Controllers\DgiiWs\RecepcionEcfController;
 use App\Http\Controllers\DgiiWs\SemillaController;
 use App\Http\Controllers\DgiiWs\ValidacionCertificadoController;
-use App\Http\Controllers\DgiiWs\RecepcionEcfController;
-use App\Http\Controllers\DgiiWs\AprobacionComercialEcfController;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Route;
+use App\Http\Middleware\ResolveCompanyFromSubdomain;
+
 
 $base = config('app.base_domain', 'laudaapi.com');
 
@@ -15,19 +17,29 @@ Route::domain("{tenant}.{$base}")
     ])
     ->middleware([
         ResolveCompanyFromSubdomain::class,
-        // 'throttle:120,1',
     ])
     ->name('dgii_ws.')
-    ->group(function () {
-        Route::get('/fe/autenticacion/api/semilla', SemillaController::class)
-            ->name('semilla');
+    ->any('/{path}', function (Request $request, string $tenant, string $path = '') {
+        $normalized = strtolower(trim($path, '/'));
 
-        Route::post('/fe/autenticacion/api/validacioncertificado', ValidacionCertificadoController::class)
-            ->name('validacioncertificado');
+        return match ($normalized) {
+            'fe/autenticacion/api/semilla' => $request->isMethod('get')
+                ? app(SemillaController::class)($request)
+                : abort(405),
 
-        Route::post('/fe/recepcion/api/ecf', RecepcionEcfController::class)
-            ->name('recepcion.ecf');
+            'fe/autenticacion/api/validacioncertificado' => $request->isMethod('post')
+                ? app(ValidacionCertificadoController::class)($request)
+                : abort(405),
 
-        Route::post('/fe/aprobacioncomercial/api/ecf', AprobacionComercialEcfController::class)
-            ->name('aprobacion.ecf');
-    });
+            'fe/recepcion/api/ecf' => $request->isMethod('post')
+                ? app(RecepcionEcfController::class)($request)
+                : abort(405),
+
+            'fe/aprobacioncomercial/api/ecf' => $request->isMethod('post')
+                ? app(AprobacionComercialEcfController::class)($request)
+                : abort(405),
+
+            default => abort(404),
+        };
+    })
+    ->where('path', '.*');

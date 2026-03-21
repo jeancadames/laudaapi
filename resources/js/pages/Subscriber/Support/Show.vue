@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button'
 import type { BreadcrumbItem } from '@/types'
 import { subscriber } from '@/routes'
 import { useToast } from '@/components/ui/toast/use-toast'
+import Textarea from '@/components/ui/textarea/Textarea.vue'
 
 const { toast } = useToast()
 const page = usePage()
@@ -72,7 +73,7 @@ function send() {
 
                 <div class="mt-4 space-y-2">
                     <label class="text-sm font-medium">Responder</label>
-                    <textarea v-model="form.body" rows="4" class="w-full rounded-md border px-3 py-2 text-sm bg-background" />
+                    <Textarea v-model="form.body" rows="4" class="w-full rounded-md border px-3 py-2 text-sm bg-background" />
                     <div v-if="form.errors.body" class="text-xs text-rose-600">{{ form.errors.body }}</div>
 
                     <div class="flex justify-end gap-2">

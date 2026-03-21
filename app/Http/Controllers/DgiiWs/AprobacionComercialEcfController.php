@@ -9,11 +9,13 @@ use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Str;
 use App\Services\DgiiWs\DgiiWsActivityLogger;
 use App\Http\Controllers\DgiiWs\BaseDgiiWsController;
+use App\Services\Dgii\DgiiXmlSigner;
 
 class AprobacionComercialEcfController extends BaseDgiiWsController
 {
     public function __construct(
         private readonly DgiiTokenManager $tokenManager,
+        private readonly DgiiXmlSigner $xmlSigner,
     ) {}
 
     public function __invoke(Request $request)
@@ -132,10 +134,14 @@ class AprobacionComercialEcfController extends BaseDgiiWsController
 
         // firmar ACECF
         // (tu loadCompanyPemPair devuelve 3 valores, aquí ignoramos el 3ro)
-        [$pkey, $cert] = $this->loadCompanyPemPair($company, $setting);
-        $this->signDom($doc, $pkey, $cert);
+        $unsignedXml = $doc->saveXML();
+        if (! is_string($unsignedXml) || trim($unsignedXml) === '') {
+            throw new \RuntimeException('No se pudo construir el ACECF antes de firmar.');
+        }
 
-        $acecfXml = $doc->saveXML();
+        [$p12Bytes, $p12Password] = $this->loadCompanyP12BinaryAndPassword($company);
+
+        $acecfXml = $this->xmlSigner->signAnyXml($unsignedXml, $p12Bytes, $p12Password, null);
 
         // auditoría salida firmada
         $outName = 'acecf_out_' . now()->format('Ymd_His') . '_' . bin2hex(random_bytes(3)) . '.xml';

@@ -19,6 +19,12 @@ import {
     DropdownMenuContent,
     DropdownMenuItem,
 } from '@/components/ui/dropdown-menu'
+import Select from '@/components/ui/select/Select.vue'
+import SelectTrigger from '@/components/ui/select/SelectTrigger.vue'
+import SelectValue from '@/components/ui/select/SelectValue.vue'
+import SelectContent from '@/components/ui/select/SelectContent.vue'
+import SelectGroup from '@/components/ui/select/SelectGroup.vue'
+import SelectItem from '@/components/ui/select/SelectItem.vue'
 
 type BillingModel = 'flat' | 'seat_block' | 'usage'
 type StatusFilter = 'all' | 'active' | 'inactive'
@@ -475,11 +481,19 @@ function createChild() {
 
                     <div>
                         <div class="text-xs text-muted-foreground">Facturación</div>
-                        <select v-model="create.billing_model" class="mt-1 w-full rounded-md border px-3 py-2 text-sm">
-                            <option value="flat">flat</option>
-                            <option value="seat_block">seat_block</option>
-                            <option value="usage">usage</option>
-                        </select>
+                        <Select v-model="create.billing_model">
+                            <SelectTrigger class="mt-1 w-full">
+                                <SelectValue placeholder="Selecciona un modelo" />
+                            </SelectTrigger>
+
+                            <SelectContent>
+                                <SelectGroup>
+                                    <SelectItem value="flat">Flat</SelectItem>
+                                    <SelectItem value="seat_block">Seat Block</SelectItem>
+                                    <SelectItem value="usage">Usage</SelectItem>
+                                </SelectGroup>
+                            </SelectContent>
+                        </Select>
                     </div>
 
                     <div>
@@ -553,11 +567,19 @@ function createChild() {
 
                         <div>
                             <div class="text-xs text-muted-foreground">Modelo de Facturación</div>
-                            <select v-model="row.billing_model" class="mt-1 w-full rounded-md border px-3 py-2 text-sm">
-                                <option value="flat">flat</option>
-                                <option value="seat_block">seat_block</option>
-                                <option value="usage">usage</option>
-                            </select>
+                            <Select v-model="row.billing_model">
+                                <SelectTrigger class="mt-1 w-full">
+                                    <SelectValue placeholder="Selecciona un modelo" />
+                                </SelectTrigger>
+
+                                <SelectContent>
+                                    <SelectGroup>
+                                        <SelectItem value="flat">Flat</SelectItem>
+                                        <SelectItem value="seat_block">Seat Block</SelectItem>
+                                        <SelectItem value="usage">Usage</SelectItem>
+                                    </SelectGroup>
+                                </SelectContent>
+                            </Select>
                         </div>
 
                         <div class="grid grid-cols-2 gap-2">
