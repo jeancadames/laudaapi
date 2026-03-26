@@ -231,8 +231,16 @@ async function submit() {
     await downloadZip(downloadUrl)
 
     stage.value = 'done'
-    successMsg.value = '✅ ACECF: ZIP generado y descargado correctamente.'
+    successMsg.value = '✅ ZIP generado y descargado. Recargando pantalla...'
     detailsMsg.value = `${file.value.name} → acecf.zip`
+
+    sessionStorage.setItem('cert-emisor:active-tab', 'prueba-datos-ecf')
+    sessionStorage.setItem('cert-emisor:wrapper-tab', 'acecf-wrapper')
+
+    setTimeout(() => {
+      window.location.reload()
+    }, 500)
+
   } catch (err) {
     stage.value = 'error'
     const { title, details } = extractBackendError(err)
