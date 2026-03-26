@@ -82,28 +82,28 @@ abstract class BaseDgiiWsController extends Controller
         return ltrim((string) $request->getContent());
     }
 
-    protected function wsAuthPath(Company $company, string $file): string
-    {
-        return "/app/private/dgii/ws_auth/company_{$company->id}/{$file}";
-    }
-
-    protected function wsLogPath(Company $company, string $channel, string $file): string
-    {
-        return "/app/private/dgii/ws_logs/{$channel}/company_{$company->id}/{$file}";
-    }
-
     protected function putPrivate(string $path, string $contents): void
     {
-        Storage::disk('local')->put($path, $contents);
+        Storage::disk('private')->put($path, $contents);
     }
 
     protected function getPrivate(string $path): ?string
     {
-        if (! Storage::disk('local')->exists($path)) {
+        if (! Storage::disk('private')->exists($path)) {
             return null;
         }
 
-        return Storage::disk('local')->get($path);
+        return Storage::disk('private')->get($path);
+    }
+
+    protected function wsAuthPath(Company $company, string $file): string
+    {
+        return "dgii/ws_auth/company_{$company->id}/{$file}";
+    }
+
+    protected function wsLogPath(Company $company, string $channel, string $file): string
+    {
+        return "dgii/ws_logs/{$channel}/company_{$company->id}/{$file}";
     }
 
     /**
