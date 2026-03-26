@@ -24,6 +24,7 @@ type ActiveCompany = {
     name: string
     slug: string
     ws_subdomain: string | null
+    tax_id: number | null
 } | null
 
 const page = usePage()
@@ -34,6 +35,7 @@ const activeCompany = computed(() => (page.props as any)?.activeCompany as Activ
 
 const companyName = computed(() => activeCompany.value?.name ?? '')
 const companySlug = computed(() => activeCompany.value?.slug ?? '')
+const companyTaxId = computed(() => activeCompany.value?.tax_id ?? '')
 
 const adminMain: NavItem[] = mapToNavItems(navigationByRole.admin.main)
 const adminFooter: NavItem[] = mapToNavItems(navigationByRole.admin.footer)
@@ -79,6 +81,27 @@ const homeHref = role === 'admin' ? '/dashboard' : subscriber().url // => /subsc
                 >
                     {{ companySlug }}
                 </p>
+
+                <div 
+                    class="mt-2 inline-flex max-w-full items-center rounded-md border border-sidebar-border/60 bg-background/50 px-2 py-1 text-[11px] text-sidebar-foreground/70"
+                >
+                    <span class="mr-1 font-medium text-sidebar-foreground/55">RNC:</span>
+
+                    <span
+                        v-if="companyTaxId"
+                        class="truncate font-semibold text-sidebar-foreground/80"
+                    >
+                        {{ companyTaxId }}
+                    </span>
+
+                    <Link
+                        v-else
+                        href="/subscriber/company"
+                        class="font-semibold text-primary underline underline-offset-2 transition hover:opacity-80"
+                    >
+                        Asignarlo
+                    </Link>
+                </div>
             </div>
 
         </SidebarHeader>

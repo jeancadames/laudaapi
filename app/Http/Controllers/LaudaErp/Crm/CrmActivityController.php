@@ -4,6 +4,7 @@ namespace App\Http\Controllers\LaudaErp\Crm;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\LaudaErp\Crm\CrmActivityRequest;
+use App\Models\User;
 use App\Models\Company;
 use App\Models\CrmActivity;
 use App\Models\CrmContact;
@@ -42,11 +43,13 @@ class CrmActivityController extends Controller
         $search = trim((string) $request->string('search', ''));
         $status = trim((string) $request->string('status', 'pending'));
         $type = trim((string) $request->string('type', 'all'));
+        $assignedUserId = (int) $request->integer('assigned_user_id', 0);
 
         $query = CrmActivity::query()
             ->where('company_id', $company->id)
             ->when($status !== 'all', fn($q) => $q->where('status', $status))
             ->when($type !== 'all', fn($q) => $q->where('type', $type))
+            ->when($assignedUserId > 0, fn($q) => $q->where('assigned_user_id', $assignedUserId))
             ->when($search !== '', function ($q) use ($search) {
                 $q->where(function ($sub) use ($search) {
                     $sub->where('title', 'like', "%{$search}%")
@@ -131,26 +134,58 @@ class CrmActivityController extends Controller
                 'name' => $item->title,
             ]);
 
+        $users = User::query()
+            ->orderBy('name')
+            ->get(['id', 'name'])
+            ->map(fn(User $item) => [
+                'id' => $item->id,
+                'name' => $item->name,
+            ])
+            ->values();
+
+        $applyAssigned = function ($query) use ($assignedUserId) {
+            if ($assignedUserId > 0) {
+                $query->where('assigned_user_id', $assignedUserId);
+            }
+
+            return $query;
+        };
+
         return Inertia::render('LaudaERP/CRM/Activities/Index', [
             'filters' => [
                 'search' => $search,
                 'status' => $status,
                 'type' => $type,
+                'assigned_user_id' => $assignedUserId > 0 ? $assignedUserId : null,
             ],
             'items' => $items,
             'customers' => $customers,
             'contacts' => $contacts,
             'leads' => $leads,
             'opportunities' => $opportunities,
+            'users' => $users,
             'stats' => [
-                'total' => CrmActivity::where('company_id', $company->id)->count(),
-                'pending' => CrmActivity::where('company_id', $company->id)->where('status', 'pending')->count(),
-                'completed' => CrmActivity::where('company_id', $company->id)->where('status', 'completed')->count(),
-                'urgent' => CrmActivity::where('company_id', $company->id)->where('priority', 'urgent')->count(),
+                'total' => $applyAssigned(
+                    CrmActivity::where('company_id', $company->id)
+                )->count(),
+
+                'pending' => $applyAssigned(
+                    CrmActivity::where('company_id', $company->id)
+                        ->where('status', 'pending')
+                )->count(),
+
+                'completed' => $applyAssigned(
+                    CrmActivity::where('company_id', $company->id)
+                        ->where('status', 'completed')
+                )->count(),
+
+                'urgent' => $applyAssigned(
+                    CrmActivity::where('company_id', $company->id)
+                        ->where('priority', 'urgent')
+                )->count(),
             ],
         ]);
     }
-
     public function store(CrmActivityRequest $request): RedirectResponse
     {
         $company = $this->companyFromErp($request);

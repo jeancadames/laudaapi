@@ -1,7 +1,9 @@
 <script setup lang="ts">
-import { Head, useForm } from '@inertiajs/vue3'
+import { Head, useForm, Link } from '@inertiajs/vue3'
 import { ref } from 'vue'
 import CrmLayout from '@/layouts/CrmLayout.vue'
+import { useCrmAssignedUser } from '@/composables/useCrmAssignedUser'
+
 
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
@@ -24,6 +26,7 @@ import SelectContent from '@/components/ui/select/SelectContent.vue'
 import SelectGroup from '@/components/ui/select/SelectGroup.vue'
 import SelectItem from '@/components/ui/select/SelectItem.vue'
 import Textarea from '@/components/ui/textarea/Textarea.vue'
+import InputError from '@/components/InputError.vue'
 
 type CustomerPayload = {
     id: number
@@ -89,6 +92,8 @@ type OptionRow = {
     id: number
     name: string
 }
+
+const { withAssignedUser } = useCrmAssignedUser()
 
 const props = defineProps<{
     customer: CustomerPayload
@@ -261,6 +266,13 @@ function opportunityStageClass(value: string) {
     <Head :title="`CRM · ${props.customer.name}`" />
 
     <CrmLayout :title="props.customer.name" description="Vista consolidada del cliente, sus contactos, oportunidades y actividades.">
+        <section class="flex flex-wrap gap-2">
+            <Button variant="outline" as-child>
+                <Link :href="withAssignedUser('/erp/crm/customers')">
+                    Volver a clientes
+                </Link>
+            </Button>
+        </section>
         <section class="grid gap-4 md:grid-cols-4">
             <Card class="rounded-2xl">
                 <CardHeader class="pb-3">
@@ -556,39 +568,43 @@ function opportunityStageClass(value: string) {
                     <div class="space-y-2">
                         <Label>Nombres</Label>
                         <Input v-model="contactForm.first_name" />
-                        <p v-if="contactForm.errors.first_name" class="text-xs text-destructive">{{ contactForm.errors.first_name }}</p>
+                        <InputError :message="contactForm.errors.first_name"/>
                     </div>
 
                     <div class="space-y-2">
                         <Label>Apellidos</Label>
                         <Input v-model="contactForm.last_name" />
-                        <p v-if="contactForm.errors.last_name" class="text-xs text-destructive">{{ contactForm.errors.last_name }}</p>
+                        <InputError :message="contactForm.errors.last_name"/>
                     </div>
 
                     <div class="space-y-2">
                         <Label>Cargo</Label>
                         <Input v-model="contactForm.position" />
+                        <InputError :message="contactForm.errors.position"/>
                     </div>
 
                     <div class="space-y-2">
                         <Label>Departamento</Label>
                         <Input v-model="contactForm.department" />
+                        <InputError :message="contactForm.errors.department"/>
                     </div>
 
                     <div class="space-y-2">
                         <Label>Email</Label>
                         <Input v-model="contactForm.email" type="email" />
-                        <p v-if="contactForm.errors.email" class="text-xs text-destructive">{{ contactForm.errors.email }}</p>
+                        <InputError :message="contactForm.errors.email"/>
                     </div>
 
                     <div class="space-y-2">
                         <Label>Teléfono</Label>
                         <Input v-model="contactForm.phone" />
+                        <InputError :message="contactForm.errors.phone"/>
                     </div>
 
                     <div class="space-y-2">
                         <Label>Móvil</Label>
                         <Input v-model="contactForm.mobile" />
+                        <InputError :message="contactForm.errors.mobile"/>
                     </div>
 
                     <div class="space-y-2">
@@ -633,7 +649,7 @@ function opportunityStageClass(value: string) {
         </Dialog>
 
         <Dialog v-model:open="showOpportunityModal">
-            <DialogContent class="sm:max-w-2xl">
+            <DialogContent class="h-11/12 overflow-y-scroll sm:max-w-2xl">
                 <DialogHeader>
                     <DialogTitle>Nueva oportunidad</DialogTitle>
                     <DialogDescription>
@@ -645,7 +661,7 @@ function opportunityStageClass(value: string) {
                     <div class="space-y-2 md:col-span-2">
                         <Label>Título</Label>
                         <Input v-model="opportunityForm.title" />
-                        <p v-if="opportunityForm.errors.title" class="text-xs text-destructive">{{ opportunityForm.errors.title }}</p>
+                        <InputError :message="opportunityForm.errors.title"/>
                     </div>
 
                     <div class="space-y-2">
@@ -689,26 +705,31 @@ function opportunityStageClass(value: string) {
                     <div class="space-y-2">
                         <Label>Monto</Label>
                         <Input v-model="opportunityForm.amount" type="number" min="0" step="0.01" />
+                        <InputError :message="opportunityForm.errors.amount"/>
                     </div>
 
                     <div class="space-y-2">
                         <Label>Probabilidad (%)</Label>
                         <Input v-model="opportunityForm.probability" type="number" min="0" max="100" />
+                        <InputError :message="opportunityForm.errors.probability"/>
                     </div>
 
                     <div class="space-y-2 md:col-span-2">
                         <Label>Fecha estimada de cierre</Label>
                         <Input v-model="opportunityForm.expected_close_date" type="date" />
+                        <InputError :message="opportunityForm.errors.expected_close_date"/>
                     </div>
 
                     <div class="space-y-2 md:col-span-2">
                         <Label>Descripción</Label>
                         <Textarea v-model="opportunityForm.description" rows="3" class="w-full rounded-md border bg-background px-3 py-2 text-sm" />
+                        <InputError :message="opportunityForm.errors.description"/>
                     </div>
 
                     <div class="space-y-2 md:col-span-2">
                         <Label>Notas</Label>
                         <Textarea v-model="opportunityForm.notes" rows="3" class="w-full rounded-md border bg-background px-3 py-2 text-sm" />
+                        <InputError :message="opportunityForm.errors.notes"/>
                     </div>
                 </div>
 
@@ -830,17 +851,19 @@ function opportunityStageClass(value: string) {
                     <div class="space-y-2">
                         <Label>Fecha programada</Label>
                         <Input v-model="activityForm.scheduled_at" type="datetime-local" />
+                        <InputError :message="activityForm.errors.scheduled_at"/>
                     </div>
 
                     <div class="space-y-2 md:col-span-2">
                         <Label>Título</Label>
                         <Input v-model="activityForm.title" />
-                        <p v-if="activityForm.errors.title" class="text-xs text-destructive">{{ activityForm.errors.title }}</p>
+                        <InputError :message="activityForm.errors.title"/>
                     </div>
 
                     <div class="space-y-2 md:col-span-2">
                         <Label>Descripción</Label>
                         <Textarea v-model="activityForm.description" rows="4" class="w-full rounded-md border bg-background px-3 py-2 text-sm" />
+                        <InputError :message="activityForm.errors.description"/>
                     </div>
                 </div>
 

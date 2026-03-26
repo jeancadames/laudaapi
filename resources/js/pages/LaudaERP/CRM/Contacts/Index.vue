@@ -17,6 +17,7 @@ import {
     DialogDescription,
     DialogFooter,
 } from '@/components/ui/dialog'
+
 import Select from '@/components/ui/select/Select.vue'
 import SelectTrigger from '@/components/ui/select/SelectTrigger.vue'
 import SelectValue from '@/components/ui/select/SelectValue.vue'
@@ -27,10 +28,10 @@ import Textarea from '@/components/ui/textarea/Textarea.vue'
 
 type ContactRow = {
     id: number
-    crm_customer_id: number
+    crm_customer_id: number | null
     customer_name: string | null
     customer_business_name: string | null
-    first_name: string
+    first_name: string | null
     last_name: string | null
     full_name: string | null
     position: string | null
@@ -52,6 +53,11 @@ type CustomerOption = {
     business_name: string | null
 }
 
+type UserOption = {
+    id: number
+    name: string
+}
+
 type PaginatedItems = {
     data: ContactRow[]
     links: Array<{
@@ -64,15 +70,16 @@ type PaginatedItems = {
 const props = defineProps<{
     items: PaginatedItems
     customers: CustomerOption[]
+    users: UserOption[]
     filters: {
         search: string
         status: string
-        crm_customer_id: number | null
+        assigned_user_id: number | null
     }
     stats: {
         total: number
-        primary: number
         active: number
+        primary: number
     }
 }>()
 
@@ -81,7 +88,7 @@ const editingId = ref<number | null>(null)
 
 const search = ref(props.filters.search ?? '')
 const status = ref(props.filters.status ?? 'active')
-const customerFilter = ref<number | null>(props.filters.crm_customer_id ?? null)
+const assignedUserId = ref<number | null>(props.filters.assigned_user_id ?? null)
 
 const form = useForm({
     crm_customer_id: null as number | null,
@@ -108,7 +115,7 @@ function applyFilters() {
         {
             search: search.value,
             status: status.value,
-            crm_customer_id: customerFilter.value,
+            assigned_user_id: assignedUserId.value,
         },
         {
             preserveState: true,
@@ -120,7 +127,6 @@ function applyFilters() {
 
 function resetForm() {
     form.reset()
-    form.crm_customer_id = null
     form.status = 'active'
     form.is_primary = false
     editingId.value = null
@@ -141,7 +147,7 @@ function openEdit(item: ContactRow) {
     form.email = item.email || ''
     form.phone = item.phone || ''
     form.mobile = item.mobile || ''
-    form.is_primary = !!item.is_primary
+    form.is_primary = item.is_primary
     form.status = item.status || 'active'
     form.assigned_user_id = item.assigned_user_id
     form.notes = item.notes || ''
@@ -170,7 +176,7 @@ function submit() {
 }
 
 function destroyItem(item: ContactRow) {
-    if (!confirm(`¿Archivar contacto "${item.full_name || item.first_name}"?`)) return
+    if (!confirm(`¿Archivar contacto "${item.full_name || item.first_name || 'sin nombre'}"?`)) return
 
     router.delete(`/erp/crm/contacts/${item.id}`, {
         preserveScroll: true,
@@ -179,7 +185,8 @@ function destroyItem(item: ContactRow) {
 
 function statusBadgeClass(value: string) {
     if (value === 'active') return 'bg-emerald-600 text-white hover:bg-emerald-600'
-    return 'bg-yellow-400 text-black hover:bg-yellow-400'
+    if (value === 'inactive') return 'bg-yellow-400 text-black hover:bg-yellow-400'
+    return ''
 }
 </script>
 
@@ -198,15 +205,15 @@ function statusBadgeClass(value: string) {
 
             <Card class="rounded-2xl">
                 <CardHeader class="pb-3">
-                    <CardDescription>Principales</CardDescription>
-                    <CardTitle class="text-3xl">{{ props.stats.primary }}</CardTitle>
+                    <CardDescription>Activos</CardDescription>
+                    <CardTitle class="text-3xl">{{ props.stats.active }}</CardTitle>
                 </CardHeader>
             </Card>
 
             <Card class="rounded-2xl">
                 <CardHeader class="pb-3">
-                    <CardDescription>Activos</CardDescription>
-                    <CardTitle class="text-3xl">{{ props.stats.active }}</CardTitle>
+                    <CardDescription>Principales</CardDescription>
+                    <CardTitle class="text-3xl">{{ props.stats.primary }}</CardTitle>
                 </CardHeader>
             </Card>
         </section>
@@ -217,7 +224,7 @@ function statusBadgeClass(value: string) {
                     <div>
                         <CardTitle>Listado de contactos</CardTitle>
                         <CardDescription>
-                            Busca, filtra y administra contactos por cliente.
+                            Busca, filtra y administra contactos del CRM.
                         </CardDescription>
                     </div>
 
@@ -227,30 +234,28 @@ function statusBadgeClass(value: string) {
                         </div>
 
                         <Select v-model="status" @update:model-value="applyFilters">
-                            <SelectTrigger class="h-10 w-full rounded-md border bg-background px-3 text-sm">
-                                <SelectValue placeholder="Todos" />
+                            <SelectTrigger class="h-10 w-45 rounded-md border bg-background px-3 text-sm">
+                                <SelectValue placeholder="Todos los estados" />
                             </SelectTrigger>
 
                             <SelectContent>
                                 <SelectGroup>
-                                    <SelectItem value="all">Todos</SelectItem>
+                                    <SelectItem value="all">Todos los estados</SelectItem>
                                     <SelectItem value="active">Activos</SelectItem>
                                     <SelectItem value="inactive">Inactivos</SelectItem>
                                 </SelectGroup>
                             </SelectContent>
                         </Select>
 
-                        <Select v-model="customerFilter" @update:model-value="applyFilters">
-                            <SelectTrigger class="h-10 w-full rounded-md border bg-background px-3 text-sm">
-                                <SelectValue placeholder="Todos los clientes" />
+                        <Select v-model="assignedUserId" @update:model-value="applyFilters">
+                            <SelectTrigger class="h-10 w-55 rounded-md border bg-background px-3 text-sm">
+                                <SelectValue placeholder="Todos los responsables" />
                             </SelectTrigger>
 
                             <SelectContent>
                                 <SelectGroup>
-                                    <SelectItem :value="null">Todos los clientes</SelectItem>
-
-                                    <SelectItem v-for="customer in props.customers" :key="customer.id" :value="customer.id">
-                                        {{ customer.name }}
+                                    <SelectItem v-for="user in props.users" :key="user.id" :value="user.id">
+                                        {{ user.name }}
                                     </SelectItem>
                                 </SelectGroup>
                             </SelectContent>
@@ -274,8 +279,9 @@ function statusBadgeClass(value: string) {
                             <tr>
                                 <th class="px-3 py-2 text-left">Contacto</th>
                                 <th class="px-3 py-2 text-left">Cliente</th>
-                                <th class="px-3 py-2 text-left">Cargo</th>
+                                <th class="px-3 py-2 text-left">Cargo / Depto</th>
                                 <th class="px-3 py-2 text-left">Contacto</th>
+                                <th class="px-3 py-2 text-left">Responsable</th>
                                 <th class="px-3 py-2 text-left">Estado</th>
                                 <th class="px-3 py-2 text-left">Acciones</th>
                             </tr>
@@ -285,11 +291,10 @@ function statusBadgeClass(value: string) {
                             <tr v-for="item in props.items.data" :key="item.id" class="border-t">
                                 <td class="px-3 py-3 align-top">
                                     <div class="flex items-center gap-2">
-                                        <div class="font-medium">{{ item.full_name || item.first_name }}</div>
-                                        <Badge v-if="item.is_primary" variant="secondary">Principal</Badge>
-                                    </div>
-                                    <div class="text-xs text-muted-foreground">
-                                        {{ item.department || '—' }}
+                                        <div class="font-medium">{{ item.full_name || '—' }}</div>
+                                        <Badge v-if="item.is_primary" variant="secondary">
+                                            Principal
+                                        </Badge>
                                     </div>
                                 </td>
 
@@ -302,6 +307,9 @@ function statusBadgeClass(value: string) {
 
                                 <td class="px-3 py-3 align-top">
                                     <div>{{ item.position || '—' }}</div>
+                                    <div class="text-xs text-muted-foreground">
+                                        {{ item.department || '—' }}
+                                    </div>
                                 </td>
 
                                 <td class="px-3 py-3 align-top">
@@ -309,6 +317,10 @@ function statusBadgeClass(value: string) {
                                     <div class="text-xs text-muted-foreground">
                                         {{ item.phone || item.mobile || '—' }}
                                     </div>
+                                </td>
+
+                                <td class="px-3 py-3 align-top">
+                                    {{ item.assigned_user_name || '—' }}
                                 </td>
 
                                 <td class="px-3 py-3 align-top">
@@ -331,7 +343,7 @@ function statusBadgeClass(value: string) {
                             </tr>
 
                             <tr v-if="props.items.data.length === 0" class="border-t">
-                                <td colspan="6" class="px-3 py-6 text-center text-sm text-muted-foreground">
+                                <td colspan="7" class="px-3 py-6 text-center text-sm text-muted-foreground">
                                     No hay contactos registrados todavía.
                                 </td>
                             </tr>
@@ -358,19 +370,15 @@ function statusBadgeClass(value: string) {
                 </DialogHeader>
 
                 <div class="grid gap-4 md:grid-cols-2">
-                    <div class="space-y-2 md:col-span-2">
+                    <div class="space-y-2">
                         <Label>Cliente</Label>
                         <Select v-model="form.crm_customer_id">
                             <SelectTrigger class="h-10 w-full rounded-md border bg-background px-3 text-sm">
-                                <SelectValue placeholder="Selecciona un cliente" />
+                                <SelectValue placeholder="Selecciona cliente" />
                             </SelectTrigger>
 
                             <SelectContent>
                                 <SelectGroup>
-                                    <SelectItem :value="null" disabled>
-                                        Selecciona un cliente
-                                    </SelectItem>
-
                                     <SelectItem v-for="customer in props.customers" :key="customer.id" :value="customer.id">
                                         {{ customer.name }}
                                     </SelectItem>
@@ -378,6 +386,22 @@ function statusBadgeClass(value: string) {
                             </SelectContent>
                         </Select>
                         <p v-if="form.errors.crm_customer_id" class="text-xs text-destructive">{{ form.errors.crm_customer_id }}</p>
+                    </div>
+
+                    <div class="space-y-2">
+                        <Label>Estado</Label>
+                        <Select v-model="form.status">
+                            <SelectTrigger class="h-10 w-full rounded-md border bg-background px-3 text-sm">
+                                <SelectValue placeholder="Selecciona estado" />
+                            </SelectTrigger>
+
+                            <SelectContent>
+                                <SelectGroup>
+                                    <SelectItem value="active">Activo</SelectItem>
+                                    <SelectItem value="inactive">Inactivo</SelectItem>
+                                </SelectGroup>
+                            </SelectContent>
+                        </Select>
                     </div>
 
                     <div class="space-y-2">
@@ -395,48 +419,43 @@ function statusBadgeClass(value: string) {
                     <div class="space-y-2">
                         <Label>Cargo</Label>
                         <Input v-model="form.position" />
-                        <p v-if="form.errors.position" class="text-xs text-destructive">{{ form.errors.position }}</p>
                     </div>
 
                     <div class="space-y-2">
                         <Label>Departamento</Label>
                         <Input v-model="form.department" />
-                        <p v-if="form.errors.department" class="text-xs text-destructive">{{ form.errors.department }}</p>
                     </div>
 
                     <div class="space-y-2">
                         <Label>Email</Label>
                         <Input v-model="form.email" type="email" />
-                        <p v-if="form.errors.email" class="text-xs text-destructive">{{ form.errors.email }}</p>
                     </div>
 
                     <div class="space-y-2">
                         <Label>Teléfono</Label>
                         <Input v-model="form.phone" />
-                        <p v-if="form.errors.phone" class="text-xs text-destructive">{{ form.errors.phone }}</p>
                     </div>
 
                     <div class="space-y-2">
                         <Label>Móvil</Label>
                         <Input v-model="form.mobile" />
-                        <p v-if="form.errors.mobile" class="text-xs text-destructive">{{ form.errors.mobile }}</p>
                     </div>
 
                     <div class="space-y-2">
-                        <Label>Estado</Label>
-                        <Select v-model="form.status">
+                        <Label>Responsable</Label>
+                        <Select v-model="form.assigned_user_id">
                             <SelectTrigger class="h-10 w-full rounded-md border bg-background px-3 text-sm">
-                                <SelectValue placeholder="Selecciona el estado" />
+                                <SelectValue placeholder="Selecciona un responsable" />
                             </SelectTrigger>
 
                             <SelectContent>
                                 <SelectGroup>
-                                    <SelectItem value="active">Activo</SelectItem>
-                                    <SelectItem value="inactive">Inactivo</SelectItem>
+                                    <SelectItem v-for="user in props.users" :key="user.id" :value="user.id">
+                                        {{ user.name }}
+                                    </SelectItem>
                                 </SelectGroup>
                             </SelectContent>
                         </Select>
-                        <p v-if="form.errors.status" class="text-xs text-destructive">{{ form.errors.status }}</p>
                     </div>
 
                     <div class="space-y-2 md:col-span-2">
@@ -449,7 +468,6 @@ function statusBadgeClass(value: string) {
                     <div class="space-y-2 md:col-span-2">
                         <Label>Notas</Label>
                         <Textarea v-model="form.notes" rows="4" class="w-full rounded-md border bg-background px-3 py-2 text-sm" />
-                        <p v-if="form.errors.notes" class="text-xs text-destructive">{{ form.errors.notes }}</p>
                     </div>
                 </div>
 

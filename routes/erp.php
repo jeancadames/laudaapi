@@ -76,7 +76,11 @@ Route::middleware(['auth', 'verified', 'role:subscriber', 'erp.access'])
             ->group(function () {
                 Route::get('/', [CrmController::class, 'index'])->name('index');
 
+                Route::get('/customers', [CrmCustomerController::class, 'index'])->name('customers.index');
                 Route::get('/customers/{crmCustomer}', [CrmCustomerController::class, 'show'])->name('customers.show');
+                Route::post('/customers', [CrmCustomerController::class, 'store'])->name('customers.store');
+                Route::put('/customers/{crmCustomer}', [CrmCustomerController::class, 'update'])->name('customers.update');
+                Route::delete('/customers/{crmCustomer}', [CrmCustomerController::class, 'destroy'])->name('customers.destroy');
 
                 Route::get('/contacts', [CrmContactController::class, 'index'])->name('contacts.index');
                 Route::post('/contacts', [CrmContactController::class, 'store'])->name('contacts.store');
@@ -90,8 +94,11 @@ Route::middleware(['auth', 'verified', 'role:subscriber', 'erp.access'])
 
                 Route::get('/opportunities', [CrmOpportunityController::class, 'index'])->name('opportunities.index');
                 Route::post('/opportunities', [CrmOpportunityController::class, 'store'])->name('opportunities.store');
+                Route::get('/opportunities/{crmOpportunity}', [CrmOpportunityController::class, 'show'])->name('opportunities.show');
                 Route::put('/opportunities/{crmOpportunity}', [CrmOpportunityController::class, 'update'])->name('opportunities.update');
                 Route::delete('/opportunities/{crmOpportunity}', [CrmOpportunityController::class, 'destroy'])->name('opportunities.destroy');
+                Route::post('/opportunities/{crmOpportunity}/mark-won', [CrmOpportunityController::class, 'markWon'])->name('opportunities.mark-won');
+                Route::post('/opportunities/{crmOpportunity}/mark-lost', [CrmOpportunityController::class, 'markLost'])->name('opportunities.mark-lost');
 
                 Route::get('/activities', [CrmActivityController::class, 'index'])->name('activities.index');
                 Route::post('/activities', [CrmActivityController::class, 'store'])->name('activities.store');
@@ -100,6 +107,9 @@ Route::middleware(['auth', 'verified', 'role:subscriber', 'erp.access'])
 
                 Route::post('/leads/{crmLead}/convert', [CrmLeadController::class, 'convert'])
                     ->name('leads.convert');
+
+                Route::get('/pipeline', [CrmOpportunityController::class, 'pipeline'])->name('pipeline.index');
+                Route::post('/pipeline/{crmOpportunity}/move', [CrmOpportunityController::class, 'move'])->name('pipeline.move');
             });
         /*
         |--------------------------------------------------------------------------
@@ -231,7 +241,7 @@ Route::middleware(['auth', 'verified', 'role:subscriber', 'erp.access'])
 
                     /*
                     |--------------------------------------------------------------------------
-                    | Set e-CF wrappers
+                    | Prueba de Datos e-CF wrappers
                     |--------------------------------------------------------------------------
                     */
                     Route::prefix('set-ecf')->name('set-ecf.')->group(function () {

@@ -2,6 +2,7 @@
 import { Head, Link, router, useForm } from '@inertiajs/vue3'
 import { computed, ref } from 'vue'
 import CrmLayout from '@/layouts/CrmLayout.vue'
+import { useCrmAssignedUser } from '@/composables/useCrmAssignedUser'
 
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
@@ -17,12 +18,13 @@ import {
     DialogDescription,
     DialogFooter,
 } from '@/components/ui/dialog'
+
 import Select from '@/components/ui/select/Select.vue'
 import SelectTrigger from '@/components/ui/select/SelectTrigger.vue'
+import SelectValue from '@/components/ui/select/SelectValue.vue'
 import SelectContent from '@/components/ui/select/SelectContent.vue'
 import SelectGroup from '@/components/ui/select/SelectGroup.vue'
 import SelectItem from '@/components/ui/select/SelectItem.vue'
-import SelectValue from '@/components/ui/select/SelectValue.vue'
 import Textarea from '@/components/ui/textarea/Textarea.vue'
 
 type OpportunityRow = {
@@ -52,6 +54,11 @@ type OptionRow = {
     business_name: string | null
 }
 
+type UserOption = {
+    id: number
+    name: string
+}
+
 type PaginatedItems = {
     data: OpportunityRow[]
     links: Array<{
@@ -61,14 +68,20 @@ type PaginatedItems = {
     }>
 }
 
+
+const { withAssignedUser } = useCrmAssignedUser()
+
+
 const props = defineProps<{
     items: PaginatedItems
     customers: OptionRow[]
     leads: OptionRow[]
+    users: UserOption[]
     filters: {
         search: string
         stage: string
         status: string
+        assigned_user_id: number | null
     }
     stats: {
         total: number
@@ -84,6 +97,7 @@ const editingId = ref<number | null>(null)
 const search = ref(props.filters.search ?? '')
 const stage = ref(props.filters.stage ?? 'all')
 const status = ref(props.filters.status ?? 'open')
+const assignedUserId = ref<number | null>(props.filters.assigned_user_id ?? null)
 
 const form = useForm({
     crm_customer_id: null as number | null,
@@ -111,6 +125,7 @@ function applyFilters() {
             search: search.value,
             stage: stage.value,
             status: status.value,
+            assigned_user_id: assignedUserId.value,
         },
         {
             preserveState: true,
@@ -249,7 +264,7 @@ function statusBadgeClass(value: string) {
                         </div>
 
                         <Select v-model="stage" @update:model-value="applyFilters">
-                            <SelectTrigger class="h-10 w-full rounded-md border bg-background px-3 text-sm">
+                            <SelectTrigger class="h-10 w-45 rounded-md border bg-background px-3 text-sm">
                                 <SelectValue placeholder="Todas las etapas" />
                             </SelectTrigger>
 
@@ -267,7 +282,7 @@ function statusBadgeClass(value: string) {
                         </Select>
 
                         <Select v-model="status" @update:model-value="applyFilters">
-                            <SelectTrigger class="h-10 w-full rounded-md border bg-background px-3 text-sm">
+                            <SelectTrigger class="h-10 w-45 rounded-md border bg-background px-3 text-sm">
                                 <SelectValue placeholder="Todos los estados" />
                             </SelectTrigger>
 
@@ -278,6 +293,20 @@ function statusBadgeClass(value: string) {
                                     <SelectItem value="won">Ganadas</SelectItem>
                                     <SelectItem value="lost">Perdidas</SelectItem>
                                     <SelectItem value="cancelled">Canceladas</SelectItem>
+                                </SelectGroup>
+                            </SelectContent>
+                        </Select>
+
+                        <Select v-model="assignedUserId" @update:model-value="applyFilters">
+                            <SelectTrigger class="h-10 w-55 rounded-md border bg-background px-3 text-sm">
+                                <SelectValue placeholder="Todos los responsables" />
+                            </SelectTrigger>
+
+                            <SelectContent>
+                                <SelectGroup>
+                                    <SelectItem v-for="user in props.users" :key="user.id" :value="user.id">
+                                        {{ user.name }}
+                                    </SelectItem>
                                 </SelectGroup>
                             </SelectContent>
                         </Select>
@@ -300,6 +329,7 @@ function statusBadgeClass(value: string) {
                             <tr>
                                 <th class="px-3 py-2 text-left">Oportunidad</th>
                                 <th class="px-3 py-2 text-left">Cliente / Lead</th>
+                                <th class="px-3 py-2 text-left">Responsable</th>
                                 <th class="px-3 py-2 text-left">Etapa</th>
                                 <th class="px-3 py-2 text-left">Estado</th>
                                 <th class="px-3 py-2 text-left">Monto</th>
@@ -323,6 +353,10 @@ function statusBadgeClass(value: string) {
                                     <div class="text-xs text-muted-foreground">
                                         Lead: {{ item.lead_name || '—' }}
                                     </div>
+                                </td>
+
+                                <td class="px-3 py-3 align-top">
+                                    {{ item.assigned_user_name || '—' }}
                                 </td>
 
                                 <td class="px-3 py-3 align-top">
@@ -351,6 +385,12 @@ function statusBadgeClass(value: string) {
 
                                 <td class="px-3 py-3 align-top">
                                     <div class="flex flex-wrap gap-2">
+                                        <Button variant="outline" size="sm" as-child>
+                                            <Link :href="withAssignedUser(`/erp/crm/opportunities/${item.id}`)">
+                                                Ver
+                                            </Link>
+                                        </Button>
+
                                         <Button variant="outline" size="sm" @click="openEdit(item)">
                                             Editar
                                         </Button>
@@ -363,7 +403,7 @@ function statusBadgeClass(value: string) {
                             </tr>
 
                             <tr v-if="props.items.data.length === 0" class="border-t">
-                                <td colspan="8" class="px-3 py-6 text-center text-sm text-muted-foreground">
+                                <td colspan="9" class="px-3 py-6 text-center text-sm text-muted-foreground">
                                     No hay oportunidades registradas todavía.
                                 </td>
                             </tr>
@@ -381,7 +421,7 @@ function statusBadgeClass(value: string) {
         </Card>
 
         <Dialog v-model:open="showModal">
-            <DialogContent class="sm:max-w-3xl">
+            <DialogContent class="h-11/12 overflow-y-scroll sm:max-w-3xl">
                 <DialogHeader>
                     <DialogTitle>{{ modalTitle }}</DialogTitle>
                     <DialogDescription>
@@ -399,8 +439,6 @@ function statusBadgeClass(value: string) {
 
                             <SelectContent>
                                 <SelectGroup>
-                                    <SelectItem :value="null">Sin cliente</SelectItem>
-
                                     <SelectItem v-for="customer in props.customers" :key="customer.id" :value="customer.id">
                                         {{ customer.name }}
                                     </SelectItem>
@@ -419,8 +457,6 @@ function statusBadgeClass(value: string) {
 
                             <SelectContent>
                                 <SelectGroup>
-                                    <SelectItem :value="null">Sin lead</SelectItem>
-
                                     <SelectItem v-for="lead in props.leads" :key="lead.id" :value="lead.id">
                                         {{ lead.name }}
                                     </SelectItem>
@@ -440,7 +476,7 @@ function statusBadgeClass(value: string) {
                         <Label>Etapa</Label>
                         <Select v-model="form.stage">
                             <SelectTrigger class="h-10 w-full rounded-md border bg-background px-3 text-sm">
-                                <SelectValue placeholder="Selecciona la etapa" />
+                                <SelectValue placeholder="Selecciona etapa" />
                             </SelectTrigger>
 
                             <SelectContent>
@@ -461,7 +497,7 @@ function statusBadgeClass(value: string) {
                         <Label>Estado</Label>
                         <Select v-model="form.status">
                             <SelectTrigger class="h-10 w-full rounded-md border bg-background px-3 text-sm">
-                                <SelectValue placeholder="Selecciona el estado" />
+                                <SelectValue placeholder="Selecciona estado" />
                             </SelectTrigger>
 
                             <SelectContent>
@@ -488,7 +524,25 @@ function statusBadgeClass(value: string) {
                         <p v-if="form.errors.probability" class="text-xs text-destructive">{{ form.errors.probability }}</p>
                     </div>
 
-                    <div class="space-y-2 md:col-span-2">
+                    <div class="space-y-2">
+                        <Label>Responsable</Label>
+                        <Select v-model="form.assigned_user_id">
+                            <SelectTrigger class="h-10 w-full rounded-md border bg-background px-3 text-sm">
+                                <SelectValue placeholder="Selecciona un responsable" />
+                            </SelectTrigger>
+
+                            <SelectContent>
+                                <SelectGroup>
+                                    <SelectItem v-for="user in props.users" :key="user.id" :value="user.id">
+                                        {{ user.name }}
+                                    </SelectItem>
+                                </SelectGroup>
+                            </SelectContent>
+                        </Select>
+                        <p v-if="form.errors.assigned_user_id" class="text-xs text-destructive">{{ form.errors.assigned_user_id }}</p>
+                    </div>
+
+                    <div class="space-y-2">
                         <Label>Fecha estimada de cierre</Label>
                         <Input v-model="form.expected_close_date" type="date" />
                         <p v-if="form.errors.expected_close_date" class="text-xs text-destructive">{{ form.errors.expected_close_date }}</p>

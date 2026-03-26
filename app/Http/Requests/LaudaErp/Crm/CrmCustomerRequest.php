@@ -36,7 +36,7 @@ class CrmCustomerRequest extends FormRequest
             'address' => ['nullable', 'string', 'max:1000'],
             'city' => ['nullable', 'string', 'max:120'],
             'region' => ['nullable', 'string', 'max:120'],
-            'country' => ['nullable', 'string', 'size:2'],
+            'country' => ['nullable', 'string', 'max:120'],
 
             'assigned_user_id' => [
                 'nullable',

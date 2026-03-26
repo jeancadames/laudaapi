@@ -20,6 +20,7 @@ final class ExcelToXmlService
         private readonly XsdInlineParser $xsdParser = new XsdInlineParser(),
         private readonly RowBagBuilder $bagBuilder = new RowBagBuilder(),
         private readonly XmlFromXsdBuilder $xmlBuilder = new XmlFromXsdBuilder(),
+        private readonly XsdBagValidator $bagValidator = new XsdBagValidator(),
     ) {}
 
     private const FORCE_EMPTY_XML_ELEMENT = '__FORCE_EMPTY_ELEMENT__';
@@ -124,6 +125,9 @@ final class ExcelToXmlService
                 'monto_total' => $item['monto_total'],
                 'group_key' => $item['group_key'],
                 'group_label' => $item['group_label'],
+                'group_stage_order' => $item['group_stage_order'] ?? null,
+                'group_stage_label' => $item['group_stage_label'] ?? null,
+                'dgii_type_label' => $item['dgii_type_label'] ?? null,
                 'workflow' => $item['workflow'],
                 'pair_eNCF' => $item['pair_eNCF'],
                 'has_security_code_placeholder' => $item['has_security_code_placeholder'],
@@ -182,8 +186,6 @@ final class ExcelToXmlService
             $warnings = [];
             $bag = $this->bagBuilder->build($headersByColIndex, $rowValuesByColIndex, $schemaIndex, $warnings);
 
-            $xml = $this->xmlBuilder->build($schemaIndex->root, $bag, $mode);
-
             $casoPrueba = $this->getValueByHeader($headersByColIndex, $rowValuesByColIndex, 'CasoPrueba');
             $eNCF = $this->getValueByHeader($headersByColIndex, $rowValuesByColIndex, 'eNCF');
             $montoTotal = $this->normalizeAmount(
@@ -196,6 +198,19 @@ final class ExcelToXmlService
                 $casoPrueba ?: $eNCF ?: "ecf_row_{$row}"
             );
 
+            $this->assertBagValid(
+                $schemaIndex,
+                $headersByColIndex,
+                $rowValuesByColIndex,
+                $bag,
+                'ecf',
+                $row,
+                $fileBase,
+                $warnings,
+            );
+
+            $xml = $this->xmlBuilder->build($schemaIndex->root, $bag, $mode);
+
             $items[] = [
                 'sheet' => 'ecf',
                 'sheet_order' => 1,
@@ -207,8 +222,13 @@ final class ExcelToXmlService
                 'monto_total' => $montoTotal,
                 'file_base' => $fileBase,
                 'xml' => $xml,
+
                 'group_key' => $classification['group_key'],
                 'group_label' => $classification['group_label'],
+                'group_stage_order' => $classification['group_stage_order'],
+                'group_stage_label' => $classification['group_stage_label'],
+                'dgii_type_label' => $classification['dgii_type_label'],
+
                 'sort_order' => $classification['sort_order'],
                 'workflow' => $classification['workflow'],
                 'pair_eNCF' => ($tipo === '32' && ($montoTotal ?? 0.0) < 250000.0) ? $eNCF : null,
@@ -246,8 +266,6 @@ final class ExcelToXmlService
             // RFCE: aunque CodigoSeguridadeCF venga vacío / #e, el nodo debe existir
             $hasSecurityCodePlaceholder = $this->ensureRfceSecurityCodePlaceholder($bag);
 
-            $xml = $this->xmlBuilder->build($schemaIndex->root, $bag, $mode);
-
             $casoPrueba = $this->getValueByHeader($headersByColIndex, $rowValuesByColIndex, 'CasoPrueba');
             $eNCF = $this->getValueByHeader($headersByColIndex, $rowValuesByColIndex, 'eNCF');
             $montoTotal = $this->normalizeAmount(
@@ -257,6 +275,19 @@ final class ExcelToXmlService
             $fileBase = $this->sanitizeFilename(
                 $casoPrueba ?: $eNCF ?: "rfce_row_{$row}"
             );
+
+            $this->assertBagValid(
+                $schemaIndex,
+                $headersByColIndex,
+                $rowValuesByColIndex,
+                $bag,
+                'rfce',
+                $row,
+                $fileBase,
+                $warnings,
+            );
+
+            $xml = $this->xmlBuilder->build($schemaIndex->root, $bag, $mode);
 
             $items[] = [
                 'sheet' => 'rfce',
@@ -270,7 +301,10 @@ final class ExcelToXmlService
                 'file_base' => $fileBase,
                 'xml' => $xml,
                 'group_key' => 'rfce_32_lt_250k',
-                'group_label' => 'ECF 32 - Resumen factura de consumo electrónica menor a RD$250,000',
+                'group_label' => '32 - Resumen Factura de Consumo Electrónica Menor a RD$250,000.00',
+                'group_stage_order' => 3,
+                'group_stage_label' => 'Cuarto',
+                'dgii_type_label' => '32 - Resumen Factura de Consumo Electrónica Menor a RD$250,000.00',
                 'sort_order' => 90,
                 'workflow' => 'fill_security_code_sign_send',
                 'pair_eNCF' => $eNCF,
@@ -302,7 +336,61 @@ final class ExcelToXmlService
     }
 
     /**
-     * @return array{sort_order:int,group_key:string,group_label:string,workflow:string}
+     * En la etapa de wrapper SOLO validamos que un dato realmente poblado en el Excel
+     * no se pierda al resolver headers -> bag.
+     *
+     * No exigimos aquí campos obligatorios del XSD que se completan después
+     * (por ejemplo FechaHoraFirma o la firma XML).
+     *
+     * @param string[] $warnings
+     */
+    private function assertBagValid(
+        SchemaIndex $schemaIndex,
+        array $headersByColIndex,
+        array $rowValuesByColIndex,
+        array $bag,
+        string $sheet,
+        int $row,
+        string $fileBase,
+        array $warnings = [],
+    ): void {
+        $errors = $this->bagValidator->validateResolvedSourceData(
+            $headersByColIndex,
+            $rowValuesByColIndex,
+            $schemaIndex,
+            $this->bagBuilder,
+            $bag,
+        );
+
+        if (empty($errors)) {
+            return;
+        }
+
+        $message = sprintf(
+            'Wrapper inválido para hoja=%s fila=%d archivo=%s. %s',
+            $sheet,
+            $row,
+            $fileBase,
+            implode(' || ', $errors)
+        );
+
+        if (!empty($warnings)) {
+            $message .= ' || warnings=' . implode(' || ', $warnings);
+        }
+
+        throw new RuntimeException($message);
+    }
+
+    /**
+     * @return array{
+     *   sort_order:int,
+     *   group_key:string,
+     *   group_label:string,
+     *   group_stage_order:int,
+     *   group_stage_label:string,
+     *   dgii_type_label:string,
+     *   workflow:string
+     * }
      */
     private function classifyEcfItem(string $tipo, ?float $montoTotal): array
     {
@@ -310,74 +398,120 @@ final class ExcelToXmlService
             '31' => [
                 'sort_order' => 10,
                 'group_key' => 'ecf_31',
-                'group_label' => 'ECF 31 - Factura de crédito fiscal electrónica',
+                'group_label' => '31 - Factura de Crédito Fiscal Electrónica',
+                'group_stage_order' => 1,
+                'group_stage_label' => 'Primero',
+                'dgii_type_label' => '31 - Factura de Crédito Fiscal Electrónica',
                 'workflow' => 'send',
             ],
+
             '32' => (($montoTotal ?? 0.0) >= 250000.0)
                 ? [
                     'sort_order' => 20,
                     'group_key' => 'ecf_32_gte_250k',
-                    'group_label' => 'ECF 32 - Factura de consumo electrónica mayor o igual a RD$250,000',
+                    'group_label' => '32 - Factura de Consumo Electrónica Mayor o Igual RD$250,000.00',
+                    'group_stage_order' => 1,
+                    'group_stage_label' => 'Primero',
+                    'dgii_type_label' => '32 - Factura de Consumo Electrónica Mayor o Igual RD$250,000.00',
                     'workflow' => 'send',
                 ]
                 : [
-                    'sort_order' => 90,
+                    'sort_order' => 100,
                     'group_key' => 'ecf_32_lt_250k',
-                    'group_label' => 'ECF 32 - Factura de consumo electrónica menor a RD$250,000',
+                    'group_label' => '32 - Factura de Consumo Electrónica Menor a RD$250,000.00',
+                    'group_stage_order' => 4,
+                    'group_stage_label' => 'Tercero',
+                    'dgii_type_label' => '32 - Factura de Consumo Electrónica Menor a RD$250,000.00',
                     'workflow' => 'sign_download_only',
                 ],
+
             '41' => [
                 'sort_order' => 30,
                 'group_key' => 'ecf_41',
-                'group_label' => 'ECF 41 - Gastos menores electrónico',
+                'group_label' => '41 - Compras Electrónico',
+                'group_stage_order' => 1,
+                'group_stage_label' => 'Primero',
+                'dgii_type_label' => '41 - Compras Electrónico',
                 'workflow' => 'send',
             ],
+
             '43' => [
                 'sort_order' => 35,
                 'group_key' => 'ecf_43',
-                'group_label' => 'ECF 43 - Comprobante para compras electrónicas',
+                'group_label' => '43 - Gastos Menores Electrónico',
+                'group_stage_order' => 1,
+                'group_stage_label' => 'Primero',
+                'dgii_type_label' => '43 - Gastos Menores Electrónico',
                 'workflow' => 'send',
             ],
+
             '44' => [
                 'sort_order' => 40,
                 'group_key' => 'ecf_44',
-                'group_label' => 'ECF 44 - Regímenes especiales electrónico',
+                'group_label' => '44 - Regímenes Especiales Electrónico',
+                'group_stage_order' => 1,
+                'group_stage_label' => 'Primero',
+                'dgii_type_label' => '44 - Regímenes Especiales Electrónico',
                 'workflow' => 'send',
             ],
+
             '45' => [
                 'sort_order' => 50,
                 'group_key' => 'ecf_45',
-                'group_label' => 'ECF 45 - Gubernamental electrónico',
+                'group_label' => '45 - Gubernamental Electrónico',
+                'group_stage_order' => 1,
+                'group_stage_label' => 'Primero',
+                'dgii_type_label' => '45 - Gubernamental Electrónico',
                 'workflow' => 'send',
             ],
+
             '46' => [
                 'sort_order' => 60,
                 'group_key' => 'ecf_46',
-                'group_label' => 'ECF 46 - Comprobante de exportaciones electrónico',
+                'group_label' => '46 - Comprobante de Exportaciones Electrónico',
+                'group_stage_order' => 1,
+                'group_stage_label' => 'Primero',
+                'dgii_type_label' => '46 - Comprobante de Exportaciones Electrónico',
                 'workflow' => 'send',
             ],
+
             '47' => [
                 'sort_order' => 70,
                 'group_key' => 'ecf_47',
-                'group_label' => 'ECF 47 - Comprobante para pagos al exterior electrónico',
+                'group_label' => '47 - Comprobante para Pagos al Exterior Electrónico',
+                'group_stage_order' => 1,
+                'group_stage_label' => 'Primero',
+                'dgii_type_label' => '47 - Comprobante para Pagos al Exterior Electrónico',
                 'workflow' => 'send',
             ],
+
             '33' => [
                 'sort_order' => 80,
                 'group_key' => 'ecf_33',
-                'group_label' => 'ECF 33 - Nota de débito',
+                'group_label' => '33 - Nota de Débito Electrónica',
+                'group_stage_order' => 2,
+                'group_stage_label' => 'Segundo',
+                'dgii_type_label' => '33 - Nota de Débito Electrónica',
                 'workflow' => 'send',
             ],
+
             '34' => [
                 'sort_order' => 81,
                 'group_key' => 'ecf_34',
-                'group_label' => 'ECF 34 - Nota de crédito',
+                'group_label' => '34 - Nota de Crédito Electrónica',
+                'group_stage_order' => 2,
+                'group_stage_label' => 'Segundo',
+                'dgii_type_label' => '34 - Nota de Crédito Electrónica',
                 'workflow' => 'send',
             ],
+
             default => [
                 'sort_order' => 999,
                 'group_key' => 'ecf_other',
                 'group_label' => "ECF {$tipo}",
+                'group_stage_order' => 99,
+                'group_stage_label' => '—',
+                'dgii_type_label' => "ECF {$tipo}",
                 'workflow' => 'send',
             ],
         };
@@ -542,7 +676,7 @@ final class ExcelToXmlService
         $content = $disk->get($xsdRel);
 
         $hash = sha1($content);
-        $cacheKey = "xsd_tree_public:{$tipo}:{$hash}";
+        $cacheKey = "xsd_tree_public:v2:{$tipo}:{$hash}";
 
         return Cache::remember($cacheKey, now()->addDays(30), function () use ($content) {
             $root = $this->xsdParser->parseRootFromString($content);
@@ -563,7 +697,7 @@ final class ExcelToXmlService
         $content = $disk->get($xsdRel);
 
         $hash = sha1($content);
-        $cacheKey = "xsd_tree_public:rfce:{$hash}";
+        $cacheKey = "xsd_tree_public:v2:rfce:{$hash}";
 
         return Cache::remember($cacheKey, now()->addDays(30), function () use ($content) {
             $root = $this->xsdParser->parseRootFromString($content);

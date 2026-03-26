@@ -55,31 +55,51 @@ final class RowBagBuilder
             $headerRaw = $headersByColIndex[$colIndex] ?? null;
             if (!$headerRaw) continue;
 
-            $headerRaw = $this->normalizeHeader((string)$headerRaw);
+            $headerRaw = $this->normalizeHeader((string) $headerRaw);
             if ($headerRaw === '') continue;
 
-            $baseLower = mb_strtolower($this->stripAllIndicesAndPath($headerRaw));
-
-            // Ignorar meta headers sin warning (CasoPrueba)
-            $originalBaseLower = mb_strtolower($this->stripAllIndicesAndPath($headerRaw));
-            if (isset($this->ignoreHeadersLower[$originalBaseLower])) {
+            if ($this->isIgnoredHeader($headerRaw)) {
                 continue;
             }
 
             $value = $this->normalizeCellValue($valueRaw);
 
-            // Regla máxima: #e => no se incluye
-            if ($value === '#e') continue;
-            if ($value === '' || $value === null) continue;
+            // Regla máxima: #e o vacío => no se incluye
+            if ($this->isSkippableCellValue($value)) continue;
 
-            [$path, $idxKey] = $this->parseHeaderToPathAndIdxKey($headerRaw, $index, $warnings);
-
+            [$path, $idxKey] = $this->resolveHeaderToPathAndIdxKey($headerRaw, $index, $warnings);
             if ($path === null) continue;
 
             $bag[$path][$idxKey] = $value;
         }
 
         return $bag;
+    }
+
+    public function isIgnoredHeader(string $header): bool
+    {
+        $header = $this->normalizeHeader($header);
+        $originalBaseLower = mb_strtolower($this->stripAllIndicesAndPath($header));
+        return isset($this->ignoreHeadersLower[$originalBaseLower]);
+    }
+
+    public function isSkippableCellValue($value): bool
+    {
+        $value = $this->normalizeCellValue($value);
+        return $value === null || $value === '' || $value === '#e';
+    }
+
+    /**
+     * @return array{0:?string,1:string} [path, idxKey]
+     */
+    public function resolveHeaderToPathAndIdxKey(string $header, SchemaIndex $index, array &$warnings = []): array
+    {
+        $header = $this->normalizeHeader($header);
+        if ($header === '') {
+            return [null, '1'];
+        }
+
+        return $this->parseHeaderToPathAndIdxKey($header, $index, $warnings);
     }
 
     private function normalizeHeader(string $h): string
@@ -91,7 +111,7 @@ final class RowBagBuilder
     private function normalizeCellValue($value): ?string
     {
         if ($value === null) return null;
-        return trim((string)$value);
+        return trim((string) $value);
     }
 
     /**
@@ -130,31 +150,108 @@ final class RowBagBuilder
         // Canonical por alias
         $leafName = $this->applyAlias($originalName);
 
-        $paths = $index->findLeafPaths($leafName);
+        $candidates = $index->findLeafCandidates($leafName);
 
-        if (count($paths) === 1) {
-            return [$paths[0], $this->indicesToIdxKey($indices)];
+        if (count($candidates) === 1) {
+            return [$candidates[0]['path'], $this->indicesToIdxKey($indices)];
         }
 
-        if (count($paths) > 1) {
-            // 1) Preferencia por header original (NumeroLinea vs NumeroLineaDoR)
-            $pref = $this->preferredByOriginalHeader[$originalLower] ?? null;
-            if ($pref && in_array($pref, $paths, true)) {
-                return [$pref, $this->indicesToIdxKey($indices)];
+        if (count($candidates) > 1) {
+            $resolvedPath = $this->resolveAmbiguousLeafPath(
+                $header,
+                $originalLower,
+                $leafName,
+                $indices,
+                $candidates,
+                $warnings
+            );
+
+            if ($resolvedPath !== null) {
+                return [$resolvedPath, $this->indicesToIdxKey($indices)];
             }
 
-            // 2) Preferencia general por leaf
-            $prefLeaf = $this->preferredLeafPath[mb_strtolower($leafName)] ?? null;
-            if ($prefLeaf && in_array($prefLeaf, $paths, true)) {
-                return [$prefLeaf, $this->indicesToIdxKey($indices)];
-            }
-
-            $warnings[] = "Header ambiguo '{$header}' aparece en múltiples rutas: " . implode(' | ', $paths);
             return [null, '1'];
         }
 
         $warnings[] = "Header '{$header}' no encontrado como leaf en XSD.";
         return [null, '1'];
+    }
+
+    /**
+     * @param int[] $indices
+     * @param array<int, array{
+     *     path:string,
+     *     leaf:string,
+     *     repeatable_depth:int,
+     *     repeatable_ancestors:string[],
+     *     nearest_repeatable_ancestor:?string
+     * }> $candidates
+     */
+    private function resolveAmbiguousLeafPath(
+        string $header,
+        string $originalLower,
+        string $leafName,
+        array $indices,
+        array $candidates,
+        array &$warnings,
+    ): ?string {
+        // 1) Preferencia por header original (casos legacy puntuales)
+        $pref = $this->preferredByOriginalHeader[$originalLower] ?? null;
+        if ($pref && $this->candidatePathExists($pref, $candidates)) {
+            return $pref;
+        }
+
+        // 2) Resolver por contexto estructural:
+        // el número de índices del header debe coincidir con la profundidad repetible de la ruta.
+        $depth = count($indices);
+        $byDepth = array_values(array_filter(
+            $candidates,
+            static fn (array $candidate): bool => (int) $candidate['repeatable_depth'] === $depth
+        ));
+
+        if (count($byDepth) === 1) {
+            return $byDepth[0]['path'];
+        }
+
+        // 3) Si sigue ambiguo, intentar preferencia general por leaf sobre el subconjunto filtrado.
+        $prefLeaf = $this->preferredLeafPath[mb_strtolower($leafName)] ?? null;
+        if ($prefLeaf) {
+            if (!empty($byDepth) && $this->candidatePathExists($prefLeaf, $byDepth)) {
+                return $prefLeaf;
+            }
+
+            if ($this->candidatePathExists($prefLeaf, $candidates)) {
+                return $prefLeaf;
+            }
+        }
+
+        // 4) Si no hay match exacto por profundidad, no asumimos.
+        $warnings[] = sprintf(
+            "Header ambiguo '%s': leaf '%s' existe en múltiples rutas y ninguna pudo resolverse de forma segura por contexto. Índices=%s | candidatos=%s",
+            $header,
+            $leafName,
+            '[' . implode(',', $indices) . ']',
+            implode(' | ', array_map(
+                static fn (array $candidate): string => $candidate['path'] . ' {depth=' . $candidate['repeatable_depth'] . '}',
+                $candidates
+            ))
+        );
+
+        return null;
+    }
+
+    /**
+     * @param array<int, array{path:string}> $candidates
+     */
+    private function candidatePathExists(string $path, array $candidates): bool
+    {
+        foreach ($candidates as $candidate) {
+            if (($candidate['path'] ?? null) === $path) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     /**

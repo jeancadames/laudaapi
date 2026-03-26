@@ -1,10 +1,17 @@
 <script setup lang="ts">
-import { Head, Link } from '@inertiajs/vue3'
+import { Head, Link, router } from '@inertiajs/vue3'
+import { ref } from 'vue'
 import CrmLayout from '@/layouts/CrmLayout.vue'
+import { useCrmAssignedUser } from '@/composables/useCrmAssignedUser'
 
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
+import Select from '@/components/ui/select/Select.vue'
+import SelectTrigger from '@/components/ui/select/SelectTrigger.vue'
+import SelectValue from '@/components/ui/select/SelectValue.vue'
+import SelectContent from '@/components/ui/select/SelectContent.vue'
+import SelectItem from '@/components/ui/select/SelectItem.vue'
 
 type StatPayload = {
     customers_total: number
@@ -15,10 +22,21 @@ type StatPayload = {
     activities_pending: number
 }
 
+type ExecutivePayload = {
+    open_pipeline_value: number
+    won_this_month_value: number
+    lost_this_month_value: number
+    won_this_month_count: number
+    lost_this_month_count: number
+    lead_to_opportunity_rate: number
+    activities_overdue: number
+}
+
 type PipelineStage = {
     key: string
     title: string
     count: number
+    amount: number
 }
 
 type QuickAction = {
@@ -54,13 +72,27 @@ type TopCustomer = {
     phone: string | null
 }
 
+type UserOption = {
+    id: number
+    name: string
+}
+
+const { withAssignedUser } = useCrmAssignedUser()
+
 const props = defineProps<{
     stats: StatPayload
+    executive: ExecutivePayload
     pipeline: PipelineStage[]
     recentActivities: RecentActivity[]
     topCustomers: TopCustomer[]
     quickActions: QuickAction[]
+    filters: {
+        assigned_user_id: number | null
+    }
+    users: UserOption[]
 }>()
+
+const assignedUserId = ref<number | null>(props.filters.assigned_user_id ?? null)
 
 const statCards = [
     {
@@ -101,6 +133,66 @@ const statCards = [
     },
 ]
 
+const executiveCards = [
+    {
+        key: 'open_pipeline_value',
+        title: 'Valor pipeline abierto',
+        value: props.executive.open_pipeline_value,
+        suffix: '',
+        description: 'Suma de oportunidades abiertas.',
+    },
+    {
+        key: 'won_this_month_value',
+        title: 'Ganado este mes',
+        value: props.executive.won_this_month_value,
+        suffix: ` · ${props.executive.won_this_month_count} cierres`,
+        description: 'Valor total ganado en el mes actual.',
+    },
+    {
+        key: 'lost_this_month_value',
+        title: 'Perdido este mes',
+        value: props.executive.lost_this_month_value,
+        suffix: ` · ${props.executive.lost_this_month_count} cierres`,
+        description: 'Valor total perdido en el mes actual.',
+    },
+    {
+        key: 'lead_to_opportunity_rate',
+        title: 'Conversión lead → oportunidad',
+        value: props.executive.lead_to_opportunity_rate,
+        suffix: '%',
+        description: 'Porcentaje de leads convertidos.',
+    },
+    {
+        key: 'activities_overdue',
+        title: 'Actividades vencidas',
+        value: props.executive.activities_overdue,
+        suffix: '',
+        description: 'Pendientes con fecha pasada.',
+    },
+]
+
+function applyAssignedFilter() {
+    router.get(
+        '/erp/crm',
+        {
+            assigned_user_id: assignedUserId.value,
+        },
+        {
+            preserveState: true,
+            preserveScroll: true,
+            replace: true,
+        }
+    )
+}
+
+function money(value: number) {
+    return new Intl.NumberFormat('es-DO', {
+        style: 'currency',
+        currency: 'USD',
+        maximumFractionDigits: 2,
+    }).format(value || 0)
+}
+
 function statusBadgeClass(value: string) {
     if (value === 'pending') return 'bg-slate-700 text-white hover:bg-slate-700'
     if (value === 'completed') return 'bg-emerald-600 text-white hover:bg-emerald-600'
@@ -128,13 +220,81 @@ function customerStatusClass(value: string) {
     <Head title="CRM" />
 
     <CrmLayout title="CRM" description="Gestiona clientes, contactos, leads, oportunidades y seguimiento comercial desde una base conectada al ecosistema LaudaERP.">
-        <section class="flex flex-wrap gap-2">
-            <Button v-for="action in props.quickActions" :key="action.title" as-child variant="outline">
-                <Link :href="action.href">
-                    {{ action.title }}
-                </Link>
-            </Button>
+        <section class="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+            <div class="flex flex-wrap items-center gap-2">
+                <div class="min-w-60">
+                    <Select v-model="assignedUserId" @update:modelValue="applyAssignedFilter">
+                        <SelectTrigger class="w-full">
+                            <SelectValue placeholder="Todos los responsables" />
+                        </SelectTrigger>
+
+                        <SelectContent>
+                            <SelectItem :value="null">
+                                Todos los responsables
+                            </SelectItem>
+
+                            <SelectItem v-for="user in props.users" :key="user.id" :value="user.id">
+                                {{ user.name }}
+                            </SelectItem>
+                        </SelectContent>
+                    </Select>
+                </div>
+
+                <Button variant="outline" @click="applyAssignedFilter">
+                    Filtrar responsable
+                </Button>
+            </div>
+
+            <div class="flex flex-wrap gap-2">
+                <Button v-for="action in props.quickActions" :key="action.title" as-child variant="outline">
+                    <Link :href="withAssignedUser(action.href)">
+                        {{ action.title }}
+                    </Link>
+                </Button>
+            </div>
         </section>
+
+        <Card class="rounded-2xl">
+            <CardHeader>
+                <CardTitle>Resumen ejecutivo</CardTitle>
+                <CardDescription>
+                    KPIs comerciales del pipeline y ejecución del CRM.
+                </CardDescription>
+            </CardHeader>
+
+            <CardContent>
+                <div class="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
+                    <div v-for="card in executiveCards" :key="card.key" class="rounded-2xl border p-4">
+                        <div class="text-sm text-muted-foreground">{{ card.title }}</div>
+
+                        <div class="mt-2 text-2xl font-semibold">
+                            <template v-if="
+                                card.key === 'open_pipeline_value' ||
+                                card.key === 'won_this_month_value' ||
+                                card.key === 'lost_this_month_value'
+                            ">
+                                {{ money(Number(card.value)) }}
+                            </template>
+                            <template v-else>
+                                {{ card.value }}{{ card.suffix }}
+                            </template>
+                        </div>
+
+                        <div v-if="
+                            (card.key === 'won_this_month_value' ||
+                                card.key === 'lost_this_month_value') &&
+                            card.suffix
+                        " class="mt-1 text-xs text-muted-foreground">
+                            {{ card.suffix }}
+                        </div>
+
+                        <p class="mt-2 text-xs text-muted-foreground">
+                            {{ card.description }}
+                        </p>
+                    </div>
+                </div>
+            </CardContent>
+        </Card>
 
         <section class="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
             <Card v-for="card in statCards" :key="card.key" class="rounded-2xl">
@@ -170,13 +330,16 @@ function customerStatusClass(value: string) {
             </CardHeader>
 
             <CardContent>
-                <div class="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
+                <div class="grid gap-4 md:grid-cols-2 xl:grid-cols-6">
                     <div v-for="stage in props.pipeline" :key="stage.key" class="rounded-2xl border bg-muted/20 p-4">
                         <div class="text-sm text-muted-foreground">
                             {{ stage.title }}
                         </div>
                         <div class="mt-2 text-2xl font-semibold">
                             {{ stage.count }}
+                        </div>
+                        <div class="mt-2 text-xs text-muted-foreground">
+                            {{ money(stage.amount) }}
                         </div>
                     </div>
                 </div>

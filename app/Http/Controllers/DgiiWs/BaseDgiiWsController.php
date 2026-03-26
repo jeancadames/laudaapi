@@ -84,12 +84,12 @@ abstract class BaseDgiiWsController extends Controller
 
     protected function wsAuthPath(Company $company, string $file): string
     {
-        return "private/dgii/ws_auth/company_{$company->id}/{$file}";
+        return "/app/private/dgii/ws_auth/company_{$company->id}/{$file}";
     }
 
     protected function wsLogPath(Company $company, string $channel, string $file): string
     {
-        return "private/dgii/ws_logs/{$channel}/company_{$company->id}/{$file}";
+        return "/app/private/dgii/ws_logs/{$channel}/company_{$company->id}/{$file}";
     }
 
     protected function putPrivate(string $path, string $contents): void

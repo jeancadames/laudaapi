@@ -28,6 +28,7 @@ type ActiveCompany = {
     name: string
     slug: string
     ws_subdomain: string | null
+    tax_id: number
 } | null
 
 type ErpItem = { title: string; href: string; icon?: string; badge?: string | null }
@@ -46,6 +47,7 @@ const activeCompany = computed(() => (page.props as any)?.activeCompany as Activ
 
 const companyName = computed(() => activeCompany.value?.name ?? '')
 const companySlug = computed(() => activeCompany.value?.slug ?? '')
+const companyTaxId = computed(() => activeCompany.value?.tax_id ?? '')
 
 // --- NUEVO: fusionar marketplace + laudaone en "Mis servicios"
 const groupsMerged = computed<ErpGroup[]>(() => {
@@ -189,7 +191,7 @@ function toggle(slug: string) {
                 </SidebarMenuItem>
             </SidebarMenu>
 
-            <div
+<div
                 v-if="companyName"
                 class="mx-2 rounded-xl border border-sidebar-border/70 bg-sidebar-accent/30 px-3 py-2 group-data-[collapsible=icon]:hidden"
             >
@@ -207,6 +209,27 @@ function toggle(slug: string) {
                 >
                     {{ companySlug }}
                 </p>
+
+                <div 
+                    class="mt-2 inline-flex max-w-full items-center rounded-md border border-sidebar-border/60 bg-background/50 px-2 py-1 text-[11px] text-sidebar-foreground/70"
+                >
+                    <span class="mr-1 font-medium text-sidebar-foreground/55">RNC:</span>
+
+                    <span
+                        v-if="companyTaxId"
+                        class="truncate font-semibold text-sidebar-foreground/80"
+                    >
+                        {{ companyTaxId }}
+                    </span>
+
+                    <Link
+                        v-else
+                        href="/subscriber/company"
+                        class="font-semibold text-primary underline underline-offset-2 transition hover:opacity-80"
+                    >
+                        Asignarlo
+                    </Link>
+                </div>
             </div>
 
         </SidebarHeader>

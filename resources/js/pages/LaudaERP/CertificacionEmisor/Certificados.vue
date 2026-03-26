@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Head, Link, router, useForm } from '@inertiajs/vue3'
+import { Head, Link, router, useForm, usePage } from '@inertiajs/vue3'
 import { computed, ref } from 'vue'
 
 import ErpLayout from '@/layouts/ErpLayout.vue'
@@ -68,10 +68,24 @@ type RefreshResponse = {
     [ k: string ]: any
 }
 
+type ActiveCompany = {
+    id: number
+    name: string
+    slug: string
+    ws_subdomain: string | null
+    tax_id: number
+} | null
+
 const props = defineProps<{
     company: { id: number; name: string | null; rnc: string | null }
     certs: Cert[]
 }>()
+
+const page = usePage()
+
+const activeCompany = computed(() => (page.props as any)?.activeCompany as ActiveCompany)
+
+const companyTaxId = computed(() => activeCompany.value?.tax_id ?? '')
 
 const breadcrumbs: BreadcrumbItem[] = [
     { title: 'LaudaERP', href: '/erp' },
@@ -500,7 +514,7 @@ function resultUri(r?: TestSignResponse | null) {
                         <p class="text-sm text-muted-foreground">
                             Empresa: <span class="font-medium">{{ company.name ?? '—' }}</span>
                             <span class="mx-2">•</span>
-                            RNC: <span class="font-medium">{{ company.rnc ?? '—' }}</span>
+                            RNC: <span class="font-medium">{{ companyTaxId ?? '—' }}</span>
                         </p>
                     </div>
 

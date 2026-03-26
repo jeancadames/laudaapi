@@ -5,9 +5,11 @@ namespace App\Http\Controllers\LaudaErp\Crm;
 use App\Http\Controllers\Controller;
 use App\Models\Company;
 use App\Models\CrmActivity;
+use App\Models\CrmContact;
 use App\Models\CrmCustomer;
 use App\Models\CrmLead;
 use App\Models\CrmOpportunity;
+use App\Models\User;
 use App\Services\Subscribers\SubscriberResolver;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -35,34 +37,107 @@ class CrmController extends Controller
     public function index(Request $request): Response
     {
         $company = $this->companyFromErp($request);
-
         $companyId = (int) $company->id;
 
-        $stats = [
-            'customers_total' => CrmCustomer::query()
-                ->where('company_id', $companyId)
-                ->count(),
+        $now = now();
+        $monthStart = $now->copy()->startOfMonth();
+        $monthEnd = $now->copy()->endOfMonth();
 
-            'contacts_total' => \App\Models\CrmContact::query()
-                ->where('company_id', $companyId)
-                ->count(),
+        $assignedUserId = (int) $request->integer('assigned_user_id', 0);
 
-            'leads_total' => CrmLead::query()
-                ->where('company_id', $companyId)
-                ->count(),
+        $applyAssigned = function ($query) use ($assignedUserId) {
+            if ($assignedUserId > 0) {
+                $query->where('assigned_user_id', $assignedUserId);
+            }
 
-            'opportunities_open' => CrmOpportunity::query()
+            return $query;
+        };
+
+        // Ajusta esto luego si quieres restringir por miembros reales de la empresa
+        $users = User::query()
+            ->orderBy('name')
+            ->get(['id', 'name'])
+            ->map(fn(User $item) => [
+                'id' => $item->id,
+                'name' => $item->name,
+            ])
+            ->values();
+
+        $customersTotal = $applyAssigned(
+            CrmCustomer::query()->where('company_id', $companyId)
+        )->count();
+
+        $contactsTotal = $applyAssigned(
+            CrmContact::query()->where('company_id', $companyId)
+        )->count();
+
+        $leadsTotal = $applyAssigned(
+            CrmLead::query()->where('company_id', $companyId)
+        )->count();
+
+        $convertedLeadsTotal = $applyAssigned(
+            CrmLead::query()
+                ->where('company_id', $companyId)
+                ->where('status', 'converted')
+        )->count();
+
+        $opportunitiesOpen = $applyAssigned(
+            CrmOpportunity::query()
                 ->where('company_id', $companyId)
                 ->where('status', 'open')
-                ->count(),
+        )->count();
 
-            'quotes_open' => 0, // pendiente cuando montes cotizaciones CRM/ventas
-
-            'activities_pending' => CrmActivity::query()
+        $activitiesPending = $applyAssigned(
+            CrmActivity::query()
                 ->where('company_id', $companyId)
                 ->where('status', 'pending')
-                ->count(),
-        ];
+        )->count();
+
+        $activitiesOverdue = $applyAssigned(
+            CrmActivity::query()
+                ->where('company_id', $companyId)
+                ->where('status', 'pending')
+                ->whereNotNull('scheduled_at')
+                ->where('scheduled_at', '<', $now)
+        )->count();
+
+        $openPipelineValue = (float) $applyAssigned(
+            CrmOpportunity::query()
+                ->where('company_id', $companyId)
+                ->where('status', 'open')
+        )->sum('amount');
+
+        $wonThisMonthValue = (float) $applyAssigned(
+            CrmOpportunity::query()
+                ->where('company_id', $companyId)
+                ->where('status', 'won')
+                ->whereBetween('closed_at', [$monthStart, $monthEnd])
+        )->sum('amount');
+
+        $lostThisMonthValue = (float) $applyAssigned(
+            CrmOpportunity::query()
+                ->where('company_id', $companyId)
+                ->where('status', 'lost')
+                ->whereBetween('closed_at', [$monthStart, $monthEnd])
+        )->sum('amount');
+
+        $wonThisMonthCount = $applyAssigned(
+            CrmOpportunity::query()
+                ->where('company_id', $companyId)
+                ->where('status', 'won')
+                ->whereBetween('closed_at', [$monthStart, $monthEnd])
+        )->count();
+
+        $lostThisMonthCount = $applyAssigned(
+            CrmOpportunity::query()
+                ->where('company_id', $companyId)
+                ->where('status', 'lost')
+                ->whereBetween('closed_at', [$monthStart, $monthEnd])
+        )->count();
+
+        $leadToOpportunityRate = $leadsTotal > 0
+            ? round(($convertedLeadsTotal / $leadsTotal) * 100, 1)
+            : 0.0;
 
         $pipelineStages = [
             'lead' => 'Leads',
@@ -70,24 +145,35 @@ class CrmController extends Controller
             'proposal' => 'Propuesta',
             'negotiation' => 'Negociación',
             'won' => 'Ganados',
+            'lost' => 'Perdidos',
         ];
 
-        $pipelineCounts = CrmOpportunity::query()
-            ->where('company_id', $companyId)
-            ->selectRaw('stage, COUNT(*) as total')
-            ->groupBy('stage')
-            ->pluck('total', 'stage');
+        $pipelineCounts = $applyAssigned(
+            CrmOpportunity::query()
+                ->where('company_id', $companyId)
+                ->selectRaw('stage, COUNT(*) as total')
+                ->groupBy('stage')
+        )->pluck('total', 'stage');
+
+        $pipelineAmounts = $applyAssigned(
+            CrmOpportunity::query()
+                ->where('company_id', $companyId)
+                ->selectRaw('stage, COALESCE(SUM(amount), 0) as total_amount')
+                ->groupBy('stage')
+        )->pluck('total_amount', 'stage');
 
         $pipeline = collect($pipelineStages)
             ->map(fn($title, $key) => [
                 'key' => $key,
                 'title' => $title,
                 'count' => (int) ($pipelineCounts[$key] ?? 0),
+                'amount' => (float) ($pipelineAmounts[$key] ?? 0),
             ])
             ->values();
 
-        $recentActivities = CrmActivity::query()
-            ->where('company_id', $companyId)
+        $recentActivities = $applyAssigned(
+            CrmActivity::query()->where('company_id', $companyId)
+        )
             ->with([
                 'customer:id,name',
                 'contact:id,full_name,first_name,last_name',
@@ -119,8 +205,9 @@ class CrmController extends Controller
             })
             ->values();
 
-        $topCustomers = CrmCustomer::query()
-            ->where('company_id', $companyId)
+        $topCustomers = $applyAssigned(
+            CrmCustomer::query()->where('company_id', $companyId)
+        )
             ->withCount([
                 'contacts',
                 'opportunities',
@@ -145,39 +232,40 @@ class CrmController extends Controller
             ->values();
 
         $quickActions = [
-            [
-                'title' => 'Nuevo cliente',
-                'description' => 'Crear un cliente o cuenta comercial.',
-                'href' => '/erp/crm/customers',
-            ],
-            [
-                'title' => 'Nuevo contacto',
-                'description' => 'Registrar una persona de contacto.',
-                'href' => '/erp/crm/contacts',
-            ],
-            [
-                'title' => 'Nuevo lead',
-                'description' => 'Registrar una nueva oportunidad inicial.',
-                'href' => '/erp/crm/leads',
-            ],
-            [
-                'title' => 'Nueva oportunidad',
-                'description' => 'Agregar una oportunidad al pipeline.',
-                'href' => '/erp/crm/opportunities',
-            ],
-            [
-                'title' => 'Nueva actividad',
-                'description' => 'Programar seguimiento comercial.',
-                'href' => '/erp/crm/activities',
-            ],
+            ['title' => 'Nuevo cliente', 'description' => 'Crear un cliente o cuenta comercial.', 'href' => '/erp/crm/customers'],
+            ['title' => 'Nuevo contacto', 'description' => 'Registrar una persona de contacto.', 'href' => '/erp/crm/contacts'],
+            ['title' => 'Nuevo lead', 'description' => 'Registrar una nueva oportunidad inicial.', 'href' => '/erp/crm/leads'],
+            ['title' => 'Nueva oportunidad', 'description' => 'Agregar una oportunidad al pipeline.', 'href' => '/erp/crm/opportunities'],
+            ['title' => 'Nueva actividad', 'description' => 'Programar seguimiento comercial.', 'href' => '/erp/crm/activities'],
+            ['title' => 'Ver pipeline', 'description' => 'Abrir la vista kanban del pipeline.', 'href' => '/erp/crm/pipeline'],
         ];
 
         return Inertia::render('LaudaERP/CRM/Index', [
-            'stats' => $stats,
+            'stats' => [
+                'customers_total' => $customersTotal,
+                'contacts_total' => $contactsTotal,
+                'leads_total' => $leadsTotal,
+                'opportunities_open' => $opportunitiesOpen,
+                'quotes_open' => 0,
+                'activities_pending' => $activitiesPending,
+            ],
+            'executive' => [
+                'open_pipeline_value' => $openPipelineValue,
+                'won_this_month_value' => $wonThisMonthValue,
+                'lost_this_month_value' => $lostThisMonthValue,
+                'won_this_month_count' => $wonThisMonthCount,
+                'lost_this_month_count' => $lostThisMonthCount,
+                'lead_to_opportunity_rate' => $leadToOpportunityRate,
+                'activities_overdue' => $activitiesOverdue,
+            ],
             'pipeline' => $pipeline,
             'recentActivities' => $recentActivities,
             'topCustomers' => $topCustomers,
             'quickActions' => $quickActions,
+            'filters' => [
+                'assigned_user_id' => $assignedUserId > 0 ? $assignedUserId : null,
+            ],
+            'users' => $users,
         ]);
     }
 }

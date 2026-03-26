@@ -33,7 +33,7 @@ return new class extends Migration {
             $table->text('address')->nullable();
             $table->string('city')->nullable();
             $table->string('region')->nullable();
-            $table->string('country', 2)->nullable();
+            $table->string('country')->nullable();
 
             $table->foreignId('assigned_user_id')
                 ->nullable()

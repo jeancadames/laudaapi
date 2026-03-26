@@ -4,6 +4,7 @@ namespace App\Http\Controllers\LaudaErp\Crm;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\LaudaErp\Crm\CrmLeadRequest;
+use App\Models\User;
 use App\Models\Company;
 use App\Models\CrmLead;
 use App\Models\CrmCustomer;
@@ -41,10 +42,12 @@ class CrmLeadController extends Controller
 
         $search = trim((string) $request->string('search', ''));
         $status = trim((string) $request->string('status', 'new'));
+        $assignedUserId = (int) $request->integer('assigned_user_id', 0);
 
         $query = CrmLead::query()
             ->where('company_id', $company->id)
             ->when($status !== 'all', fn($q) => $q->where('status', $status))
+            ->when($assignedUserId > 0, fn($q) => $q->where('assigned_user_id', $assignedUserId))
             ->when($search !== '', function ($q) use ($search) {
                 $q->where(function ($sub) use ($search) {
                     $sub->where('name', 'like', "%{$search}%")
@@ -84,17 +87,50 @@ class CrmLeadController extends Controller
                 'created_at' => optional($item->created_at)->toDateTimeString(),
             ]);
 
+        $users = User::query()
+            ->orderBy('name')
+            ->get(['id', 'name'])
+            ->map(fn(User $item) => [
+                'id' => $item->id,
+                'name' => $item->name,
+            ])
+            ->values();
+
+        $applyAssigned = function ($query) use ($assignedUserId) {
+            if ($assignedUserId > 0) {
+                $query->where('assigned_user_id', $assignedUserId);
+            }
+
+            return $query;
+        };
+
         return Inertia::render('LaudaERP/CRM/Leads/Index', [
             'filters' => [
                 'search' => $search,
                 'status' => $status,
+                'assigned_user_id' => $assignedUserId > 0 ? $assignedUserId : null,
             ],
             'items' => $items,
+            'users' => $users,
             'stats' => [
-                'total' => CrmLead::where('company_id', $company->id)->count(),
-                'new' => CrmLead::where('company_id', $company->id)->where('status', 'new')->count(),
-                'qualified' => CrmLead::where('company_id', $company->id)->where('status', 'qualified')->count(),
-                'converted' => CrmLead::where('company_id', $company->id)->where('status', 'converted')->count(),
+                'total' => $applyAssigned(
+                    CrmLead::where('company_id', $company->id)
+                )->count(),
+
+                'new' => $applyAssigned(
+                    CrmLead::where('company_id', $company->id)
+                        ->where('status', 'new')
+                )->count(),
+
+                'qualified' => $applyAssigned(
+                    CrmLead::where('company_id', $company->id)
+                        ->where('status', 'qualified')
+                )->count(),
+
+                'converted' => $applyAssigned(
+                    CrmLead::where('company_id', $company->id)
+                        ->where('status', 'converted')
+                )->count(),
             ],
         ]);
     }

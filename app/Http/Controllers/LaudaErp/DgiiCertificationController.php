@@ -5,6 +5,7 @@ namespace App\Http\Controllers\LaudaErp;
 use App\Http\Controllers\Controller;
 use App\Models\Company;
 use App\Models\DgiiCertificate;
+use App\Models\DgiiCompanySetting;
 use App\Models\DgiiEndpointCatalog;
 use App\Services\Dgii\DgiiCertificateRequirements;
 use App\Services\Subscribers\SubscriberResolver;
@@ -43,10 +44,15 @@ class DgiiCertificationController extends Controller
     {
         $company = $this->companyFromErp($request);
 
+        $companySetting = DgiiCompanySetting::query()
+        ->where('company_id', $company->id)
+        ->first();
+
         $setting = [
-            'environment' => 'precert',
-            'use_directory' => true,
-            'endpoints' => [],
+            'environment' => $companySetting?->environment ?? 'precert',
+            'cf_prefix' => $companySetting?->cf_prefix ?? 'testecf',
+            'use_directory' => (bool) ($companySetting?->use_directory ?? true),
+            'endpoints' => $companySetting?->endpoints ?? [],
         ];
 
         $certs = DgiiCertificate::query()
@@ -322,6 +328,9 @@ class DgiiCertificationController extends Controller
                 'sheet' => $meta['sheet'] ?? null,
                 'group_key' => $meta['group_key'] ?? null,
                 'group_label' => $meta['group_label'] ?? null,
+                'group_stage_order' => $meta['group_stage_order'] ?? null,
+                'group_stage_label' => $meta['group_stage_label'] ?? null,
+                'dgii_type_label' => $meta['dgii_type_label'] ?? null,
                 'workflow' => $meta['workflow'] ?? 'send',
                 'pair_eNCF' => $meta['pair_eNCF'] ?? null,
                 'monto_total' => isset($meta['monto_total']) ? (float) $meta['monto_total'] : null,
@@ -333,8 +342,6 @@ class DgiiCertificationController extends Controller
                 'signed_name' => $this->isXmlSigned($disk, $relPath) ? $name : null,
                 'sent' => $disk->exists($respRel),
                 'response_name' => $disk->exists($respRel) ? $respName : null,
-
-                // ✅ ahora el orden sale del manifiesto nuevo, no de row
                 'order_index' => (int) ($meta['order'] ?? PHP_INT_MAX),
             ];
 
@@ -597,6 +604,9 @@ class DgiiCertificationController extends Controller
                 'monto_total' => $item['monto_total'] ?? null,
                 'group_key' => $item['group_key'] ?? null,
                 'group_label' => $item['group_label'] ?? null,
+                'group_stage_order' => isset($item['group_stage_order']) ? (int) $item['group_stage_order'] : null,
+                'group_stage_label' => $item['group_stage_label'] ?? null,
+                'dgii_type_label' => $item['dgii_type_label'] ?? null,
                 'workflow' => $item['workflow'] ?? null,
                 'pair_eNCF' => $item['pair_eNCF'] ?? null,
                 'has_security_code_placeholder' => (bool) ($item['has_security_code_placeholder'] ?? false),

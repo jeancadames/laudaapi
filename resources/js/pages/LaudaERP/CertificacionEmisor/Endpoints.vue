@@ -29,6 +29,14 @@ import {
   SelectItem,
 } from 'reka-ui'
 
+type ActiveCompany = {
+    id: number
+    name: string
+    slug: string
+    ws_subdomain: string | null
+    tax_id: number
+} | null
+
 type Setting = {
     environment: 'precert' | 'cert' | 'prod'
     cf_prefix: string
@@ -53,6 +61,7 @@ const props = defineProps<{
     catalog: CatalogRow[]
 }>()
 
+
 const page = usePage()
 
 const tokenForm = useForm({})
@@ -60,6 +69,9 @@ const tokenForm = useForm({})
 const tokenError = computed(() => (page.props.flash as any)?.error ?? null)
 const tokenSuccess = computed(() => (page.props.flash as any)?.success ?? null)
 const tokenDebug = computed(() => (page.props.flash as any)?.dgii_token_debug ?? null)
+
+const activeCompany = computed(() => (page.props as any)?.activeCompany as ActiveCompany)
+const companyTaxId = computed(() => activeCompany.value?.tax_id ?? '')
 
 const breadcrumbs: BreadcrumbItem[] = [
     { title: 'LaudaERP', href: '/erp' },
@@ -246,7 +258,7 @@ function submit() {
                     <p class="text-sm text-muted-foreground">
                         Empresa: <span class="font-medium">{{ company.name ?? '—' }}</span>
                         <span class="mx-2">•</span>
-                        RNC: <span class="font-medium">{{ company.rnc ?? '—' }}</span>
+                        RNC: <span class="font-medium">{{ companyTaxId ?? '—' }}</span>
                     </p>
                 </div>
 

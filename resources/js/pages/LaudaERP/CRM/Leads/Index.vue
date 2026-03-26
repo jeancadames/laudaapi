@@ -59,11 +59,17 @@ type PaginatedItems = {
     }>
 }
 
+type UserOption = {
+    id: number
+    name: string
+}
+
 const props = defineProps<{
     items: PaginatedItems
     filters: {
         search: string
         status: string
+        assigned_user_id: number | null
     }
     stats: {
         total: number
@@ -71,6 +77,7 @@ const props = defineProps<{
         qualified: number
         converted: number
     }
+    users: UserOption[]
 }>()
 
 const showModal = ref(false)
@@ -78,6 +85,7 @@ const editingId = ref<number | null>(null)
 
 const search = ref(props.filters.search ?? '')
 const status = ref(props.filters.status ?? 'new')
+const assignedUserId = ref<number | null>(props.filters.assigned_user_id ?? null)
 
 const form = useForm({
     type: 'company',
@@ -106,6 +114,7 @@ function applyFilters() {
         {
             search: search.value,
             status: status.value,
+            assigned_user_id: assignedUserId.value,
         },
         {
             preserveState: true,
@@ -191,7 +200,7 @@ const convertForm = useForm<{
     customer_name: string
     opportunity_title: string
     opportunity_amount: string
-    convert?: string   // ← agregar aquí
+    convert?: string
 }>({
     create_customer: true,
     create_opportunity: true,
@@ -199,7 +208,6 @@ const convertForm = useForm<{
     opportunity_title: '',
     opportunity_amount: '',
 })
-
 
 function openConvert(item: LeadRow) {
     convertingLeadId.value = item.id
@@ -224,7 +232,6 @@ function submitConvert() {
         },
     })
 }
-
 </script>
 
 <template>
@@ -273,12 +280,12 @@ function submitConvert() {
                     </div>
 
                     <div class="flex flex-wrap gap-2">
-                        <div class="min-w-55">
+                        <div class="min-w-[220px]">
                             <Input v-model="search" placeholder="Buscar por nombre, documento, email..." @keyup.enter="applyFilters" />
                         </div>
 
                         <Select v-model="status" @update:model-value="applyFilters">
-                            <SelectTrigger class="h-10 w-full rounded-md border bg-background px-3 text-sm">
+                            <SelectTrigger class="h-10 w-[180px] rounded-md border bg-background px-3 text-sm">
                                 <SelectValue placeholder="Todos" />
                             </SelectTrigger>
 
@@ -290,6 +297,21 @@ function submitConvert() {
                                     <SelectItem value="unqualified">No calificados</SelectItem>
                                     <SelectItem value="converted">Convertidos</SelectItem>
                                     <SelectItem value="lost">Perdidos</SelectItem>
+                                </SelectGroup>
+                            </SelectContent>
+                        </Select>
+
+                        <Select v-model="assignedUserId" @update:model-value="applyFilters">
+                            <SelectTrigger class="h-10 w-[220px] rounded-md border bg-background px-3 text-sm">
+                                <SelectValue placeholder="Todos los responsables" />
+                            </SelectTrigger>
+
+                            <SelectContent>
+                                <SelectGroup>
+                                    <SelectItem :value="null">Todos los responsables</SelectItem>
+                                    <SelectItem v-for="user in props.users" :key="user.id" :value="user.id">
+                                        {{ user.name }}
+                                    </SelectItem>
                                 </SelectGroup>
                             </SelectContent>
                         </Select>
@@ -314,6 +336,7 @@ function submitConvert() {
                                 <th class="px-3 py-2 text-left">Documento</th>
                                 <th class="px-3 py-2 text-left">Contacto</th>
                                 <th class="px-3 py-2 text-left">Origen</th>
+                                <th class="px-3 py-2 text-left">Responsable</th>
                                 <th class="px-3 py-2 text-left">Valor / Score</th>
                                 <th class="px-3 py-2 text-left">Estado</th>
                                 <th class="px-3 py-2 text-left">Acciones</th>
@@ -348,6 +371,10 @@ function submitConvert() {
                                 </td>
 
                                 <td class="px-3 py-3 align-top">
+                                    {{ item.assigned_user_name || '—' }}
+                                </td>
+
+                                <td class="px-3 py-3 align-top">
                                     <div>{{ item.estimated_value || '—' }}</div>
                                     <div class="text-xs text-muted-foreground">
                                         Score: {{ item.score ?? '—' }}
@@ -378,7 +405,7 @@ function submitConvert() {
                             </tr>
 
                             <tr v-if="props.items.data.length === 0" class="border-t">
-                                <td colspan="7" class="px-3 py-6 text-center text-sm text-muted-foreground">
+                                <td colspan="8" class="px-3 py-6 text-center text-sm text-muted-foreground">
                                     No hay leads registrados todavía.
                                 </td>
                             </tr>
@@ -396,7 +423,7 @@ function submitConvert() {
         </Card>
 
         <Dialog v-model:open="showModal">
-            <DialogContent class="sm:max-w-3xl">
+            <DialogContent class="h-11/12 overflow-y-scroll sm:max-w-3xl">
                 <DialogHeader>
                     <DialogTitle>{{ modalTitle }}</DialogTitle>
                     <DialogDescription>
@@ -515,6 +542,24 @@ function submitConvert() {
                         <p v-if="form.errors.score" class="text-xs text-destructive">{{ form.errors.score }}</p>
                     </div>
 
+                    <div class="space-y-2">
+                        <Label>Responsable</Label>
+                        <Select v-model="form.assigned_user_id">
+                            <SelectTrigger class="h-10 w-full rounded-md border bg-background px-3 text-sm">
+                                <SelectValue placeholder="Selecciona un responsable" />
+                            </SelectTrigger>
+
+                            <SelectContent>
+                                <SelectGroup>
+                                    <SelectItem v-for="user in props.users" :key="user.id" :value="user.id">
+                                        {{ user.name }}
+                                    </SelectItem>
+                                </SelectGroup>
+                            </SelectContent>
+                        </Select>
+                        <p v-if="form.errors.assigned_user_id" class="text-xs text-destructive">{{ form.errors.assigned_user_id }}</p>
+                    </div>
+
                     <div class="space-y-2 md:col-span-2">
                         <Label>Notas</Label>
                         <Textarea v-model="form.notes" rows="4" class="w-full rounded-md border bg-background px-3 py-2 text-sm" />
@@ -533,67 +578,68 @@ function submitConvert() {
                 </DialogFooter>
             </DialogContent>
         </Dialog>
-    </CrmLayout>
-    <Dialog v-model:open="showConvertModal">
-        <DialogContent class="sm:max-w-2xl">
-            <DialogHeader>
-                <DialogTitle>Convertir lead</DialogTitle>
-                <DialogDescription>
-                    Convierte este lead en cliente y/o oportunidad comercial.
-                </DialogDescription>
-            </DialogHeader>
 
-            <div class="space-y-4">
-                <label class="flex items-center gap-2 text-sm">
-                    <input v-model="convertForm.create_customer" type="checkbox" class="h-4 w-4" />
-                    <span>Crear cliente</span>
-                </label>
+        <Dialog v-model:open="showConvertModal">
+            <DialogContent class="sm:max-w-2xl">
+                <DialogHeader>
+                    <DialogTitle>Convertir lead</DialogTitle>
+                    <DialogDescription>
+                        Convierte este lead en cliente y/o oportunidad comercial.
+                    </DialogDescription>
+                </DialogHeader>
 
-                <div class="space-y-2">
-                    <Label>Nombre del cliente</Label>
-                    <Input v-model="convertForm.customer_name" />
-                    <p v-if="convertForm.errors.customer_name" class="text-xs text-destructive">
-                        {{ convertForm.errors.customer_name }}
+                <div class="space-y-4">
+                    <label class="flex items-center gap-2 text-sm">
+                        <input v-model="convertForm.create_customer" type="checkbox" class="h-4 w-4" />
+                        <span>Crear cliente</span>
+                    </label>
+
+                    <div class="space-y-2">
+                        <Label>Nombre del cliente</Label>
+                        <Input v-model="convertForm.customer_name" />
+                        <p v-if="convertForm.errors.customer_name" class="text-xs text-destructive">
+                            {{ convertForm.errors.customer_name }}
+                        </p>
+                    </div>
+
+                    <label class="flex items-center gap-2 text-sm">
+                        <input v-model="convertForm.create_opportunity" type="checkbox" class="h-4 w-4" />
+                        <span>Crear oportunidad</span>
+                    </label>
+
+                    <div class="grid gap-4 md:grid-cols-2">
+                        <div class="space-y-2">
+                            <Label>Título oportunidad</Label>
+                            <Input v-model="convertForm.opportunity_title" />
+                            <p v-if="convertForm.errors.opportunity_title" class="text-xs text-destructive">
+                                {{ convertForm.errors.opportunity_title }}
+                            </p>
+                        </div>
+
+                        <div class="space-y-2">
+                            <Label>Monto estimado</Label>
+                            <Input v-model="convertForm.opportunity_amount" type="number" min="0" step="0.01" />
+                            <p v-if="convertForm.errors.opportunity_amount" class="text-xs text-destructive">
+                                {{ convertForm.errors.opportunity_amount }}
+                            </p>
+                        </div>
+                    </div>
+
+                    <p v-if="convertForm.errors.convert" class="text-xs text-destructive">
+                        {{ convertForm.errors.convert }}
                     </p>
                 </div>
 
-                <label class="flex items-center gap-2 text-sm">
-                    <input v-model="convertForm.create_opportunity" type="checkbox" class="h-4 w-4" />
-                    <span>Crear oportunidad</span>
-                </label>
+                <DialogFooter class="gap-2">
+                    <Button variant="outline" type="button" @click="showConvertModal = false">
+                        Cancelar
+                    </Button>
 
-                <div class="grid gap-4 md:grid-cols-2">
-                    <div class="space-y-2">
-                        <Label>Título oportunidad</Label>
-                        <Input v-model="convertForm.opportunity_title" />
-                        <p v-if="convertForm.errors.opportunity_title" class="text-xs text-destructive">
-                            {{ convertForm.errors.opportunity_title }}
-                        </p>
-                    </div>
-
-                    <div class="space-y-2">
-                        <Label>Monto estimado</Label>
-                        <Input v-model="convertForm.opportunity_amount" type="number" min="0" step="0.01" />
-                        <p v-if="convertForm.errors.opportunity_amount" class="text-xs text-destructive">
-                            {{ convertForm.errors.opportunity_amount }}
-                        </p>
-                    </div>
-                </div>
-
-                <p v-if="convertForm.errors.convert" class="text-xs text-destructive">
-                    {{ convertForm.errors.convert }}
-                </p>
-            </div>
-
-            <DialogFooter class="gap-2">
-                <Button variant="outline" type="button" @click="showConvertModal = false">
-                    Cancelar
-                </Button>
-
-                <Button :disabled="convertForm.processing" @click="submitConvert">
-                    {{ convertForm.processing ? 'Convirtiendo...' : 'Convertir' }}
-                </Button>
-            </DialogFooter>
-        </DialogContent>
-    </Dialog>
+                    <Button :disabled="convertForm.processing" @click="submitConvert">
+                        {{ convertForm.processing ? 'Convirtiendo...' : 'Convertir' }}
+                    </Button>
+                </DialogFooter>
+            </DialogContent>
+        </Dialog>
+    </CrmLayout>
 </template>

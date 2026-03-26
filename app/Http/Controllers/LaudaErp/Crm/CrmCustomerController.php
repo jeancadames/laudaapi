@@ -4,6 +4,7 @@ namespace App\Http\Controllers\LaudaErp\Crm;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\LaudaErp\Crm\CrmCustomerRequest;
+use App\Models\User;
 use App\Models\Company;
 use App\Models\CrmCustomer;
 use App\Models\CrmActivity;
@@ -174,10 +175,12 @@ class CrmCustomerController extends Controller
 
         $search = trim((string) $request->string('search', ''));
         $status = trim((string) $request->string('status', 'active'));
+        $assignedUserId = (int) $request->integer('assigned_user_id', 0);
 
         $query = CrmCustomer::query()
             ->where('company_id', $company->id)
             ->when($status !== 'all', fn($q) => $q->where('status', $status))
+            ->when($assignedUserId > 0, fn($q) => $q->where('assigned_user_id', $assignedUserId))
             ->when($search !== '', function ($q) use ($search) {
                 $q->where(function ($sub) use ($search) {
                     $sub->where('name', 'like', "%{$search}%")
@@ -185,7 +188,9 @@ class CrmCustomerController extends Controller
                         ->orWhere('document_number', 'like', "%{$search}%")
                         ->orWhere('email', 'like', "%{$search}%")
                         ->orWhere('phone', 'like', "%{$search}%")
-                        ->orWhere('mobile', 'like', "%{$search}%");
+                        ->orWhere('mobile', 'like', "%{$search}%")
+                        ->orWhere('industry', 'like', "%{$search}%")
+                        ->orWhere('source', 'like', "%{$search}%");
                 });
             })
             ->with(['assignedUser:id,name'])
@@ -207,29 +212,58 @@ class CrmCustomerController extends Controller
                 'industry' => $item->industry,
                 'source' => $item->source,
                 'status' => $item->status,
+                'assigned_user_id' => $item->assigned_user_id,
+                'assigned_user_name' => $item->assignedUser?->name,
+                'address' => $item->address,
                 'city' => $item->city,
                 'region' => $item->region,
                 'country' => $item->country,
                 'notes' => $item->notes,
-                'assigned_user_id' => $item->assigned_user_id,
-                'assigned_user_name' => $item->assignedUser?->name,
                 'created_at' => optional($item->created_at)->toDateTimeString(),
             ]);
+
+        $users = User::query()
+            ->orderBy('name')
+            ->get(['id', 'name'])
+            ->map(fn(User $item) => [
+                'id' => $item->id,
+                'name' => $item->name,
+            ])
+            ->values();
+
+        $applyAssigned = function ($query) use ($assignedUserId) {
+            if ($assignedUserId > 0) {
+                $query->where('assigned_user_id', $assignedUserId);
+            }
+
+            return $query;
+        };
 
         return Inertia::render('LaudaERP/CRM/Customers/Index', [
             'filters' => [
                 'search' => $search,
                 'status' => $status,
+                'assigned_user_id' => $assignedUserId > 0 ? $assignedUserId : null,
             ],
             'items' => $items,
+            'users' => $users,
             'stats' => [
-                'total' => CrmCustomer::where('company_id', $company->id)->count(),
-                'active' => CrmCustomer::where('company_id', $company->id)->where('status', 'active')->count(),
-                'inactive' => CrmCustomer::where('company_id', $company->id)->where('status', 'inactive')->count(),
+                'total' => $applyAssigned(
+                    CrmCustomer::where('company_id', $company->id)
+                )->count(),
+
+                'active' => $applyAssigned(
+                    CrmCustomer::where('company_id', $company->id)
+                        ->where('status', 'active')
+                )->count(),
+
+                'inactive' => $applyAssigned(
+                    CrmCustomer::where('company_id', $company->id)
+                        ->where('status', 'inactive')
+                )->count(),
             ],
         ]);
     }
-
     public function store(CrmCustomerRequest $request): RedirectResponse
     {
         $company = $this->companyFromErp($request);

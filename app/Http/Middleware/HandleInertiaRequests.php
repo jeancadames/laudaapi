@@ -96,9 +96,18 @@ class HandleInertiaRequests extends Middleware
                 }
 
                 $company = Company::query()
-                    ->select('id', 'name', 'slug', 'ws_subdomain', 'owner_user_id')
-                    ->where('owner_user_id', $user->id)
-                    ->where('active', true)
+                    ->from('companies')
+                    ->leftJoin('company_tax_profiles as ctp', 'ctp.company_id', '=', 'companies.id')
+                    ->select(
+                        'companies.id',
+                        'companies.name',
+                        'companies.slug',
+                        'companies.ws_subdomain',
+                        'companies.owner_user_id',
+                        'ctp.tax_id'
+                    )
+                    ->where('companies.owner_user_id', $user->id)
+                    ->where('companies.active', true)
                     ->first();
 
                 if (! $company) {
@@ -110,6 +119,7 @@ class HandleInertiaRequests extends Middleware
                     'name' => $company->name,
                     'slug' => $company->slug,
                     'ws_subdomain' => $company->ws_subdomain,
+                    'tax_id' => $company->tax_id,
                 ];
             },
 

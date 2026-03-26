@@ -17,6 +17,7 @@ import {
     DialogDescription,
     DialogFooter,
 } from '@/components/ui/dialog'
+
 import Select from '@/components/ui/select/Select.vue'
 import SelectTrigger from '@/components/ui/select/SelectTrigger.vue'
 import SelectValue from '@/components/ui/select/SelectValue.vue'
@@ -26,6 +27,11 @@ import SelectItem from '@/components/ui/select/SelectItem.vue'
 import Textarea from '@/components/ui/textarea/Textarea.vue'
 
 type OptionRow = {
+    id: number
+    name: string
+}
+
+type UserOption = {
     id: number
     name: string
 }
@@ -69,10 +75,12 @@ const props = defineProps<{
     contacts: OptionRow[]
     leads: OptionRow[]
     opportunities: OptionRow[]
+    users: UserOption[]
     filters: {
         search: string
         status: string
         type: string
+        assigned_user_id: number | null
     }
     stats: {
         total: number
@@ -88,6 +96,7 @@ const editingId = ref<number | null>(null)
 const search = ref(props.filters.search ?? '')
 const status = ref(props.filters.status ?? 'pending')
 const type = ref(props.filters.type ?? 'all')
+const assignedUserId = ref<number | null>(props.filters.assigned_user_id ?? null)
 
 const form = useForm({
     crm_customer_id: null as number | null,
@@ -114,6 +123,7 @@ function applyFilters() {
             search: search.value,
             status: status.value,
             type: type.value,
+            assigned_user_id: assignedUserId.value,
         },
         {
             preserveState: true,
@@ -248,7 +258,7 @@ function priorityBadgeClass(value: string) {
                         </div>
 
                         <Select v-model="type" @update:model-value="applyFilters">
-                            <SelectTrigger class="h-10 w-full rounded-md border bg-background px-3 text-sm">
+                            <SelectTrigger class="h-10 w-45 rounded-md border bg-background px-3 text-sm">
                                 <SelectValue placeholder="Todos los tipos" />
                             </SelectTrigger>
 
@@ -266,7 +276,7 @@ function priorityBadgeClass(value: string) {
                         </Select>
 
                         <Select v-model="status" @update:model-value="applyFilters">
-                            <SelectTrigger class="h-10 w-full rounded-md border bg-background px-3 text-sm">
+                            <SelectTrigger class="h-10 w-45 rounded-md border bg-background px-3 text-sm">
                                 <SelectValue placeholder="Todos los estados" />
                             </SelectTrigger>
 
@@ -276,6 +286,20 @@ function priorityBadgeClass(value: string) {
                                     <SelectItem value="pending">Pendientes</SelectItem>
                                     <SelectItem value="completed">Completadas</SelectItem>
                                     <SelectItem value="cancelled">Canceladas</SelectItem>
+                                </SelectGroup>
+                            </SelectContent>
+                        </Select>
+
+                        <Select v-model="assignedUserId" @update:model-value="applyFilters">
+                            <SelectTrigger class="h-10 w-55 rounded-md border bg-background px-3 text-sm">
+                                <SelectValue placeholder="Todos los responsables" />
+                            </SelectTrigger>
+
+                            <SelectContent>
+                                <SelectGroup>
+                                    <SelectItem v-for="user in props.users" :key="user.id" :value="user.id">
+                                        {{ user.name }}
+                                    </SelectItem>
                                 </SelectGroup>
                             </SelectContent>
                         </Select>
@@ -301,6 +325,7 @@ function priorityBadgeClass(value: string) {
                                 <th class="px-3 py-2 text-left">Tipo</th>
                                 <th class="px-3 py-2 text-left">Estado</th>
                                 <th class="px-3 py-2 text-left">Prioridad</th>
+                                <th class="px-3 py-2 text-left">Responsable</th>
                                 <th class="px-3 py-2 text-left">Fecha</th>
                                 <th class="px-3 py-2 text-left">Acciones</th>
                             </tr>
@@ -345,6 +370,10 @@ function priorityBadgeClass(value: string) {
                                 </td>
 
                                 <td class="px-3 py-3 align-top">
+                                    {{ item.assigned_user_name || '—' }}
+                                </td>
+
+                                <td class="px-3 py-3 align-top">
                                     {{ item.scheduled_at || '—' }}
                                 </td>
 
@@ -362,7 +391,7 @@ function priorityBadgeClass(value: string) {
                             </tr>
 
                             <tr v-if="props.items.data.length === 0" class="border-t">
-                                <td colspan="7" class="px-3 py-6 text-center text-sm text-muted-foreground">
+                                <td colspan="8" class="px-3 py-6 text-center text-sm text-muted-foreground">
                                     No hay actividades registradas todavía.
                                 </td>
                             </tr>
@@ -398,8 +427,6 @@ function priorityBadgeClass(value: string) {
 
                             <SelectContent>
                                 <SelectGroup>
-                                    <SelectItem :value="null">Sin cliente</SelectItem>
-
                                     <SelectItem v-for="item in props.customers" :key="item.id" :value="item.id">
                                         {{ item.name }}
                                     </SelectItem>
@@ -418,8 +445,6 @@ function priorityBadgeClass(value: string) {
 
                             <SelectContent>
                                 <SelectGroup>
-                                    <SelectItem :value="null">Sin contacto</SelectItem>
-
                                     <SelectItem v-for="item in props.contacts" :key="item.id" :value="item.id">
                                         {{ item.name }}
                                     </SelectItem>
@@ -438,8 +463,6 @@ function priorityBadgeClass(value: string) {
 
                             <SelectContent>
                                 <SelectGroup>
-                                    <SelectItem :value="null">Sin lead</SelectItem>
-
                                     <SelectItem v-for="item in props.leads" :key="item.id" :value="item.id">
                                         {{ item.name }}
                                     </SelectItem>
@@ -458,8 +481,6 @@ function priorityBadgeClass(value: string) {
 
                             <SelectContent>
                                 <SelectGroup>
-                                    <SelectItem :value="null">Sin oportunidad</SelectItem>
-
                                     <SelectItem v-for="item in props.opportunities" :key="item.id" :value="item.id">
                                         {{ item.name }}
                                     </SelectItem>
@@ -473,7 +494,7 @@ function priorityBadgeClass(value: string) {
                         <Label>Tipo</Label>
                         <Select v-model="form.type">
                             <SelectTrigger class="h-10 w-full rounded-md border bg-background px-3 text-sm">
-                                <SelectValue placeholder="Selecciona el tipo" />
+                                <SelectValue placeholder="Selecciona tipo" />
                             </SelectTrigger>
 
                             <SelectContent>
@@ -494,7 +515,7 @@ function priorityBadgeClass(value: string) {
                         <Label>Estado</Label>
                         <Select v-model="form.status">
                             <SelectTrigger class="h-10 w-full rounded-md border bg-background px-3 text-sm">
-                                <SelectValue placeholder="Selecciona el estado" />
+                                <SelectValue placeholder="Selecciona estado" />
                             </SelectTrigger>
 
                             <SelectContent>
@@ -512,7 +533,7 @@ function priorityBadgeClass(value: string) {
                         <Label>Prioridad</Label>
                         <Select v-model="form.priority">
                             <SelectTrigger class="h-10 w-full rounded-md border bg-background px-3 text-sm">
-                                <SelectValue placeholder="Selecciona la prioridad" />
+                                <SelectValue placeholder="Selecciona prioridad" />
                             </SelectTrigger>
 
                             <SelectContent>
@@ -525,6 +546,24 @@ function priorityBadgeClass(value: string) {
                             </SelectContent>
                         </Select>
                         <p v-if="form.errors.priority" class="text-xs text-destructive">{{ form.errors.priority }}</p>
+                    </div>
+
+                    <div class="space-y-2">
+                        <Label>Responsable</Label>
+                        <Select v-model="form.assigned_user_id">
+                            <SelectTrigger class="h-10 w-full rounded-md border bg-background px-3 text-sm">
+                                <SelectValue placeholder="Selecciona un responsable" />
+                            </SelectTrigger>
+
+                            <SelectContent>
+                                <SelectGroup>
+                                    <SelectItem v-for="user in props.users" :key="user.id" :value="user.id">
+                                        {{ user.name }}
+                                    </SelectItem>
+                                </SelectGroup>
+                            </SelectContent>
+                        </Select>
+                        <p v-if="form.errors.assigned_user_id" class="text-xs text-destructive">{{ form.errors.assigned_user_id }}</p>
                     </div>
 
                     <div class="space-y-2">

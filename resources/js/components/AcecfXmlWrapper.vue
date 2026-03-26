@@ -253,8 +253,7 @@ async function submit() {
           Wrapper ACECF (Aprobación Comercial e-CF)
         </h3>
         <p class="text-sm text-muted-foreground">
-          Sube un Excel con múltiples filas y se generará un XML ACECF por registro (según el XSD de la DGII),
-          descargando un ZIP con todos los XML.
+          Sube un Excel con los casos de aprobación comercial para generar un XML ACECF por cada fila, según la estructura/XSD oficial de la DGII. El wrapper te permite preparar los archivos para su firma, envío y validación dentro del flujo de aprobación comercial.
         </p>
       </div>
 

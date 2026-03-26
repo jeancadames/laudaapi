@@ -1,6 +1,7 @@
 <script setup lang="js">
 import axios from 'axios'
-import { computed, ref } from 'vue'
+import { computed, ref, nextTick  } from 'vue'
+import { router } from '@inertiajs/vue3'
 
 /**
  * Ajusta si tu backend limita tamaño distinto
@@ -176,7 +177,6 @@ function extractBackendError(err) {
 
 async function downloadZip(downloadUrl) {
   stage.value = 'downloading'
-  downloadProgress.value = 0
 
   const token = getCsrfToken()
 
@@ -185,25 +185,14 @@ async function downloadZip(downloadUrl) {
     headers: {
       ...(token ? { 'X-CSRF-TOKEN': token } : {}),
     },
-    onDownloadProgress: (evt) => {
-      // evt.total a veces no viene (depende del server)
-      if (evt.total) {
-        downloadProgress.value = Math.round((evt.loaded / evt.total) * 100)
-      } else {
-        // si no hay total, al menos “latea” visual
-        downloadProgress.value = Math.min(95, downloadProgress.value + 2)
-      }
-    },
   })
 
-  // Intentar nombre desde Content-Disposition
-  const cd = res.headers?.['content-disposition'] || res.headers?.['Content-Disposition']
+  const cd = res.headers?.['content-disposition'] || ''
   let filename = 'xmls.zip'
-  if (cd && typeof cd === 'string') {
-    const m = cd.match(/filename\*=UTF-8''([^;]+)|filename="([^"]+)"/i)
-    const raw = m?.[1] || m?.[2]
-    if (raw) filename = decodeURIComponent(raw)
-  }
+
+  const m = cd.match(/filename\*=UTF-8''([^;]+)|filename="([^"]+)"/i)
+  const raw = m?.[1] || m?.[2]
+  if (raw) filename = decodeURIComponent(raw)
 
   const blob = new Blob([res.data], { type: 'application/zip' })
   const url = window.URL.createObjectURL(blob)
@@ -216,7 +205,6 @@ async function downloadZip(downloadUrl) {
   a.remove()
 
   window.URL.revokeObjectURL(url)
-  downloadProgress.value = 100
 }
 
 async function submit() {
@@ -236,42 +224,40 @@ async function submit() {
     const res = await axios.post('/erp/services/certificacion-emisor/set-ecf/ecf/excel-to-xml', fd, {
       headers: {
         ...(token ? { 'X-CSRF-TOKEN': token } : {}),
-        // axios pone el boundary solo; no es obligatorio setearlo.
         'Content-Type': 'multipart/form-data',
       },
       onUploadProgress: (evt) => {
         if (evt.total) {
           uploadProgress.value = Math.round((evt.loaded / evt.total) * 100)
-        } else {
-          uploadProgress.value = Math.min(95, uploadProgress.value + 3)
         }
       },
-      timeout: 0, // conversion puede durar; 0 = sin timeout
+      timeout: 0,
     })
-
-    uploadProgress.value = 100
-    stage.value = 'converting'
 
     const downloadUrl = res.data?.download_url
     if (!downloadUrl) {
       stage.value = 'error'
       errorMsg.value = 'El servidor no devolvió download_url.'
-      detailsMsg.value = 'Revisa el controller: debe devolver JSON con { download_url }.'
       return
     }
 
     await downloadZip(downloadUrl)
 
     stage.value = 'done'
-    successMsg.value = '✅ ZIP generado y descargado correctamente.'
-    detailsMsg.value = `${file.value.name} → XMLs.zip`
+    successMsg.value = '✅ ZIP generado y descargado. Recargando pantalla...'
+
+    sessionStorage.setItem('cert-emisor:active-tab', 'prueba-datos-ecf')
+    sessionStorage.setItem('cert-emisor:wrapper-tab', 'ecf-wrapper')
+
+    setTimeout(() => {
+      window.location.reload()
+    }, 500)
+
   } catch (err) {
     stage.value = 'error'
     const { title, details } = extractBackendError(err)
     errorMsg.value = title
     detailsMsg.value = details
-
-    // log para ti
     console.error(err)
   }
 }
@@ -287,8 +273,11 @@ async function submit() {
           Wrapper de Casos de Prueba e-CF DGII (Tipos 31–47)
         </h3>
         <p class="text-sm text-muted-foreground">
-          Convierte tu Excel de casos de prueba en XML e-CF (un XML por fila) según la estructura/XSD oficial de la DGII,
-          y descarga un ZIP con todos los XML generados. En pre-certificación normalmente se prueban primero los e-CF tipo 31 y 33–47 (luego 32).
+          Carga el archivo Excel del set de pruebas provisto por la DGII para generar los XML e-CF por fila según la estructura/XSD oficial. 
+          El wrapper te permite firmarlos y enviarlos al servicio de recepción correspondiente. 
+          Incluye escenarios de Facturas de Consumo Electrónicas de montos mayores o iguales a RD$250,000.00 y menores a este monto. 
+          Para cada Factura de Consumo menor a RD$250,000.00, también deberás generar y enviar su Resumen de Factura de Consumo; 
+          una vez aceptado el resumen, podrás remitir la factura íntegra correspondiente.
         </p>
       </div>
 

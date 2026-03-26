@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Head, Link, router, useForm } from '@inertiajs/vue3'
+import { Head, Link, router, useForm, usePage } from '@inertiajs/vue3'
 import { ref, computed, watch, onMounted, onBeforeUnmount } from 'vue'
 
 import ErpLayout from '@/layouts/ErpLayout.vue'
@@ -81,6 +81,9 @@ type XmlFileItem = {
     type: DgiiEcftype | null
     eNCF?: string | null
     sheet?: string | null
+    group_stage_order?: number | null
+    group_stage_label?: string | null
+    dgii_type_label?: string | null
     group_key?: string | null
     group_label?: string | null
     workflow?: XmlWorkflow | null
@@ -127,6 +130,14 @@ type WsActivityItem = {
     [ k: string ]: any
 }
 
+type ActiveCompany = {
+    id: number
+    name: string
+    slug: string
+    ws_subdomain: string | null
+    tax_id: number
+} | null
+
 const props = defineProps<{
     company: {
         id: number
@@ -147,6 +158,12 @@ const props = defineProps<{
     xml_files?: XmlFilesPayload
     ws_activity?: WsActivityItem[]
 }>()
+
+const page = usePage()
+
+const activeCompany = computed(() => (page.props as any)?.activeCompany as ActiveCompany)
+
+const companyTaxId = computed(() => activeCompany.value?.tax_id ?? '')
 
 /* -----------------------------------------
    ✅ Helpers
@@ -280,8 +297,26 @@ const breadcrumbs: BreadcrumbItem[] = [
     { title: 'Certificación Emisor', href: '/erp/services/certificacion-emisor' },
 ]
 
-const tab = ref<'guia' | 'certificados' | 'endpoints' | 'sets-ecf' | 'servicios-web'>('guia')
+const tab = ref<'guia' | 'certificados' | 'endpoints' | 'prueba-datos-ecf' | 'servicios-pruebas'>('guia')
 const wrapper_tabs = ref<'ecf-wrapper' | 'acecf-wrapper'>('ecf-wrapper')
+
+const TAB_STORAGE_KEY = 'cert-emisor:active-tab'
+const WRAPPER_TAB_STORAGE_KEY = 'cert-emisor:wrapper-tab'
+
+function restoreTabs() {
+    const savedTab = sessionStorage.getItem(TAB_STORAGE_KEY)
+    const savedWrapperTab = sessionStorage.getItem(WRAPPER_TAB_STORAGE_KEY)
+
+    if (savedTab && ['guia', 'certificados', 'endpoints', 'prueba-datos-ecf', 'servicios-pruebas'].includes(savedTab)) {
+        tab.value = savedTab as typeof tab.value
+        sessionStorage.removeItem(TAB_STORAGE_KEY)
+    }
+
+    if (savedWrapperTab && ['ecf-wrapper', 'acecf-wrapper'].includes(savedWrapperTab)) {
+        wrapper_tabs.value = savedWrapperTab as typeof wrapper_tabs.value
+        sessionStorage.removeItem(WRAPPER_TAB_STORAGE_KEY)
+    }
+}
 
 /* -----------------------------------------
    ✅ XML payload helper
@@ -787,7 +822,7 @@ function startWsTimer() {
     stopWsTimer()
 
     wsTimer = setInterval(() => {
-        if (tab.value === 'servicios-web' && wsAutoRefresh.value) {
+        if (tab.value === 'servicios-pruebas' && wsAutoRefresh.value) {
             fetchWsActivity()
         }
     }, 15000)
@@ -824,7 +859,7 @@ function lastEventTs(eventPrefix: string) {
 }
 
 watch(tab, (t) => {
-    if (t === 'servicios-web') {
+    if (t === 'servicios-pruebas') {
         fetchWsActivity()
         if (wsAutoRefresh.value) startWsTimer()
     } else {
@@ -833,19 +868,21 @@ watch(tab, (t) => {
 })
 
 watch(wsAutoRefresh, (v) => {
-    if (tab.value !== 'servicios-web') return
+    if (tab.value !== 'servicios-pruebas') return
     if (v) startWsTimer()
     else stopWsTimer()
 })
 
 watch([ wsLevel, wsSearch ], () => {
-    if (tab.value === 'servicios-web') {
+    if (tab.value === 'servicios-pruebas') {
         fetchWsActivity()
     }
 })
 
 onMounted(() => {
-    if (tab.value === 'servicios-web') {
+    restoreTabs()
+
+    if (tab.value === 'servicios-pruebas') {
         fetchWsActivity()
         if (wsAutoRefresh.value) startWsTimer()
     }
@@ -867,7 +904,7 @@ onBeforeUnmount(() => stopWsTimer())
                         <p class="text-sm text-muted-foreground">
                             Empresa: <span class="font-medium">{{ company.name ?? '—' }}</span>
                             <span class="mx-2">•</span>
-                            RNC: <span class="font-medium">{{ company.rnc ?? '—' }}</span>
+                            RNC: <span class="font-medium">{{ companyTaxId ?? '—' }}</span>
                         </p>
                     </div>
 
@@ -880,8 +917,8 @@ onBeforeUnmount(() => stopWsTimer())
                     <TabsTrigger value="guia">Guía DGII</TabsTrigger>
                     <TabsTrigger value="certificados">Certificados</TabsTrigger>
                     <TabsTrigger value="endpoints">Endpoints</TabsTrigger>
-                    <TabsTrigger value="sets-ecf">Set e-CF</TabsTrigger>
-                    <TabsTrigger value="servicios-web">Servicios Web</TabsTrigger>
+                    <TabsTrigger value="prueba-datos-ecf">Pruebas de Datos e-CF</TabsTrigger>
+                    <TabsTrigger value="servicios-pruebas">Servicios para Pruebas</TabsTrigger>
                 </TabsList>
 
                 <TabsContent value="guia" class="mt-4">
@@ -1285,17 +1322,17 @@ onBeforeUnmount(() => stopWsTimer())
                     </div>
                 </TabsContent>
 
-                <TabsContent value="sets-ecf" class="mt-4">
+                <TabsContent value="prueba-datos-ecf" class="mt-4">
                     <Card>
                         <CardHeader>
-                            <CardTitle>Set de Pruebas e-CF</CardTitle>
-                            <CardDescription>Sube Excel, genera XML por fila, firma, envía, trackId/estado.</CardDescription>
+                            <CardTitle>Pruebas de Datos e-CF</CardTitle>
+                                Sube el set de pruebas de la DGII en Excel, genera los XML e-CF por fila, firma, envía y consulta trackId/estado.
                         </CardHeader>
 
                         <Tabs v-model="wrapper_tabs">
                             <TabsList class="grid rounded-none w-full grid-cols-2">
-                                <TabsTrigger value="ecf-wrapper">e-CF / RFCE Wrapper</TabsTrigger>
-                                <TabsTrigger value="acecf-wrapper">ACECF (respuesta)</TabsTrigger>
+                                <TabsTrigger value="ecf-wrapper">Convertidor de Set de Datos de e-CF</TabsTrigger>
+                                <TabsTrigger value="acecf-wrapper">Convertidor de Set de Datos de Aprobación Comercial</TabsTrigger>
                             </TabsList>
 
                             <TabsContent class="mt-4 px-6" value="ecf-wrapper">
@@ -1319,6 +1356,7 @@ onBeforeUnmount(() => stopWsTimer())
                                             <table class="w-full text-sm">
                                                 <thead class="bg-muted/40 text-xs text-muted-foreground">
                                                     <tr>
+                                                        <th class="px-3 py-2 text-left">Grupo</th>  
                                                         <th class="px-3 py-2 text-left">Nombre del archivo</th>
                                                         <th class="px-3 py-2 text-left">Clase</th>
                                                         <th class="px-3 py-2 text-left">Grupo</th>
@@ -1330,6 +1368,21 @@ onBeforeUnmount(() => stopWsTimer())
                                                 </thead>
                                                 <tbody>
                                                     <tr v-for="e in wrapperDisplayItems" :key="`${e.kind}:${e.name}:${e.sheet}`" class="border-t">
+                                                        <td class="px-3 py-2 align-top">
+                                                            <Badge variant="secondary">
+                                                                {{ e.group_stage_label ?? '—' }}
+                                                            </Badge>
+                                                        </td>
+
+                                                        <td class="px-3 py-2 align-top">
+                                                            <div class="text-xs">
+                                                                {{ e.dgii_type_label ?? e.group_label ?? '—' }}
+                                                            </div>
+                                                            <div v-if="e.workflow" class="mt-1 text-xs text-muted-foreground">
+                                                                {{ xmlWorkflowLabel(e) }}
+                                                            </div>
+                                                        </td>
+
                                                         <td class="px-3 py-2 align-top">
                                                             <div class="font-mono text-xs">{{ e.name }}</div>
                                                             <div v-if="e.eNCF" class="mt-1 text-xs text-muted-foreground">
@@ -1344,30 +1397,40 @@ onBeforeUnmount(() => stopWsTimer())
                                                             </div>
                                                         </td>
 
-                                                        <td class="px-3 py-2 align-top">
-                                                            <div class="text-xs">{{ e.group_label ?? '—' }}</div>
-                                                            <div v-if="e.workflow" class="mt-1 text-xs text-muted-foreground">
-                                                                {{ xmlWorkflowLabel(e) }}
-                                                            </div>
-                                                        </td>
-
                                                         <td class="px-3 py-2 align-top">{{ e.type ?? '—' }}</td>
 
                                                         <td class="px-3 py-2 align-top">{{ formatBytes(e.size_bytes ?? null) }}</td>
 
                                                         <td class="px-3 py-2 align-top">
-                                                            <Button v-if="!e.signed" size="sm" variant="secondary" :disabled="signing[ key(e.kind, e.name) ]" @click="signXml(e.kind, e.name)">
-                                                                <span v-if="signing[ key(e.kind, e.name) ]">Firmando…</span>
+                                                            <Button
+                                                                v-if="!e.signed"
+                                                                size="sm"
+                                                                variant="secondary"
+                                                                :disabled="signing[key(e.kind, e.name)]"
+                                                                @click="signXml(e.kind, e.name)"
+                                                            >
+                                                                <span v-if="signing[key(e.kind, e.name)]">Firmando…</span>
                                                                 <span v-else>Firmar</span>
                                                             </Button>
 
-                                                            <Button v-else-if="canDownloadSignedItem(e)" size="sm" variant="secondary" :disabled="downloading[ key(e.kind, e.name) ]" @click="downloadSignedXml(e.kind, e.name)">
-                                                                <span v-if="downloading[ key(e.kind, e.name) ]">Descargando…</span>
+                                                            <Button
+                                                                v-else-if="canDownloadSignedItem(e)"
+                                                                size="sm"
+                                                                variant="secondary"
+                                                                :disabled="downloading[key(e.kind, e.name)]"
+                                                                @click="downloadSignedXml(e.kind, e.name)"
+                                                            >
+                                                                <span v-if="downloading[key(e.kind, e.name)]">Descargando…</span>
                                                                 <span v-else>Descargar firmado</span>
                                                             </Button>
 
-                                                            <Button v-else-if="canSendItem(e)" size="sm" :disabled="sending[ key(e.kind, e.name) ]" @click="sendXml(e.kind, e.name)">
-                                                                <span v-if="sending[ key(e.kind, e.name) ]">Enviando…</span>
+                                                            <Button
+                                                                v-else-if="canSendItem(e)"
+                                                                size="sm"
+                                                                :disabled="sending[key(e.kind, e.name)]"
+                                                                @click="sendXml(e.kind, e.name)"
+                                                            >
+                                                                <span v-if="sending[key(e.kind, e.name)]">Enviando…</span>
                                                                 <span v-else>Enviar</span>
                                                             </Button>
 
@@ -1387,7 +1450,7 @@ onBeforeUnmount(() => stopWsTimer())
                                                     </tr>
 
                                                     <tr v-if="wrapperDisplayItems.length === 0" class="border-t">
-                                                        <td colspan="7" class="px-3 py-4 text-sm text-muted-foreground">
+                                                        <td colspan="8" class="px-3 py-4 text-sm text-muted-foreground">
                                                             No hay archivos.
                                                         </td>
                                                     </tr>
@@ -1466,117 +1529,126 @@ onBeforeUnmount(() => stopWsTimer())
                     </Card>
                 </TabsContent>
 
-                <TabsContent value="servicios-web" class="mt-4">
+                <TabsContent value="servicios-pruebas" class="mt-4">
                     <div class="space-y-4">
                         <Card>
                             <CardHeader>
                                 <CardTitle class="flex items-center gap-2">
-                                    Servicios Web (DGII) — Comunicación obligatoria
-                                    <Badge v-if="wsUsingFallback" variant="secondary" class="bg-yellow-400 text-black hover:bg-yellow-400">
-                                        Usando slug como fallback
-                                    </Badge>
+                                Servicios Web (DGII) — Comunicación obligatoria
+                                <Badge v-if="wsUsingFallback" variant="secondary" class="bg-yellow-400 text-black hover:bg-yellow-400">
+                                    Usando slug como fallback
+                                </Badge>
                                 </CardTitle>
                                 <CardDescription>
-                                    DGII exige exponer endpoints públicos por subdominio para: Semilla, Validación de certificado,
-                                    Recepción e-CF (ARECF) y Aprobación Comercial (ACECF).
+                                Aquí defines cómo la DGII se comunicará con tu sistema para las pruebas y la operación de facturación electrónica:
+                                autenticación, recepción de e-CF y aprobación comercial.
                                 </CardDescription>
                             </CardHeader>
 
                             <CardContent class="space-y-6">
                                 <div class="grid gap-3 md:grid-cols-3">
-                                    <div class="rounded-lg border p-4">
-                                        <div class="text-xs text-muted-foreground">Subdominio WS (empresa)</div>
-                                        <div class="mt-1 flex items-center justify-between gap-2">
-                                            <div class="text-sm font-medium font-mono break-all">
-                                                {{ wsTenant }}.{{ appBaseDomain }}
-                                            </div>
-                                            <Button size="sm" variant="outline" @click="copyText(`${wsTenant}.${appBaseDomain}`)">Copiar</Button>
-                                        </div>
-                                        <p class="mt-2 text-xs text-muted-foreground">
-                                            Se usa <span class="font-mono">companies.ws_subdomain</span> (o <span class="font-mono">slug</span> como fallback).
-                                        </p>
+                                <div class="rounded-lg border p-4">
+                                    <div class="text-xs text-muted-foreground">Subdominio WS (empresa)</div>
+                                    <div class="mt-1 flex items-center justify-between gap-2">
+                                    <div class="text-sm font-medium font-mono break-all">
+                                        {{ wsTenant }}.{{ appBaseDomain }}
                                     </div>
-
-                                    <div class="rounded-lg border p-4">
-                                        <div class="text-xs text-muted-foreground">TLS / Wildcard</div>
-                                        <div class="mt-1 text-sm font-medium">
-                                            Requiere certificado para <span class="font-mono">*.{{ appBaseDomain }}</span>
-                                        </div>
-                                        <p class="mt-2 text-xs text-muted-foreground">
-                                            Sin wildcard, DGII no podrá llamar <span class="font-mono">{{ wsTenant }}.{{ appBaseDomain }}</span>.
-                                        </p>
+                                    <Button size="sm" variant="outline" @click="copyText(`${wsTenant}.${appBaseDomain}`)">Copiar</Button>
                                     </div>
-
-                                    <div class="rounded-lg border p-4">
-                                        <div class="text-xs text-muted-foreground">Ambiente DGII</div>
-                                        <div class="mt-1 text-sm font-medium">{{ envLabel(setting.environment) }}</div>
-                                        <p class="mt-2 text-xs text-muted-foreground">
-                                            cf_prefix efectivo: <span class="font-mono">{{ cfPrefix }}</span>
-                                        </p>
-                                    </div>
+                                    <p class="mt-2 text-xs text-muted-foreground">
+                                    Esta será la dirección pública asociada a la empresa para recibir y responder las comunicaciones del flujo e-CF.
+                                    </p>
                                 </div>
 
                                 <div class="rounded-lg border p-4">
-                                    <div class="flex items-center justify-between gap-2">
-                                        <div>
-                                            <div class="text-sm font-semibold">Flujo requerido (pasos 7 → 11)</div>
-                                            <p class="mt-1 text-xs text-muted-foreground">
-                                                Token WS (Bearer) lo emites tú en <span class="font-mono">ValidaciónCertificado</span> y lo usas para proteger
-                                                <span class="font-mono">Recepción</span> y <span class="font-mono">Aprobación Comercial</span>.
-                                            </p>
-                                        </div>
-                                        <Badge variant="secondary">WS Token ≠ DGII Token</Badge>
+                                    <div class="text-xs text-muted-foreground">TLS / Wildcard</div>
+                                    <div class="mt-1 text-sm font-medium">
+                                    Requiere certificado para <span class="font-mono">*.{{ appBaseDomain }}</span>
                                     </div>
+                                    <p class="mt-2 text-xs text-muted-foreground">
+                                    La conexión debe estar protegida y disponible para que la DGII pueda comunicarse correctamente con este subdominio.
+                                    </p>
+                                </div>
 
-                                    <ol class="mt-4 space-y-3 text-sm">
-                                        <li class="flex gap-3">
-                                            <Badge variant="secondary" class="min-w-10 justify-center">7</Badge>
-                                            <div>
-                                                <div class="font-medium">DGII solicita Semilla (GET)</div>
-                                                <div class="text-xs text-muted-foreground font-mono break-all">{{ wsUrls.semilla }}</div>
-                                            </div>
-                                        </li>
+                                <div class="rounded-lg border p-4">
+                                    <div class="text-xs text-muted-foreground">Ambiente DGII</div>
+                                    <div class="mt-1 text-sm font-medium">{{ envLabel(setting.environment) }}</div>
+                                    <p class="mt-2 text-xs text-muted-foreground">
+                                    Indica en qué etapa estás trabajando: pruebas, certificación o producción.
+                                    </p>
+                                </div>
+                                </div>
 
-                                        <li class="flex gap-3">
-                                            <Badge variant="secondary" class="min-w-10 justify-center">8</Badge>
-                                            <div>
-                                                <div class="font-medium">DGII valida certificado / semilla (POST) → tú respondes token WS</div>
-                                                <div class="text-xs text-muted-foreground font-mono break-all">{{ wsUrls.validacion }}</div>
-                                            </div>
-                                        </li>
+                                <div class="rounded-lg border p-4">
+                                <div class="flex items-center justify-between gap-2">
+                                    <div>
+                                    <div class="text-sm font-semibold">Flujo requerido (pasos 7 → 11)</div>
+                                    <p class="mt-1 text-xs text-muted-foreground">
+                                        Este es el flujo de comunicación que tu sistema debe soportar para recibir documentos, responder a la DGII
+                                        y dar seguimiento a su procesamiento.
+                                    </p>
+                                    </div>
+                                    <Badge variant="secondary">Proceso DGII</Badge>
+                                </div>
 
-                                        <li class="flex gap-3">
-                                            <Badge variant="secondary" class="min-w-10 justify-center">9</Badge>
-                                            <div>
-                                                <div class="font-medium">Recepción e-CF (POST) → tú devuelves ARECF firmado</div>
-                                                <div class="text-xs text-muted-foreground font-mono break-all">{{ wsUrls.recepcion }}</div>
-                                                <div class="mt-1 text-xs text-muted-foreground">
-                                                    Requiere <span class="font-mono">Authorization: Bearer (token WS)</span>.
-                                                </div>
-                                            </div>
-                                        </li>
+                                <ol class="mt-4 space-y-3 text-sm">
+                                    <li class="flex gap-3">
+                                    <Badge variant="secondary" class="min-w-10 justify-center">7</Badge>
+                                    <div>
+                                        <div class="font-medium">Inicio de comunicación</div>
+                                        <div class="text-xs text-muted-foreground font-mono break-all">{{ wsUrls.semilla }}</div>
+                                        <div class="mt-1 text-xs text-muted-foreground">
+                                        La DGII inicia el intercambio con tu sistema para comenzar el proceso de autenticación.
+                                        </div>
+                                    </div>
+                                    </li>
 
-                                        <li class="flex gap-3">
-                                            <Badge variant="secondary" class="min-w-10 justify-center">10</Badge>
-                                            <div>
-                                                <div class="font-medium">Aprobación Comercial e-CF (POST) → tú devuelves ACECF firmado</div>
-                                                <div class="text-xs text-muted-foreground font-mono break-all">{{ wsUrls.aprobacion }}</div>
-                                                <div class="mt-1 text-xs text-muted-foreground">
-                                                    Requiere <span class="font-mono">Authorization: Bearer (token WS)</span>.
-                                                </div>
-                                            </div>
-                                        </li>
+                                    <li class="flex gap-3">
+                                    <Badge variant="secondary" class="min-w-10 justify-center">8</Badge>
+                                    <div>
+                                        <div class="font-medium">Validación inicial</div>
+                                        <div class="text-xs text-muted-foreground font-mono break-all">{{ wsUrls.validacion }}</div>
+                                        <div class="mt-1 text-xs text-muted-foreground">
+                                        En este paso se confirma que la comunicación puede continuar correctamente hacia las etapas de recepción.
+                                        </div>
+                                    </div>
+                                    </li>
 
-                                        <li class="flex gap-3">
-                                            <Badge variant="secondary" class="min-w-10 justify-center">11</Badge>
-                                            <div>
-                                                <div class="font-medium">Tu sistema reenvía ACECF a DGII usando tu token DGII real</div>
-                                                <div class="mt-1 text-xs text-muted-foreground">
-                                                    Esto usa <span class="font-mono">DgiiTokenManager</span> y <span class="font-mono">{{ cfPrefix }}</span> para armar el host DGII.
-                                                </div>
-                                            </div>
-                                        </li>
-                                    </ol>
+                                    <li class="flex gap-3">
+                                    <Badge variant="secondary" class="min-w-10 justify-center">9</Badge>
+                                    <div>
+                                        <div class="font-medium">Recepción de e-CF</div>
+                                        <div class="text-xs text-muted-foreground font-mono break-all">{{ wsUrls.recepcion }}</div>
+                                        <div class="mt-1 text-xs text-muted-foreground">
+                                        Tu sistema recibe los comprobantes electrónicos enviados para validación y responde con el acuse correspondiente.
+                                        Luego podrás consultar su resultado o estado de procesamiento.
+                                        </div>
+                                    </div>
+                                    </li>
+
+                                    <li class="flex gap-3">
+                                    <Badge variant="secondary" class="min-w-10 justify-center">10</Badge>
+                                    <div>
+                                        <div class="font-medium">Recepción de Aprobación Comercial</div>
+                                        <div class="text-xs text-muted-foreground font-mono break-all">{{ wsUrls.aprobacion }}</div>
+                                        <div class="mt-1 text-xs text-muted-foreground">
+                                        Aquí se recibe la respuesta comercial asociada a un e-CF previamente recibido, como constancia de aceptación
+                                        o rechazo de la transacción.
+                                        </div>
+                                    </div>
+                                    </li>
+
+                                    <li class="flex gap-3">
+                                    <Badge variant="secondary" class="min-w-10 justify-center">11</Badge>
+                                    <div>
+                                        <div class="font-medium">Confirmación y seguimiento</div>
+                                        <div class="mt-1 text-xs text-muted-foreground">
+                                        Después del intercambio inicial, podrás validar que el flujo se completó correctamente y consultar el estado
+                                        de los documentos procesados.
+                                        </div>
+                                    </div>
+                                    </li>
+                                </ol>
                                 </div>
 
                                 <div class="rounded-lg border p-4">

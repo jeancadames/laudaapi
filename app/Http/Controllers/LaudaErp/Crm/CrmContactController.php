@@ -4,6 +4,7 @@ namespace App\Http\Controllers\LaudaErp\Crm;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\LaudaErp\Crm\CrmContactRequest;
+use App\Models\User;
 use App\Models\Company;
 use App\Models\CrmContact;
 use App\Models\CrmCustomer;
@@ -38,12 +39,12 @@ class CrmContactController extends Controller
 
         $search = trim((string) $request->string('search', ''));
         $status = trim((string) $request->string('status', 'active'));
-        $customerId = (int) $request->integer('crm_customer_id', 0);
+        $assignedUserId = (int) $request->integer('assigned_user_id', 0);
 
         $query = CrmContact::query()
             ->where('company_id', $company->id)
             ->when($status !== 'all', fn($q) => $q->where('status', $status))
-            ->when($customerId > 0, fn($q) => $q->where('crm_customer_id', $customerId))
+            ->when($assignedUserId > 0, fn($q) => $q->where('assigned_user_id', $assignedUserId))
             ->when($search !== '', function ($q) use ($search) {
                 $q->where(function ($sub) use ($search) {
                     $sub->where('first_name', 'like', "%{$search}%")
@@ -52,7 +53,8 @@ class CrmContactController extends Controller
                         ->orWhere('email', 'like', "%{$search}%")
                         ->orWhere('phone', 'like', "%{$search}%")
                         ->orWhere('mobile', 'like', "%{$search}%")
-                        ->orWhere('position', 'like', "%{$search}%");
+                        ->orWhere('position', 'like', "%{$search}%")
+                        ->orWhere('department', 'like', "%{$search}%");
                 });
             })
             ->with([
@@ -72,7 +74,7 @@ class CrmContactController extends Controller
                 'customer_business_name' => $item->customer?->business_name,
                 'first_name' => $item->first_name,
                 'last_name' => $item->last_name,
-                'full_name' => $item->full_name,
+                'full_name' => $item->full_name ?: trim(($item->first_name ?? '') . ' ' . ($item->last_name ?? '')),
                 'position' => $item->position,
                 'department' => $item->department,
                 'email' => $item->email,
@@ -91,24 +93,52 @@ class CrmContactController extends Controller
             ->where('status', 'active')
             ->orderBy('name')
             ->get(['id', 'name', 'business_name'])
-            ->map(fn(CrmCustomer $customer) => [
-                'id' => $customer->id,
-                'name' => $customer->name,
-                'business_name' => $customer->business_name,
+            ->map(fn(CrmCustomer $item) => [
+                'id' => $item->id,
+                'name' => $item->name,
+                'business_name' => $item->business_name,
             ]);
+
+        $users = User::query()
+            ->orderBy('name')
+            ->get(['id', 'name'])
+            ->map(fn(User $item) => [
+                'id' => $item->id,
+                'name' => $item->name,
+            ])
+            ->values();
+
+        $applyAssigned = function ($query) use ($assignedUserId) {
+            if ($assignedUserId > 0) {
+                $query->where('assigned_user_id', $assignedUserId);
+            }
+
+            return $query;
+        };
 
         return Inertia::render('LaudaERP/CRM/Contacts/Index', [
             'filters' => [
                 'search' => $search,
                 'status' => $status,
-                'crm_customer_id' => $customerId > 0 ? $customerId : null,
+                'assigned_user_id' => $assignedUserId > 0 ? $assignedUserId : null,
             ],
             'items' => $items,
             'customers' => $customers,
+            'users' => $users,
             'stats' => [
-                'total' => CrmContact::where('company_id', $company->id)->count(),
-                'primary' => CrmContact::where('company_id', $company->id)->where('is_primary', true)->count(),
-                'active' => CrmContact::where('company_id', $company->id)->where('status', 'active')->count(),
+                'total' => $applyAssigned(
+                    CrmContact::where('company_id', $company->id)
+                )->count(),
+
+                'active' => $applyAssigned(
+                    CrmContact::where('company_id', $company->id)
+                        ->where('status', 'active')
+                )->count(),
+
+                'primary' => $applyAssigned(
+                    CrmContact::where('company_id', $company->id)
+                        ->where('is_primary', true)
+                )->count(),
             ],
         ]);
     }

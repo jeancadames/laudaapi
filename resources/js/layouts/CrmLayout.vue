@@ -17,16 +17,46 @@ const breadcrumbs: BreadcrumbItem[] = [
     { title: 'CRM', href: '/erp/crm' },
 ]
 
-const items = [
+const baseItems = [
     { title: 'Resumen', href: '/erp/crm' },
     { title: 'Clientes', href: '/erp/crm/customers' },
     { title: 'Contactos', href: '/erp/crm/contacts' },
     { title: 'Leads', href: '/erp/crm/leads' },
     { title: 'Oportunidades', href: '/erp/crm/opportunities' },
+    { title: 'Pipeline', href: '/erp/crm/pipeline' },
     { title: 'Actividades', href: '/erp/crm/activities' },
 ]
 
-const currentUrl = computed(() => page.url)
+const currentUrl = computed(() => page.url || '')
+
+const currentPath = computed(() => {
+    const url = currentUrl.value
+    return url.split('?')[ 0 ]
+})
+
+const assignedUserId = computed(() => {
+    if (typeof window === 'undefined') return null
+
+    const url = new URL(window.location.href)
+    return url.searchParams.get('assigned_user_id')
+})
+
+const items = computed(() => {
+    return baseItems.map((item) => {
+        if (!assignedUserId.value) return item
+
+        const separator = item.href.includes('?') ? '&' : '?'
+
+        return {
+            ...item,
+            href: `${item.href}${separator}assigned_user_id=${assignedUserId.value}`,
+        }
+    })
+})
+
+function isActive(href: string) {
+    return currentPath.value === href
+}
 </script>
 
 <template>
@@ -43,10 +73,9 @@ const currentUrl = computed(() => page.url)
                 </p>
 
                 <div class="flex flex-wrap gap-2">
-                    <Link v-for="item in items" :key="item.href" :href="item.href" class="inline-flex items-center rounded-xl border px-4 py-2 text-sm font-medium transition" :class="currentUrl === item.href
-                        ? 'bg-primary text-primary-foreground border-primary'
-                        : 'hover:bg-muted'
-                        ">
+                    <Link v-for="item in items" :key="item.href" :href="item.href" class="inline-flex items-center rounded-xl border px-4 py-2 text-sm font-medium transition" :class="isActive(item.href.split('?')[ 0 ])
+                        ? 'border-primary bg-primary text-primary-foreground'
+                        : 'hover:bg-muted'">
                         {{ item.title }}
                     </Link>
                 </div>

@@ -2,6 +2,7 @@
 import { Head, Link, router, useForm } from '@inertiajs/vue3'
 import { computed, ref } from 'vue'
 import CrmLayout from '@/layouts/CrmLayout.vue'
+import { useCrmAssignedUser } from '@/composables/useCrmAssignedUser'
 
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
@@ -17,6 +18,7 @@ import {
     DialogDescription,
     DialogFooter,
 } from '@/components/ui/dialog'
+
 import Select from '@/components/ui/select/Select.vue'
 import SelectTrigger from '@/components/ui/select/SelectTrigger.vue'
 import SelectValue from '@/components/ui/select/SelectValue.vue'
@@ -24,6 +26,7 @@ import SelectContent from '@/components/ui/select/SelectContent.vue'
 import SelectGroup from '@/components/ui/select/SelectGroup.vue'
 import SelectItem from '@/components/ui/select/SelectItem.vue'
 import Textarea from '@/components/ui/textarea/Textarea.vue'
+import InputError from '@/components/InputError.vue'
 
 type CustomerRow = {
     id: number
@@ -38,13 +41,19 @@ type CustomerRow = {
     industry: string | null
     source: string | null
     status: string
+    assigned_user_id: number | null
+    assigned_user_name: string | null
+    address: string | null
     city: string | null
     region: string | null
     country: string | null
     notes: string | null
-    assigned_user_id: number | null
-    assigned_user_name: string | null
     created_at: string | null
+}
+
+type UserOption = {
+    id: number
+    name: string
 }
 
 type PaginatedItems = {
@@ -56,11 +65,15 @@ type PaginatedItems = {
     }>
 }
 
+const { withAssignedUser } = useCrmAssignedUser()
+
 const props = defineProps<{
     items: PaginatedItems
+    users: UserOption[]
     filters: {
         search: string
         status: string
+        assigned_user_id: number | null
     }
     stats: {
         total: number
@@ -74,6 +87,7 @@ const editingId = ref<number | null>(null)
 
 const search = ref(props.filters.search ?? '')
 const status = ref(props.filters.status ?? 'active')
+const assignedUserId = ref<number | null>(props.filters.assigned_user_id ?? null)
 
 const form = useForm({
     type: 'company',
@@ -87,11 +101,11 @@ const form = useForm({
     industry: '',
     source: '',
     status: 'active',
+    assigned_user_id: null as number | null,
     address: '',
     city: '',
     region: '',
-    country: 'DO',
-    assigned_user_id: null as number | null,
+    country: '',
     notes: '',
 })
 
@@ -105,6 +119,7 @@ function applyFilters() {
         {
             search: search.value,
             status: status.value,
+            assigned_user_id: assignedUserId.value,
         },
         {
             preserveState: true,
@@ -119,7 +134,6 @@ function resetForm() {
     form.type = 'company'
     form.document_type = 'rnc'
     form.status = 'active'
-    form.country = 'DO'
     editingId.value = null
 }
 
@@ -130,7 +144,6 @@ function openCreate() {
 
 function openEdit(item: CustomerRow) {
     editingId.value = item.id
-
     form.type = item.type || 'company'
     form.name = item.name || ''
     form.business_name = item.business_name || ''
@@ -142,13 +155,12 @@ function openEdit(item: CustomerRow) {
     form.industry = item.industry || ''
     form.source = item.source || ''
     form.status = item.status || 'active'
-    form.address = ''
+    form.assigned_user_id = item.assigned_user_id
+    form.address = item.address || ''
     form.city = item.city || ''
     form.region = item.region || ''
-    form.country = item.country || 'DO'
-    form.assigned_user_id = item.assigned_user_id
+    form.country = item.country || ''
     form.notes = item.notes || ''
-
     showModal.value = true
 }
 
@@ -163,7 +175,6 @@ function submit() {
         })
         return
     }
-
     form.post('/erp/crm/customers', {
         preserveScroll: true,
         onSuccess: () => {
@@ -184,7 +195,7 @@ function destroyItem(item: CustomerRow) {
 function statusBadgeClass(value: string) {
     if (value === 'active') return 'bg-emerald-600 text-white hover:bg-emerald-600'
     if (value === 'inactive') return 'bg-yellow-400 text-black hover:bg-yellow-400'
-    return 'bg-slate-700 text-white hover:bg-slate-700'
+    return ''
 }
 </script>
 
@@ -192,7 +203,7 @@ function statusBadgeClass(value: string) {
 
     <Head title="CRM · Clientes" />
 
-    <CrmLayout title="Clientes" description="Gestiona cuentas, empresas y clientes del CRM.">
+    <CrmLayout title="Clientes" description="Gestiona cuentas comerciales y clientes del CRM.">
         <section class="grid gap-4 md:grid-cols-3">
             <Card class="rounded-2xl">
                 <CardHeader class="pb-3">
@@ -222,7 +233,7 @@ function statusBadgeClass(value: string) {
                     <div>
                         <CardTitle>Listado de clientes</CardTitle>
                         <CardDescription>
-                            Busca, filtra y administra cuentas comerciales.
+                            Busca, filtra y administra clientes del CRM.
                         </CardDescription>
                     </div>
 
@@ -232,16 +243,29 @@ function statusBadgeClass(value: string) {
                         </div>
 
                         <Select v-model="status" @update:model-value="applyFilters">
-                            <SelectTrigger class="h-10 w-full rounded-md border bg-background px-3 text-sm">
-                                <SelectValue placeholder="Todos" />
+                            <SelectTrigger class="h-10 w-45 rounded-md border bg-background px-3 text-sm">
+                                <SelectValue placeholder="Todos los estados" />
                             </SelectTrigger>
 
                             <SelectContent>
                                 <SelectGroup>
-                                    <SelectItem value="all">Todos</SelectItem>
+                                    <SelectItem value="all">Todos los estados</SelectItem>
                                     <SelectItem value="active">Activos</SelectItem>
                                     <SelectItem value="inactive">Inactivos</SelectItem>
-                                    <SelectItem value="archived">Archivados</SelectItem>
+                                </SelectGroup>
+                            </SelectContent>
+                        </Select>
+
+                        <Select v-model="assignedUserId" @update:model-value="applyFilters">
+                            <SelectTrigger class="h-10 w-55 rounded-md border bg-background px-3 text-sm">
+                                <SelectValue placeholder="Todos los responsables" />
+                            </SelectTrigger>
+
+                            <SelectContent>
+                                <SelectGroup>
+                                    <SelectItem v-for="user in props.users" :key="user.id" :value="user.id">
+                                        {{ user.name }}
+                                    </SelectItem>
                                 </SelectGroup>
                             </SelectContent>
                         </Select>
@@ -265,8 +289,9 @@ function statusBadgeClass(value: string) {
                                 <th class="px-3 py-2 text-left">Cliente</th>
                                 <th class="px-3 py-2 text-left">Documento</th>
                                 <th class="px-3 py-2 text-left">Contacto</th>
+                                <th class="px-3 py-2 text-left">Industria / Origen</th>
+                                <th class="px-3 py-2 text-left">Responsable</th>
                                 <th class="px-3 py-2 text-left">Estado</th>
-                                <th class="px-3 py-2 text-left">Asignado</th>
                                 <th class="px-3 py-2 text-left">Acciones</th>
                             </tr>
                         </thead>
@@ -295,9 +320,10 @@ function statusBadgeClass(value: string) {
                                 </td>
 
                                 <td class="px-3 py-3 align-top">
-                                    <Badge variant="secondary" :class="statusBadgeClass(item.status)" class="capitalize">
-                                        {{ item.status }}
-                                    </Badge>
+                                    <div>{{ item.industry || '—' }}</div>
+                                    <div class="text-xs text-muted-foreground">
+                                        {{ item.source || '—' }}
+                                    </div>
                                 </td>
 
                                 <td class="px-3 py-3 align-top">
@@ -305,9 +331,15 @@ function statusBadgeClass(value: string) {
                                 </td>
 
                                 <td class="px-3 py-3 align-top">
+                                    <Badge variant="secondary" :class="statusBadgeClass(item.status)" class="capitalize">
+                                        {{ item.status }}
+                                    </Badge>
+                                </td>
+
+                                <td class="px-3 py-3 align-top">
                                     <div class="flex flex-wrap gap-2">
                                         <Button variant="outline" size="sm" as-child>
-                                            <Link :href="`/erp/crm/customers/${item.id}`">
+                                            <Link :href="withAssignedUser(`/erp/crm/customers/${item.id}`)">
                                                 Ver
                                             </Link>
                                         </Button>
@@ -324,7 +356,7 @@ function statusBadgeClass(value: string) {
                             </tr>
 
                             <tr v-if="props.items.data.length === 0" class="border-t">
-                                <td colspan="6" class="px-3 py-6 text-center text-sm text-muted-foreground">
+                                <td colspan="7" class="px-3 py-6 text-center text-sm text-muted-foreground">
                                     No hay clientes registrados todavía.
                                 </td>
                             </tr>
@@ -342,7 +374,7 @@ function statusBadgeClass(value: string) {
         </Card>
 
         <Dialog v-model:open="showModal">
-            <DialogContent class="sm:max-w-3xl">
+            <DialogContent class="h-11/12 overflow-y-scroll sm:max-w-3xl">
                 <DialogHeader>
                     <DialogTitle>{{ modalTitle }}</DialogTitle>
                     <DialogDescription>
@@ -355,7 +387,7 @@ function statusBadgeClass(value: string) {
                         <Label>Tipo</Label>
                         <Select v-model="form.type">
                             <SelectTrigger class="h-10 w-full rounded-md border bg-background px-3 text-sm">
-                                <SelectValue placeholder="Selecciona el tipo" />
+                                <SelectValue placeholder="Selecciona tipo" />
                             </SelectTrigger>
 
                             <SelectContent>
@@ -365,45 +397,43 @@ function statusBadgeClass(value: string) {
                                 </SelectGroup>
                             </SelectContent>
                         </Select>
-                        <p v-if="form.errors.type" class="text-xs text-destructive">{{ form.errors.type }}</p>
+                        <InputError :message="form.errors.type"/>
                     </div>
 
                     <div class="space-y-2">
                         <Label>Estado</Label>
                         <Select v-model="form.status">
                             <SelectTrigger class="h-10 w-full rounded-md border bg-background px-3 text-sm">
-                                <SelectValue placeholder="Selecciona el estado" />
+                                <SelectValue placeholder="Selecciona estado" />
                             </SelectTrigger>
 
                             <SelectContent>
                                 <SelectGroup>
                                     <SelectItem value="active">Activo</SelectItem>
                                     <SelectItem value="inactive">Inactivo</SelectItem>
-                                    <SelectItem value="archived">Archivado</SelectItem>
                                 </SelectGroup>
                             </SelectContent>
                         </Select>
-
-                        <p v-if="form.errors.status" class="text-xs text-destructive">{{ form.errors.status }}</p>
+                        <InputError :message="form.errors.status"/>
                     </div>
 
                     <div class="space-y-2">
                         <Label>Nombre</Label>
                         <Input v-model="form.name" />
-                        <p v-if="form.errors.name" class="text-xs text-destructive">{{ form.errors.name }}</p>
+                        <InputError :message="form.errors.name"/>
                     </div>
 
                     <div class="space-y-2">
                         <Label>Razón social</Label>
                         <Input v-model="form.business_name" />
-                        <p v-if="form.errors.business_name" class="text-xs text-destructive">{{ form.errors.business_name }}</p>
+                        <InputError :message="form.errors.business_name"/>
                     </div>
 
                     <div class="space-y-2">
                         <Label>Tipo documento</Label>
                         <Select v-model="form.document_type">
                             <SelectTrigger class="h-10 w-full rounded-md border bg-background px-3 text-sm">
-                                <SelectValue placeholder="Tipo de documento" />
+                                <SelectValue placeholder="Tipo documento" />
                             </SelectTrigger>
 
                             <SelectContent>
@@ -415,73 +445,91 @@ function statusBadgeClass(value: string) {
                                 </SelectGroup>
                             </SelectContent>
                         </Select>
-                        <p v-if="form.errors.document_type" class="text-xs text-destructive">{{ form.errors.document_type }}</p>
+                        <InputError :message="form.errors.document_type"/>
                     </div>
 
                     <div class="space-y-2">
                         <Label>Número documento</Label>
                         <Input v-model="form.document_number" />
-                        <p v-if="form.errors.document_number" class="text-xs text-destructive">{{ form.errors.document_number }}</p>
+                        <InputError :message="form.errors.document_number"/>
                     </div>
 
                     <div class="space-y-2">
                         <Label>Email</Label>
                         <Input v-model="form.email" type="email" />
-                        <p v-if="form.errors.email" class="text-xs text-destructive">{{ form.errors.email }}</p>
+                        <InputError :message="form.errors.email"/>
                     </div>
 
                     <div class="space-y-2">
                         <Label>Teléfono</Label>
                         <Input v-model="form.phone" />
-                        <p v-if="form.errors.phone" class="text-xs text-destructive">{{ form.errors.phone }}</p>
+                        <InputError :message="form.errors.phone"/>
                     </div>
 
                     <div class="space-y-2">
                         <Label>Móvil</Label>
                         <Input v-model="form.mobile" />
-                        <p v-if="form.errors.mobile" class="text-xs text-destructive">{{ form.errors.mobile }}</p>
+                        <InputError :message="form.errors.mobile"/>
                     </div>
 
                     <div class="space-y-2">
                         <Label>Industria</Label>
                         <Input v-model="form.industry" />
-                        <p v-if="form.errors.industry" class="text-xs text-destructive">{{ form.errors.industry }}</p>
+                        <InputError :message="form.errors.industry"/>
                     </div>
 
                     <div class="space-y-2">
                         <Label>Origen</Label>
                         <Input v-model="form.source" />
-                        <p v-if="form.errors.source" class="text-xs text-destructive">{{ form.errors.source }}</p>
+                        <InputError :message="form.errors.source"/>
+                    </div>
+
+                    <div class="space-y-2">
+                        <Label>Responsable</Label>
+                        <Select v-model="form.assigned_user_id">
+                            <SelectTrigger class="h-10 w-full rounded-md border bg-background px-3 text-sm">
+                                <SelectValue placeholder="Selecciona un responsable" />
+                            </SelectTrigger>
+
+                            <SelectContent>
+                                <SelectGroup>
+                                    <SelectItem v-for="user in props.users" :key="user.id" :value="user.id">
+                                        {{ user.name }}
+                                    </SelectItem>
+                                </SelectGroup>
+                            </SelectContent>
+                        </Select>
+                        <InputError :message="form.errors.assigned_user_id"/>
+                    </div>
+
+                    <div class="space-y-2">
+                        <Label>Dirección</Label>
+                        <Input v-model="form.address" />
+                        <InputError :message="form.errors.address"/>
                     </div>
 
                     <div class="space-y-2">
                         <Label>Ciudad</Label>
                         <Input v-model="form.city" />
-                        <p v-if="form.errors.city" class="text-xs text-destructive">{{ form.errors.city }}</p>
+                        <InputError :message="form.errors.city"/>
                     </div>
 
                     <div class="space-y-2">
                         <Label>Región</Label>
                         <Input v-model="form.region" />
-                        <p v-if="form.errors.region" class="text-xs text-destructive">{{ form.errors.region }}</p>
+                        <InputError :message="form.errors.region"/>
                     </div>
 
                     <div class="space-y-2">
                         <Label>País</Label>
-                        <Input v-model="form.country" maxlength="2" />
-                        <p v-if="form.errors.country" class="text-xs text-destructive">{{ form.errors.country }}</p>
-                    </div>
-
-                    <div class="space-y-2 md:col-span-2">
-                        <Label>Dirección</Label>
-                        <Textarea v-model="form.address" rows="3" class="w-full rounded-md border bg-background px-3 py-2 text-sm" />
-                        <p v-if="form.errors.address" class="text-xs text-destructive">{{ form.errors.address }}</p>
+                        <Input v-model="form.country" />
+                        <InputError :message="form.errors.country"/>
                     </div>
 
                     <div class="space-y-2 md:col-span-2">
                         <Label>Notas</Label>
                         <Textarea v-model="form.notes" rows="4" class="w-full rounded-md border bg-background px-3 py-2 text-sm" />
-                        <p v-if="form.errors.notes" class="text-xs text-destructive">{{ form.errors.notes }}</p>
+                        <InputError :message="form.errors.notes"/>
                     </div>
                 </div>
 
