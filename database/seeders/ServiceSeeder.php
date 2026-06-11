@@ -439,8 +439,10 @@ class ServiceSeeder extends Seeder
                     'short_description' => 'Tienda online B2C con catálogo y checkout.',
                     'slug'              => 'laudaone-ecommerce-b2c',
                     'service_key'       => 'laudaone_b2c',
-                    'href'              => '/erp/services/open/laudaone/b2c',
+                    'href'              => '/erp/services/open/laudaone',
+                    'external_url'      => 'https://one.laudaapi.com',
                     'icon'              => 'shopping-bag',
+                    'launch_mode'       => 'external',
                     'sort_order'        => 6,
                 ],
                 [
@@ -448,8 +450,10 @@ class ServiceSeeder extends Seeder
                     'short_description' => 'Canal B2B con precios por cliente y crédito.',
                     'slug'              => 'laudaone-ecommerce-b2b',
                     'service_key'       => 'laudaone_b2b',
-                    'href'              => '/erp/services/open/laudaone/b2b',
+                    'href'              => '/erp/services/open/laudaone',
+                    'external_url'      => 'https://one.laudaapi.com',
                     'icon'              => 'truck',
+                    'launch_mode'       => 'external',
                     'sort_order'        => 7,
                 ],
             ];
@@ -461,13 +465,14 @@ class ServiceSeeder extends Seeder
                     'slug'              => $child['slug'],
                     'service_key'       => $child['service_key'],
                     'href'              => $child['href'],
+                    'external_url'              => $child['external_url'],
                     'icon'              => $child['icon'],
-
+                    
                     'parent_id'         => $laudaOneId,
                     'category'          => 'platform',
-
+                    
                     'type'              => 'addon',
-                    'launch_mode'       => 'internal',
+                    'launch_mode'              => $child['launch_mode'],
                     'integration_mode'  => 'none',
                     'is_standalone'     => false,
 

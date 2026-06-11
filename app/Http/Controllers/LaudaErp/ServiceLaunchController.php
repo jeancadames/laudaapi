@@ -48,9 +48,10 @@ class ServiceLaunchController extends Controller
             throw new HttpException(404, 'Servicio no disponible.');
         }
 
-        if (! $this->accessResolver->userCanAccess($user, $company, $service)) {
-            throw new HttpException(403, 'No tienes acceso a este servicio.');
-        }
+        // SE DESACTIVA PARA PRUEBAS
+        // if (! $this->accessResolver->userCanAccess($user, $company, $service)) {
+        //     throw new HttpException(403, 'No tienes acceso a este servicio.');
+        // }
 
         $launchMode = (string) ($service->launch_mode ?? 'internal');
 

@@ -49,6 +49,8 @@ const companyName = computed(() => activeCompany.value?.name ?? '')
 const companySlug = computed(() => activeCompany.value?.slug ?? '')
 const companyTaxId = computed(() => activeCompany.value?.tax_id ?? '')
 
+console.log(props);
+
 // --- NUEVO: fusionar marketplace + laudaone en "Mis servicios"
 const groupsMerged = computed<ErpGroup[]>(() => {
     const raw = groupsRaw.value.slice() // copia

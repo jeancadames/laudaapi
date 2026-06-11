@@ -31,6 +31,21 @@ return [
 
     'connections' => [
 
+        /**
+         * Conexion para base de datos de LaudaONE para la creacion de companies cuando un usuario active el servicio
+         */
+
+        'laudaone' => [
+            'driver' => env('LAUDAONE_DB_CONNECTION', 'mysql'),
+            'host' => env('LAUDAONE_DB_HOST', '127.0.0.1'),
+            'port' => env('LAUDAONE_DB_PORT', '3306'),
+            'database' => env('LAUDAONE_DB_DATABASE', 'laudaone'),
+            'username' => env('LAUDAONE_DB_USERNAME', 'root'),
+            'password' => env('LAUDAONE_DB_PASSWORD', ''),
+            'prefix' => '',
+            'strict' => true,
+        ],
+
         'sqlite' => [
             'driver' => 'sqlite',
             'url' => env('DB_URL'),

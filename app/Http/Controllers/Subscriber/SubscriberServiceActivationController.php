@@ -9,12 +9,14 @@ use App\Models\Service;
 use App\Models\Subscription;
 use App\Models\SubscriptionItem;
 use App\Services\AuditService;
+use App\Services\Provisioning\LaudaOneProvisioner;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
+
 class SubscriberServiceActivationController extends Controller
 {
-    public function activate(Request $request)
+    public function activate(Request $request, LaudaOneProvisioner $laudaOneProvisioner)
     {
         $user = $request->user();
         if (!$user) abort(403);
@@ -144,41 +146,49 @@ class SubscriberServiceActivationController extends Controller
         }
 
         try {
-            DB::transaction(function () use ($mode, $service, $activation, $subscription, $company, $user, $reqRow) {
+            
+            $laudaOneChannel = $this->laudaOneChannel($service);
 
-                if ($mode === 'trial') {
-                    // Trial: $0 y pasa a activos
-                    $item = SubscriptionItem::create($this->buildTrialItem($service, $subscription));
+            DB::transaction(function () use ($mode, $service, $activation, $subscription, $company, $user, $reqRow, $laudaOneProvisioner, $laudaOneChannel) {
 
-                    DB::table('activation_request_service')
-                        ->where('id', $reqRow->id)
-                        ->update([
-                            'status' => 'active',
-                            'meta' => json_encode([
-                                'activation_mode' => 'trial',
-                                'subscription_id' => $subscription->id,
-                                'subscription_item_id' => $item->id,
-                                'activated_at' => now()->toISOString(),
-                            ]),
-                            'updated_at' => now(),
-                        ]);
+            if ($mode === 'trial') {
+                $item = SubscriptionItem::create($this->buildTrialItem($service, $subscription));
 
-                    AuditService::log('service_activated_trial', $service, [
-                        'user_id' => $user->id,
-                        'activation_request_id' => $activation->id,
-                        'subscriber_id' => $company->subscriber_id,
-                        'company_id' => $company->id,
-                        'subscription_id' => $subscription->id,
-                        'subscription_item_id' => $item->id,
-                        'service_id' => $service->id,
-                        'service_slug' => $service->slug,
-                        'service_title' => $service->title,
-                        'billing_model' => $service->billing_model,
-                        'billable' => (bool) $service->billable,
-                    ], ['user_id' => $user->id]);
+                $laudaOneChannel = $this->laudaOneChannel($service);
 
-                    return;
+                if ($laudaOneChannel !== null) {
+                    $laudaOneProvisioner->provision($company, $user, $laudaOneChannel);
                 }
+
+                DB::table('activation_request_service')
+                    ->where('id', $reqRow->id)
+                    ->update([
+                        'status' => 'active',
+                        'meta' => json_encode([
+                            'activation_mode' => 'trial',
+                            'subscription_id' => $subscription->id,
+                            'subscription_item_id' => $item->id,
+                            'activated_at' => now()->toISOString(),
+                        ]),
+                        'updated_at' => now(),
+                    ]);
+
+                AuditService::log('service_activated_trial', $service, [
+                    'user_id' => $user->id,
+                    'activation_request_id' => $activation->id,
+                    'subscriber_id' => $company->subscriber_id,
+                    'company_id' => $company->id,
+                    'subscription_id' => $subscription->id,
+                    'subscription_item_id' => $item->id,
+                    'service_id' => $service->id,
+                    'service_slug' => $service->slug,
+                    'service_title' => $service->title,
+                    'billing_model' => $service->billing_model,
+                    'billable' => (bool) $service->billable,
+                ], ['user_id' => $user->id]);
+
+                return;
+            }
 
                 // billed: por ahora solo marcamos pending_payment (checkout luego)
                 DB::table('activation_request_service')
@@ -228,6 +238,33 @@ class SubscriberServiceActivationController extends Controller
                 ? 'Servicio activado (trial). Ya aparece en Servicios activos.'
                 : 'Solicitud marcada como pendiente de pago. Completa el pago para activarlo.'
         );
+    }
+
+    private function isLaudaOneService(Service $service): bool
+    {
+        return $this->laudaOneChannel($service) !== null;
+    }
+
+    private function laudaOneChannel(Service $service): ?string
+    {
+        $slug = strtolower((string) $service->slug);
+        $key = strtolower((string) $service->service_key);
+
+        if (
+            $slug === 'laudaone-ecommerce-b2c'
+            || $key === 'laudaone_b2c'
+        ) {
+            return 'b2c';
+        }
+
+        if (
+            $slug === 'laudaone-ecommerce-b2b'
+            || $key === 'laudaone_b2b'
+        ) {
+            return 'b2b';
+        }
+
+        return null;
     }
 
     private function buildTrialItem(Service $service, Subscription $subscription): array
