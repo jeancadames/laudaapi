@@ -142,7 +142,7 @@ onUnmounted(() => {
                         <span
                             class="text-[8px] font-bold tracking-[0.25em] text-red-500 uppercase"
                         >
-                            Digital
+                            API Digital
                         </span>
                     </div>
                 </Link>

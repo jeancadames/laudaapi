@@ -469,16 +469,13 @@ onUnmounted(() => clearInterval(timer));
                     class="mb-3 text-4xl leading-none font-black tracking-tight text-slate-900 sm:text-5xl dark:text-white"
                 >
                     LaudaAPI<br />
-                    <span class="text-red-600">Digital.</span>
+                    <span class="text-red-600">API Digital.</span>
                 </h1>
 
                 <p
                     class="mb-8 max-w-md text-sm leading-relaxed font-medium text-slate-500 dark:text-slate-400"
                 >
-                    El ambiente digital de Lauda para negocios dominicanos:
-                    facturación electrónica, cumplimiento fiscal, punto de
-                    venta, social media, CRM, monitoreo e integraciones API en
-                    un mismo ecosistema.
+                    La plataforma API Digital para negocios dominicanos que conecta facturación electrónica, cumplimiento fiscal, punto de venta, social media, CRM, monitoreo e integraciones en un solo ecosistema.
                 </p>
 
                 <ul class="mb-10 flex flex-col gap-3">
