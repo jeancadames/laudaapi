@@ -1,25 +1,10 @@
 <script setup>
+import BrandLogo from '@/components/BrandLogo.vue'
 import { Head, Link } from '@inertiajs/vue3'
 import { onMounted, ref } from 'vue'
 
-const isDark = ref(false)
 const solutionsOpen = ref(false)
-
-onMounted(() => {
-    const savedTheme = localStorage.getItem('laudaapi-theme')
-
-    if (savedTheme) {
-        isDark.value = savedTheme === 'dark'
-        return
-    }
-
-    isDark.value = window.matchMedia?.('(prefers-color-scheme: dark)').matches ?? false
-})
-
-const toggleTheme = () => {
-    isDark.value = !isDark.value
-    localStorage.setItem('laudaapi-theme', isDark.value ? 'dark' : 'light')
-}
+const mobileSidebarOpen = ref(false)
 
 const productApps = [
     {
@@ -232,106 +217,278 @@ const stepClasses = {
 <template>
     <Head title="LaudaAPI Digital" />
 
-    <main
-        class="lauda-landing min-h-screen bg-[var(--page)] text-[var(--text)] transition-colors duration-300"
-        :class="{ dark: isDark }"
-    >
-        <!-- NAVBAR -->
-        <header class="sticky top-0 z-50 border-b border-[color:var(--border)] bg-[color:var(--nav)]/90 backdrop-blur-xl">
-            <div class="mx-auto flex max-w-[1520px] items-center justify-between px-5 py-4 lg:px-8">
-                <a href="#" class="flex items-center gap-3">
-                    <div class="flex h-11 w-11 items-center justify-center rounded-2xl bg-red-600 text-xl font-black text-white shadow-lg shadow-red-600/25">
-                        L
-                    </div>
+    <main class="lauda-landing min-h-screen bg-[var(--page)] text-[var(--text)]">
 
-                    <div class="leading-tight">
-                        <p class="text-xl font-black tracking-[0.32em]">LAUDA</p>
-                        <p class="text-[10px] font-black tracking-[0.36em] text-red-600">API DIGITAL</p>
-                    </div>
-                </a>
-
-                <nav class="hidden items-center gap-2 lg:flex">
-                    <!-- SOLUCIONES DROPDOWN -->
+    <header class="sticky top-0 z-50 border-b border-[color:var(--border)] bg-[color:var(--nav)]/88 backdrop-blur-xl">
+    <div class="mx-auto flex max-w-[1520px] items-center justify-between px-5 py-4 lg:px-8">
+        <!-- LOGO -->
+        <Link
+                    href="/"
+                    class="group flex items-center gap-3 rounded-2xl px-2 py-1 transition-all duration-200 hover:scale-[1.02]"
+                >
                     <div
-                        class="relative"
-                        @mouseenter="solutionsOpen = true"
-                        @mouseleave="solutionsOpen = false"
+                        class="relative flex h-11 w-11 items-center justify-center overflow-hidden rounded-xl bg-linear-to-br from-[#F53003] to-red-700 shadow-lg shadow-red-500/30 transition-shadow duration-200 group-hover:shadow-xl group-hover:shadow-red-500/40"
                     >
-                        <button
-                            type="button"
-                            class="inline-flex items-center gap-2 rounded-full px-5 py-3 text-sm font-bold text-[var(--muted)] transition hover:bg-[var(--surface-soft)] hover:text-[var(--text)]"
-                            @click="solutionsOpen = !solutionsOpen"
-                        >
-                            Soluciones
-                            <span class="text-xs transition" :class="{ 'rotate-180': solutionsOpen }">⌄</span>
-                        </button>
-
+                        <BrandLogo class="h-6 w-6 text-white" />
                         <div
-                            v-show="solutionsOpen"
-                            class="absolute left-0 top-full w-[520px] pt-3"
+                            class="absolute inset-0 bg-linear-to-br from-white/20 to-transparent opacity-0 transition-opacity duration-200 group-hover:opacity-100"
+                        />
+                    </div>
+                    <div class="flex flex-col leading-none">
+                        <span
+                            class="text-lg font-black tracking-[0.2em] text-[#111] uppercase dark:text-white"
                         >
-                            <div class="rounded-[1.5rem] border border-[color:var(--border)] bg-[var(--surface)] p-3 shadow-2xl shadow-slate-950/15">
-                                <div class="grid grid-cols-2 gap-2">
-                                    <a
-                                        v-for="app in productApps"
-                                        :key="app.href"
-                                        :href="app.href"
-                                        class="group rounded-2xl border border-transparent p-4 transition hover:border-[color:var(--border)] hover:bg-[var(--surface-soft)]"
-                                    >
-                                        <div class="flex items-start gap-3">
-                                            <div
-                                                class="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border text-xl shadow-lg"
-                                                :class="appCardClasses[app.color]"
-                                            >
-                                                {{ app.icon }}
-                                            </div>
+                            LAUDA
+                        </span>
+                        <span
+                            class="text-[8px] font-bold tracking-[0.25em] text-red-500 uppercase"
+                        >
+                            API
+                        </span>
+                    </div>
+                </Link>
 
-                                            <div>
-                                                <p class="text-sm font-black text-[var(--text)]">
-                                                    {{ app.name }}
-                                                </p>
-                                                <p class="mt-1 text-xs leading-5 text-[var(--muted)]">
-                                                    {{ app.description }}
-                                                </p>
-                                                <p class="mt-2 text-[11px] font-black uppercase tracking-[0.2em] text-red-600 opacity-0 transition group-hover:opacity-100">
-                                                    Abrir →
-                                                </p>
-                                            </div>
-                                        </div>
-                                    </a>
+        <!-- DESKTOP NAV -->
+        <nav class="hidden items-center gap-1 rounded-full border border-[color:var(--border)] bg-[var(--surface)]/85 p-1 shadow-sm lg:flex">
+            <div
+                class="relative"
+                @mouseenter="solutionsOpen = true"
+                @mouseleave="solutionsOpen = false"
+            >
+                <button
+                    type="button"
+                    class="inline-flex items-center gap-2 rounded-full px-5 py-2.5 text-sm font-bold text-[var(--muted)] transition hover:bg-[var(--surface-soft)] hover:text-[var(--text)]"
+                    @click="solutionsOpen = !solutionsOpen"
+                >
+                    Soluciones
+                    <span class="text-xs transition" :class="{ 'rotate-180': solutionsOpen }">⌄</span>
+                </button>
+
+                <div
+                    v-show="solutionsOpen"
+                    class="absolute left-0 top-full w-[560px] pt-4"
+                >
+                    <div class="rounded-[1.5rem] border border-[color:var(--border)] bg-[var(--surface)] p-3 shadow-2xl shadow-slate-950/20">
+                        <div class="mb-3 px-3 pt-2">
+                            <p class="text-[11px] font-black uppercase tracking-[0.28em] text-red-600">
+                                Apps productivas
+                            </p>
+                            <p class="mt-1 text-sm text-[var(--muted)]">
+                                Accede a los ambientes activos del ecosistema LaudaAPI.
+                            </p>
+                        </div>
+
+                        <div class="grid grid-cols-2 gap-2">
+                            <a
+                                v-for="app in productApps"
+                                :key="app.href"
+                                :href="app.href"
+                                class="group rounded-2xl border border-transparent p-4 transition hover:border-[color:var(--border)] hover:bg-[var(--surface-soft)]"
+                            >
+                                <div class="flex items-start gap-3">
+                                    <div
+                                        class="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border text-xl shadow-lg"
+                                        :class="appCardClasses[app.color]"
+                                    >
+                                        {{ app.icon }}
+                                    </div>
+
+                                    <div>
+                                        <p class="text-sm font-black text-[var(--text)]">
+                                            {{ app.name }}
+                                        </p>
+                                        <p class="mt-1 text-xs leading-5 text-[var(--muted)]">
+                                            {{ app.description }}
+                                        </p>
+                                        <p class="mt-2 text-[11px] font-black uppercase tracking-[0.2em] text-red-600 opacity-0 transition group-hover:opacity-100">
+                                            Abrir →
+                                        </p>
+                                    </div>
                                 </div>
-                            </div>
+                            </a>
                         </div>
                     </div>
-
-                    <a href="#ecosistema" class="rounded-full px-5 py-3 text-sm font-bold text-[var(--muted)] transition hover:bg-[var(--surface-soft)] hover:text-[var(--text)]">
-                        Ecosistema
-                    </a>
-
-                    <a href="#flujos" class="rounded-full px-5 py-3 text-sm font-bold text-[var(--muted)] transition hover:bg-[var(--surface-soft)] hover:text-[var(--text)]">
-                        Flujos
-                    </a>
-
-                    <a href="https://ecf.laudaapi.com" class="rounded-full px-5 py-3 text-sm font-bold text-[var(--muted)] transition hover:bg-[var(--surface-soft)] hover:text-[var(--text)]">
-                        e-CF
-                    </a>
-
-                    <a href="#contacto" class="rounded-full px-5 py-3 text-sm font-bold text-[var(--muted)] transition hover:bg-[var(--surface-soft)] hover:text-[var(--text)]">
-                        Contacto
-                    </a>
-                </nav>
-
-                <div class="flex items-center gap-3">
-
-                    <Link
-                        href="/login"
-                        class="hidden rounded-2xl bg-[var(--text)] px-6 py-3 text-sm font-black text-[var(--page)] shadow-xl shadow-slate-950/15 transition hover:-translate-y-0.5 lg:inline-flex"
-                    >
-                        Iniciar sesión
-                    </Link>
                 </div>
             </div>
-        </header>
+
+            <a href="#ecosistema" class="rounded-full px-5 py-2.5 text-sm font-bold text-[var(--muted)] transition hover:bg-[var(--surface-soft)] hover:text-[var(--text)]">
+                Ecosistema
+            </a>
+
+            <a href="#flujos" class="rounded-full px-5 py-2.5 text-sm font-bold text-[var(--muted)] transition hover:bg-[var(--surface-soft)] hover:text-[var(--text)]">
+                Flujos
+            </a>
+
+            <a href="https://ecf.laudaapi.com" class="rounded-full px-5 py-2.5 text-sm font-bold text-[var(--muted)] transition hover:bg-[var(--surface-soft)] hover:text-[var(--text)]">
+                e-CF
+            </a>
+
+            <a href="#contacto" class="rounded-full px-5 py-2.5 text-sm font-bold text-[var(--muted)] transition hover:bg-[var(--surface-soft)] hover:text-[var(--text)]">
+                Contacto
+            </a>
+        </nav>
+
+        <!-- RIGHT ACTIONS -->
+        <div class="flex items-center gap-3">
+            <Link
+                href="/login"
+                class="hidden rounded-2xl bg-[var(--text)] px-6 py-3 text-sm font-black text-[var(--page)] shadow-xl shadow-slate-950/15 transition hover:-translate-y-0.5 sm:inline-flex"
+            >
+                Iniciar sesión
+            </Link>
+
+            <!-- MOBILE MENU BUTTON -->
+            <button
+                type="button"
+                class="inline-flex h-11 w-11 items-center justify-center rounded-2xl border border-[color:var(--border)] bg-[var(--surface)] text-[var(--text)] shadow-sm transition hover:-translate-y-0.5 lg:hidden"
+                @click="mobileSidebarOpen = true"
+            >
+                <span class="sr-only">Abrir menú</span>
+                <span class="space-y-1.5">
+                    <span class="block h-0.5 w-5 rounded-full bg-current"></span>
+                    <span class="block h-0.5 w-5 rounded-full bg-current"></span>
+                    <span class="block h-0.5 w-5 rounded-full bg-current"></span>
+                </span>
+            </button>
+        </div>
+    </div>
+</header>
+
+<!-- MOBILE SIDEBAR OVERLAY -->
+<div
+    v-show="mobileSidebarOpen"
+    class="fixed inset-0 z-[60] bg-slate-950/55 backdrop-blur-sm lg:hidden"
+    @click="mobileSidebarOpen = false"
+></div>
+
+<!-- MOBILE SIDEBAR -->
+<aside
+    class="fixed inset-y-0 left-0 z-[70] w-[88vw] max-w-sm transform border-r border-[color:var(--border)] bg-[var(--surface)] shadow-2xl shadow-slate-950/30 transition-transform duration-300 lg:hidden"
+    :class="mobileSidebarOpen ? 'translate-x-0' : '-translate-x-full'"
+>
+    <div class="flex h-full flex-col">
+        <!-- SIDEBAR HEADER -->
+        <div class="flex items-center justify-between border-b border-[color:var(--border)] px-5 py-5">
+            <a href="#" class="flex items-center gap-3" @click="mobileSidebarOpen = false">
+                <div class="flex h-11 w-11 items-center justify-center rounded-2xl bg-red-600 text-xl font-black text-white shadow-lg shadow-red-600/25">
+                    L
+                </div>
+
+                <div class="leading-tight">
+                    <p class="text-lg font-black tracking-[0.3em] text-[var(--text)]">LAUDA</p>
+                    <p class="text-[10px] font-black tracking-[0.32em] text-red-600">API DIGITAL</p>
+                </div>
+            </a>
+
+            <button
+                type="button"
+                class="flex h-10 w-10 items-center justify-center rounded-2xl border border-[color:var(--border)] bg-[var(--surface-soft)] text-[var(--text)]"
+                @click="mobileSidebarOpen = false"
+            >
+                ✕
+            </button>
+        </div>
+
+        <!-- PRIMARY NAV -->
+        <div class="border-b border-[color:var(--border)] p-4">
+            <p class="mb-3 px-2 text-[10px] font-black uppercase tracking-[0.28em] text-[var(--muted)]">
+                Navegación
+            </p>
+
+            <div class="space-y-2">
+                <a
+                    href="#ecosistema"
+                    class="flex items-center justify-between rounded-2xl bg-[var(--surface-soft)] px-4 py-3 text-sm font-black text-[var(--text)]"
+                    @click="mobileSidebarOpen = false"
+                >
+                    <span>Ecosistema</span>
+                    <span class="text-[var(--muted)]">→</span>
+                </a>
+
+                <a
+                    href="#flujos"
+                    class="flex items-center justify-between rounded-2xl bg-[var(--surface-soft)] px-4 py-3 text-sm font-black text-[var(--text)]"
+                    @click="mobileSidebarOpen = false"
+                >
+                    <span>Flujos</span>
+                    <span class="text-[var(--muted)]">→</span>
+                </a>
+
+                <a
+                    href="#contacto"
+                    class="flex items-center justify-between rounded-2xl bg-[var(--surface-soft)] px-4 py-3 text-sm font-black text-[var(--text)]"
+                    @click="mobileSidebarOpen = false"
+                >
+                    <span>Contacto</span>
+                    <span class="text-[var(--muted)]">→</span>
+                </a>
+            </div>
+        </div>
+
+        <!-- APPS -->
+        <div class="flex-1 overflow-y-auto p-4">
+            <div class="mb-4 px-2">
+                <p class="text-[10px] font-black uppercase tracking-[0.28em] text-red-600">
+                    Soluciones
+                </p>
+                <h3 class="mt-1 text-xl font-black text-[var(--text)]">
+                    Apps productivas
+                </h3>
+                <p class="mt-1 text-sm leading-6 text-[var(--muted)]">
+                    Ambientes activos conectados dentro del ecosistema LaudaAPI.
+                </p>
+            </div>
+
+            <div class="space-y-2">
+                <a
+                    v-for="app in productApps"
+                    :key="`sidebar-${app.href}`"
+                    :href="app.href"
+                    class="group block rounded-2xl border border-[color:var(--border)] bg-[var(--surface-soft)] p-3 transition active:scale-[0.98]"
+                    @click="mobileSidebarOpen = false"
+                >
+                    <div class="flex items-start gap-3">
+                        <div
+                            class="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border text-xl shadow-lg"
+                            :class="appCardClasses[app.color]"
+                        >
+                            {{ app.icon }}
+                        </div>
+
+                        <div class="min-w-0 flex-1">
+                            <div class="flex items-center justify-between gap-3">
+                                <p class="truncate text-sm font-black text-[var(--text)]">
+                                    {{ app.name }}
+                                </p>
+                                <span class="text-xs font-black text-red-600">↗</span>
+                            </div>
+
+                            <p class="mt-1 line-clamp-2 text-xs leading-5 text-[var(--muted)]">
+                                {{ app.description }}
+                            </p>
+                        </div>
+                    </div>
+                </a>
+            </div>
+        </div>
+
+        <!-- SIDEBAR FOOTER -->
+        <div class="border-t border-[color:var(--border)] p-4">
+            <Link
+                href="/login"
+                class="flex w-full items-center justify-center rounded-2xl bg-[var(--text)] px-5 py-3 text-sm font-black text-[var(--page)] shadow-xl shadow-slate-950/15"
+                @click="mobileSidebarOpen = false"
+            >
+                Iniciar sesión
+            </Link>
+
+            <p class="mt-4 text-center text-[11px] leading-5 text-[var(--muted)]">
+                LaudaAPI Digital · Ecosistema operativo conectado
+            </p>
+        </div>
+    </div>
+</aside>
+
 
         <!-- HERO ARRIBA -->
         <section class="mx-auto max-w-[1520px] px-5 pt-5 lg:px-8 lg:pt-7">
@@ -620,26 +777,84 @@ const stepClasses = {
 
         <!-- CTA -->
         <section id="contacto" class="mx-auto max-w-[1520px] px-5 pb-10 lg:px-8">
-            <div class="rounded-[2rem] bg-slate-950 p-8 text-white shadow-2xl shadow-slate-950/20 lg:p-10">
-                <div class="grid gap-8 lg:grid-cols-[1fr_auto] lg:items-center">
+            <div class="overflow-hidden rounded-[2rem] bg-slate-950 p-8 text-white shadow-2xl shadow-slate-950/20 lg:p-10">
+                <div class="grid gap-10 lg:grid-cols-[1fr_0.9fr] lg:items-center">
                     <div>
                         <p class="text-[11px] font-black uppercase tracking-[0.36em] text-red-400">
-                            LaudaAPI como puerta principal
+                            Operación conectada
                         </p>
+
                         <h2 class="mt-4 max-w-4xl text-4xl font-black leading-tight tracking-tight lg:text-5xl">
-                            La landing ya no solo presenta proyectos: explica cómo trabajan juntos.
+                            Del primer contacto a la entrega final, cada paso queda conectado.
                         </h2>
+
                         <p class="mt-5 max-w-3xl text-lg leading-8 text-white/65">
-                            El usuario entiende el recorrido completo: marketing, ventas, operación, fiscal, delivery, compras, contabilidad y monitoreo.
+                            LaudaAPI ayuda a que tus equipos trabajen con menos reprocesos: ventas puede captar y convertir, operación puede facturar y despachar, fiscal puede responder ante DGII, delivery puede entregar y Status puede observar todo el recorrido.
                         </p>
+
+                        <div class="mt-8 flex flex-col gap-4 sm:flex-row">
+                            <a
+                                href="mailto:contacto@laudaapi.com"
+                                class="inline-flex items-center justify-center rounded-2xl bg-white px-8 py-4 text-sm font-black text-slate-950 transition hover:-translate-y-0.5 hover:bg-slate-100"
+                            >
+                                Solicitar demo →
+                            </a>
+
+                            <a
+                                href="#ecosistema"
+                                class="inline-flex items-center justify-center rounded-2xl border border-white/15 bg-white/5 px-8 py-4 text-sm font-black text-white transition hover:-translate-y-0.5 hover:bg-white/10"
+                            >
+                                Ver ecosistema
+                            </a>
+                        </div>
                     </div>
 
-                    <a
-                        href="mailto:contacto@laudaapi.com"
-                        class="inline-flex items-center justify-center rounded-2xl bg-white px-8 py-4 text-sm font-black text-slate-950 transition hover:-translate-y-0.5 hover:bg-slate-100"
-                    >
-                        Contactar →
-                    </a>
+                    <div class="grid gap-4">
+                        <div class="rounded-3xl border border-white/10 bg-white/[0.04] p-5">
+                            <div class="flex items-start gap-4">
+                                <div class="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-red-500/15 text-2xl">
+                                    🔗
+                                </div>
+
+                                <div>
+                                    <p class="text-lg font-black">Menos sistemas aislados</p>
+                                    <p class="mt-2 text-sm leading-6 text-white/60">
+                                        Las apps se comunican por eventos y cada proceso llega al ambiente que debe ejecutarlo.
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="rounded-3xl border border-white/10 bg-white/[0.04] p-5">
+                            <div class="flex items-start gap-4">
+                                <div class="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-green-500/15 text-2xl">
+                                    ✅
+                                </div>
+
+                                <div>
+                                    <p class="text-lg font-black">Responsabilidades claras</p>
+                                    <p class="mt-2 text-sm leading-6 text-white/60">
+                                        CRM no factura, e-CF no opera ventas, Delivery no crea pedidos y Status no altera operaciones.
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="rounded-3xl border border-white/10 bg-white/[0.04] p-5">
+                            <div class="flex items-start gap-4">
+                                <div class="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-blue-500/15 text-2xl">
+                                    📡
+                                </div>
+
+                                <div>
+                                    <p class="text-lg font-black">Trazabilidad de punta a punta</p>
+                                    <p class="mt-2 text-sm leading-6 text-white/60">
+                                        Desde una oportunidad comercial hasta una factura, entrega o evento operativo monitoreado.
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
         </section>
@@ -674,14 +889,17 @@ const stepClasses = {
     --border: rgba(203, 213, 225, 0.78);
 }
 
-.lauda-landing.dark {
-    --page: #020617;
-    --surface: #071022;
-    --surface-soft: rgba(15, 23, 42, 0.82);
-    --nav: #020617;
-    --text: #f8fafc;
-    --muted: #94a3b8;
-    --border: rgba(148, 163, 184, 0.18);
+/* Dark automático según el sistema */
+@media (prefers-color-scheme: dark) {
+    .lauda-landing {
+        --page: #020617;
+        --surface: #071022;
+        --surface-soft: rgba(15, 23, 42, 0.82);
+        --nav: #020617;
+        --text: #f8fafc;
+        --muted: #94a3b8;
+        --border: rgba(148, 163, 184, 0.18);
+    }
 }
 
 .core-ring {
