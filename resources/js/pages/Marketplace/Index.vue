@@ -1,731 +1,822 @@
 <script setup>
 import BrandLogo from '@/components/BrandLogo.vue'
+import { Button } from '@/components/ui/button'
 import { Head, Link } from '@inertiajs/vue3'
-import { onMounted, ref } from 'vue'
+import { nextTick, onBeforeUnmount, onMounted, ref } from 'vue'
 
-const solutionsOpen = ref(false)
-const mobileSidebarOpen = ref(false)
+import {
+    Activity,
+    ArrowRight,
+    Boxes,
+    Calculator,
+    CheckCircle2,
+    ChevronDown,
+    FileText,
+    Landmark,
+    MessageCircle,
+    RefreshCw,
+    ShieldCheck,
+    ShoppingCart,
+    Store,
+    TrendingUp,
+    Truck,
+    User,
+    Users,
+    Zap,
+} from 'lucide-vue-next'
 
-const productApps = [
+/* -------------------------------------------------------------------------- */
+/*  Datos del ecosistema                                                       */
+/* -------------------------------------------------------------------------- */
+
+const CORE = { x: 40.5, y: 43 }
+
+const nodes = [
     {
-        name: 'Social LaudaAPI',
-        short: 'Social',
-        href: 'https://social.laudaapi.com',
-        description: 'Captación social, conversaciones y oportunidades.',
-        icon: '💬',
-        color: 'pink',
+        id: 'social',
+        label: 'Social',
+        desc: 'Captura conversaciones y oportunidades.',
+        color: '#EC4899',
+        icon: MessageCircle,
+        x: 13,
+        y: 22,
+        group: 'left',
     },
     {
-        name: 'CRM LaudaAPI',
-        short: 'CRM',
-        href: 'https://crm.laudaapi.com',
-        description: 'Oportunidades, clientes, pipeline y seguimiento comercial.',
-        icon: '👥',
-        color: 'purple',
+        id: 'crm',
+        label: 'CRM',
+        desc: 'Convierte oportunidades en solicitudes reales.',
+        color: '#A855F7',
+        icon: Users,
+        x: 13,
+        y: 45,
+        group: 'left',
     },
     {
-        name: 'POS LaudaAPI',
-        short: 'POS',
-        href: 'https://pos.laudaapi.com',
-        description: 'Ventas, pedidos, inventario, cobros, facturación y despacho.',
-        icon: '🏪',
-        color: 'green',
+        id: 'ecommerce',
+        label: 'Ecommerce',
+        desc: 'Recibe pedidos y solicitudes online.',
+        color: '#3B82F6',
+        icon: ShoppingCart,
+        x: 13,
+        y: 68,
+        group: 'left',
     },
     {
-        name: 'e-CF LaudaAPI',
-        short: 'e-CF',
-        href: 'https://ecf.laudaapi.com',
-        description: 'Firma, envío y respuesta fiscal ante DGII.',
-        icon: '📄',
-        color: 'amber',
+        id: 'pos',
+        label: 'POS',
+        desc: 'Opera ventas, inventario, cobros y despacho.',
+        color: '#22C55E',
+        icon: Store,
+        x: 63.5,
+        y: 20,
+        group: 'right',
     },
     {
-        name: 'Cumplimiento LaudaAPI',
-        short: 'Cumplimiento',
-        href: 'https://cumplimiento.laudaapi.com',
-        description: 'Obligaciones, vencimientos, validaciones y control fiscal.',
-        icon: '🛡️',
-        color: 'emerald',
+        id: 'ecf',
+        label: 'e-CF',
+        desc: 'Firma, envía y responde ante DGII.',
+        color: '#F59E0B',
+        icon: FileText,
+        x: 63.5,
+        y: 43,
+        group: 'right',
     },
     {
-        name: 'Status LaudaAPI',
-        short: 'Status',
-        href: 'https://status.laudaapi.com',
-        description: 'Disponibilidad, monitoreo y salud operativa del ecosistema.',
-        icon: '〰️',
-        color: 'blue',
+        id: 'delivery',
+        label: 'Delivery',
+        desc: 'Asigna, entrega y registra evidencia.',
+        color: '#F97316',
+        icon: Truck,
+        x: 63.5,
+        y: 66,
+        group: 'right',
+    },
+    {
+        id: 'cumplimiento',
+        label: 'Cumplimiento',
+        desc: 'Organiza obligaciones, validaciones y vencimientos.',
+        color: '#14B8A6',
+        icon: ShieldCheck,
+        x: 87.5,
+        y: 20,
+        group: 'backoffice',
+        target: 'ecf',
+    },
+    {
+        id: 'bys',
+        label: 'BYS',
+        desc: 'Procura, recibe y gestiona compras y gastos.',
+        color: '#8B5CF6',
+        icon: Boxes,
+        x: 87.5,
+        y: 38,
+        group: 'backoffice',
+        target: 'ecf',
+    },
+    {
+        id: 'bancos',
+        label: 'Bancos',
+        desc: 'Conciliación y movimientos financieros.',
+        color: '#3B82F6',
+        icon: Landmark,
+        x: 87.5,
+        y: 56,
+        group: 'backoffice',
+        target: 'ecf',
+    },
+    {
+        id: 'contabilidad',
+        label: 'Contabilidad',
+        desc: 'Asientos contables y reportes financieros.',
+        color: '#22C55E',
+        icon: Calculator,
+        x: 87.5,
+        y: 74,
+        group: 'backoffice',
+        target: 'ecf',
+    },
+    {
+        id: 'status',
+        label: 'Status',
+        desc: 'Observa disponibilidad, eventos y salud operativa.',
+        color: '#3B82F6',
+        icon: Activity,
+        x: 40.5,
+        y: 82,
+        group: 'status',
     },
 ]
 
-const leftApps = [
-    {
-        name: 'Social',
-        text: 'Capta conversaciones y oportunidades.',
-        color: 'pink',
-        icon: '💬',
-    },
-    {
-        name: 'CRM',
-        text: 'Convierte oportunidades en solicitudes reales.',
-        color: 'purple',
-        icon: '👥',
-    },
-    {
-        name: 'Ecommerce',
-        text: 'Recibe pedidos y solicitudes online.',
-        color: 'blue',
-        icon: '🛒',
-    },
+const chips = [
+    { icon: RefreshCw, text: 'POS + e-CF integrado', color: '#F5333C' },
+    { icon: ShoppingCart, text: 'Pedidos ecommerce conectados', color: '#A855F7' },
+    { icon: Truck, text: 'Delivery y operación en tiempo real', color: '#22C55E' },
 ]
 
-const rightApps = [
-    {
-        name: 'POS',
-        text: 'Opera ventas, inventario, cobros y despacho.',
-        color: 'green',
-        icon: '🏪',
-    },
-    {
-        name: 'e-CF',
-        text: 'Firma, envía y responde ante DGII.',
-        color: 'amber',
-        icon: '📄',
-    },
-    {
-        name: 'Delivery',
-        text: 'Asigna, entrega y registra evidencia.',
-        color: 'orange',
-        icon: '🚚',
-    },
-]
-
-const backofficeApps = [
-    {
-        name: 'Cumplimiento',
-        text: 'Obligaciones, validaciones y vencimientos.',
-        icon: '🛡️',
-        color: 'emerald',
-    },
-    {
-        name: 'BYS',
-        text: 'Compras, gastos y recepción de servicios.',
-        icon: '📋',
-        color: 'violet',
-    },
-    {
-        name: 'Bancos',
-        text: 'Conciliación y movimientos financieros.',
-        icon: '🏦',
-        color: 'blue',
-    },
-    {
-        name: 'Contabilidad',
-        text: 'Asientos contables y reportes financieros.',
-        icon: '🧾',
-        color: 'cyan',
-    },
-]
-
-const liveFeed = [
-    ['10:42:15', 'Social', 'Lead captado desde Instagram'],
-    ['10:42:18', 'CRM', 'Oportunidad creada: #OP-4821'],
-    ['10:42:21', 'POS', 'Pedido generado: #PED-8842'],
-    ['10:42:28', 'e-CF', 'Factura firmada y enviada a DGII'],
-    ['10:42:34', 'Delivery', 'Entrega asignada al conductor'],
-    ['10:42:38', 'Status', 'Evento registrado correctamente'],
+const logs = [
+    { time: '10:42:12', tag: 'Social', color: '#EC4899', msg: 'Lead captado desde Instagram' },
+    { time: '10:42:15', tag: 'CRM', color: '#A855F7', msg: 'Oportunidad creada: #OP-4821' },
+    { time: '10:42:18', tag: 'POS', color: '#22C55E', msg: 'Pedido generado: #PED-8842' },
+    { time: '10:42:21', tag: 'e-CF', color: '#F59E0B', msg: 'Factura firmada y enviada a DGII' },
+    { time: '10:42:24', tag: 'Delivery', color: '#F97316', msg: 'Entrega asignada al conductor' },
+    { time: '10:42:28', tag: 'Status', color: '#3B82F6', msg: 'Evento registrado correctamente' },
 ]
 
 const metrics = [
     {
+        icon: CheckCircle2,
+        iconColor: '#22C55E',
         label: 'Ambientes activos',
         value: '10 / 10',
-        note: '100% disponibles',
-        icon: '✅',
+        sub: '100% disponibles',
+        subColor: '#22C55E',
     },
     {
+        icon: ShieldCheck,
+        iconColor: '#22C55E',
         label: 'DGII',
         value: 'Disponible',
-        note: 'Sin interrupciones',
-        icon: '🛡️',
+        sub: 'Sin interrupciones',
+        subColor: '#22C55E',
     },
     {
+        icon: TrendingUp,
+        iconColor: '#A855F7',
         label: 'Procesos hoy',
         value: '1,248',
-        note: '+12% vs ayer',
-        icon: '📈',
+        sub: '+12% vs ayer',
+        subColor: '#22C55E',
     },
     {
+        icon: Zap,
+        iconColor: '#3B82F6',
         label: 'Eventos procesados',
         value: '4,892',
-        note: 'En tiempo real',
-        icon: '⚡',
+        sub: 'En tiempo real',
+        subColor: '#3B82F6',
     },
 ]
 
 const flows = [
     {
         title: 'Lead a factura y entrega',
-        description: 'Una conversación se convierte en oportunidad, venta, factura fiscal y entrega.',
-        steps: ['Social', 'CRM', 'POS', 'e-CF', 'Delivery'],
+        desc: 'Una conversación se convierte en venta, factura fiscal y entrega.',
+        steps: [
+            { label: 'Social', color: '#EC4899', icon: MessageCircle },
+            { label: 'CRM', color: '#A855F7', icon: Users },
+            { label: 'POS', color: '#22C55E', icon: Store },
+            { label: 'e-CF', color: '#F59E0B', icon: FileText },
+            { label: 'Delivery', color: '#F97316', icon: Truck },
+        ],
     },
     {
         title: 'Pedido ecommerce a operación',
-        description: 'El pedido online entra a operación real sin duplicar procesos.',
-        steps: ['Ecommerce', 'POS', 'Inventario', 'e-CF', 'Delivery'],
+        desc: 'El pedido online entra a operación real sin duplicar procesos.',
+        steps: [
+            { label: 'Ecommerce', color: '#3B82F6', icon: ShoppingCart },
+            { label: 'POS', color: '#22C55E', icon: Store },
+            { label: 'Inventario', color: '#22C55E', icon: Boxes },
+            { label: 'e-CF', color: '#F59E0B', icon: FileText },
+            { label: 'Delivery', color: '#F97316', icon: Truck },
+        ],
     },
     {
         title: 'Compra a contabilidad',
-        description: 'Las compras se procesan, validan y registran hasta el asiento contable.',
-        steps: ['BYS', 'e-CF', 'Cumplimiento', 'Contabilidad', 'Bancos'],
+        desc: 'Las compras se procesan, validan y registran hasta el asiento contable.',
+        steps: [
+            { label: 'BYS', color: '#8B5CF6', icon: Boxes },
+            { label: 'e-CF', color: '#F59E0B', icon: FileText },
+            { label: 'Cumplimiento', color: '#14B8A6', icon: ShieldCheck },
+            { label: 'Contabilidad', color: '#22C55E', icon: Calculator },
+            { label: 'Bancos', color: '#3B82F6', icon: Landmark },
+        ],
     },
     {
         title: 'Operación monitoreada',
-        description: 'Status observa eventos, disponibilidad y salud de todo el ecosistema.',
-        steps: ['Todas las apps', 'Status'],
+        desc: 'Status observa eventos, disponibilidad y salud de todo el ecosistema.',
+        steps: [
+            { label: 'Todas las apps', color: '#94A3B8', icon: RefreshCw },
+            { label: 'Status', color: '#3B82F6', icon: Activity },
+        ],
     },
 ]
 
-const appCardClasses = {
-    pink: 'border-pink-400/40 bg-pink-500/10 text-pink-300 shadow-pink-500/20',
-    purple: 'border-purple-400/40 bg-purple-500/10 text-purple-300 shadow-purple-500/20',
-    blue: 'border-blue-400/40 bg-blue-500/10 text-blue-300 shadow-blue-500/20',
-    green: 'border-green-400/40 bg-green-500/10 text-green-300 shadow-green-500/20',
-    amber: 'border-amber-400/40 bg-amber-500/10 text-amber-300 shadow-amber-500/20',
-    orange: 'border-orange-400/40 bg-orange-500/10 text-orange-300 shadow-orange-500/20',
-    emerald: 'border-emerald-400/40 bg-emerald-500/10 text-emerald-300 shadow-emerald-500/20',
-    violet: 'border-violet-400/40 bg-violet-500/10 text-violet-300 shadow-violet-500/20',
-    cyan: 'border-cyan-400/40 bg-cyan-500/10 text-cyan-300 shadow-cyan-500/20',
+const navLinks = ['Soluciones', 'Ecosistema', 'Flujos', 'e-CF', 'Contacto']
+
+const solutionsOpen = ref(false)
+const solutionsMenuRef = ref(null)
+
+const solutionProducts = [
+    {
+        name: 'Social',
+        href: 'https://social.laudaapi.com',
+        desc: 'Captación social y conversaciones.',
+        icon: MessageCircle,
+        color: '#EC4899',
+    },
+    {
+        name: 'CRM',
+        href: 'https://crm.laudaapi.com',
+        desc: 'Clientes, oportunidades y seguimiento.',
+        icon: Users,
+        color: '#A855F7',
+    },
+    {
+        name: 'POS',
+        href: 'https://pos.laudaapi.com',
+        desc: 'Ventas, inventario, cobros y despacho.',
+        icon: Store,
+        color: '#22C55E',
+    },
+    {
+        name: 'e-CF',
+        href: 'https://ecf.laudaapi.com',
+        desc: 'Firma, envío y respuesta ante DGII.',
+        icon: FileText,
+        color: '#F59E0B',
+    },
+    // {
+    //     name: 'Delivery',
+    //     href: 'https://delivery.laudaapi.com',
+    //     desc: 'Rutas, entregas y evidencia.',
+    //     icon: Truck,
+    //     color: '#F97316',
+    // },
+    {
+        name: 'Cumplimiento',
+        href: 'https://cumplimiento.laudaapi.com',
+        desc: 'Obligaciones y control fiscal.',
+        icon: ShieldCheck,
+        color: '#14B8A6',
+    },
+    {
+        name: 'Status',
+        href: 'https://status.laudaapi.com',
+        desc: 'Monitoreo y salud operativa.',
+        icon: Activity,
+        color: '#3B82F6',
+    },
+    // {
+    //     name: 'BYS',
+    //     href: 'https://bys.laudaapi.com',
+    //     desc: 'Compras, gastos y servicios.',
+    //     icon: Boxes,
+    //     color: '#8B5CF6',
+    // },
+    // {
+    //     name: 'Bancos',
+    //     href: 'https://bancos.laudaapi.com',
+    //     desc: 'Pagos, bancos y conciliación.',
+    //     icon: Landmark,
+    //     color: '#3B82F6',
+    // },
+    // {
+    //     name: 'Contabilidad',
+    //     href: 'https://contabilidad.laudaapi.com',
+    //     desc: 'Asientos y reportes contables.',
+    //     icon: Calculator,
+    //     color: '#22C55E',
+    // },
+]
+
+/* -------------------------------------------------------------------------- */
+/*  Conectores del diagrama                                                    */
+/* -------------------------------------------------------------------------- */
+
+const diagram = ref(null)
+const coreEl = ref(null)
+const nodeRefs = ref([])
+const lines = ref([])
+
+const setNodeRef = (el, i) => {
+    if (el) nodeRefs.value[i] = el
 }
 
-const stepClasses = {
-    Social: 'bg-pink-100 text-pink-700',
-    CRM: 'bg-purple-100 text-purple-700',
-    POS: 'bg-green-100 text-green-700',
-    Ecommerce: 'bg-blue-100 text-blue-700',
-    Inventario: 'bg-slate-100 text-slate-700',
-    'e-CF': 'bg-amber-100 text-amber-700',
-    Delivery: 'bg-orange-100 text-orange-700',
-    BYS: 'bg-violet-100 text-violet-700',
-    Cumplimiento: 'bg-emerald-100 text-emerald-700',
-    Contabilidad: 'bg-cyan-100 text-cyan-700',
-    Bancos: 'bg-blue-100 text-blue-700',
-    Status: 'bg-indigo-100 text-indigo-700',
-    'Todas las apps': 'bg-slate-100 text-slate-700',
+function getNodeElementById(id) {
+    const index = nodes.findIndex((node) => node.id === id)
+
+    if (index === -1) {
+        return null
+    }
+
+    return nodeRefs.value[index] || null
 }
+
+function getCorePoint(box) {
+    const core = coreEl.value.getBoundingClientRect()
+
+    return {
+        x: core.left + core.width / 2 - box.left,
+        y: core.top + core.height / 2 - box.top,
+    }
+}
+
+function getNodeConnectionPoint(node, rect, box, side = null) {
+    const centerX = rect.left + rect.width / 2 - box.left
+    const centerY = rect.top + rect.height / 2 - box.top
+
+    if (side === 'left') {
+        return {
+            x: rect.left - box.left,
+            y: centerY,
+        }
+    }
+
+    if (side === 'right') {
+        return {
+            x: rect.right - box.left,
+            y: centerY,
+        }
+    }
+
+    if (side === 'top') {
+        return {
+            x: centerX,
+            y: rect.top - box.top,
+        }
+    }
+
+    if (side === 'bottom') {
+        return {
+            x: centerX,
+            y: rect.bottom - box.top,
+        }
+    }
+
+    if (node.group === 'left') {
+        return {
+            x: rect.right - box.left,
+            y: centerY,
+        }
+    }
+
+    if (node.group === 'right' || node.group === 'backoffice') {
+        return {
+            x: rect.left - box.left,
+            y: centerY,
+        }
+    }
+
+    if (node.group === 'status') {
+        return {
+            x: centerX,
+            y: rect.top - box.top,
+        }
+    }
+
+    return {
+        x: centerX,
+        y: centerY,
+    }
+}
+
+function computeLines() {
+    if (!diagram.value || !coreEl.value) return
+
+    const box = diagram.value.getBoundingClientRect()
+    const corePoint = getCorePoint(box)
+    const ecfElement = getNodeElementById('ecf')
+    const ecfRect = ecfElement?.getBoundingClientRect()
+
+    lines.value = nodes
+        .map((node, index) => {
+            const el = nodeRefs.value[index]
+
+            if (!el) {
+                return null
+            }
+
+            const nodeRect = el.getBoundingClientRect()
+
+            /*
+             * Backoffice:
+             * Cumplimiento, BYS, Bancos y Contabilidad conectan hacia e-CF
+             * con línea tipo codo, no línea directa.
+             */
+            if (node.group === 'backoffice' && ecfRect) {
+                const from = getNodeConnectionPoint(node, nodeRect, box, 'left')
+
+                const to = {
+                    x: ecfRect.right - box.left,
+                    y: ecfRect.top + ecfRect.height / 2 - box.top,
+                }
+
+                /*
+                 * Bus vertical entre e-CF y las cards de backoffice.
+                 * Esto crea el codo visual:
+                 * backoffice -> horizontal -> vertical -> horizontal -> e-CF
+                 */
+                const busX = to.x + Math.max(15, (from.x - to.x) * 0.42)
+
+                return {
+                    type: 'elbow',
+                    d: `M ${from.x} ${from.y} H ${busX} V ${to.y} H ${to.x}`,
+                    color: node.color,
+                    group: node.group,
+                }
+            }
+
+            const from = getNodeConnectionPoint(node, nodeRect, box)
+
+            return {
+                type: 'line',
+                x1: from.x,
+                y1: from.y,
+                x2: corePoint.x,
+                y2: corePoint.y,
+                color: node.color,
+                group: node.group,
+            }
+        })
+        .filter(Boolean)
+}
+
+let ro
+function closeSolutionsOnOutsideClick(event) {
+    if (!solutionsOpen.value) return
+
+    const menu = solutionsMenuRef.value
+
+    if (menu && !menu.contains(event.target)) {
+        solutionsOpen.value = false
+    }
+}
+onMounted(async () => {
+    await nextTick()
+    computeLines()
+
+    ro = new ResizeObserver(computeLines)
+    ro.observe(diagram.value)
+
+    window.addEventListener('resize', computeLines)
+    window.addEventListener('pointerdown', closeSolutionsOnOutsideClick)
+})
+
+onBeforeUnmount(() => {
+    ro && ro.disconnect()
+    window.removeEventListener('resize', computeLines)
+    window.removeEventListener('pointerdown', closeSolutionsOnOutsideClick)
+})
 </script>
 
 <template>
     <Head title="LaudaAPI Digital" />
 
-    <main class="lauda-landing min-h-screen bg-[var(--page)] text-[var(--text)]">
-
-    <header class="sticky top-0 z-50 border-b border-[color:var(--border)] bg-[color:var(--nav)]/88 backdrop-blur-xl">
-    <div class="mx-auto flex max-w-[1520px] items-center justify-between px-5 py-4 lg:px-8">
-        <!-- LOGO -->
-        <Link
-                    href="/"
-                    class="group flex items-center gap-3 rounded-2xl px-2 py-1 transition-all duration-200 hover:scale-[1.02]"
-                >
-                    <div
-                        class="relative flex h-11 w-11 items-center justify-center overflow-hidden rounded-xl bg-linear-to-br from-[#F53003] to-red-700 shadow-lg shadow-red-500/30 transition-shadow duration-200 group-hover:shadow-xl group-hover:shadow-red-500/40"
-                    >
+    <div class="min-h-screen bg-[#F4F4F6] text-[#0B0B12] antialiased">
+        <!-- ===================== NAV ===================== -->
+        <nav class="sticky top-0 z-50 border-b border-black/5 bg-[#F4F4F6]/88 backdrop-blur-xl">
+            <div class="mx-auto flex h-[76px] max-w-none items-center gap-8 px-8 2xl:px-10">
+                <Link href="/" class="flex items-center gap-2.5">
+                    <div class="grid h-11 w-11 place-items-center rounded-[12px] bg-[#F5333C] font-black text-white shadow-xl shadow-[#F5333C]/35">
                         <BrandLogo class="h-6 w-6 text-white" />
-                        <div
-                            class="absolute inset-0 bg-linear-to-br from-white/20 to-transparent opacity-0 transition-opacity duration-200 group-hover:opacity-100"
-                        />
                     </div>
-                    <div class="flex flex-col leading-none">
-                        <span
-                            class="text-lg font-black tracking-[0.2em] text-[#111] uppercase dark:text-white"
-                        >
-                            LAUDA
-                        </span>
-                        <span
-                            class="text-[8px] font-bold tracking-[0.25em] text-red-500 uppercase"
-                        >
-                            API
-                        </span>
+
+                    <div class="leading-none">
+                        <div class="text-[20px] font-extrabold tracking-tight">LAUDA</div>
+                        <div class="mt-0.5 text-[9px] font-semibold tracking-[0.2em] text-[#8E8E9E]">
+                            API DIGITAL
+                        </div>
                     </div>
                 </Link>
 
-        <!-- DESKTOP NAV -->
-        <nav class="hidden items-center gap-1 rounded-full border border-[color:var(--border)] bg-[var(--surface)]/85 p-1 shadow-sm lg:flex">
-            <div
-                class="relative"
-                @mouseenter="solutionsOpen = true"
-                @mouseleave="solutionsOpen = false"
-            >
-                <button
-                    type="button"
-                    class="inline-flex items-center gap-2 rounded-full px-5 py-2.5 text-sm font-bold text-[var(--muted)] transition hover:bg-[var(--surface-soft)] hover:text-[var(--text)]"
-                    @click="solutionsOpen = !solutionsOpen"
-                >
-                    Soluciones
-                    <span class="text-xs transition" :class="{ 'rotate-180': solutionsOpen }">⌄</span>
-                </button>
-
-                <div
-                    v-show="solutionsOpen"
-                    class="absolute left-0 top-full w-[560px] pt-4"
-                >
-                    <div class="rounded-[1.5rem] border border-[color:var(--border)] bg-[var(--surface)] p-3 shadow-2xl shadow-slate-950/20">
-                        <div class="mb-3 px-3 pt-2">
-                            <p class="text-[11px] font-black uppercase tracking-[0.28em] text-red-600">
-                                Apps productivas
-                            </p>
-                            <p class="mt-1 text-sm text-[var(--muted)]">
-                                Accede a los ambientes activos del ecosistema LaudaAPI.
-                            </p>
-                        </div>
-
-                        <div class="grid grid-cols-2 gap-2">
-                            <a
-                                v-for="app in productApps"
-                                :key="app.href"
-                                :href="app.href"
-                                class="group rounded-2xl border border-transparent p-4 transition hover:border-[color:var(--border)] hover:bg-[var(--surface-soft)]"
-                            >
-                                <div class="flex items-start gap-3">
-                                    <div
-                                        class="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border text-xl shadow-lg"
-                                        :class="appCardClasses[app.color]"
-                                    >
-                                        {{ app.icon }}
-                                    </div>
-
-                                    <div>
-                                        <p class="text-sm font-black text-[var(--text)]">
-                                            {{ app.name }}
-                                        </p>
-                                        <p class="mt-1 text-xs leading-5 text-[var(--muted)]">
-                                            {{ app.description }}
-                                        </p>
-                                        <p class="mt-2 text-[11px] font-black uppercase tracking-[0.2em] text-red-600 opacity-0 transition group-hover:opacity-100">
-                                            Abrir →
-                                        </p>
-                                    </div>
-                                </div>
-                            </a>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <a href="#ecosistema" class="rounded-full px-5 py-2.5 text-sm font-bold text-[var(--muted)] transition hover:bg-[var(--surface-soft)] hover:text-[var(--text)]">
-                Ecosistema
-            </a>
-
-            <a href="#flujos" class="rounded-full px-5 py-2.5 text-sm font-bold text-[var(--muted)] transition hover:bg-[var(--surface-soft)] hover:text-[var(--text)]">
-                Flujos
-            </a>
-
-            <a href="https://ecf.laudaapi.com" class="rounded-full px-5 py-2.5 text-sm font-bold text-[var(--muted)] transition hover:bg-[var(--surface-soft)] hover:text-[var(--text)]">
-                e-CF
-            </a>
-
-            <a href="#contacto" class="rounded-full px-5 py-2.5 text-sm font-bold text-[var(--muted)] transition hover:bg-[var(--surface-soft)] hover:text-[var(--text)]">
-                Contacto
-            </a>
-        </nav>
-
-        <!-- RIGHT ACTIONS -->
-        <div class="flex items-center gap-3">
-            <Link
-                href="/login"
-                class="hidden rounded-2xl bg-[var(--text)] px-6 py-3 text-sm font-black text-[var(--page)] shadow-xl shadow-slate-950/15 transition hover:-translate-y-0.5 sm:inline-flex"
-            >
-                Iniciar sesión
-            </Link>
-
-            <!-- MOBILE MENU BUTTON -->
-            <button
-                type="button"
-                class="inline-flex h-11 w-11 items-center justify-center rounded-2xl border border-[color:var(--border)] bg-[var(--surface)] text-[var(--text)] shadow-sm transition hover:-translate-y-0.5 lg:hidden"
-                @click="mobileSidebarOpen = true"
-            >
-                <span class="sr-only">Abrir menú</span>
-                <span class="space-y-1.5">
-                    <span class="block h-0.5 w-5 rounded-full bg-current"></span>
-                    <span class="block h-0.5 w-5 rounded-full bg-current"></span>
-                    <span class="block h-0.5 w-5 rounded-full bg-current"></span>
-                </span>
-            </button>
-        </div>
-    </div>
-</header>
-
-<!-- MOBILE SIDEBAR OVERLAY -->
-<div
-    v-show="mobileSidebarOpen"
-    class="fixed inset-0 z-[60] bg-slate-950/55 backdrop-blur-sm lg:hidden"
-    @click="mobileSidebarOpen = false"
-></div>
-
-<!-- MOBILE SIDEBAR -->
-<aside
-    class="fixed inset-y-0 left-0 z-[70] w-[88vw] max-w-sm transform border-r border-[color:var(--border)] bg-[var(--surface)] shadow-2xl shadow-slate-950/30 transition-transform duration-300 lg:hidden"
-    :class="mobileSidebarOpen ? 'translate-x-0' : '-translate-x-full'"
->
-    <div class="flex h-full flex-col">
-        <!-- SIDEBAR HEADER -->
-        <div class="flex items-center justify-between border-b border-[color:var(--border)] px-5 py-5">
-            <a href="#" class="flex items-center gap-3" @click="mobileSidebarOpen = false">
-                <div class="flex h-11 w-11 items-center justify-center rounded-2xl bg-red-600 text-xl font-black text-white shadow-lg shadow-red-600/25">
-                    L
-                </div>
-
-                <div class="leading-tight">
-                    <p class="text-lg font-black tracking-[0.3em] text-[var(--text)]">LAUDA</p>
-                    <p class="text-[10px] font-black tracking-[0.32em] text-red-600">API DIGITAL</p>
-                </div>
-            </a>
-
-            <button
-                type="button"
-                class="flex h-10 w-10 items-center justify-center rounded-2xl border border-[color:var(--border)] bg-[var(--surface-soft)] text-[var(--text)]"
-                @click="mobileSidebarOpen = false"
-            >
-                ✕
-            </button>
-        </div>
-
-        <!-- PRIMARY NAV -->
-        <div class="border-b border-[color:var(--border)] p-4">
-            <p class="mb-3 px-2 text-[10px] font-black uppercase tracking-[0.28em] text-[var(--muted)]">
-                Navegación
-            </p>
-
-            <div class="space-y-2">
-                <a
-                    href="#ecosistema"
-                    class="flex items-center justify-between rounded-2xl bg-[var(--surface-soft)] px-4 py-3 text-sm font-black text-[var(--text)]"
-                    @click="mobileSidebarOpen = false"
-                >
-                    <span>Ecosistema</span>
-                    <span class="text-[var(--muted)]">→</span>
-                </a>
-
-                <a
-                    href="#flujos"
-                    class="flex items-center justify-between rounded-2xl bg-[var(--surface-soft)] px-4 py-3 text-sm font-black text-[var(--text)]"
-                    @click="mobileSidebarOpen = false"
-                >
-                    <span>Flujos</span>
-                    <span class="text-[var(--muted)]">→</span>
-                </a>
-
-                <a
-                    href="#contacto"
-                    class="flex items-center justify-between rounded-2xl bg-[var(--surface-soft)] px-4 py-3 text-sm font-black text-[var(--text)]"
-                    @click="mobileSidebarOpen = false"
-                >
-                    <span>Contacto</span>
-                    <span class="text-[var(--muted)]">→</span>
-                </a>
-            </div>
-        </div>
-
-        <!-- APPS -->
-        <div class="flex-1 overflow-y-auto p-4">
-            <div class="mb-4 px-2">
-                <p class="text-[10px] font-black uppercase tracking-[0.28em] text-red-600">
-                    Soluciones
-                </p>
-                <h3 class="mt-1 text-xl font-black text-[var(--text)]">
-                    Apps productivas
-                </h3>
-                <p class="mt-1 text-sm leading-6 text-[var(--muted)]">
-                    Ambientes activos conectados dentro del ecosistema LaudaAPI.
-                </p>
-            </div>
-
-            <div class="space-y-2">
-                <a
-                    v-for="app in productApps"
-                    :key="`sidebar-${app.href}`"
-                    :href="app.href"
-                    class="group block rounded-2xl border border-[color:var(--border)] bg-[var(--surface-soft)] p-3 transition active:scale-[0.98]"
-                    @click="mobileSidebarOpen = false"
-                >
-                    <div class="flex items-start gap-3">
-                        <div
-                            class="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border text-xl shadow-lg"
-                            :class="appCardClasses[app.color]"
+                <div class="ml-auto hidden items-center gap-10 text-[15px] font-medium text-[#5A5A6B] lg:flex">
+                    <!-- SOLUCIONES MENU -->
+                    <div ref="solutionsMenuRef" class="relative flex h-[76px] items-center">
+                        <button
+                            type="button"
+                            class="flex items-center gap-1 transition-colors hover:text-[#0B0B12]"
+                            :class="solutionsOpen && 'text-[#0B0B12]'"
+                            @click.stop="solutionsOpen = !solutionsOpen"
                         >
-                            {{ app.icon }}
-                        </div>
+                            Soluciones
+                            <ChevronDown
+                                class="h-3.5 w-3.5 transition-transform"
+                                :class="solutionsOpen && 'rotate-180'"
+                            />
+                        </button>
 
-                        <div class="min-w-0 flex-1">
-                            <div class="flex items-center justify-between gap-3">
-                                <p class="truncate text-sm font-black text-[var(--text)]">
-                                    {{ app.name }}
+                        <div
+                            v-show="solutionsOpen"
+                            class="absolute left-0 top-[68px] z-50 w-[560px] rounded-3xl border border-black/5 bg-white p-4 shadow-2xl shadow-slate-950/15"
+                        >
+                            <div class="mb-3 px-2">
+                                <p class="text-[10px] font-black uppercase tracking-[0.24em] text-[#F5333C]">
+                                    Soluciones LaudaAPI
                                 </p>
-                                <span class="text-xs font-black text-red-600">↗</span>
+                                <p class="mt-1 text-sm text-[#6B7280]">
+                                    Productos conectados dentro del ecosistema operativo.
+                                </p>
                             </div>
 
-                            <p class="mt-1 line-clamp-2 text-xs leading-5 text-[var(--muted)]">
-                                {{ app.description }}
-                            </p>
+                            <div class="grid grid-cols-2 gap-2">
+                                <a
+                                    v-for="product in solutionProducts"
+                                    :key="product.name"
+                                    :href="product.href"
+                                    class="group rounded-2xl border border-transparent p-3 transition hover:border-black/5 hover:bg-[#F4F4F6]"
+                                    @click="solutionsOpen = false"
+                                >
+                                    <div class="flex items-start gap-3">
+                                        <span
+                                            class="grid h-11 w-11 shrink-0 place-items-center rounded-xl"
+                                            :style="{ background: product.color + '1a' }"
+                                        >
+                                            <component
+                                                :is="product.icon"
+                                                class="h-5 w-5"
+                                                :style="{ color: product.color }"
+                                            />
+                                        </span>
+
+                                        <div class="min-w-0">
+                                            <p class="text-sm font-black text-[#0B0B12]">
+                                                {{ product.name }}
+                                            </p>
+                                            <p class="mt-1 text-xs leading-5 text-[#6B7280]">
+                                                {{ product.desc }}
+                                            </p>
+                                        </div>
+                                    </div>
+                                </a>
+                            </div>
                         </div>
                     </div>
-                </a>
-            </div>
-        </div>
 
-        <!-- SIDEBAR FOOTER -->
-        <div class="border-t border-[color:var(--border)] p-4">
-            <Link
-                href="/login"
-                class="flex w-full items-center justify-center rounded-2xl bg-[var(--text)] px-5 py-3 text-sm font-black text-[var(--page)] shadow-xl shadow-slate-950/15"
-                @click="mobileSidebarOpen = false"
-            >
-                Iniciar sesión
-            </Link>
-
-            <p class="mt-4 text-center text-[11px] leading-5 text-[var(--muted)]">
-                LaudaAPI Digital · Ecosistema operativo conectado
-            </p>
-        </div>
-    </div>
-</aside>
-
-
-        <!-- HERO ARRIBA -->
-        <section class="mx-auto max-w-[1520px] px-5 pt-5 lg:px-8 lg:pt-7">
-    <div class="overflow-hidden rounded-[2rem] border border-[color:var(--border)] bg-[var(--surface)] p-5 shadow-2xl shadow-slate-950/5 lg:p-8">
-        <div class="grid gap-7 lg:grid-cols-[1.15fr_0.85fr] lg:items-center">
-            <div>
-                <div class="mb-5 inline-flex w-fit items-center gap-2 rounded-full bg-red-50 px-3.5 py-1.5 text-[10px] font-black uppercase tracking-[0.26em] text-red-600">
-                    <span class="h-2 w-2 rounded-full bg-red-500"></span>
-                    Un solo ambiente
-                </div>
-
-                <h1 class="max-w-5xl text-4xl font-black leading-[0.98] tracking-tight sm:text-5xl lg:text-6xl xl:text-7xl">
-                    La operación completa de tu negocio,
-                    <span class="text-red-600">conectada en un solo ambiente.</span>
-                </h1>
-
-                <p class="mt-5 max-w-3xl text-base leading-7 text-[var(--muted)] lg:text-lg">
-                    LaudaAPI conecta ventas, POS, e-CF, delivery, compras, cumplimiento y monitoreo para que cada área trabaje sobre una misma verdad operativa.
-                </p>
-
-                <div class="mt-6 flex flex-col gap-3 sm:flex-row">
+                    <!-- RESTO DEL NAV -->
                     <a
                         href="#ecosistema"
-                        class="inline-flex items-center justify-center gap-3 rounded-2xl bg-red-600 px-6 py-3.5 text-sm font-black text-white shadow-xl shadow-red-600/25 transition hover:-translate-y-0.5 hover:bg-red-700"
+                        class="flex h-[76px] items-center transition-colors hover:text-[#0B0B12]"
+                        :class="'relative text-[#0B0B12] after:absolute after:bottom-0 after:left-0 after:h-0.5 after:w-full after:bg-[#F5333C]'"
                     >
-                        Ver ecosistema
-                        <span>→</span>
+                        Ecosistema
+                    </a>
+
+                    <a
+                        href="#flujos"
+                        class="flex h-[76px] items-center transition-colors hover:text-[#0B0B12]"
+                    >
+                        Flujos
+                    </a>
+
+                    <a
+                        href="https://ecf.laudaapi.com"
+                        class="flex h-[76px] items-center transition-colors hover:text-[#0B0B12]"
+                    >
+                        e-CF
                     </a>
 
                     <a
                         href="#contacto"
-                        class="inline-flex items-center justify-center rounded-2xl border border-[color:var(--border)] bg-[var(--surface-soft)] px-6 py-3.5 text-sm font-black text-[var(--text)] transition hover:-translate-y-0.5"
+                        class="flex h-[76px] items-center transition-colors hover:text-[#0B0B12]"
                     >
-                        Solicitar demo
+                        Contacto
                     </a>
                 </div>
+
+                <Button class="ml-auto gap-2 rounded-xl bg-[#0B0B12] px-6 py-6 text-white hover:bg-black lg:ml-0">
+                    <User class="h-4 w-4" />
+                    Iniciar sesión
+                </Button>
             </div>
+        </nav>
 
-            <div class="rounded-[1.5rem] border border-[color:var(--border)] bg-[var(--surface-soft)] p-4">
-                <div class="grid grid-cols-3 gap-3">
-                    <div class="rounded-2xl border border-[color:var(--border)] bg-[var(--surface)] p-4">
-                        <p class="text-2xl font-black">10</p>
-                        <p class="mt-1 text-[9px] font-black uppercase tracking-[0.22em] text-[var(--muted)]">Ambientes</p>
+        <!-- ===================== HERO ===================== -->
+        <section class="mx-auto max-w-none px-6 pt-10 2xl:px-8">
+            <div class="grid items-center gap-6 xl:grid-cols-[450px_minmax(0,1fr)] 2xl:grid-cols-[470px_minmax(0,1fr)]">
+                <!-- Columna izquierda -->
+                <div class="max-w-[455px]">
+                    <span class="inline-flex items-center gap-2 rounded-full bg-[#F5333C]/10 px-3.5 py-1.5 text-[11px] font-bold uppercase tracking-[0.14em] text-[#F5333C]">
+                        <span class="h-1.5 w-1.5 rounded-full bg-[#F5333C]" />
+                        Un solo ambiente
+                    </span>
+
+                    <h1 class="mt-6 text-[48px] font-extrabold leading-[1.02] tracking-[-0.04em] lg:text-[56px]">
+                        La operación completa de tu negocio,
+                        <span class="text-[#F5333C]">conectada en un solo ambiente.</span>
+                    </h1>
+
+                    <p class="mt-6 max-w-md text-[17px] leading-relaxed text-[#5A5A6B]">
+                        LaudaAPI conecta ventas, POS, e-CF, delivery, compras, cumplimiento y monitoreo
+                        para que cada área trabaje sobre una misma verdad operativa.
+                    </p>
+
+                    <div class="mt-8 flex gap-3">
+                        <Button class="gap-2 rounded-xl bg-[#F5333C] px-6 py-6 text-white hover:bg-[#d92730]">
+                            Ver ecosistema
+                            <ArrowRight class="h-4 w-4" />
+                        </Button>
+
+                        <Button variant="outline" class="rounded-xl border-black/10 bg-white px-6 py-6 hover:bg-[#FAFAFA]">
+                            Solicitar demo
+                        </Button>
                     </div>
 
-                    <div class="rounded-2xl bg-slate-950 p-4 text-white shadow-xl shadow-slate-950/20">
-                        <p class="text-2xl font-black">4</p>
-                        <p class="mt-1 text-[9px] font-black uppercase tracking-[0.22em] text-white/55">Flujos clave</p>
-                    </div>
+                    <div class="mt-9 grid max-w-[540px] gap-3 sm:grid-cols-3">
+                        <div
+                            v-for="c in chips"
+                            :key="c.text"
+                            class="flex min-h-[66px] items-center gap-2.5 rounded-xl border border-black/5 bg-white px-3 py-3"
+                        >
+                            <span class="grid h-8 w-8 shrink-0 place-items-center rounded-lg" :style="{ background: c.color + '1a' }">
+                                <component :is="c.icon" class="h-4 w-4" :style="{ color: c.color }" />
+                            </span>
 
-                    <div class="rounded-2xl border border-[color:var(--border)] bg-[var(--surface)] p-4">
-                        <p class="text-2xl font-black">1</p>
-                        <p class="mt-1 text-[9px] font-black uppercase tracking-[0.22em] text-[var(--muted)]">Ambiente</p>
+                            <span class="text-[12px] font-semibold leading-tight text-[#5A5A6B]">
+                                {{ c.text }}
+                            </span>
+                        </div>
                     </div>
                 </div>
 
-                <div class="mt-4 rounded-2xl border border-dashed border-red-500/25 bg-red-500/5 p-4">
-                    <p class="text-[10px] font-black uppercase tracking-[0.26em] text-red-600">
-                        Idea central
-                    </p>
-                    <p class="mt-2 text-sm leading-6 text-[var(--muted)]">
-                        Social atrae, CRM convierte, POS opera, e-CF responde ante DGII, Delivery entrega y Status observa.
-                    </p>
-                </div>
-            </div>
-        </div>
-
-        <div class="mt-6 grid gap-3 md:grid-cols-3">
-            <div class="rounded-2xl border border-[color:var(--border)] bg-[var(--surface-soft)] p-4">
-                <p class="text-xl">🔁</p>
-                <p class="mt-2 text-sm font-black">POS + e-CF integrado</p>
-                <p class="mt-1 text-xs leading-5 text-[var(--muted)]">La venta operativa puede terminar en documento fiscal.</p>
-            </div>
-
-            <div class="rounded-2xl border border-[color:var(--border)] bg-[var(--surface-soft)] p-4">
-                <p class="text-xl">🛒</p>
-                <p class="mt-2 text-sm font-black">Pedidos ecommerce conectados</p>
-                <p class="mt-1 text-xs leading-5 text-[var(--muted)]">El pedido web entra al flujo real de operación.</p>
-            </div>
-
-            <div class="rounded-2xl border border-[color:var(--border)] bg-[var(--surface-soft)] p-4">
-                <p class="text-xl">🚚</p>
-                <p class="mt-2 text-sm font-black">Delivery y operación en tiempo real</p>
-                <p class="mt-1 text-xs leading-5 text-[var(--muted)]">Entrega, evidencia y eventos monitoreados.</p>
-            </div>
-        </div>
-    </div>
-</section>
-
-        <!-- FLUJO ABAJO FULL WIDTH -->
-        <section id="ecosistema" class="mx-auto max-w-[1520px] px-5 py-8 lg:px-8 lg:py-12">
-            <div class="relative overflow-hidden rounded-[2rem] bg-[#071022] p-5 text-white shadow-2xl shadow-slate-950/25 ring-1 ring-white/10 lg:p-8">
-                <div class="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(239,68,68,0.22),transparent_32%),linear-gradient(rgba(255,255,255,0.04)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.04)_1px,transparent_1px)] bg-[size:100%_100%,36px_36px,36px_36px]"></div>
-                <div class="absolute -top-40 left-1/2 h-80 w-80 -translate-x-1/2 rounded-full bg-red-500/10 blur-3xl"></div>
-
-                <div class="relative z-10">
-                    <div class="mx-auto mb-8 flex w-fit items-center gap-3 rounded-b-[2rem] border border-white/10 bg-white/5 px-8 py-4 text-[11px] font-black uppercase tracking-[0.38em] text-white/80">
-                        <span class="h-2 w-2 rounded-full bg-pink-500"></span>
+                <!-- Columna derecha: panel oscuro -->
+                <div class="overflow-hidden rounded-[26px] border border-white/5 bg-[#0A0D18] p-4 shadow-2xl shadow-slate-950/25 lg:p-5">
+                    <!-- header -->
+                    <div class="mb-3 flex items-center justify-center gap-3 text-[11px] font-semibold uppercase tracking-[0.22em] text-[#6B6B82]">
+                        <span class="h-1.5 w-1.5 rounded-full bg-[#F5333C]" />
                         Ecosistema LaudaAPI
-                        <span class="h-2 w-2 rounded-full bg-red-500"></span>
+                        <span class="h-1.5 w-1.5 rounded-full bg-[#22C55E]" />
                         En vivo
                     </div>
 
-                    <div class="grid gap-6 xl:grid-cols-[1fr_1.25fr_1fr_1fr]">
-                        <div class="space-y-6">
-                            <div
-                                v-for="app in leftApps"
-                                :key="app.name"
-                                class="relative rounded-2xl border p-5 shadow-2xl backdrop-blur"
-                                :class="appCardClasses[app.color]"
-                            >
-                                <span class="hidden absolute right-[-13px] top-1/2 h-6 w-6 -translate-y-1/2 rounded-full border-4 border-[#071022] bg-current shadow-lg xl:block"></span>
+                    <!-- diagrama -->
+                    <div
+                        ref="diagram"
+                        class="relative h-[560px] rounded-2xl bg-[#080B15]"
+                        style="background-image: radial-gradient(circle at 44% 43%, rgba(245,51,60,.11), transparent 48%), linear-gradient(rgba(255,255,255,.025) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,.025) 1px, transparent 1px); background-size: 100% 100%, 34px 34px, 34px 34px;"
+                    >
+                        <!-- conectores -->
+                        <svg class="pointer-events-none absolute inset-0 h-full w-full" style="z-index:0">
+                            <template v-for="(l, i) in lines" :key="i">
+                                <path
+                                    v-if="l.type === 'elbow'"
+                                    :d="l.d"
+                                    :stroke="l.color"
+                                    fill="none"
+                                    stroke-width="1.5"
+                                    stroke-dasharray="4 6"
+                                    stroke-linecap="round"
+                                    stroke-linejoin="round"
+                                    class="flow-line"
+                                    style="opacity:.55"
+                                />
 
-                                <div class="flex items-start gap-4">
-                                    <div class="flex h-12 w-12 items-center justify-center rounded-2xl bg-current/20 text-2xl">
-                                        {{ app.icon }}
-                                    </div>
-                                    <div>
-                                        <p class="text-lg font-black text-white">{{ app.name }}</p>
-                                        <p class="mt-1 text-sm leading-6 text-white/70">{{ app.text }}</p>
-                                    </div>
-                                </div>
+                                <line
+                                    v-else
+                                    :x1="l.x1"
+                                    :y1="l.y1"
+                                    :x2="l.x2"
+                                    :y2="l.y2"
+                                    :stroke="l.color"
+                                    stroke-width="1.5"
+                                    stroke-dasharray="4 6"
+                                    stroke-linecap="round"
+                                    class="flow-line"
+                                    style="opacity:.55"
+                                />
+                            </template>
+                        </svg>
+
+                        <!-- etiqueta -->
+                        <div class="absolute left-1/2 top-5 z-10 -translate-x-1/2 rounded-full border border-white/10 bg-white/5 px-4 py-1.5 text-[9px] font-semibold uppercase tracking-[0.16em] text-[#8B8BA0]">
+                            Eventos en tiempo real
+                        </div>
+
+                        <!-- core -->
+                        <div
+                            ref="coreEl"
+                            class="core-glow absolute z-20 flex h-[178px] w-[178px] -translate-x-1/2 -translate-y-1/2 flex-col items-center justify-center rounded-full border border-[#F5333C]/40 bg-[#0A0D18] text-center"
+                            :style="{ left: CORE.x + '%', top: CORE.y + '%' }"
+                        >
+                            <div class="mb-2 grid h-10 w-10 place-items-center rounded-xl bg-[#F5333C] font-black text-white">
+                                L
+                            </div>
+
+                            <div class="text-[17px] font-extrabold tracking-tight text-white">
+                                LAUDAAPI CORE
+                            </div>
+
+                            <div class="mt-0.5 text-[9px] font-bold uppercase tracking-[0.14em] text-[#F5333C]">
+                                API-First Environment
+                            </div>
+
+                            <div class="mt-2 text-[10.5px] leading-snug text-[#8B8BA0]">
+                                Conecta eventos.<br />
+                                Orquesta procesos.
                             </div>
                         </div>
 
-                        <div class="relative flex min-h-[430px] items-center justify-center">
-                            <div class="absolute inset-0 flex items-center justify-center">
-                                <div class="core-ring h-80 w-80 rounded-full border border-red-400/30"></div>
-                            </div>
+                        <!-- nodos -->
+                        <div
+                            v-for="(n, i) in nodes"
+                            :key="n.id"
+                            :ref="(el) => setNodeRef(el, i)"
+                            class="absolute z-10 flex min-h-[72px] w-[190px] -translate-x-1/2 -translate-y-1/2 items-start gap-2.5 rounded-2xl border border-white/[0.07] bg-[#12172A] p-3 shadow-lg shadow-black/10"
+                            :class="n.group === 'backoffice' && 'w-[184px]'"
+                            :style="{ left: n.x + '%', top: n.y + '%' }"
+                        >
+                            <span class="grid h-9 w-9 shrink-0 place-items-center rounded-lg shadow-lg" :style="{ background: n.color }">
+                                <component :is="n.icon" class="h-4.5 w-4.5 text-white" />
+                            </span>
 
-                            <div class="hidden xl:block absolute left-0 top-[31%] h-px w-[32%] border-t border-dashed border-pink-400/70"></div>
-                            <div class="hidden xl:block absolute left-0 top-[50%] h-px w-[32%] border-t border-dashed border-purple-400/70"></div>
-                            <div class="hidden xl:block absolute left-0 top-[69%] h-px w-[32%] border-t border-dashed border-blue-400/70"></div>
-
-                            <div class="hidden xl:block absolute right-0 top-[31%] h-px w-[32%] border-t border-dashed border-green-400/70"></div>
-                            <div class="hidden xl:block absolute right-0 top-[50%] h-px w-[32%] border-t border-dashed border-amber-400/70"></div>
-                            <div class="hidden xl:block absolute right-0 top-[69%] h-px w-[32%] border-t border-dashed border-orange-400/70"></div>
-
-                            <div class="pulse-dot hidden xl:block absolute left-[15%] top-[31%] h-2 w-2 rounded-full bg-pink-400 shadow-lg shadow-pink-400"></div>
-                            <div class="pulse-dot pulse-delay-1 hidden xl:block absolute left-[15%] top-[50%] h-2 w-2 rounded-full bg-purple-400 shadow-lg shadow-purple-400"></div>
-                            <div class="pulse-dot pulse-delay-2 hidden xl:block absolute left-[15%] top-[69%] h-2 w-2 rounded-full bg-blue-400 shadow-lg shadow-blue-400"></div>
-
-                            <div class="relative z-10 flex h-64 w-64 flex-col items-center justify-center rounded-full border border-red-300/30 bg-red-600/10 text-center shadow-[0_0_90px_rgba(239,68,68,0.35)] backdrop-blur-xl">
-                                <div class="mb-5 flex h-14 w-14 items-center justify-center rounded-2xl bg-red-600 text-2xl font-black shadow-xl shadow-red-600/35">
-                                    L
+                            <div class="min-w-0">
+                                <div class="truncate text-[13px] font-bold leading-tight text-white">
+                                    {{ n.label }}
                                 </div>
-                                <p class="text-2xl font-black tracking-wide">LAUDAAPI CORE</p>
-                                <p class="mt-2 text-[11px] font-black uppercase tracking-[0.3em] text-red-300">API-First Environment</p>
-                                <p class="mt-5 max-w-[170px] text-sm leading-6 text-white/75">
-                                    Conecta eventos. Orquesta procesos.
-                                </p>
-                            </div>
 
-                            <div class="absolute bottom-0 left-1/2 w-60 -translate-x-1/2 rounded-2xl border border-blue-400/30 bg-blue-500/10 p-4 text-center text-blue-200 shadow-xl shadow-blue-500/10">
-                                <p class="text-2xl">〰️</p>
-                                <p class="mt-1 font-black text-white">Status</p>
-                                <p class="mt-1 text-xs leading-5 text-white/65">Observa disponibilidad, eventos y salud operativa.</p>
-                            </div>
-                        </div>
-
-                        <div class="space-y-6">
-                            <div
-                                v-for="app in rightApps"
-                                :key="app.name"
-                                class="relative rounded-2xl border p-5 shadow-2xl backdrop-blur"
-                                :class="appCardClasses[app.color]"
-                            >
-                                <span class="hidden absolute left-[-13px] top-1/2 h-6 w-6 -translate-y-1/2 rounded-full border-4 border-[#071022] bg-current shadow-lg xl:block"></span>
-
-                                <div class="flex items-start gap-4">
-                                    <div class="flex h-12 w-12 items-center justify-center rounded-2xl bg-current/20 text-2xl">
-                                        {{ app.icon }}
-                                    </div>
-                                    <div>
-                                        <p class="text-lg font-black text-white">{{ app.name }}</p>
-                                        <p class="mt-1 text-sm leading-6 text-white/70">{{ app.text }}</p>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div class="space-y-4">
-                            <div
-                                v-for="app in backofficeApps"
-                                :key="app.name"
-                                class="rounded-2xl border p-4 shadow-2xl backdrop-blur"
-                                :class="appCardClasses[app.color]"
-                            >
-                                <div class="flex items-start gap-3">
-                                    <div class="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-current/20 text-xl">
-                                        {{ app.icon }}
-                                    </div>
-                                    <div>
-                                        <p class="font-black text-white">{{ app.name }}</p>
-                                        <p class="mt-1 text-xs leading-5 text-white/65">{{ app.text }}</p>
-                                    </div>
+                                <div class="mt-0.5 text-[10.5px] leading-snug text-[#7A7A90]">
+                                    {{ n.desc }}
                                 </div>
                             </div>
                         </div>
                     </div>
 
-                    <div class="mt-8 grid gap-5 xl:grid-cols-[1fr_1.55fr]">
-                        <div class="rounded-2xl border border-white/10 bg-white/[0.04] p-5">
-                            <div class="mb-4 flex items-center gap-2 text-[11px] font-black uppercase tracking-[0.32em] text-white/80">
-                                <span class="text-red-400">⌁</span>
+                    <!-- panels -->
+                    <div class="mt-4 grid gap-4 xl:grid-cols-[1.15fr_1fr]">
+                        <!-- transmisión -->
+                        <div class="rounded-2xl border border-white/[0.07] bg-[#0D1120] p-4">
+                            <div class="mb-3 flex items-center gap-2 text-[10.5px] font-semibold uppercase tracking-[0.14em] text-[#8B8BA0]">
+                                <Activity class="h-3.5 w-3.5" />
                                 Transmisión en vivo
                             </div>
 
-                            <div class="space-y-2">
-                                <div
-                                    v-for="item in liveFeed"
-                                    :key="`${item[0]}-${item[1]}`"
-                                    class="grid grid-cols-[72px_82px_1fr_12px] items-center gap-3 text-xs"
-                                >
-                                    <span class="font-mono text-white/35">{{ item[0] }}</span>
-                                    <span class="font-bold text-white">{{ item[1] }}</span>
-                                    <span class="truncate text-white/65">{{ item[2] }}</span>
-                                    <span class="h-2 w-2 rounded-full bg-green-400 shadow-lg shadow-green-400/40"></span>
+                            <div class="space-y-2 font-mono text-[11px]">
+                                <div v-for="log in logs" :key="log.time" class="flex min-w-0 items-center gap-3">
+                                    <span class="text-[#4A4A5E]">{{ log.time }}</span>
+
+                                    <span class="flex items-center gap-1.5 font-medium" :style="{ color: log.color }">
+                                        <span class="h-1.5 w-1.5 rounded-full" :style="{ background: log.color }" />
+                                        {{ log.tag }}
+                                    </span>
+
+                                    <span class="min-w-0 flex-1 truncate text-[#9A9AB0]">{{ log.msg }}</span>
+                                    <span class="h-1.5 w-1.5 rounded-full bg-[#22C55E]" />
                                 </div>
                             </div>
                         </div>
 
-                        <div class="rounded-2xl border border-white/10 bg-white/[0.04] p-5">
-                            <div class="mb-4 text-[11px] font-black uppercase tracking-[0.32em] text-white/80">
+                        <!-- estado -->
+                        <div class="rounded-2xl border border-white/[0.07] bg-[#0D1120] p-4">
+                            <div class="mb-3 flex items-center gap-2 text-[10.5px] font-semibold uppercase tracking-[0.14em] text-[#8B8BA0]">
+                                <ShieldCheck class="h-3.5 w-3.5" />
                                 Estado operativo
                             </div>
 
-                            <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-                                <div
-                                    v-for="metric in metrics"
-                                    :key="metric.label"
-                                    class="rounded-2xl border border-white/10 bg-white/[0.05] p-5"
-                                >
-                                    <p class="text-2xl">{{ metric.icon }}</p>
-                                    <p class="mt-4 text-sm text-white/65">{{ metric.label }}</p>
-                                    <p class="mt-2 text-2xl font-black text-white">{{ metric.value }}</p>
-                                    <p class="mt-2 text-xs font-bold text-green-300">{{ metric.note }}</p>
+                            <div class="grid grid-cols-2 gap-2.5">
+                                <div v-for="m in metrics" :key="m.label" class="rounded-xl border border-white/6 bg-[#12172A] p-3">
+                                    <component :is="m.icon" class="h-4 w-4" :style="{ color: m.iconColor }" />
+
+                                    <div class="mt-2 text-[10px] text-[#7A7A90]">
+                                        {{ m.label }}
+                                    </div>
+
+                                    <div class="truncate text-[15px] font-bold leading-tight text-white">
+                                        {{ m.value }}
+                                    </div>
+
+                                    <div class="truncate text-[10px] font-medium" :style="{ color: m.subColor }">
+                                        {{ m.sub }}
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -734,211 +825,86 @@ const stepClasses = {
             </div>
         </section>
 
-        <!-- FLUJOS -->
-        <section id="flujos" class="mx-auto max-w-[1520px] px-5 pb-14 lg:px-8">
-            <div class="rounded-[2rem] border border-[color:var(--border)] bg-[var(--surface)] p-6 shadow-2xl shadow-slate-950/5 lg:p-8">
-                <div class="grid gap-6 lg:grid-cols-[220px_1fr]">
-                    <div class="flex flex-col justify-center">
-                        <p class="text-[11px] font-black uppercase tracking-[0.32em] text-red-600">Flujos reales</p>
-                        <h2 class="mt-4 text-4xl font-black leading-tight tracking-tight">
-                            Flujos que conectamos
-                        </h2>
-                        <div class="mt-5 h-1 w-14 rounded-full bg-red-600"></div>
-                    </div>
+        <!-- ===================== FLUJOS ===================== -->
+        <section class="mx-auto max-w-none px-8 py-10 2xl:px-10">
+            <div class="grid gap-5 xl:grid-cols-4">
+                <div
+                    v-for="f in flows"
+                    :key="f.title"
+                    class="min-w-0 overflow-hidden rounded-3xl border border-black/5 bg-white p-6 transition-shadow hover:shadow-xl hover:shadow-black/4"
+                >
+                    <h3 class="text-[17px] font-bold tracking-tight">
+                        {{ f.title }}
+                    </h3>
 
-                    <div class="grid gap-5 md:grid-cols-2 xl:grid-cols-4">
-                        <article
-                            v-for="flow in flows"
-                            :key="flow.title"
-                            class="rounded-3xl border border-[color:var(--border)] bg-[var(--surface-soft)] p-6 transition hover:-translate-y-1 hover:shadow-xl hover:shadow-slate-950/10"
-                        >
-                            <h3 class="text-lg font-black">{{ flow.title }}</h3>
+                    <div class="mt-5 flex min-w-0 flex-wrap items-start gap-x-2 gap-y-4">
+                        <template v-for="(s, i) in f.steps" :key="s.label">
+                            <div class="flex min-w-[44px] max-w-[64px] flex-col items-center gap-2 text-center">
+                                <span class="grid h-9 w-9 place-items-center rounded-full" :style="{ background: s.color + '1a' }">
+                                    <component :is="s.icon" class="h-4.25 w-4.25" :style="{ color: s.color }" />
+                                </span>
 
-                            <div class="mt-6 flex flex-wrap items-center gap-2">
-                                <template v-for="(step, index) in flow.steps" :key="`${flow.title}-${step}`">
-                                    <span
-                                        class="rounded-full px-3 py-2 text-xs font-black"
-                                        :class="stepClasses[step] || 'bg-slate-100 text-slate-700'"
-                                    >
-                                        {{ step }}
-                                    </span>
-                                    <span v-if="index < flow.steps.length - 1" class="text-[var(--muted)]">→</span>
-                                </template>
+                                <span class="max-w-[68px] truncate text-[10px] font-medium text-[#5A5A6B]">
+                                    {{ s.label }}
+                                </span>
                             </div>
 
-                            <p class="mt-5 text-sm leading-6 text-[var(--muted)]">
-                                {{ flow.description }}
-                            </p>
-                        </article>
+                            <ArrowRight
+                                v-if="i < f.steps.length - 1"
+                                class="mt-3 h-3.5 w-3.5 shrink-0 text-[#C4C4CE]"
+                            />
+                        </template>
                     </div>
+
+                    <p class="mt-5 text-[13px] leading-relaxed text-[#8E8E9E]">
+                        {{ f.desc }}
+                    </p>
                 </div>
             </div>
         </section>
-
-        <!-- CTA -->
-        <section id="contacto" class="mx-auto max-w-[1520px] px-5 pb-10 lg:px-8">
-            <div class="overflow-hidden rounded-[2rem] bg-slate-950 p-8 text-white shadow-2xl shadow-slate-950/20 lg:p-10">
-                <div class="grid gap-10 lg:grid-cols-[1fr_0.9fr] lg:items-center">
-                    <div>
-                        <p class="text-[11px] font-black uppercase tracking-[0.36em] text-red-400">
-                            Operación conectada
-                        </p>
-
-                        <h2 class="mt-4 max-w-4xl text-4xl font-black leading-tight tracking-tight lg:text-5xl">
-                            Del primer contacto a la entrega final, cada paso queda conectado.
-                        </h2>
-
-                        <p class="mt-5 max-w-3xl text-lg leading-8 text-white/65">
-                            LaudaAPI ayuda a que tus equipos trabajen con menos reprocesos: ventas puede captar y convertir, operación puede facturar y despachar, fiscal puede responder ante DGII, delivery puede entregar y Status puede observar todo el recorrido.
-                        </p>
-
-                        <div class="mt-8 flex flex-col gap-4 sm:flex-row">
-                            <a
-                                href="mailto:contacto@laudaapi.com"
-                                class="inline-flex items-center justify-center rounded-2xl bg-white px-8 py-4 text-sm font-black text-slate-950 transition hover:-translate-y-0.5 hover:bg-slate-100"
-                            >
-                                Solicitar demo →
-                            </a>
-
-                            <a
-                                href="#ecosistema"
-                                class="inline-flex items-center justify-center rounded-2xl border border-white/15 bg-white/5 px-8 py-4 text-sm font-black text-white transition hover:-translate-y-0.5 hover:bg-white/10"
-                            >
-                                Ver ecosistema
-                            </a>
-                        </div>
-                    </div>
-
-                    <div class="grid gap-4">
-                        <div class="rounded-3xl border border-white/10 bg-white/[0.04] p-5">
-                            <div class="flex items-start gap-4">
-                                <div class="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-red-500/15 text-2xl">
-                                    🔗
-                                </div>
-
-                                <div>
-                                    <p class="text-lg font-black">Menos sistemas aislados</p>
-                                    <p class="mt-2 text-sm leading-6 text-white/60">
-                                        Las apps se comunican por eventos y cada proceso llega al ambiente que debe ejecutarlo.
-                                    </p>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div class="rounded-3xl border border-white/10 bg-white/[0.04] p-5">
-                            <div class="flex items-start gap-4">
-                                <div class="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-green-500/15 text-2xl">
-                                    ✅
-                                </div>
-
-                                <div>
-                                    <p class="text-lg font-black">Responsabilidades claras</p>
-                                    <p class="mt-2 text-sm leading-6 text-white/60">
-                                        CRM no factura, e-CF no opera ventas, Delivery no crea pedidos y Status no altera operaciones.
-                                    </p>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div class="rounded-3xl border border-white/10 bg-white/[0.04] p-5">
-                            <div class="flex items-start gap-4">
-                                <div class="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-blue-500/15 text-2xl">
-                                    📡
-                                </div>
-
-                                <div>
-                                    <p class="text-lg font-black">Trazabilidad de punta a punta</p>
-                                    <p class="mt-2 text-sm leading-6 text-white/60">
-                                        Desde una oportunidad comercial hasta una factura, entrega o evento operativo monitoreado.
-                                    </p>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </section>
-
-        <footer class="mx-auto flex max-w-[1520px] flex-col gap-4 px-5 pb-8 text-xs text-[var(--muted)] lg:flex-row lg:items-center lg:justify-between lg:px-8">
-            <div class="flex flex-wrap items-center gap-4">
-                <span class="font-black tracking-[0.32em]">AMBIENTE LAUDA DIGITAL</span>
-                <span>@laudaapi</span>
-                <span>contacto@laudaapi.com</span>
-            </div>
-
-            <div class="flex flex-wrap gap-5">
-                <a href="#" class="hover:text-[var(--text)]">Privacidad</a>
-                <a href="#" class="hover:text-[var(--text)]">Términos</a>
-                <a href="https://social.laudaapi.com" class="hover:text-[var(--text)]">Social</a>
-                <a href="https://crm.laudaapi.com" class="hover:text-[var(--text)]">CRM</a>
-                <a href="https://pos.laudaapi.com" class="hover:text-[var(--text)]">POS</a>
-                <a href="https://status.laudaapi.com" class="hover:text-[var(--text)]">Status</a>
-            </div>
-        </footer>
-    </main>
+    </div>
 </template>
 
 <style scoped>
-.lauda-landing {
-    --page: #f7f8fb;
-    --surface: #ffffff;
-    --surface-soft: #f8fafc;
-    --nav: #ffffff;
-    --text: #020617;
-    --muted: #64748b;
-    --border: rgba(203, 213, 225, 0.78);
-}
-
-/* Dark automático según el sistema */
-@media (prefers-color-scheme: dark) {
-    .lauda-landing {
-        --page: #020617;
-        --surface: #071022;
-        --surface-soft: rgba(15, 23, 42, 0.82);
-        --nav: #020617;
-        --text: #f8fafc;
-        --muted: #94a3b8;
-        --border: rgba(148, 163, 184, 0.18);
-    }
-}
-
-.core-ring {
-    animation: core-spin 16s linear infinite;
-    box-shadow: 0 0 90px rgba(239, 68, 68, 0.2);
-}
-
-.pulse-dot {
-    animation: pulse-dot 2.6s ease-in-out infinite;
-}
-
-.pulse-delay-1 {
-    animation-delay: 0.6s;
-}
-
-.pulse-delay-2 {
-    animation-delay: 1.2s;
-}
-
-@keyframes core-spin {
-    from {
-        transform: rotate(0deg);
-    }
-
+@keyframes dashflow {
     to {
-        transform: rotate(360deg);
+        stroke-dashoffset: -16;
     }
 }
 
-@keyframes pulse-dot {
+.flow-line {
+    animation: dashflow 1s linear infinite;
+}
+
+@keyframes corepulse {
     0%,
     100% {
-        opacity: 0.35;
-        transform: scale(0.85);
+        box-shadow:
+            0 0 60px -12px rgba(245, 51, 60, 0.55),
+            inset 0 0 36px rgba(245, 51, 60, 0.12);
     }
 
     50% {
-        opacity: 1;
-        transform: scale(1.45);
+        box-shadow:
+            0 0 90px -6px rgba(245, 51, 60, 0.8),
+            inset 0 0 48px rgba(245, 51, 60, 0.22);
+    }
+}
+
+.core-glow {
+    animation: corepulse 3s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .flow-line,
+    .core-glow {
+        animation: none;
+    }
+}
+
+@media (max-width: 1535px) {
+    section > div.grid {
+        grid-template-columns: 1fr;
     }
 }
 </style>
