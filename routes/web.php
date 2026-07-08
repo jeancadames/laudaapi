@@ -33,9 +33,9 @@ Route::post('/activation', [ActivationRequestController::class, 'store'])->name(
 | Legal pages público
 |--------------------------------------------------------------------------
 */
-Route::get('/legal', fn () => Inertia::render('Legal/Index'))->name('legal.index');
-Route::get('/legal/terminos', fn () => Inertia::render('Legal/Terms'))->name('legal.terms');
-Route::get('/legal/privacidad', fn () => Inertia::render('Legal/Privacy'))->name('legal.privacy');
+Route::get('/legal', fn() => Inertia::render('Legal/Index'))->name('legal.index');
+Route::get('/legal/terminos', fn() => Inertia::render('Legal/Terms'))->name('legal.terms');
+Route::get('/legal/privacidad', fn() => Inertia::render('Legal/Privacy'))->name('legal.privacy');
 
 /*
 |--------------------------------------------------------------------------

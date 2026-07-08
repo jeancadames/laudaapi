@@ -36,7 +36,7 @@ use App\Http\Controllers\Subscriber\SubscriberSupportController;
 | Landing + formularios públicos (sin auth).
 */
 
-Route::get('/', ServiceCatalogController::class)->name('home');
+// Route::get('/', ServiceCatalogController::class)->name('home');
 
 /** Contact request route (público) */
 Route::post('/contact', [ContactRequestController::class, 'store'])->name('contact.store');

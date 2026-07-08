@@ -143,7 +143,7 @@ const nodes = [
         color: '#3B82F6',
         icon: Activity,
         x: 40.5,
-        y: 82,
+        y: 78,
         group: 'status',
     },
 ]
@@ -242,8 +242,6 @@ const flows = [
     },
 ]
 
-const navLinks = ['Soluciones', 'Ecosistema', 'Flujos', 'e-CF', 'Contacto']
-
 const solutionsOpen = ref(false)
 const solutionsMenuRef = ref(null)
 
@@ -276,13 +274,6 @@ const solutionProducts = [
         icon: FileText,
         color: '#F59E0B',
     },
-    // {
-    //     name: 'Delivery',
-    //     href: 'https://delivery.laudaapi.com',
-    //     desc: 'Rutas, entregas y evidencia.',
-    //     icon: Truck,
-    //     color: '#F97316',
-    // },
     {
         name: 'Cumplimiento',
         href: 'https://cumplimiento.laudaapi.com',
@@ -297,27 +288,6 @@ const solutionProducts = [
         icon: Activity,
         color: '#3B82F6',
     },
-    // {
-    //     name: 'BYS',
-    //     href: 'https://bys.laudaapi.com',
-    //     desc: 'Compras, gastos y servicios.',
-    //     icon: Boxes,
-    //     color: '#8B5CF6',
-    // },
-    // {
-    //     name: 'Bancos',
-    //     href: 'https://bancos.laudaapi.com',
-    //     desc: 'Pagos, bancos y conciliación.',
-    //     icon: Landmark,
-    //     color: '#3B82F6',
-    // },
-    // {
-    //     name: 'Contabilidad',
-    //     href: 'https://contabilidad.laudaapi.com',
-    //     desc: 'Asientos y reportes contables.',
-    //     icon: Calculator,
-    //     color: '#22C55E',
-    // },
 ]
 
 /* -------------------------------------------------------------------------- */
@@ -330,7 +300,7 @@ const nodeRefs = ref([])
 const lines = ref([])
 
 const setNodeRef = (el, i) => {
-    if (el) nodeRefs.value[i] = el
+    if (el) nodeRefs.value[ i ] = el
 }
 
 function getNodeElementById(id) {
@@ -340,7 +310,7 @@ function getNodeElementById(id) {
         return null
     }
 
-    return nodeRefs.value[index] || null
+    return nodeRefs.value[ index ] || null
 }
 
 function getCorePoint(box) {
@@ -421,7 +391,7 @@ function computeLines() {
 
     lines.value = nodes
         .map((node, index) => {
-            const el = nodeRefs.value[index]
+            const el = nodeRefs.value[ index ]
 
             if (!el) {
                 return null
@@ -472,6 +442,20 @@ function computeLines() {
         .filter(Boolean)
 }
 
+/*
+ * Throttle con requestAnimationFrame: al redimensionar, en vez de recalcular
+ * las líneas en cada evento (que dispara muchos reflows), agrupamos el cálculo
+ * en el siguiente frame de pintado.
+ */
+let rafId = null
+function scheduleComputeLines() {
+    if (rafId) return
+    rafId = requestAnimationFrame(() => {
+        rafId = null
+        computeLines()
+    })
+}
+
 let ro
 function closeSolutionsOnOutsideClick(event) {
     if (!solutionsOpen.value) return
@@ -482,39 +466,44 @@ function closeSolutionsOnOutsideClick(event) {
         solutionsOpen.value = false
     }
 }
+
 onMounted(async () => {
     await nextTick()
     computeLines()
 
-    ro = new ResizeObserver(computeLines)
+    ro = new ResizeObserver(scheduleComputeLines)
     ro.observe(diagram.value)
 
-    window.addEventListener('resize', computeLines)
+    window.addEventListener('resize', scheduleComputeLines)
     window.addEventListener('pointerdown', closeSolutionsOnOutsideClick)
 })
 
 onBeforeUnmount(() => {
     ro && ro.disconnect()
-    window.removeEventListener('resize', computeLines)
+    if (rafId) cancelAnimationFrame(rafId)
+    window.removeEventListener('resize', scheduleComputeLines)
     window.removeEventListener('pointerdown', closeSolutionsOnOutsideClick)
 })
 </script>
 
 <template>
-    <Head title="LaudaAPI Digital" />
 
-    <div class="min-h-screen bg-[#F4F4F6] text-[#0B0B12] antialiased">
+    <Head title="LaudaAPI Digital">
+        <meta name="description" content="LaudaAPI conecta Social, CRM, Ecommerce, POS, Delivery, e-CF, Cumplimiento, BYS, Bancos, Contabilidad y Status en un solo ambiente operativo API-first." />
+    </Head>
+
+    <div class="min-h-screen bg-[#FAFAF8] text-[#0B0B12] antialiased">
         <!-- ===================== NAV ===================== -->
-        <nav class="sticky top-0 z-50 border-b border-black/5 bg-[#F4F4F6]/88 backdrop-blur-xl">
-            <div class="mx-auto flex h-[76px] max-w-none items-center gap-8 px-8 2xl:px-10">
+        <nav class="sticky top-0 z-50 border-b border-black/5 bg-[#FAFAF8] backdrop-blur-xl">
+            <div class="mx-auto flex h-19 max-w-none items-center gap-8 px-8 2xl:px-10">
                 <Link href="/" class="flex items-center gap-2.5">
-                    <div class="grid h-11 w-11 place-items-center rounded-[12px] bg-[#F5333C] font-black text-white shadow-xl shadow-[#F5333C]/35">
+                    <div class="grid h-11 w-11 place-items-center rounded-xl bg-[#F5333C] font-black text-white shadow-xl shadow-[#F5333C]/35">
                         <BrandLogo class="h-6 w-6 text-white" />
                     </div>
 
                     <div class="leading-none">
                         <div class="text-[20px] font-extrabold tracking-tight">LAUDA</div>
-                        <div class="mt-0.5 text-[9px] font-semibold tracking-[0.2em] text-[#8E8E9E]">
+                        <div class="mt-0.5 text-[9px] font-semibold tracking-[0.2em] text-red-600">
                             API DIGITAL
                         </div>
                     </div>
@@ -522,24 +511,13 @@ onBeforeUnmount(() => {
 
                 <div class="ml-auto hidden items-center gap-10 text-[15px] font-medium text-[#5A5A6B] lg:flex">
                     <!-- SOLUCIONES MENU -->
-                    <div ref="solutionsMenuRef" class="relative flex h-[76px] items-center">
-                        <button
-                            type="button"
-                            class="flex items-center gap-1 transition-colors hover:text-[#0B0B12]"
-                            :class="solutionsOpen && 'text-[#0B0B12]'"
-                            @click.stop="solutionsOpen = !solutionsOpen"
-                        >
+                    <div ref="solutionsMenuRef" class="relative flex h-19 items-center">
+                        <button type="button" class="flex items-center gap-1 transition-colors hover:text-[#0B0B12]" :class="solutionsOpen && 'text-[#0B0B12]'" @click.stop="solutionsOpen = !solutionsOpen">
                             Soluciones
-                            <ChevronDown
-                                class="h-3.5 w-3.5 transition-transform"
-                                :class="solutionsOpen && 'rotate-180'"
-                            />
+                            <ChevronDown class="h-3.5 w-3.5 transition-transform" :class="solutionsOpen && 'rotate-180'" />
                         </button>
 
-                        <div
-                            v-show="solutionsOpen"
-                            class="absolute left-0 top-[68px] z-50 w-[560px] rounded-3xl border border-black/5 bg-white p-4 shadow-2xl shadow-slate-950/15"
-                        >
+                        <div v-show="solutionsOpen" class="absolute left-0 top-17 z-50 w-140 rounded-3xl border border-black/5 bg-white p-4 shadow-2xl shadow-slate-950/15">
                             <div class="mb-3 px-2">
                                 <p class="text-[10px] font-black uppercase tracking-[0.24em] text-[#F5333C]">
                                     Soluciones LaudaAPI
@@ -550,23 +528,10 @@ onBeforeUnmount(() => {
                             </div>
 
                             <div class="grid grid-cols-2 gap-2">
-                                <a
-                                    v-for="product in solutionProducts"
-                                    :key="product.name"
-                                    :href="product.href"
-                                    class="group rounded-2xl border border-transparent p-3 transition hover:border-black/5 hover:bg-[#F4F4F6]"
-                                    @click="solutionsOpen = false"
-                                >
+                                <a v-for="product in solutionProducts" :key="product.name" :href="product.href" class="group rounded-2xl border border-transparent p-3 transition hover:border-black/5 hover:bg-[#F4F4F6]" @click="solutionsOpen = false">
                                     <div class="flex items-start gap-3">
-                                        <span
-                                            class="grid h-11 w-11 shrink-0 place-items-center rounded-xl"
-                                            :style="{ background: product.color + '1a' }"
-                                        >
-                                            <component
-                                                :is="product.icon"
-                                                class="h-5 w-5"
-                                                :style="{ color: product.color }"
-                                            />
+                                        <span class="grid h-11 w-11 shrink-0 place-items-center rounded-xl" :style="{ background: product.color + '1a' }">
+                                            <component :is="product.icon" class="h-5 w-5" :style="{ color: product.color }" />
                                         </span>
 
                                         <div class="min-w-0">
@@ -584,32 +549,19 @@ onBeforeUnmount(() => {
                     </div>
 
                     <!-- RESTO DEL NAV -->
-                    <a
-                        href="#ecosistema"
-                        class="flex h-[76px] items-center transition-colors hover:text-[#0B0B12]"
-                        :class="'relative text-[#0B0B12] after:absolute after:bottom-0 after:left-0 after:h-0.5 after:w-full after:bg-[#F5333C]'"
-                    >
+                    <a href="#ecosistema" class="flex h-19 items-center transition-colors hover:text-[#0B0B12]" :class="'relative text-[#0B0B12] after:absolute after:bottom-0 after:left-0 after:h-0.5 after:w-full after:bg-[#F5333C]'">
                         Ecosistema
                     </a>
 
-                    <a
-                        href="#flujos"
-                        class="flex h-[76px] items-center transition-colors hover:text-[#0B0B12]"
-                    >
+                    <a href="#flujos" class="flex h-19 items-center transition-colors hover:text-[#0B0B12]">
                         Flujos
                     </a>
 
-                    <a
-                        href="https://ecf.laudaapi.com"
-                        class="flex h-[76px] items-center transition-colors hover:text-[#0B0B12]"
-                    >
+                    <a href="https://ecf.laudaapi.com" class="flex h-19 items-center transition-colors hover:text-[#0B0B12]">
                         e-CF
                     </a>
 
-                    <a
-                        href="#contacto"
-                        class="flex h-[76px] items-center transition-colors hover:text-[#0B0B12]"
-                    >
+                    <a href="#contacto" class="flex h-19 items-center transition-colors hover:text-[#0B0B12]">
                         Contacto
                     </a>
                 </div>
@@ -622,16 +574,16 @@ onBeforeUnmount(() => {
         </nav>
 
         <!-- ===================== HERO ===================== -->
-        <section class="mx-auto max-w-none px-6 pt-10 2xl:px-8">
-            <div class="grid items-center gap-6 xl:grid-cols-[450px_minmax(0,1fr)] 2xl:grid-cols-[470px_minmax(0,1fr)]">
+        <section class="lauda-hero">
+            <div class="lauda-hero__layout">
                 <!-- Columna izquierda -->
-                <div class="max-w-[455px]">
+                <div class="lauda-hero__copy">
                     <span class="inline-flex items-center gap-2 rounded-full bg-[#F5333C]/10 px-3.5 py-1.5 text-[11px] font-bold uppercase tracking-[0.14em] text-[#F5333C]">
                         <span class="h-1.5 w-1.5 rounded-full bg-[#F5333C]" />
                         Un solo ambiente
                     </span>
 
-                    <h1 class="mt-6 text-[48px] font-extrabold leading-[1.02] tracking-[-0.04em] lg:text-[56px]">
+                    <h1 class="mt-6 text-[38px] font-extrabold leading-[1.02] tracking-[-0.04em] sm:text-[48px] lg:text-[56px]">
                         La operación completa de tu negocio,
                         <span class="text-[#F5333C]">conectada en un solo ambiente.</span>
                     </h1>
@@ -641,7 +593,7 @@ onBeforeUnmount(() => {
                         para que cada área trabaje sobre una misma verdad operativa.
                     </p>
 
-                    <div class="mt-8 flex gap-3">
+                    <div class="mt-8 flex flex-wrap gap-3">
                         <Button class="gap-2 rounded-xl bg-[#F5333C] px-6 py-6 text-white hover:bg-[#d92730]">
                             Ver ecosistema
                             <ArrowRight class="h-4 w-4" />
@@ -652,12 +604,8 @@ onBeforeUnmount(() => {
                         </Button>
                     </div>
 
-                    <div class="mt-9 grid max-w-[540px] gap-3 sm:grid-cols-3">
-                        <div
-                            v-for="c in chips"
-                            :key="c.text"
-                            class="flex min-h-[66px] items-center gap-2.5 rounded-xl border border-black/5 bg-white px-3 py-3"
-                        >
+                    <div class="lauda-hero__chips">
+                        <div v-for="c in chips" :key="c.text" class="flex min-h-16.5 items-center gap-2.5 rounded-xl border border-black/5 bg-white px-3 py-3">
                             <span class="grid h-8 w-8 shrink-0 place-items-center rounded-lg" :style="{ background: c.color + '1a' }">
                                 <component :is="c.icon" class="h-4 w-4" :style="{ color: c.color }" />
                             </span>
@@ -670,111 +618,75 @@ onBeforeUnmount(() => {
                 </div>
 
                 <!-- Columna derecha: panel oscuro -->
-                <div class="overflow-hidden rounded-[26px] border border-white/5 bg-[#0A0D18] p-4 shadow-2xl shadow-slate-950/25 lg:p-5">
+                <div id="ecosistema" class="lauda-hero__panel">
                     <!-- header -->
-                    <div class="mb-3 flex items-center justify-center gap-3 text-[11px] font-semibold uppercase tracking-[0.22em] text-[#6B6B82]">
+                    <div class="mb-3 flex items-center justify-center gap-3 text-center text-[11px] font-semibold uppercase tracking-[0.22em] text-[#6B6B82]">
                         <span class="h-1.5 w-1.5 rounded-full bg-[#F5333C]" />
                         Ecosistema LaudaAPI
                         <span class="h-1.5 w-1.5 rounded-full bg-[#22C55E]" />
                         En vivo
                     </div>
 
-                    <!-- diagrama -->
-                    <div
-                        ref="diagram"
-                        class="relative h-[560px] rounded-2xl bg-[#080B15]"
-                        style="background-image: radial-gradient(circle at 44% 43%, rgba(245,51,60,.11), transparent 48%), linear-gradient(rgba(255,255,255,.025) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,.025) 1px, transparent 1px); background-size: 100% 100%, 34px 34px, 34px 34px;"
-                    >
-                        <!-- conectores -->
-                        <svg class="pointer-events-none absolute inset-0 h-full w-full" style="z-index:0">
-                            <template v-for="(l, i) in lines" :key="i">
-                                <path
-                                    v-if="l.type === 'elbow'"
-                                    :d="l.d"
-                                    :stroke="l.color"
-                                    fill="none"
-                                    stroke-width="1.5"
-                                    stroke-dasharray="4 6"
-                                    stroke-linecap="round"
-                                    stroke-linejoin="round"
-                                    class="flow-line"
-                                    style="opacity:.55"
-                                />
+                    <!-- Diagrama -->
+                    <div class="lauda-diagram-scroll">
+                        <div ref="diagram" class="relative h-150 w-full min-w-170 rounded-2xl bg-[#080B15]" style="background-image: radial-gradient(circle at 44% 43%, rgba(245,51,60,.11), transparent 48%), linear-gradient(rgba(255,255,255,.025) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,.025) 1px, transparent 1px); background-size: 100% 100%, 34px 34px, 34px 34px;">
+                            <!-- conectores -->
+                            <svg class="pointer-events-none absolute inset-0 h-full w-full" style="z-index:0">
+                                <template v-for="(l, i) in lines" :key="i">
+                                    <path v-if="l.type === 'elbow'" :d="l.d" :stroke="l.color" fill="none" stroke-width="1.5" stroke-dasharray="4 6" stroke-linecap="round" stroke-linejoin="round" class="flow-line" style="opacity:.55" />
 
-                                <line
-                                    v-else
-                                    :x1="l.x1"
-                                    :y1="l.y1"
-                                    :x2="l.x2"
-                                    :y2="l.y2"
-                                    :stroke="l.color"
-                                    stroke-width="1.5"
-                                    stroke-dasharray="4 6"
-                                    stroke-linecap="round"
-                                    class="flow-line"
-                                    style="opacity:.55"
-                                />
-                            </template>
-                        </svg>
+                                    <line v-else :x1="l.x1" :y1="l.y1" :x2="l.x2" :y2="l.y2" :stroke="l.color" stroke-width="1.5" stroke-dasharray="4 6" stroke-linecap="round" class="flow-line" style="opacity:.55" />
+                                </template>
+                            </svg>
 
-                        <!-- etiqueta -->
-                        <div class="absolute left-1/2 top-5 z-10 -translate-x-1/2 rounded-full border border-white/10 bg-white/5 px-4 py-1.5 text-[9px] font-semibold uppercase tracking-[0.16em] text-[#8B8BA0]">
-                            Eventos en tiempo real
-                        </div>
-
-                        <!-- core -->
-                        <div
-                            ref="coreEl"
-                            class="core-glow absolute z-20 flex h-[178px] w-[178px] -translate-x-1/2 -translate-y-1/2 flex-col items-center justify-center rounded-full border border-[#F5333C]/40 bg-[#0A0D18] text-center"
-                            :style="{ left: CORE.x + '%', top: CORE.y + '%' }"
-                        >
-                            <div class="mb-2 grid h-10 w-10 place-items-center rounded-xl bg-[#F5333C] font-black text-white">
-                                L
+                            <!-- etiqueta -->
+                            <div class="absolute left-1/2 top-5 z-10 -translate-x-1/2 rounded-full border border-white/10 bg-white/5 px-4 py-1.5 text-[9px] font-semibold uppercase tracking-[0.16em] text-[#8B8BA0]">
+                                Eventos en tiempo real
                             </div>
 
-                            <div class="text-[17px] font-extrabold tracking-tight text-white">
-                                LAUDAAPI CORE
-                            </div>
-
-                            <div class="mt-0.5 text-[9px] font-bold uppercase tracking-[0.14em] text-[#F5333C]">
-                                API-First Environment
-                            </div>
-
-                            <div class="mt-2 text-[10.5px] leading-snug text-[#8B8BA0]">
-                                Conecta eventos.<br />
-                                Orquesta procesos.
-                            </div>
-                        </div>
-
-                        <!-- nodos -->
-                        <div
-                            v-for="(n, i) in nodes"
-                            :key="n.id"
-                            :ref="(el) => setNodeRef(el, i)"
-                            class="absolute z-10 flex min-h-[72px] w-[190px] -translate-x-1/2 -translate-y-1/2 items-start gap-2.5 rounded-2xl border border-white/[0.07] bg-[#12172A] p-3 shadow-lg shadow-black/10"
-                            :class="n.group === 'backoffice' && 'w-[184px]'"
-                            :style="{ left: n.x + '%', top: n.y + '%' }"
-                        >
-                            <span class="grid h-9 w-9 shrink-0 place-items-center rounded-lg shadow-lg" :style="{ background: n.color }">
-                                <component :is="n.icon" class="h-4.5 w-4.5 text-white" />
-                            </span>
-
-                            <div class="min-w-0">
-                                <div class="truncate text-[13px] font-bold leading-tight text-white">
-                                    {{ n.label }}
+                            <!-- CORE -->
+                            <div ref="coreEl" class="core-glow absolute z-30 flex aspect-square w-48 -translate-x-1/2 -translate-y-1/2 flex-col items-center justify-center rounded-full border border-[#F5333C]/40 bg-[#0A0D18] text-center" :style="{ left: CORE.x + '%', top: CORE.y + '%' }">
+                                <div class="mb-2 grid h-10 w-10 place-items-center rounded-xl bg-[#F5333C] font-black text-white">
+                                    L
                                 </div>
 
-                                <div class="mt-0.5 text-[10.5px] leading-snug text-[#7A7A90]">
-                                    {{ n.desc }}
+                                <div class="text-[17px] font-extrabold tracking-tight text-white">
+                                    LAUDAAPI CORE
+                                </div>
+
+                                <div class="mt-0.5 text-[9px] font-bold uppercase tracking-[0.14em] text-[#F5333C]">
+                                    API-First Environment
+                                </div>
+
+                                <div class="mt-2 text-[10.5px] leading-snug text-[#8B8BA0]">
+                                    Conecta eventos.<br />
+                                    Orquesta procesos.
+                                </div>
+                            </div>
+
+                            <!-- nodos -->
+                            <div v-for="(n, i) in nodes" :key="n.id" :ref="(el) => setNodeRef(el, i)" class="lauda-node absolute z-10 flex min-h-18 w-47.5 -translate-x-1/2 -translate-y-1/2 items-start gap-2.5 rounded-2xl border border-white/[0.07] bg-[#12172A] p-3 shadow-lg shadow-black/10" :class="n.group === 'backoffice' && 'w-46'" :style="{ left: n.x + '%', top: n.y + '%' }">
+                                <span class="grid h-9 w-9 shrink-0 place-items-center rounded-lg shadow-lg" :style="{ background: n.color }">
+                                    <component :is="n.icon" class="h-4.5 w-4.5 text-white" />
+                                </span>
+
+                                <div class="min-w-0">
+                                    <div class="truncate text-[13px] font-bold leading-tight text-white">
+                                        {{ n.label }}
+                                    </div>
+
+                                    <div class="mt-0.5 text-[10.5px] leading-snug text-[#7A7A90]">
+                                        {{ n.desc }}
+                                    </div>
                                 </div>
                             </div>
                         </div>
                     </div>
 
                     <!-- panels -->
-                    <div class="mt-4 grid gap-4 xl:grid-cols-[1.15fr_1fr]">
+                    <div class="lauda-hero__status-grid">
                         <!-- transmisión -->
-                        <div class="rounded-2xl border border-white/[0.07] bg-[#0D1120] p-4">
+                        <div class="min-w-0 rounded-2xl border border-white/[0.07] bg-[#0D1120] p-4">
                             <div class="mb-3 flex items-center gap-2 text-[10.5px] font-semibold uppercase tracking-[0.14em] text-[#8B8BA0]">
                                 <Activity class="h-3.5 w-3.5" />
                                 Transmisión en vivo
@@ -782,28 +694,28 @@ onBeforeUnmount(() => {
 
                             <div class="space-y-2 font-mono text-[11px]">
                                 <div v-for="log in logs" :key="log.time" class="flex min-w-0 items-center gap-3">
-                                    <span class="text-[#4A4A5E]">{{ log.time }}</span>
+                                    <span class="shrink-0 text-[#4A4A5E]">{{ log.time }}</span>
 
-                                    <span class="flex items-center gap-1.5 font-medium" :style="{ color: log.color }">
+                                    <span class="flex shrink-0 items-center gap-1.5 font-medium" :style="{ color: log.color }">
                                         <span class="h-1.5 w-1.5 rounded-full" :style="{ background: log.color }" />
                                         {{ log.tag }}
                                     </span>
 
                                     <span class="min-w-0 flex-1 truncate text-[#9A9AB0]">{{ log.msg }}</span>
-                                    <span class="h-1.5 w-1.5 rounded-full bg-[#22C55E]" />
+                                    <span class="h-1.5 w-1.5 shrink-0 rounded-full bg-[#22C55E]" />
                                 </div>
                             </div>
                         </div>
 
                         <!-- estado -->
-                        <div class="rounded-2xl border border-white/[0.07] bg-[#0D1120] p-4">
+                        <div class="min-w-0 rounded-2xl border border-white/[0.07] bg-[#0D1120] p-4">
                             <div class="mb-3 flex items-center gap-2 text-[10.5px] font-semibold uppercase tracking-[0.14em] text-[#8B8BA0]">
                                 <ShieldCheck class="h-3.5 w-3.5" />
                                 Estado operativo
                             </div>
 
                             <div class="grid grid-cols-2 gap-2.5">
-                                <div v-for="m in metrics" :key="m.label" class="rounded-xl border border-white/6 bg-[#12172A] p-3">
+                                <div v-for="m in metrics" :key="m.label" class="min-w-0 rounded-xl border border-white/6 bg-[#12172A] p-3">
                                     <component :is="m.icon" class="h-4 w-4" :style="{ color: m.iconColor }" />
 
                                     <div class="mt-2 text-[10px] text-[#7A7A90]">
@@ -826,33 +738,26 @@ onBeforeUnmount(() => {
         </section>
 
         <!-- ===================== FLUJOS ===================== -->
-        <section class="mx-auto max-w-none px-8 py-10 2xl:px-10">
-            <div class="grid gap-5 xl:grid-cols-4">
-                <div
-                    v-for="f in flows"
-                    :key="f.title"
-                    class="min-w-0 overflow-hidden rounded-3xl border border-black/5 bg-white p-6 transition-shadow hover:shadow-xl hover:shadow-black/4"
-                >
+        <section id="flujos" class="mx-auto max-w-none scroll-mt-24 px-8 py-10 2xl:px-10">
+            <div class="grid gap-5 sm:grid-cols-2 xl:grid-cols-4">
+                <div v-for="f in flows" :key="f.title" class="min-w-0 overflow-hidden rounded-3xl border border-black/5 bg-white p-6 transition-shadow hover:shadow-xl hover:shadow-black/4">
                     <h3 class="text-[17px] font-bold tracking-tight">
                         {{ f.title }}
                     </h3>
 
                     <div class="mt-5 flex min-w-0 flex-wrap items-start gap-x-2 gap-y-4">
                         <template v-for="(s, i) in f.steps" :key="s.label">
-                            <div class="flex min-w-[44px] max-w-[64px] flex-col items-center gap-2 text-center">
+                            <div class="flex min-w-11 max-w-16 flex-col items-center gap-2 text-center">
                                 <span class="grid h-9 w-9 place-items-center rounded-full" :style="{ background: s.color + '1a' }">
                                     <component :is="s.icon" class="h-4.25 w-4.25" :style="{ color: s.color }" />
                                 </span>
 
-                                <span class="max-w-[68px] truncate text-[10px] font-medium text-[#5A5A6B]">
+                                <span class="max-w-17 truncate text-[10px] font-medium text-[#5A5A6B]">
                                     {{ s.label }}
                                 </span>
                             </div>
 
-                            <ArrowRight
-                                v-if="i < f.steps.length - 1"
-                                class="mt-3 h-3.5 w-3.5 shrink-0 text-[#C4C4CE]"
-                            />
+                            <ArrowRight v-if="i < f.steps.length - 1" class="mt-3 h-3.5 w-3.5 shrink-0 text-[#C4C4CE]" />
                         </template>
                     </div>
 
@@ -866,6 +771,124 @@ onBeforeUnmount(() => {
 </template>
 
 <style scoped>
+/* -------------------------------------------------------------------------- */
+/*  Hero layout responsivo                                                     */
+/*                                                                             */
+/*  Móvil / tablet  -> una columna, apilado (copy arriba, panel abajo).        */
+/*  Desktop ≥1200px -> dos columnas: el panel del core a la derecha del CTA.   */
+/*  El scroll horizontal vive SOLO dentro del diagrama (.lauda-diagram-scroll),*/
+/*  nunca en toda la página.                                                   */
+/* -------------------------------------------------------------------------- */
+
+.lauda-hero {
+    width: 100%;
+    max-width: 1600px;
+    margin-inline: auto;
+    padding: 40px 16px 0;
+    box-sizing: border-box;
+}
+
+.lauda-hero__layout {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 32px;
+    align-items: center;
+}
+
+.lauda-hero__copy {
+    width: 100%;
+    max-width: 560px;
+    min-width: 0;
+}
+
+.lauda-hero__chips {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 12px;
+    max-width: 560px;
+    margin-top: 36px;
+}
+
+.lauda-hero__panel {
+    width: 100%;
+    min-width: 0;
+    overflow: hidden;
+    scroll-margin-top: 96px;
+    border-radius: 26px;
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    background: #0a0d18;
+    padding: 20px;
+    box-shadow: 0 25px 50px -12px rgba(2, 6, 23, 0.25);
+}
+
+.lauda-diagram-scroll {
+    margin-inline: -4px;
+    overflow-x: auto;
+    padding-inline: 4px;
+    padding-bottom: 4px;
+    -webkit-overflow-scrolling: touch;
+}
+
+.lauda-hero__status-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 16px;
+    margin-top: 16px;
+}
+
+@media (min-width: 640px) {
+    .lauda-hero {
+        padding-inline: 24px;
+    }
+}
+
+/* Estado operativo en dos columnas cuando hay ancho suficiente */
+@media (min-width: 900px) {
+    .lauda-hero__status-grid {
+        grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr);
+    }
+}
+
+/* Dos columnas: el panel del core queda a la derecha del CTA */
+@media (min-width: 1200px) {
+    .lauda-hero__layout {
+        grid-template-columns: 430px minmax(0, 1fr);
+        gap: 24px;
+    }
+
+    .lauda-hero__copy {
+        max-width: 100%;
+    }
+}
+
+@media (min-width: 1536px) {
+    .lauda-hero {
+        padding-inline: 32px;
+    }
+
+    .lauda-hero__layout {
+        grid-template-columns: 470px minmax(0, 1fr);
+    }
+}
+
+/* -------------------------------------------------------------------------- */
+/*  Interacción de nodos (hover suave, sin tocar el transform de Tailwind)     */
+/* -------------------------------------------------------------------------- */
+
+.lauda-node {
+    transition: border-color 0.2s ease, box-shadow 0.2s ease, background-color 0.2s ease;
+}
+
+.lauda-node:hover {
+    border-color: rgba(255, 255, 255, 0.2);
+    background-color: #161c33;
+    box-shadow: 0 12px 30px rgba(0, 0, 0, 0.4);
+}
+
+/* -------------------------------------------------------------------------- */
+/*  Animaciones                                                                */
+/* -------------------------------------------------------------------------- */
+
 @keyframes dashflow {
     to {
         stroke-dashoffset: -16;
@@ -877,6 +900,7 @@ onBeforeUnmount(() => {
 }
 
 @keyframes corepulse {
+
     0%,
     100% {
         box-shadow:
@@ -896,15 +920,14 @@ onBeforeUnmount(() => {
 }
 
 @media (prefers-reduced-motion: reduce) {
+
     .flow-line,
     .core-glow {
         animation: none;
     }
-}
 
-@media (max-width: 1535px) {
-    section > div.grid {
-        grid-template-columns: 1fr;
+    .lauda-node {
+        transition: none;
     }
 }
 </style>
