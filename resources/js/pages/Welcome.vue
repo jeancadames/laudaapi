@@ -168,6 +168,141 @@ const solutionProducts = [
     { name: 'BI', href: 'https://bi.laudaapi.com', desc: 'Dashboards, métricas, reporting e inteligencia.', icon: TrendingUp, color: brand.bi },
 ]
 
+const primarySolutions = [
+    {
+        name: 'e-CF',
+        href: 'https://ecf.laudaapi.com',
+        status: 'Disponible',
+        statusColor: brand.pos,
+        desc: 'Motor fiscal para firmar, enviar, consultar estados y responder comprobantes electrónicos ante DGII.',
+        audience: 'Empresas que necesitan facturación electrónica RD.',
+        connects: 'POS, Cumplimiento, BYS y Contabilidad.',
+        icon: FileText,
+        color: brand.ecf,
+    },
+    {
+        name: 'Cumplimiento',
+        href: 'https://cumplimiento.laudaapi.com',
+        status: 'Disponible',
+        statusColor: brand.pos,
+        desc: 'Control de obligaciones, documentos fiscales, vencimientos, soporte, pagos SaaS y trazabilidad.',
+        audience: 'Empresas y asesores que necesitan seguimiento fiscal/operativo.',
+        connects: 'e-CF, POS, BYS, Contabilidad y Status.',
+        icon: ShieldCheck,
+        color: brand.cumplimiento,
+    },
+    {
+        name: 'POS',
+        href: 'https://pos.laudaapi.com',
+        status: 'En desarrollo avanzado',
+        statusColor: brand.ecf,
+        desc: 'Operación comercial: pedidos, caja, crédito, CxC, inventario, almacén, empaque, rutas y despacho.',
+        audience: 'Negocios que venden, cobran, despachan y controlan inventario.',
+        connects: 'e-CF, Ecommerce, Delivery, CRM, Bancos y BI.',
+        icon: Store,
+        color: brand.pos,
+    },
+    {
+        name: 'CRM',
+        href: 'https://crm.laudaapi.com',
+        status: 'En desarrollo avanzado',
+        statusColor: brand.ecf,
+        desc: 'Leads, clientes, contactos, oportunidades, actividades, pipeline e integración comercial hacia POS.',
+        audience: 'Equipos comerciales que necesitan seguimiento y conversión.',
+        connects: 'Social, POS, Ecommerce y BI.',
+        icon: Users,
+        color: brand.crm,
+    },
+    {
+        name: 'Social',
+        href: 'https://social.laudaapi.com',
+        status: 'En desarrollo',
+        statusColor: brand.ecommerce,
+        desc: 'Contenido, campañas, inbox social, leads, analítica e integración con CRM.',
+        audience: 'Equipos de marketing, ventas y atención digital.',
+        connects: 'CRM, campañas, leads y analítica.',
+        icon: MessageCircle,
+        color: brand.social,
+    },
+    {
+        name: 'Status',
+        href: 'https://status.laudaapi.com',
+        status: 'Disponible',
+        statusColor: brand.pos,
+        desc: 'Monitoreo de disponibilidad, DGII, endpoints, APIs, incidencias y salud general del ecosistema.',
+        audience: 'Administradores, soporte y operación técnica.',
+        connects: 'Todas las soluciones LaudaAPI.',
+        icon: Activity,
+        color: brand.status,
+    },
+]
+
+const ecosystemSteps = [
+    {
+        title: 'Entrada comercial',
+        desc: 'Social, CRM y Ecommerce capturan conversaciones, oportunidades y pedidos online sin tocar la operación final.',
+        items: [ 'Social', 'CRM', 'Ecommerce' ],
+        icon: MessageCircle,
+        color: brand.social,
+    },
+    {
+        title: 'Operación central',
+        desc: 'POS funciona como fuente de verdad para ventas, caja, crédito, inventario, despacho, CxC y operación diaria.',
+        items: [ 'POS', 'Inventario', 'Caja', 'CxC' ],
+        icon: Store,
+        color: brand.pos,
+    },
+    {
+        title: 'Fiscalidad y cumplimiento',
+        desc: 'e-CF maneja la emisión fiscal y Cumplimiento organiza obligaciones, documentos, vencimientos y trazabilidad.',
+        items: [ 'e-CF', 'DGII', 'Cumplimiento' ],
+        icon: ShieldCheck,
+        color: brand.ecf,
+    },
+    {
+        title: 'Backoffice conectado',
+        desc: 'BYS, Bancos, Contabilidad, Tesorería y BI consumen eventos preparados sin duplicar la operación principal.',
+        items: [ 'BYS', 'Bancos', 'Contabilidad', 'BI' ],
+        icon: Calculator,
+        color: brand.bancos,
+    },
+]
+
+const activationOptions = [
+    {
+        title: 'Activación individual',
+        desc: 'Cada solución mantiene su propio onboarding para empresas que quieren contratar un módulo específico.',
+        badge: 'Por app',
+        examples: [ 'e-CF', 'Cumplimiento', 'POS', 'CRM' ],
+        icon: CheckCircle2,
+        color: brand.pos,
+    },
+    {
+        title: 'Implementación asistida',
+        desc: 'LaudaAPI.com centraliza solicitudes donde el cliente necesita acompañamiento, configuración, pruebas o migración.',
+        badge: 'Asistida',
+        examples: [ 'Configuración fiscal', 'Usuarios', 'Datos iniciales', 'Entrenamiento' ],
+        icon: Users,
+        color: brand.crm,
+    },
+    {
+        title: 'Ecosistema completo',
+        desc: 'Para empresas que necesitan varias soluciones conectadas bajo una misma estrategia operativa y comercial.',
+        badge: 'Todo incluido',
+        examples: [ 'POS + e-CF', 'CRM + POS', 'Ecommerce + Delivery', 'BI + Backoffice' ],
+        icon: RefreshCw,
+        color: brand.main,
+    },
+]
+
+const requestTypes = [
+    'Demo',
+    'Activar una solución',
+    'Implementación asistida',
+    'Paquete todo incluido',
+    'Migración / integración',
+]
+
 const extendedModules = [
     { name: 'RRHH', desc: 'Recursos humanos, equipos, asistencia y procesos internos.', icon: Users, color: brand.rrhh, relation: 'Consume operación y usuarios del ecosistema.' },
     { name: 'Tesorería', desc: 'Caja, pagos, bancos, conciliación y flujo financiero.', icon: Landmark, color: brand.tesoreria, relation: 'Cruza cobros POS, bancos y contabilidad.' },
@@ -181,10 +316,10 @@ const extendedModules = [
 ]
 
 const mobileNavLinks = [
-    { label: 'Ecosistema', href: '#ecosistema' },
+    { label: 'Ecosistema', href: '#ecosistema-detalle' },
+    { label: 'Soluciones', href: '#soluciones' },
+    { label: 'Activación', href: '#activacion' },
     { label: 'Flujos', href: '#flujos' },
-    { label: 'Módulos', href: '#modulos' },
-    { label: 'e-CF', href: 'https://ecf.laudaapi.com' },
     { label: 'Contacto', href: '#contacto' },
 ]
 
@@ -510,20 +645,20 @@ onBeforeUnmount(() => {
                         </div>
                     </div>
 
-                    <a href="#ecosistema" class="relative flex h-19 items-center text-(--text) transition-colors after:absolute after:bottom-0 after:left-0 after:h-0.5 after:w-full after:bg-(--brand)">
+                    <a href="#ecosistema-detalle" class="relative flex h-19 items-center text-(--text) transition-colors after:absolute after:bottom-0 after:left-0 after:h-0.5 after:w-full after:bg-(--brand)">
                         Ecosistema
+                    </a>
+
+                    <a href="#soluciones" class="flex h-19 items-center transition-colors hover:text-(--text)">
+                        Soluciones
+                    </a>
+
+                    <a href="#activacion" class="flex h-19 items-center transition-colors hover:text-(--text)">
+                        Activación
                     </a>
 
                     <a href="#flujos" class="flex h-19 items-center transition-colors hover:text-(--text)">
                         Flujos
-                    </a>
-
-                    <a href="#modulos" class="flex h-19 items-center transition-colors hover:text-(--text)">
-                        Módulos
-                    </a>
-
-                    <a href="https://ecf.laudaapi.com" class="flex h-19 items-center transition-colors hover:text-(--text)">
-                        e-CF
                     </a>
 
                     <a href="#contacto" class="flex h-19 items-center transition-colors hover:text-(--text)">
@@ -631,7 +766,7 @@ onBeforeUnmount(() => {
                     </div>
 
                     <div class="mt-8 flex flex-wrap gap-3">
-                        <Button class="gap-2 rounded-xl bg-(--brand) px-6 py-6 text-white hover:bg-(--brand-hover)" @click="scrollToId('ecosistema')">
+                        <Button class="gap-2 rounded-xl bg-(--brand) px-6 py-6 text-white hover:bg-(--brand-hover)" @click="scrollToId('ecosistema-detalle')">
                             Ver ecosistema
                             <ArrowRight class="h-4 w-4" />
                         </Button>
@@ -773,6 +908,157 @@ onBeforeUnmount(() => {
             </div>
         </section>
 
+        <!-- ===================== ECOSISTEMA DETALLE ===================== -->
+        <section id="ecosistema-detalle" class="mx-auto max-w-360 scroll-mt-24 px-4 py-14 sm:px-6 2xl:px-8">
+            <div class="mb-8 flex flex-col justify-between gap-4 lg:flex-row lg:items-end">
+                <div>
+                    <p class="text-[10px] font-black uppercase tracking-[0.24em] text-(--brand)">
+                        Ecosistema conectado
+                    </p>
+                    <h2 class="mt-2 text-3xl font-black tracking-tight text-(--text) sm:text-4xl">
+                        LaudaAPI.com presenta el ambiente, cada app opera su especialidad.
+                    </h2>
+                </div>
+
+                <p class="max-w-xl text-sm leading-relaxed text-muted">
+                    El portal principal funciona como hub comercial, catálogo, activación asistida y punto de entrada.
+                    Las operaciones reales viven en los subdominios especializados.
+                </p>
+            </div>
+
+            <div class="grid gap-4 lg:grid-cols-4">
+                <div v-for="step in ecosystemSteps" :key="step.title" class="lauda-card rounded-3xl border p-5">
+                    <div class="mb-4 flex items-start justify-between gap-4">
+                        <span class="grid h-11 w-11 shrink-0 place-items-center rounded-2xl" :style="{ background: step.color + '1a' }">
+                            <component :is="step.icon" class="h-5 w-5" :style="{ color: step.color }" />
+                        </span>
+
+                        <span class="rounded-full border border-border px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.12em] text-(--soft)">
+                            API-first
+                        </span>
+                    </div>
+
+                    <h3 class="text-base font-black text-(--text)">
+                        {{ step.title }}
+                    </h3>
+
+                    <p class="mt-2 text-sm leading-relaxed text-muted">
+                        {{ step.desc }}
+                    </p>
+
+                    <div class="mt-4 flex flex-wrap gap-2">
+                        <span v-for="item in step.items" :key="item" class="rounded-full border border-border bg-(--surface-soft) px-2.5 py-1 text-[10px] font-bold text-muted">
+                            {{ item }}
+                        </span>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- ===================== SOLUCIONES PRINCIPALES ===================== -->
+        <section id="soluciones" class="mx-auto max-w-360 scroll-mt-24 px-4 py-10 sm:px-6 2xl:px-8">
+            <div class="mb-8 flex flex-col justify-between gap-4 lg:flex-row lg:items-end">
+                <div>
+                    <p class="text-[10px] font-black uppercase tracking-[0.24em] text-(--brand)">
+                        Soluciones principales
+                    </p>
+                    <h2 class="mt-2 text-3xl font-black tracking-tight text-(--text) sm:text-4xl">
+                        Apps independientes, conectadas bajo una misma marca.
+                    </h2>
+                </div>
+
+                <p class="max-w-xl text-sm leading-relaxed text-muted">
+                    Cada solución puede contratarse por separado, manejar su tenant y completar su propio onboarding.
+                    LaudaAPI.com organiza la entrada y conecta los casos que necesitan asistencia.
+                </p>
+            </div>
+
+            <div class="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
+                <a v-for="solution in primarySolutions" :key="solution.name" :href="solution.href" class="lauda-card group rounded-3xl border p-6 transition-all hover:-translate-y-1 hover:shadow-xl">
+                    <div class="mb-5 flex items-start justify-between gap-4">
+                        <span class="grid h-12 w-12 shrink-0 place-items-center rounded-2xl" :style="{ background: solution.color + '1a' }">
+                            <component :is="solution.icon" class="h-5 w-5" :style="{ color: solution.color }" />
+                        </span>
+
+                        <span class="rounded-full px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.12em]" :style="{ background: solution.statusColor + '1a', color: solution.statusColor }">
+                            {{ solution.status }}
+                        </span>
+                    </div>
+
+                    <h3 class="text-xl font-black text-(--text)">
+                        {{ solution.name }}
+                    </h3>
+
+                    <p class="mt-2 text-sm leading-relaxed text-muted">
+                        {{ solution.desc }}
+                    </p>
+
+                    <div class="mt-5 space-y-3 text-xs leading-relaxed text-muted">
+                        <div class="rounded-2xl border border-border bg-(--surface-soft) p-3">
+                            <span class="font-black text-(--text)">Para quién:</span> {{ solution.audience }}
+                        </div>
+                        <div class="rounded-2xl border border-border bg-(--surface-soft) p-3">
+                            <span class="font-black text-(--text)">Conecta con:</span> {{ solution.connects }}
+                        </div>
+                    </div>
+
+                    <div class="mt-5 inline-flex items-center gap-2 text-sm font-black text-(--brand)">
+                        Ver solución
+                        <ArrowRight class="h-4 w-4 transition-transform group-hover:translate-x-1" />
+                    </div>
+                </a>
+            </div>
+        </section>
+
+        <!-- ===================== ACTIVACIÓN ===================== -->
+        <section id="activacion" class="mx-auto max-w-360 scroll-mt-24 px-4 py-10 sm:px-6 2xl:px-8">
+            <div class="rounded-4xl border border-border bg-(--surface) p-6 shadow-sm lg:p-8">
+                <div class="mb-8 flex flex-col justify-between gap-4 lg:flex-row lg:items-end">
+                    <div>
+                        <p class="text-[10px] font-black uppercase tracking-[0.24em] text-(--brand)">
+                            Activación centralizada
+                        </p>
+                        <h2 class="mt-2 text-3xl font-black tracking-tight text-(--text) sm:text-4xl">
+                            Dos formas de iniciar: individual o con asistencia.
+                        </h2>
+                    </div>
+
+                    <p class="max-w-xl text-sm leading-relaxed text-muted">
+                        Las apps conservan su onboarding propio. LaudaAPI.com agrega una capa central para clientes
+                        que necesitan acompañamiento, varias soluciones, migración o implementación todo incluido.
+                    </p>
+                </div>
+
+                <div class="grid gap-5 lg:grid-cols-3">
+                    <div v-for="option in activationOptions" :key="option.title" class="rounded-3xl border border-border bg-(--surface-soft) p-5">
+                        <div class="mb-4 flex items-start justify-between gap-4">
+                            <span class="grid h-11 w-11 shrink-0 place-items-center rounded-2xl" :style="{ background: option.color + '1a' }">
+                                <component :is="option.icon" class="h-5 w-5" :style="{ color: option.color }" />
+                            </span>
+
+                            <span class="rounded-full px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.12em]" :style="{ background: option.color + '1a', color: option.color }">
+                                {{ option.badge }}
+                            </span>
+                        </div>
+
+                        <h3 class="text-lg font-black text-(--text)">
+                            {{ option.title }}
+                        </h3>
+
+                        <p class="mt-2 text-sm leading-relaxed text-muted">
+                            {{ option.desc }}
+                        </p>
+
+                        <div class="mt-4 flex flex-wrap gap-2">
+                            <span v-for="example in option.examples" :key="example" class="rounded-full border border-border bg-(--surface-solid) px-2.5 py-1 text-[10px] font-bold text-muted">
+                                {{ example }}
+                            </span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
         <!-- ===================== FLUJOS ===================== -->
         <section id="flujos" class="mx-auto max-w-360 scroll-mt-24 px-4 py-10 sm:px-6 2xl:px-8">
             <div class="mb-8 flex flex-col justify-between gap-4 lg:flex-row lg:items-end">
@@ -862,6 +1148,101 @@ onBeforeUnmount(() => {
                         {{ module.relation }}
                     </div>
                 </div>
+            </div>
+        </section>
+
+        <!-- ===================== CONTACTO ===================== -->
+        <section id="contacto" class="mx-auto max-w-360 scroll-mt-24 px-4 pb-20 pt-6 sm:px-6 2xl:px-8">
+            <div class="grid gap-6 lg:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)] lg:items-start">
+                <div class="lauda-card rounded-4xl border p-6 lg:p-8">
+                    <p class="text-[10px] font-black uppercase tracking-[0.24em] text-(--brand)">
+                        Solicitar demo
+                    </p>
+
+                    <h2 class="mt-2 text-3xl font-black tracking-tight text-(--text) sm:text-4xl">
+                        Cuéntanos qué quieres activar en LaudaAPI.
+                    </h2>
+
+                    <p class="mt-4 text-sm leading-relaxed text-muted">
+                        Usa este punto de entrada para demos, activación individual, implementación asistida,
+                        paquetes todo incluido, migraciones o integraciones entre soluciones.
+                    </p>
+
+                    <div class="mt-6 space-y-3 text-sm text-muted">
+                        <div class="flex gap-3 rounded-2xl border border-border bg-(--surface-soft) p-3">
+                            <CheckCircle2 class="mt-0.5 h-4 w-4 shrink-0 text-[#22C55E]" />
+                            <span>Cada app mantiene su onboarding individual.</span>
+                        </div>
+                        <div class="flex gap-3 rounded-2xl border border-border bg-(--surface-soft) p-3">
+                            <CheckCircle2 class="mt-0.5 h-4 w-4 shrink-0 text-[#22C55E]" />
+                            <span>LaudaAPI.com centraliza los casos con asistencia o varias soluciones.</span>
+                        </div>
+                        <div class="flex gap-3 rounded-2xl border border-border bg-(--surface-soft) p-3">
+                            <CheckCircle2 class="mt-0.5 h-4 w-4 shrink-0 text-[#22C55E]" />
+                            <span>La solicitud puede alimentar CRM y convertirse en oportunidad comercial.</span>
+                        </div>
+                    </div>
+                </div>
+
+                <form class="lauda-card rounded-4xl border p-6 lg:p-8" @submit.prevent>
+                    <div class="grid gap-4 sm:grid-cols-2">
+                        <label class="block">
+                            <span class="mb-1.5 block text-xs font-black uppercase tracking-[0.12em] text-(--soft)">Nombre</span>
+                            <input type="text" class="lauda-input" placeholder="Nombre del contacto" />
+                        </label>
+
+                        <label class="block">
+                            <span class="mb-1.5 block text-xs font-black uppercase tracking-[0.12em] text-(--soft)">Empresa</span>
+                            <input type="text" class="lauda-input" placeholder="Nombre de la empresa" />
+                        </label>
+
+                        <label class="block">
+                            <span class="mb-1.5 block text-xs font-black uppercase tracking-[0.12em] text-(--soft)">RNC</span>
+                            <input type="text" class="lauda-input" placeholder="Opcional" />
+                        </label>
+
+                        <label class="block">
+                            <span class="mb-1.5 block text-xs font-black uppercase tracking-[0.12em] text-(--soft)">Teléfono</span>
+                            <input type="tel" class="lauda-input" placeholder="809-000-0000" />
+                        </label>
+
+                        <label class="block sm:col-span-2">
+                            <span class="mb-1.5 block text-xs font-black uppercase tracking-[0.12em] text-(--soft)">Correo</span>
+                            <input type="email" class="lauda-input" placeholder="correo@empresa.com" />
+                        </label>
+
+                        <label class="block">
+                            <span class="mb-1.5 block text-xs font-black uppercase tracking-[0.12em] text-(--soft)">Tipo de solicitud</span>
+                            <select class="lauda-input">
+                                <option v-for="type in requestTypes" :key="type">{{ type }}</option>
+                            </select>
+                        </label>
+
+                        <label class="block">
+                            <span class="mb-1.5 block text-xs font-black uppercase tracking-[0.12em] text-(--soft)">Solución de interés</span>
+                            <select class="lauda-input">
+                                <option>Varias soluciones</option>
+                                <option v-for="solution in solutionProducts" :key="solution.name">{{ solution.name }}</option>
+                            </select>
+                        </label>
+
+                        <label class="block sm:col-span-2">
+                            <span class="mb-1.5 block text-xs font-black uppercase tracking-[0.12em] text-(--soft)">Mensaje</span>
+                            <textarea rows="5" class="lauda-input resize-none" placeholder="Cuéntanos qué necesitas activar, integrar o configurar." />
+                        </label>
+                    </div>
+
+                    <div class="mt-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                        <p class="text-xs leading-relaxed text-muted">
+                            Próximo paso técnico: conectar este formulario con el endpoint público de contacto/CRM.
+                        </p>
+
+                        <Button type="submit" class="gap-2 rounded-xl bg-(--brand) px-6 py-6 text-white hover:bg-(--brand-hover)">
+                            Enviar solicitud
+                            <ArrowRight class="h-4 w-4" />
+                        </Button>
+                    </div>
+                </form>
             </div>
         </section>
     </div>
@@ -1017,6 +1398,37 @@ onBeforeUnmount(() => {
     outline: 2px solid var(--brand);
     outline-offset: 2px;
     border-radius: 12px;
+}
+
+/* -------------------------------------------------------------------------- */
+/*  Inputs                                                                     */
+/* -------------------------------------------------------------------------- */
+
+.lauda-input {
+    width: 100%;
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    background: var(--surface-soft);
+    color: var(--text);
+    padding: 12px 14px;
+    font-size: 14px;
+    line-height: 1.4;
+    outline: none;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease, background-color 0.2s ease;
+}
+
+.lauda-input::placeholder {
+    color: var(--soft);
+}
+
+.lauda-input:focus {
+    border-color: rgba(var(--brand-rgb), 0.45);
+    box-shadow: 0 0 0 4px rgba(var(--brand-rgb), 0.1);
+    background: var(--surface-solid);
+}
+
+select.lauda-input {
+    cursor: pointer;
 }
 
 /* -------------------------------------------------------------------------- */
