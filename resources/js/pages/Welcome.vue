@@ -29,6 +29,14 @@ import {
     Zap,
 } from 'lucide-vue-next'
 
+
+const seo = {
+    title: 'LaudaAPI | Ecosistema para vender, operar, facturar y cumplir',
+    description: 'Hub de soluciones conectadas para Social, CRM, POS, Ecommerce, e-CF, Cumplimiento, Status, Delivery, BI y operación empresarial.',
+    url: 'https://laudaapi.com',
+    siteName: 'LaudaAPI',
+}
+
 /* -------------------------------------------------------------------------- */
 /*  Paleta de marca centralizada                                               */
 /*  Fuente única de color por producto. Cambiar aquí se propaga a todo.        */
@@ -303,6 +311,130 @@ const requestTypes = [
     'Migración / integración',
 ]
 
+/*
+|--------------------------------------------------------------------------
+| Formulario público de contacto / activación asistida
+|--------------------------------------------------------------------------
+| Tu backend responde JSON desde ContactRequestController, por eso este form
+| se envía con fetch en vez de Inertia useForm.
+*/
+const CONTACT_REQUEST_ENDPOINT = '/contact'
+
+const contactSubmitted = ref(false)
+const contactProcessing = ref(false)
+const contactErrors = ref({})
+const contactSuccessMessage = ref('')
+
+const contactForm = ref({
+    name: '',
+    company: '',
+    rnc: '',
+    phone: '',
+    email: '',
+    request_type: 'Demo',
+    solution_interest: 'Varias soluciones',
+    message: '',
+    terms: true,
+})
+
+function resetContactForm() {
+    contactForm.value = {
+        name: '',
+        company: '',
+        rnc: '',
+        phone: '',
+        email: '',
+        request_type: 'Demo',
+        solution_interest: 'Varias soluciones',
+        message: '',
+        terms: true,
+    }
+}
+
+function getCsrfToken() {
+    return document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || ''
+}
+
+function buildContactPayload() {
+    const form = contactForm.value
+
+    // Compatible con ContactRequest:
+    // - Los campos base van directo a columnas reales.
+    // - La intención comercial se guarda en topic.
+    // - Los datos extra del intake centralizado van en metadata.
+    // - También se anexan al message para que los correos actuales los muestren
+    //   aunque los Mailables todavía no lean metadata.
+    return {
+        name: form.name,
+        company: form.company,
+        email: form.email,
+        phone: form.phone,
+        topic: `${form.request_type} - ${form.solution_interest}`,
+        terms: form.terms,
+        metadata: {
+            source: 'laudaapi.com',
+            request_type: form.request_type,
+            solution_interest: form.solution_interest,
+            rnc: form.rnc || null,
+            intake_type: 'centralized_assisted_activation',
+        },
+        message: [
+            `Tipo de solicitud: ${form.request_type}`,
+            `Solución de interés: ${form.solution_interest}`,
+            `RNC: ${form.rnc || 'No indicado'}`,
+            '',
+            'Mensaje:',
+            form.message,
+            '',
+            'Origen: laudaapi.com',
+        ].join('\n'),
+    }
+}
+
+async function submitContact() {
+    contactSubmitted.value = false
+    contactSuccessMessage.value = ''
+    contactErrors.value = {}
+    contactProcessing.value = true
+
+    try {
+        const csrfToken = getCsrfToken()
+
+        const response = await fetch(CONTACT_REQUEST_ENDPOINT, {
+            method: 'POST',
+            headers: {
+                Accept: 'application/json',
+                'Content-Type': 'application/json',
+                'X-Requested-With': 'XMLHttpRequest',
+                ...(csrfToken ? { 'X-CSRF-TOKEN': csrfToken } : {}),
+            },
+            credentials: 'same-origin',
+            body: JSON.stringify(buildContactPayload()),
+        })
+
+        const data = await response.json().catch(() => ({}))
+
+        if (response.status === 422) {
+            contactErrors.value = data.errors || {}
+            return
+        }
+
+        if (!response.ok || data.success === false) {
+            throw new Error(data.message || 'No se pudo enviar la solicitud en este momento.')
+        }
+
+        contactSubmitted.value = true
+        contactSuccessMessage.value = data.message || 'Formulario enviado correctamente.'
+        resetContactForm()
+    } catch (error) {
+        contactErrors.value = {
+            general: error?.message || 'Ocurrió un error al procesar la solicitud.',
+        }
+    } finally {
+        contactProcessing.value = false
+    }
+}
+
 const extendedModules = [
     { name: 'RRHH', desc: 'Recursos humanos, equipos, asistencia y procesos internos.', icon: Users, color: brand.rrhh, relation: 'Consume operación y usuarios del ecosistema.' },
     { name: 'Tesorería', desc: 'Caja, pagos, bancos, conciliación y flujo financiero.', icon: Landmark, color: brand.tesoreria, relation: 'Cruza cobros POS, bancos y contabilidad.' },
@@ -321,6 +453,23 @@ const mobileNavLinks = [
     { label: 'Activación', href: '#activacion' },
     { label: 'Flujos', href: '#flujos' },
     { label: 'Contacto', href: '#contacto' },
+]
+
+const currentYear = new Date().getFullYear()
+
+const footerQuickLinks = [
+    { label: 'Ecosistema', href: '#ecosistema-detalle' },
+    { label: 'Soluciones', href: '#soluciones' },
+    { label: 'Activación', href: '#activacion' },
+    { label: 'Flujos', href: '#flujos' },
+    { label: 'Módulos', href: '#modulos' },
+    { label: 'Contacto', href: '#contacto' },
+]
+
+const footerLegalLinks = [
+    { label: 'Legal', href: '/legal' },
+    { label: 'Términos', href: '/legal/terminos' },
+    { label: 'Privacidad', href: '/legal/privacidad' },
 ]
 
 /* -------------------------------------------------------------------------- */
@@ -343,7 +492,7 @@ const mobileCloseRef = ref(null)
 /*  Así nunca hay scroll horizontal ni nodos encimados.                        */
 /* -------------------------------------------------------------------------- */
 
-const DESIGN_W = 740
+const DESIGN_W = 700
 const DESIGN_H = 560
 
 const diagramScale = ref(1)
@@ -437,7 +586,7 @@ function updateScale() {
     const w = scrollWrap.value?.clientWidth || DESIGN_W
     // Llena siempre el ancho disponible: reduce en panels angostos, agranda
     // ligeramente en anchos, sin dejar hueco ni provocar scroll.
-    diagramScale.value = Math.min(1.25, w / DESIGN_W)
+    diagramScale.value = Math.min(1.08, w / DESIGN_W)
 }
 
 let rafId = null
@@ -585,14 +734,32 @@ onBeforeUnmount(() => {
 
 <template>
 
-    <Head title="LaudaAPI Digital">
-        <meta name="description" content="LaudaAPI conecta Social, CRM, Ecommerce, POS, Delivery, e-CF, Cumplimiento, BYS, Bancos, Contabilidad, Status, RRHH, Tesorería, Proyectos, Eventos, Transporte, Grúas, Loans, Dealers y BI en un solo ambiente operativo API-first." />
+    <Head :title="seo.title">
+        <meta name="description" :content="seo.description" />
+        <meta name="robots" content="index, follow" />
+        <meta name="author" content="LaudaAPI" />
+        <meta name="application-name" content="LaudaAPI" />
+        <meta name="theme-color" content="#F5333C" />
+        <meta name="keywords" content="LaudaAPI, facturación electrónica, e-CF, DGII, cumplimiento fiscal, POS, CRM, ecommerce, delivery, BI, República Dominicana" />
+
+        <link rel="canonical" :href="seo.url" />
+
+        <meta property="og:type" content="website" />
+        <meta property="og:site_name" :content="seo.siteName" />
+        <meta property="og:title" :content="seo.title" />
+        <meta property="og:description" :content="seo.description" />
+        <meta property="og:url" :content="seo.url" />
+        <meta property="og:locale" content="es_DO" />
+
+        <meta name="twitter:card" content="summary" />
+        <meta name="twitter:title" :content="seo.title" />
+        <meta name="twitter:description" :content="seo.description" />
     </Head>
 
     <div :class="[ 'lauda-page min-h-screen antialiased', { 'lauda-page--dark': isDarkMode } ]">
         <!-- ===================== NAV ===================== -->
         <nav class="lauda-nav sticky top-0 z-50 border-b backdrop-blur-xl">
-            <div class="mx-auto flex h-19 max-w-none items-center gap-8 px-6 lg:px-8 2xl:px-10">
+            <div class="mx-auto flex h-19 max-w-none items-center gap-3 px-4 sm:gap-6 sm:px-6 lg:gap-8 lg:px-8 2xl:px-10">
                 <Link href="/" class="flex items-center gap-2.5">
                     <div class="grid h-11 w-11 place-items-center rounded-xl bg-(--brand) font-black text-white shadow-xl shadow-[#F5333C]/35">
                         <BrandLogo class="h-6 w-6 text-white" />
@@ -666,7 +833,7 @@ onBeforeUnmount(() => {
                     </a>
                 </div>
 
-                <button type="button" class="lauda-mode-toggle ml-auto inline-flex items-center gap-2 rounded-xl border px-4 py-3 text-sm font-bold transition lg:ml-0" @click="togglePresentationMode">
+                <button type="button" class="lauda-mode-toggle ml-auto inline-flex items-center gap-2 rounded-xl border px-3 py-3 text-sm font-bold transition sm:px-4 lg:ml-0" @click="togglePresentationMode">
                     <component :is="isDarkMode ? Sun : Moon" class="h-4 w-4" />
                     <span class="hidden sm:inline">{{ isDarkMode ? 'Light mode' : 'Dark mode' }}</span>
                 </button>
@@ -740,15 +907,15 @@ onBeforeUnmount(() => {
                         Ecosistema API-first
                     </span>
 
-                    <h1 class="mt-6 text-[38px] font-extrabold leading-[1.02] tracking-[-0.04em] text-(--text) sm:text-[48px] lg:text-[56px]">
-                        Un solo ambiente para
-                        <span class="text-(--brand)">vender, operar, facturar y cumplir.</span>
+                    <h1 class="mt-6 text-[34px] font-extrabold leading-[1.02] tracking-[-0.04em] text-(--text) sm:text-[48px] lg:text-[56px]">
+                        El hub que conecta las soluciones
+                        <span class="text-(--brand)">para vender, operar, facturar y cumplir.</span>
                     </h1>
 
                     <p class="mt-6 max-w-140 text-[17px] leading-relaxed text-muted">
-                        LaudaAPI conecta Social, CRM, Ecommerce, POS, Delivery, e-CF, Cumplimiento,
-                        Tesorería, RRHH, Proyectos, Dealers, Loans y BI. Cada módulo recibe eventos,
-                        procesa su parte y responde al ecosistema sin duplicar la operación central.
+                        LaudaAPI.com es la entrada principal del ecosistema: presenta las soluciones,
+                        conecta los subdominios y centraliza las solicitudes de demo, activación individual
+                        o implementación asistida sin reemplazar el onboarding propio de cada app.
                     </p>
 
                     <div class="mt-6 rounded-2xl border border-border bg-(--surface) p-3 shadow-sm">
@@ -765,14 +932,14 @@ onBeforeUnmount(() => {
                         </div>
                     </div>
 
-                    <div class="mt-8 flex flex-wrap gap-3">
-                        <Button class="gap-2 rounded-xl bg-(--brand) px-6 py-6 text-white hover:bg-(--brand-hover)" @click="scrollToId('ecosistema-detalle')">
-                            Ver ecosistema
+                    <div class="mt-8 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
+                        <Button class="w-full justify-center gap-2 rounded-xl bg-(--brand) px-6 py-6 text-white hover:bg-(--brand-hover) sm:w-auto" @click="scrollToId('ecosistema-detalle')">
+                            Explorar ecosistema
                             <ArrowRight class="h-4 w-4" />
                         </Button>
 
-                        <Button variant="outline" class="lauda-outline-button rounded-xl px-6 py-6" @click="scrollToId('contacto')">
-                            Solicitar demo
+                        <Button variant="outline" class="lauda-outline-button w-full justify-center rounded-xl px-6 py-6 sm:w-auto" @click="scrollToId('contacto')">
+                            Solicitar demo o asistencia
                         </Button>
                     </div>
 
@@ -909,19 +1076,19 @@ onBeforeUnmount(() => {
         </section>
 
         <!-- ===================== ECOSISTEMA DETALLE ===================== -->
-        <section id="ecosistema-detalle" class="mx-auto max-w-360 scroll-mt-24 px-4 py-14 sm:px-6 2xl:px-8">
+        <section id="ecosistema-detalle" class="mx-auto max-w-360 scroll-mt-24 px-4 py-10 sm:px-6 sm:py-14 2xl:px-8">
             <div class="mb-8 flex flex-col justify-between gap-4 lg:flex-row lg:items-end">
                 <div>
                     <p class="text-[10px] font-black uppercase tracking-[0.24em] text-(--brand)">
                         Ecosistema conectado
                     </p>
                     <h2 class="mt-2 text-3xl font-black tracking-tight text-(--text) sm:text-4xl">
-                        LaudaAPI.com presenta el ambiente, cada app opera su especialidad.
+                        LaudaAPI.com organiza el ecosistema; cada app opera su especialidad.
                     </h2>
                 </div>
 
                 <p class="max-w-xl text-sm leading-relaxed text-muted">
-                    El portal principal funciona como hub comercial, catálogo, activación asistida y punto de entrada.
+                    El portal principal funciona como marca, catálogo, navegación, contacto y activación asistida.
                     Las operaciones reales viven en los subdominios especializados.
                 </p>
             </div>
@@ -956,7 +1123,7 @@ onBeforeUnmount(() => {
         </section>
 
         <!-- ===================== SOLUCIONES PRINCIPALES ===================== -->
-        <section id="soluciones" class="mx-auto max-w-360 scroll-mt-24 px-4 py-10 sm:px-6 2xl:px-8">
+        <section id="soluciones" class="mx-auto max-w-360 scroll-mt-24 px-4 py-10 sm:px-6 sm:py-14 2xl:px-8">
             <div class="mb-8 flex flex-col justify-between gap-4 lg:flex-row lg:items-end">
                 <div>
                     <p class="text-[10px] font-black uppercase tracking-[0.24em] text-(--brand)">
@@ -1011,7 +1178,7 @@ onBeforeUnmount(() => {
         </section>
 
         <!-- ===================== ACTIVACIÓN ===================== -->
-        <section id="activacion" class="mx-auto max-w-360 scroll-mt-24 px-4 py-10 sm:px-6 2xl:px-8">
+        <section id="activacion" class="mx-auto max-w-360 scroll-mt-24 px-4 py-10 sm:px-6 sm:py-14 2xl:px-8">
             <div class="rounded-4xl border border-border bg-(--surface) p-6 shadow-sm lg:p-8">
                 <div class="mb-8 flex flex-col justify-between gap-4 lg:flex-row lg:items-end">
                     <div>
@@ -1056,11 +1223,26 @@ onBeforeUnmount(() => {
                         </div>
                     </div>
                 </div>
+
+                <div class="mt-7 flex flex-col gap-4 rounded-3xl border border-border bg-(--surface-soft) p-5 lg:flex-row lg:items-center lg:justify-between">
+                    <div>
+                        <p class="text-sm font-black text-(--text)">¿No sabes por dónde iniciar?</p>
+                        <p class="mt-1 text-sm leading-relaxed text-muted">
+                            Envía una solicitud centralizada y el equipo puede orientar si conviene una app individual,
+                            una implementación asistida o un paquete conectado.
+                        </p>
+                    </div>
+
+                    <Button type="button" class="shrink-0 gap-2 rounded-xl bg-(--brand) px-6 py-6 text-white hover:bg-(--brand-hover)" @click="scrollToId('contacto')">
+                        Solicitar orientación
+                        <ArrowRight class="h-4 w-4" />
+                    </Button>
+                </div>
             </div>
         </section>
 
         <!-- ===================== FLUJOS ===================== -->
-        <section id="flujos" class="mx-auto max-w-360 scroll-mt-24 px-4 py-10 sm:px-6 2xl:px-8">
+        <section id="flujos" class="mx-auto max-w-360 scroll-mt-24 px-4 py-10 sm:px-6 sm:py-14 2xl:px-8">
             <div class="mb-8 flex flex-col justify-between gap-4 lg:flex-row lg:items-end">
                 <div>
                     <p class="text-[10px] font-black uppercase tracking-[0.24em] text-(--brand)">
@@ -1152,99 +1334,220 @@ onBeforeUnmount(() => {
         </section>
 
         <!-- ===================== CONTACTO ===================== -->
-        <section id="contacto" class="mx-auto max-w-360 scroll-mt-24 px-4 pb-20 pt-6 sm:px-6 2xl:px-8">
+        <section id="contacto" class="mx-auto max-w-360 scroll-mt-24 px-4 pb-16 pt-6 sm:px-6 sm:pb-20 2xl:px-8">
             <div class="grid gap-6 lg:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)] lg:items-start">
                 <div class="lauda-card rounded-4xl border p-6 lg:p-8">
                     <p class="text-[10px] font-black uppercase tracking-[0.24em] text-(--brand)">
-                        Solicitar demo
+                        Contacto y activación asistida
                     </p>
 
                     <h2 class="mt-2 text-3xl font-black tracking-tight text-(--text) sm:text-4xl">
-                        Cuéntanos qué quieres activar en LaudaAPI.
+                        Solicita una demo o guía para activar LaudaAPI.
                     </h2>
 
                     <p class="mt-4 text-sm leading-relaxed text-muted">
-                        Usa este punto de entrada para demos, activación individual, implementación asistida,
-                        paquetes todo incluido, migraciones o integraciones entre soluciones.
+                        Usa este punto de entrada cuando necesitas conocer una solución, activar una app específica,
+                        evaluar varias soluciones conectadas o coordinar una implementación con asistencia.
                     </p>
 
                     <div class="mt-6 space-y-3 text-sm text-muted">
                         <div class="flex gap-3 rounded-2xl border border-border bg-(--surface-soft) p-3">
                             <CheckCircle2 class="mt-0.5 h-4 w-4 shrink-0 text-[#22C55E]" />
-                            <span>Cada app mantiene su onboarding individual.</span>
+                            <span>Las apps mantienen su activación y onboarding individual.</span>
                         </div>
                         <div class="flex gap-3 rounded-2xl border border-border bg-(--surface-soft) p-3">
                             <CheckCircle2 class="mt-0.5 h-4 w-4 shrink-0 text-[#22C55E]" />
-                            <span>LaudaAPI.com centraliza los casos con asistencia o varias soluciones.</span>
+                            <span>LaudaAPI.com centraliza solicitudes con asistencia, demo o varias soluciones.</span>
                         </div>
                         <div class="flex gap-3 rounded-2xl border border-border bg-(--surface-soft) p-3">
                             <CheckCircle2 class="mt-0.5 h-4 w-4 shrink-0 text-[#22C55E]" />
-                            <span>La solicitud puede alimentar CRM y convertirse en oportunidad comercial.</span>
+                            <span>Recibirás seguimiento desde contacto@laudaapi.com.</span>
                         </div>
                     </div>
                 </div>
 
-                <form class="lauda-card rounded-4xl border p-6 lg:p-8" @submit.prevent>
+                <form class="lauda-card rounded-4xl border p-6 lg:p-8" @submit.prevent="submitContact">
+                    <div class="mb-6 flex flex-col gap-3 border-b border-border pb-5 sm:flex-row sm:items-start sm:justify-between">
+                        <div>
+                            <p class="text-lg font-black text-(--text)">Datos de la solicitud</p>
+                            <p class="mt-1 text-sm leading-relaxed text-muted">
+                                El formulario llega a contacto@laudaapi.com y queda registrado como contacto central.
+                            </p>
+                        </div>
+
+                        <span class="inline-flex w-fit items-center gap-2 rounded-full border border-[#22C55E]/20 bg-[#22C55E]/10 px-3 py-1 text-[10px] font-black uppercase tracking-[0.12em] text-[#16A34A]">
+                            <span class="h-1.5 w-1.5 rounded-full bg-[#22C55E]" />
+                            Formulario activo
+                        </span>
+                    </div>
+
+                    <div v-if="contactSubmitted" class="mb-5 rounded-2xl border border-[#22C55E]/25 bg-[#22C55E]/10 p-4 text-sm leading-relaxed text-[#15803D]">
+                        <div class="flex items-start gap-3">
+                            <CheckCircle2 class="mt-0.5 h-5 w-5 shrink-0" />
+                            <div>
+                                <p class="font-black">Solicitud recibida.</p>
+                                <p class="mt-1">
+                                    {{ contactSuccessMessage || 'Gracias. El equipo de LaudaAPI revisará la solicitud y responderá desde contacto@laudaapi.com.' }}
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+
                     <div class="grid gap-4 sm:grid-cols-2">
                         <label class="block">
                             <span class="mb-1.5 block text-xs font-black uppercase tracking-[0.12em] text-(--soft)">Nombre</span>
-                            <input type="text" class="lauda-input" placeholder="Nombre del contacto" />
+                            <input v-model="contactForm.name" type="text" class="lauda-input" :class="contactErrors.name && 'lauda-input--error'" placeholder="Nombre del contacto" autocomplete="name" required />
+                            <span v-if="contactErrors.name" class="lauda-form-error">{{ contactErrors.name?.[ 0 ] || contactErrors.name }}</span>
                         </label>
 
                         <label class="block">
                             <span class="mb-1.5 block text-xs font-black uppercase tracking-[0.12em] text-(--soft)">Empresa</span>
-                            <input type="text" class="lauda-input" placeholder="Nombre de la empresa" />
+                            <input v-model="contactForm.company" type="text" class="lauda-input" :class="contactErrors.company && 'lauda-input--error'" placeholder="Nombre de la empresa" autocomplete="organization" required />
+                            <span v-if="contactErrors.company" class="lauda-form-error">{{ contactErrors.company?.[ 0 ] || contactErrors.company }}</span>
                         </label>
 
                         <label class="block">
                             <span class="mb-1.5 block text-xs font-black uppercase tracking-[0.12em] text-(--soft)">RNC</span>
-                            <input type="text" class="lauda-input" placeholder="Opcional" />
+                            <input v-model="contactForm.rnc" type="text" class="lauda-input" :class="contactErrors.rnc && 'lauda-input--error'" placeholder="Opcional / RNC de la empresa" inputmode="numeric" />
+                            <span v-if="contactErrors.rnc" class="lauda-form-error">{{ contactErrors.rnc?.[ 0 ] || contactErrors.rnc }}</span>
                         </label>
 
                         <label class="block">
                             <span class="mb-1.5 block text-xs font-black uppercase tracking-[0.12em] text-(--soft)">Teléfono</span>
-                            <input type="tel" class="lauda-input" placeholder="809-000-0000" />
+                            <input v-model="contactForm.phone" type="tel" class="lauda-input" :class="contactErrors.phone && 'lauda-input--error'" placeholder="809-000-0000" autocomplete="tel" />
+                            <span v-if="contactErrors.phone" class="lauda-form-error">{{ contactErrors.phone?.[ 0 ] || contactErrors.phone }}</span>
                         </label>
 
                         <label class="block sm:col-span-2">
                             <span class="mb-1.5 block text-xs font-black uppercase tracking-[0.12em] text-(--soft)">Correo</span>
-                            <input type="email" class="lauda-input" placeholder="correo@empresa.com" />
+                            <input v-model="contactForm.email" type="email" class="lauda-input" :class="contactErrors.email && 'lauda-input--error'" placeholder="correo@empresa.com" autocomplete="email" required />
+                            <span v-if="contactErrors.email" class="lauda-form-error">{{ contactErrors.email?.[ 0 ] || contactErrors.email }}</span>
                         </label>
 
                         <label class="block">
                             <span class="mb-1.5 block text-xs font-black uppercase tracking-[0.12em] text-(--soft)">Tipo de solicitud</span>
-                            <select class="lauda-input">
-                                <option v-for="type in requestTypes" :key="type">{{ type }}</option>
+                            <select v-model="contactForm.request_type" class="lauda-input" :class="contactErrors.request_type && 'lauda-input--error'" required>
+                                <option v-for="type in requestTypes" :key="type" :value="type">{{ type }}</option>
                             </select>
+                            <span v-if="contactErrors.request_type" class="lauda-form-error">{{ contactErrors.request_type?.[ 0 ] || contactErrors.request_type }}</span>
                         </label>
 
                         <label class="block">
                             <span class="mb-1.5 block text-xs font-black uppercase tracking-[0.12em] text-(--soft)">Solución de interés</span>
-                            <select class="lauda-input">
-                                <option>Varias soluciones</option>
-                                <option v-for="solution in solutionProducts" :key="solution.name">{{ solution.name }}</option>
+                            <select v-model="contactForm.solution_interest" class="lauda-input" :class="contactErrors.solution_interest && 'lauda-input--error'" required>
+                                <option value="Varias soluciones">Varias soluciones</option>
+                                <option v-for="solution in solutionProducts" :key="solution.name" :value="solution.name">{{ solution.name }}</option>
                             </select>
+                            <span v-if="contactErrors.solution_interest" class="lauda-form-error">{{ contactErrors.solution_interest?.[ 0 ] || contactErrors.solution_interest }}</span>
                         </label>
 
                         <label class="block sm:col-span-2">
                             <span class="mb-1.5 block text-xs font-black uppercase tracking-[0.12em] text-(--soft)">Mensaje</span>
-                            <textarea rows="5" class="lauda-input resize-none" placeholder="Cuéntanos qué necesitas activar, integrar o configurar." />
+                            <textarea v-model="contactForm.message" rows="5" class="lauda-input resize-none" :class="contactErrors.message && 'lauda-input--error'" placeholder="Ejemplo: quiero demo de e-CF, activar POS con asistencia, conectar CRM + POS o evaluar un paquete completo." required />
+                            <span v-if="contactErrors.message" class="lauda-form-error">{{ contactErrors.message?.[ 0 ] || contactErrors.message }}</span>
                         </label>
+
+                        <label class="flex items-start gap-3 sm:col-span-2">
+                            <input v-model="contactForm.terms" type="checkbox" class="mt-1 h-4 w-4 rounded border-border accent-[#F5333C]" required />
+                            <span class="text-xs leading-relaxed text-muted">
+                                Acepto que LaudaAPI me contacte para dar seguimiento a esta solicitud.
+                                <span v-if="contactErrors.terms" class="lauda-form-error block">{{ contactErrors.terms?.[ 0 ] || contactErrors.terms }}</span>
+                            </span>
+                        </label>
+                    </div>
+
+                    <div v-if="contactErrors.general" class="mt-5 rounded-2xl border border-[#F5333C]/25 bg-[#F5333C]/10 p-4 text-sm leading-relaxed text-[#B91C1C]">
+                        {{ contactErrors.general }}
                     </div>
 
                     <div class="mt-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                         <p class="text-xs leading-relaxed text-muted">
-                            Próximo paso técnico: conectar este formulario con el endpoint público de contacto/CRM.
+                            Usaremos estos datos solo para dar seguimiento a tu demo, activación o implementación asistida.
                         </p>
 
-                        <Button type="submit" class="gap-2 rounded-xl bg-(--brand) px-6 py-6 text-white hover:bg-(--brand-hover)">
-                            Enviar solicitud
+                        <Button type="submit" class="w-full justify-center gap-2 rounded-xl bg-(--brand) px-6 py-6 text-white hover:bg-(--brand-hover) disabled:cursor-not-allowed disabled:opacity-70 sm:w-auto" :disabled="contactProcessing">
+                            {{ contactProcessing ? 'Enviando...' : 'Enviar solicitud a LaudaAPI' }}
                             <ArrowRight class="h-4 w-4" />
                         </Button>
                     </div>
                 </form>
             </div>
         </section>
+
+        <!-- ===================== FOOTER ===================== -->
+        <footer class="lauda-footer border-t">
+            <div class="mx-auto grid max-w-360 gap-8 px-4 py-10 sm:px-6 lg:grid-cols-[minmax(0,1.2fr)_repeat(3,minmax(0,0.8fr))] 2xl:px-8">
+                <div class="min-w-0">
+                    <Link href="/" class="inline-flex items-center gap-2.5">
+                        <div class="grid h-11 w-11 place-items-center rounded-xl bg-(--brand) font-black text-white shadow-xl shadow-[#F5333C]/25">
+                            <BrandLogo class="h-6 w-6 text-white" />
+                        </div>
+
+                        <div class="leading-none">
+                            <div class="text-[20px] font-extrabold tracking-tight text-(--text)">LAUDA</div>
+                            <div class="mt-0.5 text-[9px] font-semibold tracking-[0.2em] text-(--brand)">
+                                API DIGITAL
+                            </div>
+                        </div>
+                    </Link>
+
+                    <p class="mt-4 max-w-md text-sm leading-relaxed text-muted">
+                        LaudaAPI.com es el hub principal del ecosistema: presenta las soluciones, conecta los
+                        subdominios, centraliza solicitudes y orienta activaciones con asistencia cuando el cliente lo necesita.
+                    </p>
+
+                    <div class="mt-5 flex flex-wrap gap-2">
+                        <span class="rounded-full border border-border bg-(--surface-soft) px-3 py-1 text-[10px] font-black uppercase tracking-[0.12em] text-(--soft)">
+                            API-first
+                        </span>
+                        <span class="rounded-full border border-border bg-(--surface-soft) px-3 py-1 text-[10px] font-black uppercase tracking-[0.12em] text-(--soft)">
+                            Multi-app
+                        </span>
+                        <span class="rounded-full border border-border bg-(--surface-soft) px-3 py-1 text-[10px] font-black uppercase tracking-[0.12em] text-(--soft)">
+                            Activación asistida
+                        </span>
+                    </div>
+                </div>
+
+                <div>
+                    <p class="text-xs font-black uppercase tracking-[0.2em] text-(--brand)">Portal</p>
+                    <nav class="mt-4 space-y-2">
+                        <a v-for="link in footerQuickLinks" :key="link.href" :href="link.href" class="block text-sm font-semibold text-muted transition hover:text-(--text)">
+                            {{ link.label }}
+                        </a>
+                    </nav>
+                </div>
+
+                <div>
+                    <p class="text-xs font-black uppercase tracking-[0.2em] text-(--brand)">Soluciones</p>
+                    <nav class="mt-4 space-y-2">
+                        <a v-for="product in solutionProducts.slice(0, 6)" :key="product.name" :href="product.href" class="flex items-center gap-2 text-sm font-semibold text-muted transition hover:text-(--text)">
+                            <span class="h-2 w-2 rounded-full" :style="{ background: product.color }" />
+                            {{ product.name }}
+                        </a>
+                    </nav>
+                </div>
+
+                <div>
+                    <p class="text-xs font-black uppercase tracking-[0.2em] text-(--brand)">Legal y contacto</p>
+                    <nav class="mt-4 space-y-2">
+                        <Link v-for="link in footerLegalLinks" :key="link.href" :href="link.href" class="block text-sm font-semibold text-muted transition hover:text-(--text)">
+                            {{ link.label }}
+                        </Link>
+                        <a href="mailto:contacto@laudaapi.com" class="block text-sm font-semibold text-muted transition hover:text-(--text)">
+                            contacto@laudaapi.com
+                        </a>
+                    </nav>
+                </div>
+            </div>
+
+            <div class="border-t border-border">
+                <div class="mx-auto flex max-w-360 flex-col gap-2 px-4 py-5 text-xs text-muted sm:flex-row sm:items-center sm:justify-between sm:px-6 2xl:px-8">
+                    <span>© {{ currentYear }} LaudaAPI Digital. Todos los derechos reservados.</span>
+                    <span>Portal central del ecosistema LaudaAPI.</span>
+                </div>
+            </div>
+        </footer>
     </div>
 </template>
 
@@ -1427,8 +1730,37 @@ onBeforeUnmount(() => {
     background: var(--surface-solid);
 }
 
+.lauda-input--error {
+    border-color: rgba(239, 68, 68, 0.75);
+}
+
+.lauda-form-error {
+    margin-top: 6px;
+    display: block;
+    font-size: 12px;
+    line-height: 1.4;
+    color: #ef4444;
+}
+
 select.lauda-input {
     cursor: pointer;
+}
+
+/* -------------------------------------------------------------------------- */
+/*  Footer                                                                     */
+/* -------------------------------------------------------------------------- */
+
+.lauda-footer {
+    border-color: var(--border);
+    background:
+        radial-gradient(circle at 12% 0%, rgba(var(--brand-rgb), 0.08), transparent 30%),
+        var(--surface);
+}
+
+.lauda-page--dark .lauda-footer {
+    background:
+        radial-gradient(circle at 12% 0%, rgba(var(--brand-rgb), 0.12), transparent 32%),
+        rgba(8, 10, 18, 0.72);
 }
 
 /* -------------------------------------------------------------------------- */
@@ -1532,6 +1864,78 @@ select.lauda-input {
 
     .lauda-hero__panel {
         max-width: 800px;
+    }
+}
+
+
+
+/* -------------------------------------------------------------------------- */
+/*  Responsive polish                                                          */
+/* -------------------------------------------------------------------------- */
+
+.lauda-page {
+    overflow-x: hidden;
+}
+
+@media (max-width: 639px) {
+    .lauda-hero {
+        padding-top: 28px;
+    }
+
+    .lauda-hero__layout {
+        gap: 26px;
+    }
+
+    .lauda-hero__copy {
+        max-width: none;
+    }
+
+    .lauda-hero__copy p {
+        font-size: 15.5px;
+    }
+
+    .lauda-hero__chips {
+        grid-template-columns: 1fr;
+        gap: 10px;
+        margin-top: 28px;
+    }
+
+    .lauda-hero__panel {
+        padding: 12px;
+        border-radius: 22px;
+    }
+
+    .lauda-diagram-scroll {
+        border-radius: 18px;
+    }
+
+    .lauda-hero__status-grid {
+        gap: 12px;
+        margin-top: 12px;
+    }
+}
+
+@media (max-width: 420px) {
+    .lauda-hero {
+        padding-inline: 12px;
+    }
+
+    .lauda-hero__panel {
+        margin-inline: -2px;
+    }
+
+    .lauda-mode-toggle {
+        min-width: 44px;
+    }
+}
+
+@media (min-width: 640px) and (max-width: 1199px) {
+    .lauda-hero__copy {
+        max-width: 760px;
+    }
+
+    .lauda-hero__panel {
+        justify-self: center;
     }
 }
 

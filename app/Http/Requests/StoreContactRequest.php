@@ -20,7 +20,15 @@ class StoreContactRequest extends FormRequest
             'company' => 'nullable|string|max:255',
             'topic'   => 'nullable|string|max:255',
             'message' => 'nullable|string',
-            'terms' => 'accepted',
+            'terms'   => 'accepted',
+
+            // Metadata para solicitudes centralizadas desde laudaapi.com
+            'metadata' => 'nullable|array',
+            'metadata.source' => 'nullable|string|max:100',
+            'metadata.request_type' => 'nullable|string|max:100',
+            'metadata.solution_interest' => 'nullable|string|max:100',
+            'metadata.rnc' => 'nullable|string|max:50',
+            'metadata.intake_type' => 'nullable|string|max:100',
         ];
     }
 
