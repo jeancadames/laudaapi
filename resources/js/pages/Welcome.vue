@@ -32,7 +32,7 @@ import {
 
 const seo = {
     title: 'LaudaAPI | Ecosistema para vender, operar, facturar y cumplir',
-    description: 'Hub de soluciones conectadas para Social, CRM, POS, Ecommerce, e-CF, Cumplimiento, Status, Delivery, BI y operación empresarial.',
+    description: 'Hub de soluciones conectadas para Social, CRM, POS, BYS, Ecommerce, e-CF, Cumplimiento, Status, Delivery, BI y operación empresarial.',
     url: 'https://laudaapi.com',
     siteName: 'LaudaAPI',
 }
@@ -164,6 +164,7 @@ const solutionProducts = [
     { name: 'POS', href: 'https://pos.laudaapi.com', desc: 'Ventas, inventario, cobros, rutas y despacho.', icon: Store, color: brand.pos },
     { name: 'e-CF', href: 'https://ecf.laudaapi.com', desc: 'Firma, envío, TrackId y respuesta ante DGII.', icon: FileText, color: brand.ecf },
     { name: 'Cumplimiento', href: 'https://cumplimiento.laudaapi.com', desc: 'Obligaciones, documentos y control fiscal.', icon: ShieldCheck, color: brand.cumplimiento },
+    { name: 'BYS', href: 'https://bys.laudaapi.com', desc: 'Compras, proveedores, importaciones, recepción y abastecimiento.', icon: Boxes, color: brand.bys },
     { name: 'Status', href: 'https://status.laudaapi.com', desc: 'Monitoreo de DGII, APIs, caídas y eventos.', icon: Activity, color: brand.status },
     { name: 'RRHH', href: 'https://rrhh.laudaapi.com', desc: 'Recursos humanos, empleados y procesos internos.', icon: Users, color: brand.rrhh },
     { name: 'Tesorería', href: 'https://tesoreria.laudaapi.com', desc: 'Pagos, caja, bancos y flujo financiero.', icon: Landmark, color: brand.tesoreria },
@@ -198,6 +199,17 @@ const primarySolutions = [
         connects: 'e-CF, POS, BYS, Contabilidad y Status.',
         icon: ShieldCheck,
         color: brand.cumplimiento,
+    },
+    {
+        name: 'BYS',
+        href: 'https://bys.laudaapi.com',
+        status: 'En desarrollo',
+        statusColor: brand.bys,
+        desc: 'Ambiente para compras, proveedores, abastecimiento, importaciones, recepción de mercancía y control documental.',
+        audience: 'Empresas que necesitan controlar compras, proveedores, costos, recepción y trazabilidad de abastecimiento.',
+        connects: 'POS, e-CF, Cumplimiento, Contabilidad y Bancos.',
+        icon: Boxes,
+        color: brand.bys,
     },
     {
         name: 'POS',
@@ -281,7 +293,7 @@ const activationOptions = [
         title: 'Activación individual',
         desc: 'Cada solución mantiene su propio onboarding para empresas que quieren contratar un módulo específico.',
         badge: 'Por app',
-        examples: [ 'e-CF', 'Cumplimiento', 'POS', 'CRM' ],
+        examples: [ 'e-CF', 'Cumplimiento', 'POS', 'CRM', 'BYS' ],
         icon: CheckCircle2,
         color: brand.pos,
     },
@@ -740,7 +752,7 @@ onBeforeUnmount(() => {
         <meta name="author" content="LaudaAPI" />
         <meta name="application-name" content="LaudaAPI" />
         <meta name="theme-color" content="#F5333C" />
-        <meta name="keywords" content="LaudaAPI, facturación electrónica, e-CF, DGII, cumplimiento fiscal, POS, CRM, ecommerce, delivery, BI, República Dominicana" />
+        <meta name="keywords" content="LaudaAPI, facturación electrónica, e-CF, DGII, cumplimiento fiscal, POS, CRM, BYS, compras, proveedores, ecommerce, delivery, BI, República Dominicana" />
 
         <link rel="canonical" :href="seo.url" />
 
@@ -1443,7 +1455,7 @@ onBeforeUnmount(() => {
 
                         <label class="block sm:col-span-2">
                             <span class="mb-1.5 block text-xs font-black uppercase tracking-[0.12em] text-(--soft)">Mensaje</span>
-                            <textarea v-model="contactForm.message" rows="5" class="lauda-input resize-none" :class="contactErrors.message && 'lauda-input--error'" placeholder="Ejemplo: quiero demo de e-CF, activar POS con asistencia, conectar CRM + POS o evaluar un paquete completo." required />
+                            <textarea v-model="contactForm.message" rows="5" class="lauda-input resize-none" :class="contactErrors.message && 'lauda-input--error'" placeholder="Ejemplo: quiero demo de e-CF, activar POS con asistencia, conocer BYS, conectar CRM + POS o evaluar un paquete completo." required />
                             <span v-if="contactErrors.message" class="lauda-form-error">{{ contactErrors.message?.[ 0 ] || contactErrors.message }}</span>
                         </label>
 
@@ -1521,7 +1533,7 @@ onBeforeUnmount(() => {
                 <div>
                     <p class="text-xs font-black uppercase tracking-[0.2em] text-(--brand)">Soluciones</p>
                     <nav class="mt-4 space-y-2">
-                        <a v-for="product in solutionProducts.slice(0, 6)" :key="product.name" :href="product.href" class="flex items-center gap-2 text-sm font-semibold text-muted transition hover:text-(--text)">
+                        <a v-for="product in solutionProducts.slice(0, 7)" :key="product.name" :href="product.href" class="flex items-center gap-2 text-sm font-semibold text-muted transition hover:text-(--text)">
                             <span class="h-2 w-2 rounded-full" :style="{ background: product.color }" />
                             {{ product.name }}
                         </a>
