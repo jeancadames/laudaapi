@@ -32,7 +32,7 @@ import {
 
 const seo = {
     title: 'LaudaAPI | Ecosistema para vender, operar, facturar y cumplir',
-    description: 'Hub de soluciones conectadas para Social, CRM, POS, BYS, Ecommerce, e-CF, Cumplimiento, Status, Delivery, BI y operación empresarial.',
+    description: 'Hub de soluciones conectadas para Social, CRM, POS, BYS, Tesorería, Ecommerce, e-CF, Cumplimiento, Status, Delivery, BI y operación empresarial.',
     url: 'https://laudaapi.com',
     siteName: 'LaudaAPI',
 }
@@ -165,9 +165,9 @@ const solutionProducts = [
     { name: 'e-CF', href: 'https://ecf.laudaapi.com', desc: 'Firma, envío, TrackId y respuesta ante DGII.', icon: FileText, color: brand.ecf },
     { name: 'Cumplimiento', href: 'https://cumplimiento.laudaapi.com', desc: 'Obligaciones, documentos y control fiscal.', icon: ShieldCheck, color: brand.cumplimiento },
     { name: 'BYS', href: 'https://bys.laudaapi.com', desc: 'Compras, proveedores, importaciones, recepción y abastecimiento.', icon: Boxes, color: brand.bys },
+    { name: 'Tesorería', href: 'https://tesoreria.laudaapi.com', desc: 'Pagos, bancos, caja, conciliación y nómina aprobada.', icon: Landmark, color: brand.tesoreria },
     { name: 'Status', href: 'https://status.laudaapi.com', desc: 'Monitoreo de DGII, APIs, caídas y eventos.', icon: Activity, color: brand.status },
     { name: 'RRHH', href: 'https://rrhh.laudaapi.com', desc: 'Recursos humanos, empleados y procesos internos.', icon: Users, color: brand.rrhh },
-    { name: 'Tesorería', href: 'https://tesoreria.laudaapi.com', desc: 'Pagos, caja, bancos y flujo financiero.', icon: Landmark, color: brand.tesoreria },
     { name: 'Proyectos', href: 'https://proyectos.laudaapi.com', desc: 'Tareas, ejecución, entregables y avance.', icon: Boxes, color: brand.proyectos },
     { name: 'Eventos', href: 'https://eventos.laudaapi.com', desc: 'Eventos, actividades, invitados y operación.', icon: Activity, color: brand.eventos },
     { name: 'Transporte personal', href: 'https://transporte.laudaapi.com', desc: 'Rutas, unidades, pasajeros y movilidad interna.', icon: Truck, color: brand.transporte },
@@ -210,6 +210,17 @@ const primarySolutions = [
         connects: 'POS, e-CF, Cumplimiento, Contabilidad y Bancos.',
         icon: Boxes,
         color: brand.bys,
+    },
+    {
+        name: 'Tesorería',
+        href: 'https://tesoreria.laudaapi.com',
+        status: 'En desarrollo',
+        statusColor: brand.tesoreria,
+        desc: 'Ambiente para pagos, bancos, caja, conciliación, transferencias, cheques y ejecución de lotes de nómina aprobados.',
+        audience: 'Empresas que necesitan controlar salidas de dinero, pagos operativos, conciliación bancaria y ejecución de pagos autorizados.',
+        connects: 'POS, BYS, Bancos, Contabilidad y RRHH cuando esté disponible.',
+        icon: Landmark,
+        color: brand.tesoreria,
     },
     {
         name: 'POS',
@@ -282,7 +293,7 @@ const ecosystemSteps = [
     {
         title: 'Backoffice conectado',
         desc: 'BYS, Bancos, Contabilidad, Tesorería y BI consumen eventos preparados sin duplicar la operación principal.',
-        items: [ 'BYS', 'Bancos', 'Contabilidad', 'BI' ],
+        items: [ 'BYS', 'Tesorería', 'Bancos', 'Contabilidad', 'BI' ],
         icon: Calculator,
         color: brand.bancos,
     },
@@ -293,7 +304,7 @@ const activationOptions = [
         title: 'Activación individual',
         desc: 'Cada solución mantiene su propio onboarding para empresas que quieren contratar un módulo específico.',
         badge: 'Por app',
-        examples: [ 'e-CF', 'Cumplimiento', 'POS', 'CRM', 'BYS' ],
+        examples: [ 'e-CF', 'Cumplimiento', 'POS', 'CRM', 'BYS', 'Tesorería' ],
         icon: CheckCircle2,
         color: brand.pos,
     },
@@ -309,7 +320,7 @@ const activationOptions = [
         title: 'Ecosistema completo',
         desc: 'Para empresas que necesitan varias soluciones conectadas bajo una misma estrategia operativa y comercial.',
         badge: 'Todo incluido',
-        examples: [ 'POS + e-CF', 'CRM + POS', 'Ecommerce + Delivery', 'BI + Backoffice' ],
+        examples: [ 'POS + e-CF', 'CRM + POS', 'BYS + Tesorería', 'BI + Backoffice' ],
         icon: RefreshCw,
         color: brand.main,
     },
@@ -449,7 +460,7 @@ async function submitContact() {
 
 const extendedModules = [
     { name: 'RRHH', desc: 'Recursos humanos, equipos, asistencia y procesos internos.', icon: Users, color: brand.rrhh, relation: 'Consume operación y usuarios del ecosistema.' },
-    { name: 'Tesorería', desc: 'Caja, pagos, bancos, conciliación y flujo financiero.', icon: Landmark, color: brand.tesoreria, relation: 'Cruza cobros POS, bancos y contabilidad.' },
+    { name: 'Tesorería', desc: 'Pagos, bancos, caja, conciliación, transferencias y nómina aprobada.', icon: Landmark, color: brand.tesoreria, relation: 'Cruza cobros POS, CxP de BYS, bancos, contabilidad y lotes de nómina aprobados.' },
     { name: 'Proyectos', desc: 'Planificación, tareas, entregables y ejecución.', icon: Boxes, color: brand.proyectos, relation: 'Puede nacer desde CRM o servicios vendidos en POS.' },
     { name: 'Eventos', desc: 'Gestión de eventos, invitados, ventas y operación.', icon: Activity, color: brand.eventos, relation: 'Puede conectar Social, CRM, POS y facturación.' },
     { name: 'Transporte personal', desc: 'Rutas, unidades, pasajeros, horarios y evidencia.', icon: Truck, color: brand.transporte, relation: 'Extiende logística sin tocar facturación.' },
@@ -752,7 +763,7 @@ onBeforeUnmount(() => {
         <meta name="author" content="LaudaAPI" />
         <meta name="application-name" content="LaudaAPI" />
         <meta name="theme-color" content="#F5333C" />
-        <meta name="keywords" content="LaudaAPI, facturación electrónica, e-CF, DGII, cumplimiento fiscal, POS, CRM, BYS, compras, proveedores, ecommerce, delivery, BI, República Dominicana" />
+        <meta name="keywords" content="LaudaAPI, facturación electrónica, e-CF, DGII, cumplimiento fiscal, POS, CRM, BYS, Tesorería, pagos, bancos, conciliación, nómina, compras, proveedores, ecommerce, delivery, BI, República Dominicana" />
 
         <link rel="canonical" :href="seo.url" />
 
@@ -1455,7 +1466,7 @@ onBeforeUnmount(() => {
 
                         <label class="block sm:col-span-2">
                             <span class="mb-1.5 block text-xs font-black uppercase tracking-[0.12em] text-(--soft)">Mensaje</span>
-                            <textarea v-model="contactForm.message" rows="5" class="lauda-input resize-none" :class="contactErrors.message && 'lauda-input--error'" placeholder="Ejemplo: quiero demo de e-CF, activar POS con asistencia, conocer BYS, conectar CRM + POS o evaluar un paquete completo." required />
+                            <textarea v-model="contactForm.message" rows="5" class="lauda-input resize-none" :class="contactErrors.message && 'lauda-input--error'" placeholder="Ejemplo: quiero demo de e-CF, activar POS con asistencia, conocer BYS, activar Tesorería, conectar CRM + POS o evaluar un paquete completo." required />
                             <span v-if="contactErrors.message" class="lauda-form-error">{{ contactErrors.message?.[ 0 ] || contactErrors.message }}</span>
                         </label>
 
@@ -1533,7 +1544,7 @@ onBeforeUnmount(() => {
                 <div>
                     <p class="text-xs font-black uppercase tracking-[0.2em] text-(--brand)">Soluciones</p>
                     <nav class="mt-4 space-y-2">
-                        <a v-for="product in solutionProducts.slice(0, 7)" :key="product.name" :href="product.href" class="flex items-center gap-2 text-sm font-semibold text-muted transition hover:text-(--text)">
+                        <a v-for="product in solutionProducts.slice(0, 8)" :key="product.name" :href="product.href" class="flex items-center gap-2 text-sm font-semibold text-muted transition hover:text-(--text)">
                             <span class="h-2 w-2 rounded-full" :style="{ background: product.color }" />
                             {{ product.name }}
                         </a>
