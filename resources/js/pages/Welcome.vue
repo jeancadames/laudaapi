@@ -32,7 +32,7 @@ import {
 
 const seo = {
     title: 'LaudaAPI | Ecosistema para vender, operar, facturar y cumplir',
-    description: 'Hub de soluciones conectadas para Social, CRM, POS, BYS, Tesorería, Ecommerce, e-CF, Cumplimiento, Status, Delivery, BI y operación empresarial.',
+    description: 'Hub de soluciones conectadas para Social, CRM, POS, BYS, Tesorería, Ecommerce, e-CF, Cumplimiento, Status, Delivery, BI y una visión centralizada de la operación empresarial.',
     url: 'https://laudaapi.com',
     siteName: 'LaudaAPI',
 }
@@ -96,6 +96,7 @@ const chips = [
     { icon: RefreshCw, text: 'POS como fuente de verdad', color: brand.main },
     { icon: FileText, text: 'e-CF responde automáticamente', color: brand.ecf },
     { icon: Activity, text: 'Status monitorea DGII y APIs', color: brand.status },
+    { icon: TrendingUp, text: 'Dashboard con visión unificada', color: brand.bi },
 ]
 
 const logs = [
@@ -112,6 +113,62 @@ const metrics = [
     { icon: ShieldCheck, iconColor: brand.ecf, label: 'DGII / e-CF', value: 'Automático', sub: 'Firma, envía y responde', subColor: brand.ecf },
     { icon: TrendingUp, iconColor: brand.crm, label: 'Operación', value: 'POS Core', sub: 'Ventas, cobros e inventario', subColor: brand.pos },
     { icon: Zap, iconColor: brand.status, label: 'Eventos', value: 'API-first', sub: 'En tiempo real', subColor: brand.status },
+]
+
+const dashboardPreviewMetrics = [
+    {
+        label: 'Ventas del período',
+        value: 'RD$ 1.8M',
+        context: '+12.4% frente al período anterior',
+        icon: TrendingUp,
+        color: brand.pos,
+    },
+    {
+        label: 'Operaciones activas',
+        value: '148',
+        context: 'Pedidos, servicios y procesos en curso',
+        icon: Activity,
+        color: brand.crm,
+    },
+    {
+        label: 'Pendientes financieros',
+        value: 'RD$ 420K',
+        context: 'Cobros y pagos que requieren atención',
+        icon: Calculator,
+        color: brand.tesoreria,
+    },
+    {
+        label: 'Estado del ecosistema',
+        value: 'Operativo',
+        context: 'Servicios, integraciones y alertas',
+        icon: ShieldCheck,
+        color: brand.status,
+    },
+]
+
+const dashboardViews = [
+    {
+        title: 'Visión operativa',
+        desc: 'Una lectura rápida del movimiento diario y de los procesos que necesitan seguimiento.',
+        icon: Activity,
+        color: brand.pos,
+        items: [
+            'Operaciones y actividades en curso',
+            'Pendientes y alertas relevantes',
+            'Estado general de los módulos conectados',
+        ],
+    },
+    {
+        title: 'Visión administrativa',
+        desc: 'Una perspectiva consolidada para comprender el comportamiento general del negocio.',
+        icon: TrendingUp,
+        color: brand.bi,
+        items: [
+            'Indicadores comerciales y financieros',
+            'Estadísticas generales por período',
+            'Resumen administrativo del ecosistema',
+        ],
+    },
 ]
 
 const flows = [
@@ -472,6 +529,7 @@ const extendedModules = [
 
 const mobileNavLinks = [
     { label: 'Ecosistema', href: '#ecosistema-detalle' },
+    { label: 'Dashboard', href: '#dashboard' },
     { label: 'Soluciones', href: '#soluciones' },
     { label: 'Activación', href: '#activacion' },
     { label: 'Flujos', href: '#flujos' },
@@ -482,6 +540,7 @@ const currentYear = new Date().getFullYear()
 
 const footerQuickLinks = [
     { label: 'Ecosistema', href: '#ecosistema-detalle' },
+    { label: 'Dashboard', href: '#dashboard' },
     { label: 'Soluciones', href: '#soluciones' },
     { label: 'Activación', href: '#activacion' },
     { label: 'Flujos', href: '#flujos' },
@@ -796,7 +855,7 @@ onBeforeUnmount(() => {
                     </div>
                 </Link>
 
-                <div class="ml-auto hidden items-center gap-10 text-[15px] font-medium text-muted lg:flex">
+                <div class="ml-auto hidden items-center gap-7 text-[15px] font-medium text-muted xl:gap-9 lg:flex">
                     <!-- SOLUCIONES MENU -->
                     <div ref="solutionsMenuRef" class="relative flex h-19 items-center">
                         <button id="solutions-trigger" ref="solutionsTriggerRef" type="button" class="lauda-solutions-trigger flex items-center gap-1 transition-colors hover:text-(--text)" :class="solutionsOpen && 'text-(--text)'" aria-haspopup="true" aria-controls="solutions-menu" :aria-expanded="solutionsOpen" @click.stop="solutionsOpen = !solutionsOpen">
@@ -837,6 +896,10 @@ onBeforeUnmount(() => {
 
                     <a href="#ecosistema-detalle" class="relative flex h-19 items-center text-(--text) transition-colors after:absolute after:bottom-0 after:left-0 after:h-0.5 after:w-full after:bg-(--brand)">
                         Ecosistema
+                    </a>
+
+                    <a href="#dashboard" class="flex h-19 items-center transition-colors hover:text-(--text)">
+                        Dashboard
                     </a>
 
                     <a href="#soluciones" class="flex h-19 items-center transition-colors hover:text-(--text)">
@@ -937,8 +1000,8 @@ onBeforeUnmount(() => {
 
                     <p class="mt-6 max-w-140 text-[17px] leading-relaxed text-muted">
                         LaudaAPI.com es la entrada principal del ecosistema: presenta las soluciones,
-                        conecta los subdominios y centraliza las solicitudes de demo, activación individual
-                        o implementación asistida sin reemplazar el onboarding propio de cada app.
+                        conecta los subdominios, anticipa una visión centralizada del negocio y organiza las
+                        solicitudes de demo, activación individual o implementación asistida.
                     </p>
 
                     <div class="mt-6 rounded-2xl border border-border bg-(--surface) p-3 shadow-sm">
@@ -1141,6 +1204,122 @@ onBeforeUnmount(() => {
                             {{ item }}
                         </span>
                     </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- ===================== DASHBOARD CENTRALIZADO ===================== -->
+        <section id="dashboard" class="mx-auto max-w-360 scroll-mt-24 px-4 py-10 sm:px-6 sm:py-14 2xl:px-8">
+            <div class="mb-8 flex flex-col justify-between gap-4 lg:flex-row lg:items-end">
+                <div>
+                    <div class="flex flex-wrap items-center gap-3">
+                        <p class="text-[10px] font-black uppercase tracking-[0.24em] text-(--brand)">
+                            Dashboard centralizado
+                        </p>
+                        <span class="rounded-full border border-border bg-(--surface) px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.12em] text-(--soft)">
+                            En desarrollo
+                        </span>
+                    </div>
+
+                    <h2 class="mt-2 max-w-4xl text-3xl font-black tracking-tight text-(--text) sm:text-4xl">
+                        Una sola vista para comprender la operación y la administración del negocio.
+                    </h2>
+                </div>
+
+                <p class="max-w-xl text-sm leading-relaxed text-muted">
+                    El Dashboard LaudaAPI reunirá la información más importante de las aplicaciones activas,
+                    evitando que el administrador tenga que revisar cada módulo individualmente.
+                </p>
+            </div>
+
+            <div class="lauda-card overflow-hidden rounded-4xl border p-4 sm:p-6 lg:p-8">
+                <div class="rounded-4xl border border-white/8 bg-[#080B15] p-4 shadow-2xl shadow-black/20 sm:p-6">
+                    <div class="flex flex-col gap-4 border-b border-white/8 pb-5 sm:flex-row sm:items-center sm:justify-between">
+                        <div>
+                            <div class="flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.2em] text-[#F5333C]">
+                                <span class="h-2 w-2 rounded-full bg-[#F5333C]" />
+                                Vista demostrativa
+                            </div>
+                            <h3 class="mt-2 text-xl font-black text-white sm:text-2xl">
+                                Resumen general del ecosistema
+                            </h3>
+                            <p class="mt-1 text-sm leading-relaxed text-[#9AA1B8]">
+                                Indicadores ilustrativos para presentar la experiencia futura del dashboard.
+                            </p>
+                        </div>
+
+                        <div class="inline-flex w-fit items-center gap-2 rounded-full border border-[#22C55E]/20 bg-[#22C55E]/10 px-3 py-1.5 text-[10px] font-black uppercase tracking-[0.12em] text-[#4ADE80]">
+                            <span class="h-1.5 w-1.5 rounded-full bg-[#4ADE80]" />
+                            Ecosistema conectado
+                        </div>
+                    </div>
+
+                    <div class="mt-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+                        <div v-for="metric in dashboardPreviewMetrics" :key="metric.label" class="rounded-2xl border border-white/[0.07] bg-[#111625] p-4">
+                            <div class="flex items-start justify-between gap-3">
+                                <span class="grid h-10 w-10 shrink-0 place-items-center rounded-xl" :style="{ background: metric.color + '22' }">
+                                    <component :is="metric.icon" class="h-5 w-5" :style="{ color: metric.color }" />
+                                </span>
+
+                                <span class="rounded-full border border-white/[0.07] px-2 py-1 text-[9px] font-black uppercase tracking-widest text-[#7A8298]">
+                                    Ejemplo
+                                </span>
+                            </div>
+
+                            <p class="mt-4 text-[11px] font-bold uppercase tracking-[0.08em] text-[#8E96AC]">
+                                {{ metric.label }}
+                            </p>
+                            <p class="mt-1 text-2xl font-black tracking-tight text-white">
+                                {{ metric.value }}
+                            </p>
+                            <p class="mt-2 text-xs leading-relaxed text-[#9AA1B8]">
+                                {{ metric.context }}
+                            </p>
+                        </div>
+                    </div>
+
+                    <div class="mt-4 grid gap-4 lg:grid-cols-2">
+                        <div v-for="view in dashboardViews" :key="view.title" class="rounded-3xl border border-white/[0.07] bg-[#0D1120] p-5">
+                            <div class="flex items-start gap-4">
+                                <span class="grid h-12 w-12 shrink-0 place-items-center rounded-2xl" :style="{ background: view.color + '22' }">
+                                    <component :is="view.icon" class="h-5 w-5" :style="{ color: view.color }" />
+                                </span>
+
+                                <div>
+                                    <h3 class="text-lg font-black text-white">
+                                        {{ view.title }}
+                                    </h3>
+                                    <p class="mt-1 text-sm leading-relaxed text-[#9AA1B8]">
+                                        {{ view.desc }}
+                                    </p>
+                                </div>
+                            </div>
+
+                            <div class="mt-5 grid gap-2.5">
+                                <div v-for="item in view.items" :key="item" class="flex items-center gap-3 rounded-2xl border border-white/6 bg-white/2.5 px-3 py-2.5">
+                                    <CheckCircle2 class="h-4 w-4 shrink-0" :style="{ color: view.color }" />
+                                    <span class="text-xs font-semibold leading-relaxed text-[#C1C7D6]">
+                                        {{ item }}
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="mt-5 flex flex-col gap-3 rounded-3xl border border-border bg-(--surface-soft) p-4 sm:flex-row sm:items-center sm:justify-between">
+                    <div>
+                        <p class="text-sm font-black text-(--text)">
+                            Presentación conceptual
+                        </p>
+                        <p class="mt-1 text-xs leading-relaxed text-muted">
+                            En esta etapa se comunica la función del dashboard. Las métricas, integraciones y vistas detalladas se desarrollarán posteriormente.
+                        </p>
+                    </div>
+
+                    <span class="inline-flex w-fit shrink-0 items-center gap-2 rounded-full bg-(--brand)/10 px-3 py-1.5 text-[10px] font-black uppercase tracking-[0.12em] text-(--brand)">
+                        Próximamente
+                    </span>
                 </div>
             </div>
         </section>
