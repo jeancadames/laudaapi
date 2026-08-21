@@ -262,12 +262,61 @@ const solutionProducts = [
 
 const primarySolutions = [
     {
+        name: 'Social',
+        href: 'https://social.laudaapi.com',
+        status: 'En desarrollo',
+        statusColor: brand.ecommerce,
+        stage: 'Presencia y relación digital',
+        desc: 'Identidad digital, contenido, campañas, inbox social, interacción, leads y analítica de canales.',
+        role: 'Construye la presencia digital de la empresa y convierte conversaciones e interacciones en oportunidades identificables.',
+        connects: 'CRM, campañas, leads y analítica.',
+        icon: MessageCircle,
+        color: brand.social,
+    },
+    {
+        name: 'CRM',
+        href: 'https://crm.laudaapi.com',
+        status: 'En desarrollo avanzado',
+        statusColor: brand.ecf,
+        stage: 'Gestión comercial digital',
+        desc: 'Contactos, leads, clientes, oportunidades, actividades, pipeline y seguimiento comercial.',
+        role: 'Organiza la relación comercial y convierte oportunidades digitales en procesos de venta gestionados.',
+        connects: 'Social, POS, Ecommerce y BI.',
+        icon: Users,
+        color: brand.crm,
+    },
+    {
+        name: 'POS',
+        href: 'https://pos.laudaapi.com',
+        status: 'En desarrollo avanzado',
+        statusColor: brand.ecf,
+        stage: 'Operación digital',
+        desc: 'Pedidos, ventas, servicios, caja, crédito, CxC, inventario, almacén, empaque, rutas y despacho.',
+        role: 'Digitaliza la ejecución comercial y operativa para convertir oportunidades en transacciones y procesos controlados.',
+        connects: 'CRM, Ecommerce, e-CF, Delivery, Bancos y BI.',
+        icon: Store,
+        color: brand.pos,
+    },
+    {
+        name: 'BYS',
+        href: 'https://bys.laudaapi.com',
+        status: 'En desarrollo',
+        statusColor: brand.bys,
+        stage: 'Administración digital',
+        desc: 'Compras, proveedores, abastecimiento, importaciones, recepción de mercancía y control documental.',
+        role: 'Digitaliza el ciclo de compras y abastecimiento, conectando proveedores, documentos y obligaciones administrativas.',
+        connects: 'POS, e-CF, Cumplimiento, Tesorería y Contabilidad.',
+        icon: Boxes,
+        color: brand.bys,
+    },
+    {
         name: 'e-CF',
         href: 'https://ecf.laudaapi.com',
         status: 'Disponible',
         statusColor: brand.pos,
+        stage: 'Fiscalidad digital',
         desc: 'Motor fiscal para firmar, enviar, consultar estados y responder comprobantes electrónicos ante DGII.',
-        audience: 'Empresas que necesitan facturación electrónica RD.',
+        role: 'Incorpora la facturación electrónica al flujo operativo sin separar la operación comercial del cumplimiento fiscal.',
         connects: 'POS, Cumplimiento, BYS y Contabilidad.',
         icon: FileText,
         color: brand.ecf,
@@ -277,75 +326,34 @@ const primarySolutions = [
         href: 'https://cumplimiento.laudaapi.com',
         status: 'Disponible',
         statusColor: brand.pos,
-        desc: 'Control de obligaciones, documentos fiscales, vencimientos, soporte, pagos SaaS y trazabilidad.',
-        audience: 'Empresas y asesores que necesitan seguimiento fiscal/operativo.',
+        stage: 'Cumplimiento digital',
+        desc: 'Control de obligaciones, documentos fiscales, vencimientos, soporte y trazabilidad.',
+        role: 'Centraliza seguimiento y evidencia de cumplimiento para reducir tareas manuales y riesgos administrativos.',
         connects: 'e-CF, POS, BYS, Contabilidad y Status.',
         icon: ShieldCheck,
         color: brand.cumplimiento,
-    },
-    {
-        name: 'BYS',
-        href: 'https://bys.laudaapi.com',
-        status: 'En desarrollo',
-        statusColor: brand.bys,
-        desc: 'Ambiente para compras, proveedores, abastecimiento, importaciones, recepción de mercancía y control documental.',
-        audience: 'Empresas que necesitan controlar compras, proveedores, costos, recepción y trazabilidad de abastecimiento.',
-        connects: 'POS, e-CF, Cumplimiento, Contabilidad y Bancos.',
-        icon: Boxes,
-        color: brand.bys,
     },
     {
         name: 'Tesorería',
         href: 'https://tesoreria.laudaapi.com',
         status: 'En desarrollo',
         statusColor: brand.tesoreria,
-        desc: 'Ambiente para pagos, bancos, caja, conciliación, transferencias, cheques y ejecución de lotes de nómina aprobados.',
-        audience: 'Empresas que necesitan controlar salidas de dinero, pagos operativos, conciliación bancaria y ejecución de pagos autorizados.',
-        connects: 'POS, BYS, Bancos, Contabilidad y RRHH cuando esté disponible.',
+        stage: 'Gestión financiera',
+        desc: 'Pagos, bancos, caja, conciliación, transferencias, cheques y ejecución de pagos autorizados.',
+        role: 'Conecta los movimientos de dinero con ventas, compras y obligaciones para mejorar el control financiero.',
+        connects: 'POS, BYS, Bancos, Contabilidad y RRHH.',
         icon: Landmark,
         color: brand.tesoreria,
-    },
-    {
-        name: 'POS',
-        href: 'https://pos.laudaapi.com',
-        status: 'En desarrollo avanzado',
-        statusColor: brand.ecf,
-        desc: 'Operación comercial: pedidos, caja, crédito, CxC, inventario, almacén, empaque, rutas y despacho.',
-        audience: 'Negocios que venden, cobran, despachan y controlan inventario.',
-        connects: 'e-CF, Ecommerce, Delivery, CRM, Bancos y BI.',
-        icon: Store,
-        color: brand.pos,
-    },
-    {
-        name: 'CRM',
-        href: 'https://crm.laudaapi.com',
-        status: 'En desarrollo avanzado',
-        statusColor: brand.ecf,
-        desc: 'Leads, clientes, contactos, oportunidades, actividades, pipeline e integración comercial hacia POS.',
-        audience: 'Equipos comerciales que necesitan seguimiento y conversión.',
-        connects: 'Social, POS, Ecommerce y BI.',
-        icon: Users,
-        color: brand.crm,
-    },
-    {
-        name: 'Social',
-        href: 'https://social.laudaapi.com',
-        status: 'En desarrollo',
-        statusColor: brand.ecommerce,
-        desc: 'Contenido, campañas, inbox social, leads, analítica e integración con CRM.',
-        audience: 'Equipos de marketing, ventas y atención digital.',
-        connects: 'CRM, campañas, leads y analítica.',
-        icon: MessageCircle,
-        color: brand.social,
     },
     {
         name: 'Status',
         href: 'https://status.laudaapi.com',
         status: 'Disponible',
         statusColor: brand.pos,
+        stage: 'Integración y continuidad',
         desc: 'Monitoreo de disponibilidad, DGII, endpoints, APIs, incidencias y salud general del ecosistema.',
-        audience: 'Administradores, soporte y operación técnica.',
-        connects: 'Todas las soluciones LaudaAPI.',
+        role: 'Aporta observabilidad y trazabilidad técnica para operar un ecosistema integrado con mayor continuidad.',
+        connects: 'Todas las soluciones LAUDAAPI.',
         icon: Activity,
         color: brand.status,
     },
@@ -353,34 +361,61 @@ const primarySolutions = [
 
 const ecosystemSteps = [
     {
-        title: 'Entrada comercial',
-        desc: 'Social, CRM y Ecommerce capturan conversaciones, oportunidades y pedidos online sin tocar la operación final.',
-        items: [ 'Social', 'CRM', 'Ecommerce' ],
+        phase: '01',
+        title: 'Presencia y relación digital',
+        desc: 'La empresa establece su identidad digital, conecta sus canales y comienza a convertir interacciones en relaciones comerciales organizadas.',
+        outcome: 'Presencia digital estructurada y oportunidades capturadas.',
+        items: [ 'Social', 'CRM' ],
         icon: MessageCircle,
         color: brand.social,
     },
     {
-        title: 'Operación central',
-        desc: 'POS funciona como fuente de verdad para ventas, caja, crédito, inventario, despacho, CxC y operación diaria.',
-        items: [ 'POS', 'Inventario', 'Caja', 'CxC' ],
+        phase: '02',
+        title: 'Operación digital',
+        desc: 'Las oportunidades y pedidos pasan a una operación controlada de ventas, servicios, inventario, cobros y entrega.',
+        outcome: 'Operación comercial trazable y conectada.',
+        items: [ 'POS', 'Ecommerce', 'Delivery' ],
         icon: Store,
         color: brand.pos,
     },
     {
-        title: 'Fiscalidad y cumplimiento',
-        desc: 'e-CF maneja la emisión fiscal y Cumplimiento organiza obligaciones, documentos, vencimientos y trazabilidad.',
-        items: [ 'e-CF', 'DGII', 'Cumplimiento' ],
+        phase: '03',
+        title: 'Administración y cumplimiento',
+        desc: 'Compras, proveedores, facturación electrónica, obligaciones y pagos se incorporan al mismo flujo empresarial.',
+        outcome: 'Backoffice digital con mayor control y cumplimiento.',
+        items: [ 'BYS', 'e-CF', 'Cumplimiento', 'Tesorería' ],
         icon: ShieldCheck,
         color: brand.ecf,
     },
     {
-        title: 'Backoffice conectado',
-        desc: 'BYS, Bancos, Contabilidad, Tesorería y BI consumen eventos preparados sin duplicar la operación principal.',
-        items: [ 'BYS', 'Tesorería', 'Bancos', 'Contabilidad', 'BI' ],
-        icon: Calculator,
+        phase: '04',
+        title: 'Integración del ecosistema',
+        desc: 'Las plataformas comparten identidad, eventos y datos para evitar procesos aislados y duplicidad de información.',
+        outcome: 'Procesos de extremo a extremo conectados.',
+        items: [ 'LAUDAAPI Core', 'APIs', 'Eventos', 'Status' ],
+        icon: RefreshCw,
+        color: brand.main,
+    },
+    {
+        phase: '05',
+        title: 'Datos empresariales',
+        desc: 'La información generada por las diferentes áreas se consolida para construir una lectura transversal de la empresa.',
+        outcome: 'Fuente confiable para indicadores y análisis.',
+        items: [ 'LAUDA Data', 'KPIs', 'Dashboard 360' ],
+        icon: Boxes,
         color: brand.bancos,
     },
+    {
+        phase: '06',
+        title: 'Inteligencia y decisiones',
+        desc: 'La dirección utiliza BI, tendencias, alertas y análisis para comprender el negocio y decidir con mayor velocidad y evidencia.',
+        outcome: 'Empresa orientada a decisiones basadas en datos.',
+        items: [ 'BI', 'Analítica', 'Automatización', 'IA' ],
+        icon: TrendingUp,
+        color: brand.bi,
+    },
 ]
+
 
 const serviceModels = [
     {
@@ -1551,36 +1586,52 @@ onBeforeUnmount(() => {
             </div>
         </section>
 
-        <!-- ===================== ECOSISTEMA DETALLE ===================== -->
+        <!-- ===================== ECOSISTEMA LAUDAAPI ===================== -->
         <section id="ecosistema-detalle" class="mx-auto max-w-360 scroll-mt-24 px-4 py-10 sm:px-6 sm:py-14 2xl:px-8">
             <div class="mb-8 flex flex-col justify-between gap-4 lg:flex-row lg:items-end">
                 <div>
                     <p class="text-[10px] font-black uppercase tracking-[0.24em] text-(--brand)">
-                        Ecosistema conectado
+                        Infraestructura tecnológica de la transformación
                     </p>
-                    <h2 class="mt-2 text-3xl font-black tracking-tight text-(--text) sm:text-4xl">
-                        LAUDAAPI es el ecosistema tecnológico que ejecuta la transformación.
+                    <h2 class="mt-2 max-w-4xl text-3xl font-black tracking-tight text-(--text) sm:text-4xl">
+                        LAUDAAPI acompaña cada etapa sin obligar a la empresa a operar como aplicaciones aisladas.
                     </h2>
                 </div>
 
                 <p class="max-w-xl text-sm leading-relaxed text-muted">
-                    Social, CRM, POS, BYS, e-CF, Cumplimiento y las demás plataformas se especializan en cada proceso, mientras LAUDAAPI las conecta bajo una misma estrategia empresarial.
+                    La tecnología se incorpora según el roadmap. Social, CRM, POS, administración, integración y datos forman una secuencia conectada que evoluciona con la madurez de la empresa.
                 </p>
             </div>
 
-            <div class="grid gap-4 lg:grid-cols-4">
-                <div v-for="step in ecosystemSteps" :key="step.title" class="lauda-card rounded-3xl border p-5">
+            <div class="mb-6 rounded-4xl border border-border bg-(--surface) p-5 shadow-sm sm:p-6">
+                <div class="flex flex-wrap items-center gap-2 text-[10px] font-black uppercase tracking-[0.12em] text-(--soft)">
+                    <span class="rounded-full bg-[#EC4899]/10 px-3 py-1.5 text-[#EC4899]">Social</span>
+                    <ArrowRight class="h-3.5 w-3.5" />
+                    <span class="rounded-full bg-[#A855F7]/10 px-3 py-1.5 text-[#A855F7]">CRM</span>
+                    <ArrowRight class="h-3.5 w-3.5" />
+                    <span class="rounded-full bg-[#22C55E]/10 px-3 py-1.5 text-[#16A34A]">POS</span>
+                    <ArrowRight class="h-3.5 w-3.5" />
+                    <span class="rounded-full bg-[#8B5CF6]/10 px-3 py-1.5 text-[#7C3AED]">Administración</span>
+                    <ArrowRight class="h-3.5 w-3.5" />
+                    <span class="rounded-full bg-(--brand)/10 px-3 py-1.5 text-(--brand)">Integración</span>
+                    <ArrowRight class="h-3.5 w-3.5" />
+                    <span class="rounded-full bg-[#3B82F6]/10 px-3 py-1.5 text-[#2563EB]">Data / BI</span>
+                </div>
+            </div>
+
+            <div class="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+                <div v-for="step in ecosystemSteps" :key="step.phase" class="lauda-card rounded-3xl border p-5">
                     <div class="mb-4 flex items-start justify-between gap-4">
                         <span class="grid h-11 w-11 shrink-0 place-items-center rounded-2xl" :style="{ background: step.color + '1a' }">
                             <component :is="step.icon" class="h-5 w-5" :style="{ color: step.color }" />
                         </span>
 
-                        <span class="rounded-full border border-border px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.12em] text-(--soft)">
-                            API-first
+                        <span class="text-2xl font-black tracking-[-0.04em] text-(--soft)">
+                            {{ step.phase }}
                         </span>
                     </div>
 
-                    <h3 class="text-base font-black text-(--text)">
+                    <h3 class="text-lg font-black text-(--text)">
                         {{ step.title }}
                     </h3>
 
@@ -1593,11 +1644,91 @@ onBeforeUnmount(() => {
                             {{ item }}
                         </span>
                     </div>
+
+                    <div class="mt-4 rounded-2xl border border-border bg-(--surface-soft) p-3">
+                        <p class="text-[9px] font-black uppercase tracking-[0.14em] text-(--soft)">Resultado</p>
+                        <p class="mt-1 text-xs font-semibold leading-relaxed text-(--text)">
+                            {{ step.outcome }}
+                        </p>
+                    </div>
                 </div>
+            </div>
+
+            <div class="mt-6 flex flex-col gap-3 rounded-3xl border border-(--brand)/15 bg-(--brand)/5 p-5 lg:flex-row lg:items-center lg:justify-between">
+                <div>
+                    <p class="text-sm font-black text-(--text)">La tecnología sigue al roadmap, no al revés.</p>
+                    <p class="mt-1 max-w-3xl text-sm leading-relaxed text-muted">
+                        El diagnóstico determina qué capacidades se activan primero, qué debe integrarse y qué puede esperar. Así la inversión tecnológica responde a objetivos empresariales concretos.
+                    </p>
+                </div>
+
+                <Button type="button" variant="outline" class="lauda-outline-button shrink-0 rounded-xl px-5 py-5" @click="scrollToId('soluciones')">
+                    Ver capacidades LAUDAAPI
+                </Button>
             </div>
         </section>
 
-        <!-- ===================== DASHBOARD CENTRALIZADO ===================== -->
+        <!-- ===================== CAPACIDADES DEL ECOSISTEMA ===================== -->
+        <section id="soluciones" class="mx-auto max-w-360 scroll-mt-24 px-4 py-10 sm:px-6 sm:py-14 2xl:px-8">
+            <div class="mb-8 flex flex-col justify-between gap-4 lg:flex-row lg:items-end">
+                <div>
+                    <p class="text-[10px] font-black uppercase tracking-[0.24em] text-(--brand)">
+                        Capacidades especializadas
+                    </p>
+                    <h2 class="mt-2 max-w-4xl text-3xl font-black tracking-tight text-(--text) sm:text-4xl">
+                        Cada plataforma cumple una función específica dentro del proceso de transformación.
+                    </h2>
+                </div>
+
+                <p class="max-w-xl text-sm leading-relaxed text-muted">
+                    Las aplicaciones mantienen su especialidad y su tenant, pero se relacionan con una misma empresa y comparten información mediante el ecosistema LAUDAAPI.
+                </p>
+            </div>
+
+            <div class="grid gap-5 md:grid-cols-2 xl:grid-cols-4">
+                <a v-for="solution in primarySolutions" :key="solution.name" :href="solution.href" class="lauda-card group rounded-3xl border p-5 transition-all hover:-translate-y-1 hover:shadow-xl">
+                    <div class="mb-4 flex items-start justify-between gap-4">
+                        <span class="grid h-11 w-11 shrink-0 place-items-center rounded-2xl" :style="{ background: solution.color + '1a' }">
+                            <component :is="solution.icon" class="h-5 w-5" :style="{ color: solution.color }" />
+                        </span>
+
+                        <span class="rounded-full px-2.5 py-1 text-[9px] font-black uppercase tracking-widest" :style="{ background: solution.statusColor + '1a', color: solution.statusColor }">
+                            {{ solution.status }}
+                        </span>
+                    </div>
+
+                    <p class="text-[9px] font-black uppercase tracking-[0.14em]" :style="{ color: solution.color }">
+                        {{ solution.stage }}
+                    </p>
+
+                    <h3 class="mt-1 text-xl font-black text-(--text)">
+                        {{ solution.name }}
+                    </h3>
+
+                    <p class="mt-2 text-sm leading-relaxed text-muted">
+                        {{ solution.desc }}
+                    </p>
+
+                    <div class="mt-4 rounded-2xl border border-border bg-(--surface-soft) p-3">
+                        <p class="text-[9px] font-black uppercase tracking-[0.12em] text-(--soft)">Papel en la transformación</p>
+                        <p class="mt-1 text-xs leading-relaxed text-muted">
+                            {{ solution.role }}
+                        </p>
+                    </div>
+
+                    <p class="mt-3 text-[11px] leading-relaxed text-muted">
+                        <span class="font-black text-(--text)">Se integra con:</span> {{ solution.connects }}
+                    </p>
+
+                    <div class="mt-4 inline-flex items-center gap-2 text-sm font-black text-(--brand)">
+                        Conocer plataforma
+                        <ArrowRight class="h-4 w-4 transition-transform group-hover:translate-x-1" />
+                    </div>
+                </a>
+            </div>
+        </section>
+
+        <!-- ===================== INTELIGENCIA / BI ===================== -->
         <section id="dashboard" class="mx-auto max-w-360 scroll-mt-24 px-4 py-10 sm:px-6 sm:py-14 2xl:px-8">
             <div class="mb-8 flex flex-col justify-between gap-4 lg:flex-row lg:items-end">
                 <div>
@@ -1712,59 +1843,6 @@ onBeforeUnmount(() => {
             </div>
         </section>
 
-        <!-- ===================== SOLUCIONES PRINCIPALES ===================== -->
-        <section id="soluciones" class="mx-auto max-w-360 scroll-mt-24 px-4 py-10 sm:px-6 sm:py-14 2xl:px-8">
-            <div class="mb-8 flex flex-col justify-between gap-4 lg:flex-row lg:items-end">
-                <div>
-                    <p class="text-[10px] font-black uppercase tracking-[0.24em] text-(--brand)">
-                        Tecnología para ejecutar la transformación
-                    </p>
-                    <h2 class="mt-2 text-3xl font-black tracking-tight text-(--text) sm:text-4xl">
-                        Cada etapa se apoya en capacidades especializadas del ecosistema LAUDAAPI.
-                    </h2>
-                </div>
-
-                <p class="max-w-xl text-sm leading-relaxed text-muted">
-                    Las plataformas conservan su especialidad y su tenant, pero se relacionan con una misma empresa dentro del ecosistema y se activan progresivamente según el roadmap de transformación.
-                </p>
-            </div>
-
-            <div class="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
-                <a v-for="solution in primarySolutions" :key="solution.name" :href="solution.href" class="lauda-card group rounded-3xl border p-6 transition-all hover:-translate-y-1 hover:shadow-xl">
-                    <div class="mb-5 flex items-start justify-between gap-4">
-                        <span class="grid h-12 w-12 shrink-0 place-items-center rounded-2xl" :style="{ background: solution.color + '1a' }">
-                            <component :is="solution.icon" class="h-5 w-5" :style="{ color: solution.color }" />
-                        </span>
-
-                        <span class="rounded-full px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.12em]" :style="{ background: solution.statusColor + '1a', color: solution.statusColor }">
-                            {{ solution.status }}
-                        </span>
-                    </div>
-
-                    <h3 class="text-xl font-black text-(--text)">
-                        {{ solution.name }}
-                    </h3>
-
-                    <p class="mt-2 text-sm leading-relaxed text-muted">
-                        {{ solution.desc }}
-                    </p>
-
-                    <div class="mt-5 space-y-3 text-xs leading-relaxed text-muted">
-                        <div class="rounded-2xl border border-border bg-(--surface-soft) p-3">
-                            <span class="font-black text-(--text)">Para quién:</span> {{ solution.audience }}
-                        </div>
-                        <div class="rounded-2xl border border-border bg-(--surface-soft) p-3">
-                            <span class="font-black text-(--text)">Conecta con:</span> {{ solution.connects }}
-                        </div>
-                    </div>
-
-                    <div class="mt-5 inline-flex items-center gap-2 text-sm font-black text-(--brand)">
-                        Ver solución
-                        <ArrowRight class="h-4 w-4 transition-transform group-hover:translate-x-1" />
-                    </div>
-                </a>
-            </div>
-        </section>
 
         <!-- ===================== FLUJOS ===================== -->
         <section id="flujos" class="mx-auto max-w-360 scroll-mt-24 px-4 py-10 sm:px-6 sm:py-14 2xl:px-8">
