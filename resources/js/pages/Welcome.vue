@@ -150,49 +150,95 @@ const dashboardPreviewMetrics = [
         color: brand.pos,
     },
     {
-        label: 'Operaciones activas',
-        value: '148',
-        context: 'Pedidos, servicios y procesos en curso',
-        icon: Activity,
+        label: 'Conversión comercial',
+        value: '18.6%',
+        context: 'Leads que avanzan desde CRM hasta una venta',
+        icon: Users,
         color: brand.crm,
     },
     {
-        label: 'Pendientes financieros',
+        label: 'Exposición financiera',
         value: 'RD$ 420K',
-        context: 'Cobros y pagos que requieren atención',
+        context: 'Cobros y pagos que requieren seguimiento',
         icon: Calculator,
         color: brand.tesoreria,
     },
     {
-        label: 'Estado del ecosistema',
-        value: 'Operativo',
-        context: 'Servicios, integraciones y alertas',
+        label: 'Alertas prioritarias',
+        value: '6',
+        context: 'Situaciones que requieren decisión o acción',
         icon: ShieldCheck,
         color: brand.status,
     },
 ]
 
+const intelligenceStages = [
+    {
+        step: '01',
+        title: 'Observar',
+        desc: 'Consolidar indicadores de las áreas digitalizadas para saber qué está ocurriendo en la empresa.',
+        result: 'KPIs confiables y una visión ejecutiva común.',
+        icon: Activity,
+        color: brand.pos,
+    },
+    {
+        step: '02',
+        title: 'Comprender',
+        desc: 'Cruzar información comercial, operativa, administrativa y financiera para explicar resultados y tendencias.',
+        result: 'Análisis transversal y causas visibles.',
+        icon: TrendingUp,
+        color: brand.bi,
+    },
+    {
+        step: '03',
+        title: 'Anticipar',
+        desc: 'Utilizar históricos, tendencias y proyecciones para identificar riesgos, oportunidades y comportamientos futuros.',
+        result: 'Proyecciones y señales tempranas para la gerencia.',
+        icon: RefreshCw,
+        color: brand.crm,
+    },
+    {
+        step: '04',
+        title: 'Actuar',
+        desc: 'Convertir la información en alertas, recomendaciones y automatizaciones que apoyen decisiones concretas.',
+        result: 'Decisiones accionables, automatización e IA cuando aporte valor.',
+        icon: Zap,
+        color: brand.main,
+    },
+]
+
 const dashboardViews = [
     {
-        title: 'Visión operativa',
-        desc: 'Una lectura rápida del movimiento diario y de los procesos que necesitan seguimiento.',
+        title: 'Visión Ejecutiva 360',
+        desc: 'Una lectura consolidada para propietarios, gerentes y responsables de área.',
         icon: Activity,
         color: brand.pos,
         items: [
-            'Operaciones y actividades en curso',
-            'Pendientes y alertas relevantes',
-            'Estado general de los módulos conectados',
+            'Indicadores comerciales, operativos y financieros',
+            'Alertas y pendientes que requieren atención',
+            'Comparación entre períodos, áreas y objetivos',
         ],
     },
     {
-        title: 'Visión administrativa',
-        desc: 'Una perspectiva consolidada para comprender el comportamiento general del negocio.',
+        title: 'Análisis transversal',
+        desc: 'Relaciona información que antes vivía separada para entender mejor el comportamiento del negocio.',
         icon: TrendingUp,
         color: brand.bi,
         items: [
-            'Indicadores comerciales y financieros',
-            'Estadísticas generales por período',
-            'Resumen administrativo del ecosistema',
+            'Social y CRM conectados con ventas reales',
+            'Operación relacionada con cobros, compras y cumplimiento',
+            'Clientes, productos y proveedores vistos de forma integral',
+        ],
+    },
+    {
+        title: 'Decisiones y acción',
+        desc: 'La inteligencia debe terminar en decisiones, no únicamente en reportes.',
+        icon: Zap,
+        color: brand.main,
+        items: [
+            'Alertas por desviaciones o riesgos relevantes',
+            'Proyecciones y recomendaciones para priorizar acciones',
+            'Automatizaciones e IA sobre datos confiables',
         ],
     },
 ]
@@ -1737,39 +1783,77 @@ onBeforeUnmount(() => {
                             Empresa inteligente
                         </p>
                         <span class="rounded-full border border-border bg-(--surface) px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.12em] text-(--soft)">
-                            En desarrollo
+                            Data + BI
                         </span>
                     </div>
 
                     <h2 class="mt-2 max-w-4xl text-3xl font-black tracking-tight text-(--text) sm:text-4xl">
-                        De la operación diaria a decisiones empresariales basadas en datos.
+                        Los datos dejan de ser reportes y se convierten en una herramienta para dirigir la empresa.
                     </h2>
                 </div>
 
                 <p class="max-w-xl text-sm leading-relaxed text-muted">
-                    A medida que la empresa avanza en su transformación, LAUDAAPI consolida información de las plataformas activas para ofrecer indicadores ejecutivos, BI y una visión transversal del negocio.
+                    LAUDA Data consolida la información generada por el ecosistema y, cuando corresponde, por sistemas externos. BI transforma esa base en indicadores, análisis, alertas y conocimiento útil para tomar mejores decisiones.
                 </p>
             </div>
 
-            <div class="lauda-card overflow-hidden rounded-4xl border p-4 sm:p-6 lg:p-8">
+            <div class="mb-6 rounded-4xl border border-border bg-(--surface) p-5 shadow-sm sm:p-6">
+                <p class="text-[10px] font-black uppercase tracking-[0.18em] text-(--brand)">
+                    De la operación a la decisión
+                </p>
+                <div class="mt-4 flex flex-wrap items-center gap-2 text-[11px] font-black uppercase tracking-widest text-(--soft)">
+                    <span class="rounded-full bg-[#EC4899]/10 px-3 py-1.5 text-[#EC4899]">Social</span>
+                    <ArrowRight class="h-3.5 w-3.5" />
+                    <span class="rounded-full bg-[#A855F7]/10 px-3 py-1.5 text-[#A855F7]">CRM</span>
+                    <ArrowRight class="h-3.5 w-3.5" />
+                    <span class="rounded-full bg-[#22C55E]/10 px-3 py-1.5 text-[#16A34A]">POS</span>
+                    <ArrowRight class="h-3.5 w-3.5" />
+                    <span class="rounded-full bg-[#8B5CF6]/10 px-3 py-1.5 text-[#7C3AED]">Administración</span>
+                    <ArrowRight class="h-3.5 w-3.5" />
+                    <span class="rounded-full bg-[#3B82F6]/10 px-3 py-1.5 text-[#2563EB]">LAUDA Data</span>
+                    <ArrowRight class="h-3.5 w-3.5" />
+                    <span class="rounded-full bg-(--brand)/10 px-3 py-1.5 text-(--brand)">BI / Decisiones</span>
+                </div>
+            </div>
+
+            <div class="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+                <div v-for="stage in intelligenceStages" :key="stage.step" class="lauda-card rounded-3xl border p-5">
+                    <div class="flex items-start justify-between gap-4">
+                        <span class="grid h-11 w-11 shrink-0 place-items-center rounded-2xl" :style="{ background: stage.color + '1a' }">
+                            <component :is="stage.icon" class="h-5 w-5" :style="{ color: stage.color }" />
+                        </span>
+                        <span class="text-[10px] font-black tracking-[0.18em] text-(--soft)">{{ stage.step }}</span>
+                    </div>
+
+                    <h3 class="mt-4 text-lg font-black text-(--text)">{{ stage.title }}</h3>
+                    <p class="mt-2 text-sm leading-relaxed text-muted">{{ stage.desc }}</p>
+
+                    <div class="mt-4 rounded-2xl border border-border bg-(--surface-soft) p-3">
+                        <p class="text-[9px] font-black uppercase tracking-[0.12em] text-(--soft)">Resultado</p>
+                        <p class="mt-1 text-xs leading-relaxed text-muted">{{ stage.result }}</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="lauda-card mt-6 overflow-hidden rounded-4xl border p-4 sm:p-6 lg:p-8">
                 <div class="rounded-4xl border border-white/8 bg-[#080B15] p-4 shadow-2xl shadow-black/20 sm:p-6">
                     <div class="flex flex-col gap-4 border-b border-white/8 pb-5 sm:flex-row sm:items-center sm:justify-between">
                         <div>
                             <div class="flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.2em] text-[#F5333C]">
                                 <span class="h-2 w-2 rounded-full bg-[#F5333C]" />
-                                Vista demostrativa
+                                Dashboard Ejecutivo 360
                             </div>
                             <h3 class="mt-2 text-xl font-black text-white sm:text-2xl">
-                                Resumen general del ecosistema
+                                Una vista común para entender qué está ocurriendo y dónde actuar.
                             </h3>
-                            <p class="mt-1 text-sm leading-relaxed text-[#9AA1B8]">
-                                Indicadores ilustrativos para presentar la experiencia futura del dashboard.
+                            <p class="mt-1 max-w-3xl text-sm leading-relaxed text-[#9AA1B8]">
+                                Vista ilustrativa de cómo la información integrada puede combinar indicadores comerciales, operativos, financieros y de riesgo en un mismo contexto ejecutivo.
                             </p>
                         </div>
 
                         <div class="inline-flex w-fit items-center gap-2 rounded-full border border-[#22C55E]/20 bg-[#22C55E]/10 px-3 py-1.5 text-[10px] font-black uppercase tracking-[0.12em] text-[#4ADE80]">
                             <span class="h-1.5 w-1.5 rounded-full bg-[#4ADE80]" />
-                            Ecosistema conectado
+                            Información conectada
                         </div>
                     </div>
 
@@ -1785,64 +1869,50 @@ onBeforeUnmount(() => {
                                 </span>
                             </div>
 
-                            <p class="mt-4 text-[11px] font-bold uppercase tracking-[0.08em] text-[#8E96AC]">
-                                {{ metric.label }}
-                            </p>
-                            <p class="mt-1 text-2xl font-black tracking-tight text-white">
-                                {{ metric.value }}
-                            </p>
-                            <p class="mt-2 text-xs leading-relaxed text-[#9AA1B8]">
-                                {{ metric.context }}
-                            </p>
+                            <p class="mt-4 text-[11px] font-bold uppercase tracking-[0.08em] text-[#8E96AC]">{{ metric.label }}</p>
+                            <p class="mt-1 text-2xl font-black tracking-tight text-white">{{ metric.value }}</p>
+                            <p class="mt-2 text-xs leading-relaxed text-[#9AA1B8]">{{ metric.context }}</p>
                         </div>
                     </div>
 
-                    <div class="mt-4 grid gap-4 lg:grid-cols-2">
+                    <div class="mt-4 grid gap-4 lg:grid-cols-3">
                         <div v-for="view in dashboardViews" :key="view.title" class="rounded-3xl border border-white/[0.07] bg-[#0D1120] p-5">
                             <div class="flex items-start gap-4">
                                 <span class="grid h-12 w-12 shrink-0 place-items-center rounded-2xl" :style="{ background: view.color + '22' }">
                                     <component :is="view.icon" class="h-5 w-5" :style="{ color: view.color }" />
                                 </span>
-
                                 <div>
-                                    <h3 class="text-lg font-black text-white">
-                                        {{ view.title }}
-                                    </h3>
-                                    <p class="mt-1 text-sm leading-relaxed text-[#9AA1B8]">
-                                        {{ view.desc }}
-                                    </p>
+                                    <h3 class="text-lg font-black text-white">{{ view.title }}</h3>
+                                    <p class="mt-1 text-sm leading-relaxed text-[#9AA1B8]">{{ view.desc }}</p>
                                 </div>
                             </div>
 
                             <div class="mt-5 grid gap-2.5">
                                 <div v-for="item in view.items" :key="item" class="flex items-center gap-3 rounded-2xl border border-white/6 bg-white/2.5 px-3 py-2.5">
                                     <CheckCircle2 class="h-4 w-4 shrink-0" :style="{ color: view.color }" />
-                                    <span class="text-xs font-semibold leading-relaxed text-[#C1C7D6]">
-                                        {{ item }}
-                                    </span>
+                                    <span class="text-xs font-semibold leading-relaxed text-[#C1C7D6]">{{ item }}</span>
                                 </div>
                             </div>
                         </div>
                     </div>
                 </div>
 
-                <div class="mt-5 flex flex-col gap-3 rounded-3xl border border-border bg-(--surface-soft) p-4 sm:flex-row sm:items-center sm:justify-between">
-                    <div>
-                        <p class="text-sm font-black text-(--text)">
-                            Presentación conceptual
-                        </p>
-                        <p class="mt-1 text-xs leading-relaxed text-muted">
-                            En esta etapa se comunica la función del dashboard. Las métricas, integraciones y vistas detalladas se desarrollarán posteriormente.
+                <div class="mt-5 flex flex-col gap-4 rounded-3xl border border-border bg-(--surface-soft) p-5 lg:flex-row lg:items-center lg:justify-between">
+                    <div class="max-w-3xl">
+                        <p class="text-[10px] font-black uppercase tracking-[0.16em] text-(--brand)">Destino de la Transformación 360</p>
+                        <p class="mt-1 text-base font-black text-(--text)">Una empresa conectada que aprende de su propia operación.</p>
+                        <p class="mt-2 text-sm leading-relaxed text-muted">
+                            El objetivo no es acumular dashboards. Es disponer de información confiable para controlar el negocio, identificar oportunidades, anticipar riesgos y tomar decisiones con mayor velocidad y fundamento.
                         </p>
                     </div>
 
-                    <span class="inline-flex w-fit shrink-0 items-center gap-2 rounded-full bg-(--brand)/10 px-3 py-1.5 text-[10px] font-black uppercase tracking-[0.12em] text-(--brand)">
-                        Próximamente
-                    </span>
+                    <Button type="button" variant="outline" class="lauda-outline-button shrink-0 gap-2 rounded-xl px-5 py-5" @click="scrollToId('contacto')">
+                        Iniciar diagnóstico
+                        <ArrowRight class="h-4 w-4" />
+                    </Button>
                 </div>
             </div>
         </section>
-
 
         <!-- ===================== FLUJOS ===================== -->
         <section id="flujos" class="mx-auto max-w-360 scroll-mt-24 px-4 py-10 sm:px-6 sm:py-14 2xl:px-8">
