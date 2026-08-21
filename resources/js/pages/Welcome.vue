@@ -748,15 +748,62 @@ async function submitContact() {
 }
 
 const extendedModules = [
-    { name: 'RRHH', desc: 'Recursos humanos, equipos, asistencia y procesos internos.', icon: Users, color: brand.rrhh, relation: 'Consume operación y usuarios del ecosistema.' },
-    { name: 'Tesorería', desc: 'Pagos, bancos, caja, conciliación, transferencias y nómina aprobada.', icon: Landmark, color: brand.tesoreria, relation: 'Cruza cobros POS, CxP de BYS, bancos, contabilidad y lotes de nómina aprobados.' },
-    { name: 'Proyectos', desc: 'Planificación, tareas, entregables y ejecución.', icon: Boxes, color: brand.proyectos, relation: 'Puede nacer desde CRM o servicios vendidos en POS.' },
-    { name: 'Eventos', desc: 'Gestión de eventos, invitados, ventas y operación.', icon: Activity, color: brand.eventos, relation: 'Puede conectar Social, CRM, POS y facturación.' },
-    { name: 'Transporte personal', desc: 'Rutas, unidades, pasajeros, horarios y evidencia.', icon: Truck, color: brand.transporte, relation: 'Extiende logística sin tocar facturación.' },
-    { name: 'Servicios de grúas', desc: 'Asignación de grúas, asistencia, tracking y cobro.', icon: Truck, color: brand.gruas, relation: 'Opera servicios conectados a POS y rutas.' },
-    { name: 'Loans', desc: 'Préstamos, cartera, cuotas, mora y cobranza.', icon: Calculator, color: brand.loans, relation: 'Se apoya en clientes, cobros, bancos y BI.' },
-    { name: 'Dealers', desc: 'Inventario vehicular, clientes, ventas y financiamiento.', icon: Store, color: brand.dealers, relation: 'Integra CRM, POS, loans, e-CF y BI.' },
-    { name: 'BI', desc: 'Dashboards, KPIs, analítica y toma de decisiones.', icon: TrendingUp, color: brand.bi, relation: 'Lee señales del ecosistema sin duplicar operación.' },
+    {
+        name: 'RRHH',
+        category: 'Gestión interna',
+        desc: 'Empleados, equipos, asistencia y procesos internos.',
+        trigger: 'La transformación requiere digitalizar la gestión del talento y la operación interna.',
+        icon: Users,
+        color: brand.rrhh,
+    },
+    {
+        name: 'Proyectos',
+        category: 'Gestión interna',
+        desc: 'Planificación, tareas, entregables y seguimiento de ejecución.',
+        trigger: 'La empresa necesita controlar proyectos, servicios o iniciativas con responsables y fechas.',
+        icon: Boxes,
+        color: brand.proyectos,
+    },
+    {
+        name: 'Eventos',
+        category: 'Operación especializada',
+        desc: 'Actividades, invitados, ventas y coordinación operativa.',
+        trigger: 'Los eventos forman parte relevante del modelo comercial u operativo de la empresa.',
+        icon: Activity,
+        color: brand.eventos,
+    },
+    {
+        name: 'Transporte personal',
+        category: 'Operación especializada',
+        desc: 'Rutas, unidades, pasajeros, horarios y evidencia de servicio.',
+        trigger: 'La movilidad de personal requiere planificación, trazabilidad y control.',
+        icon: Truck,
+        color: brand.transporte,
+    },
+    {
+        name: 'Servicios de grúas',
+        category: 'Vertical especializado',
+        desc: 'Asignación, asistencia, tracking, evidencias y cobro del servicio.',
+        trigger: 'El negocio presta servicios de asistencia vial o necesita una operación especializada de grúas.',
+        icon: Truck,
+        color: brand.gruas,
+    },
+    {
+        name: 'Loans',
+        category: 'Vertical especializado',
+        desc: 'Préstamos, cuotas, cartera, mora y cobranza.',
+        trigger: 'El modelo de negocio incluye financiamiento o administración recurrente de cartera.',
+        icon: Calculator,
+        color: brand.loans,
+    },
+    {
+        name: 'Dealers',
+        category: 'Vertical especializado',
+        desc: 'Inventario vehicular, clientes, ventas y financiamiento.',
+        trigger: 'La empresa opera venta de vehículos y requiere procesos específicos del sector.',
+        icon: Store,
+        color: brand.dealers,
+    },
 ]
 
 const mainNavLinks = [
@@ -2011,47 +2058,82 @@ onBeforeUnmount(() => {
             </div>
         </section>
 
-        <!-- ===================== MÓDULOS EXTENDIDOS ===================== -->
+        <!-- ===================== CAPACIDADES ESPECIALIZADAS ===================== -->
         <section id="modulos" class="mx-auto max-w-360 scroll-mt-24 px-4 pb-16 sm:px-6 2xl:px-8">
-            <div class="mb-8 flex flex-col justify-between gap-4 lg:flex-row lg:items-end">
-                <div>
-                    <p class="text-[10px] font-black uppercase tracking-[0.24em] text-(--brand)">
-                        Módulos extendidos
-                    </p>
-                    <h2 class="mt-2 text-3xl font-black tracking-tight text-(--text) sm:text-4xl">
-                        La misma base operativa para más verticales.
-                    </h2>
+            <div class="rounded-4xl border border-border bg-(--surface) p-6 shadow-sm lg:p-8">
+                <div class="flex flex-col justify-between gap-5 lg:flex-row lg:items-end">
+                    <div class="max-w-3xl">
+                        <p class="text-[10px] font-black uppercase tracking-[0.24em] text-(--brand)">
+                            Capacidades especializadas
+                        </p>
+                        <h2 class="mt-2 text-3xl font-black tracking-tight text-(--text) sm:text-4xl">
+                            El ecosistema crece cuando el roadmap de la empresa lo necesita.
+                        </h2>
+                        <p class="mt-4 max-w-2xl text-sm leading-relaxed text-muted">
+                            No todas las empresas requieren las mismas capacidades especializadas. Estas soluciones se incorporan únicamente cuando el diagnóstico y el roadmap identifican una necesidad real del negocio.
+                        </p>
+                    </div>
+
+                    <div class="rounded-3xl border border-border bg-(--surface-soft) p-4 lg:max-w-md">
+                        <p class="text-[10px] font-black uppercase tracking-[0.16em] text-(--brand)">
+                            Principio de activación
+                        </p>
+                        <div class="mt-3 flex flex-wrap items-center gap-2 text-[11px] font-black uppercase tracking-[0.08em] text-(--soft)">
+                            <span>Necesidad</span>
+                            <ArrowRight class="h-3.5 w-3.5" />
+                            <span>Proceso</span>
+                            <ArrowRight class="h-3.5 w-3.5" />
+                            <span>Capacidad</span>
+                        </div>
+                    </div>
                 </div>
 
-                <p class="max-w-xl text-sm leading-relaxed text-muted">
-                    Estos módulos se presentan como extensiones del ambiente LaudaAPI. Algunos operan como apps independientes,
-                    pero siempre conectados al core, sin duplicar facturación, inventario, fiscalidad ni datos críticos.
-                </p>
-            </div>
+                <div class="mt-7 grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+                    <div v-for="module in extendedModules" :key="module.name" class="rounded-3xl border border-border bg-(--surface-soft) p-4">
+                        <div class="flex items-start gap-3">
+                            <span class="grid h-10 w-10 shrink-0 place-items-center rounded-xl" :style="{ background: module.color + '1a' }">
+                                <component :is="module.icon" class="h-4.5 w-4.5" :style="{ color: module.color }" />
+                            </span>
 
-            <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-                <div v-for="module in extendedModules" :key="module.name" class="lauda-card group rounded-3xl border p-5 transition-all hover:-translate-y-1 hover:shadow-xl">
-                    <div class="mb-4 flex items-start justify-between gap-4">
-                        <span class="grid h-11 w-11 shrink-0 place-items-center rounded-2xl" :style="{ background: module.color + '1a' }">
-                            <component :is="module.icon" class="h-5 w-5" :style="{ color: module.color }" />
-                        </span>
+                            <div class="min-w-0">
+                                <span class="text-[9px] font-black uppercase tracking-[0.14em] text-(--soft)">
+                                    {{ module.category }}
+                                </span>
+                                <h3 class="mt-0.5 text-base font-black text-(--text)">
+                                    {{ module.name }}
+                                </h3>
+                            </div>
+                        </div>
 
-                        <span class="rounded-full border border-border px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.12em] text-(--soft)">
-                            Extensión
-                        </span>
+                        <p class="mt-3 text-sm leading-relaxed text-muted">
+                            {{ module.desc }}
+                        </p>
+
+                        <div class="mt-3 border-t border-border pt-3">
+                            <p class="text-[10px] font-black uppercase tracking-[0.12em] text-(--brand)">
+                                Se activa cuando
+                            </p>
+                            <p class="mt-1 text-xs leading-relaxed text-muted">
+                                {{ module.trigger }}
+                            </p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="mt-6 flex flex-col gap-4 rounded-3xl border border-border bg-(--surface-soft) p-5 lg:flex-row lg:items-center lg:justify-between">
+                    <div class="max-w-3xl">
+                        <p class="text-sm font-black text-(--text)">
+                            No implementamos por catálogo.
+                        </p>
+                        <p class="mt-1 text-sm leading-relaxed text-muted">
+                            Durante el diagnóstico definimos qué capacidades aportan valor, en qué momento deben incorporarse y cómo deben integrarse con los procesos ya transformados.
+                        </p>
                     </div>
 
-                    <h3 class="text-base font-black text-(--text)">
-                        {{ module.name }}
-                    </h3>
-
-                    <p class="mt-2 text-sm leading-relaxed text-muted">
-                        {{ module.desc }}
-                    </p>
-
-                    <div class="mt-4 rounded-2xl border border-border bg-(--surface-soft) p-3 text-xs leading-relaxed text-muted">
-                        {{ module.relation }}
-                    </div>
+                    <Button type="button" variant="outline" class="lauda-outline-button shrink-0 gap-2 rounded-xl px-5 py-5" @click="scrollToId('contacto')">
+                        Definir prioridades
+                        <ArrowRight class="h-4 w-4" />
+                    </Button>
                 </div>
             </div>
         </section>
