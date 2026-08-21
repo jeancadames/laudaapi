@@ -1003,7 +1003,7 @@ onBeforeUnmount(() => {
                             <ChevronDown class="h-3.5 w-3.5 transition-transform" :class="solutionsOpen && 'rotate-180'" />
                         </button>
 
-                        <div v-show="solutionsOpen" id="solutions-menu" role="region" aria-labelledby="solutions-trigger" class="lauda-menu absolute left-0 top-17 z-50 w-180 rounded-3xl border p-4 shadow-2xl">
+                        <div v-show="solutionsOpen" id="solutions-menu" role="region" aria-labelledby="solutions-trigger" class="lauda-menu absolute right-0 top-17 z-50 w-180 rounded-3xl border p-4 text-left shadow-2xl">
                             <div class="mb-3 flex items-end justify-between gap-4 px-2">
                                 <div>
                                     <p class="text-[10px] font-black uppercase tracking-[0.24em] text-(--brand)">
@@ -1019,7 +1019,7 @@ onBeforeUnmount(() => {
                             </div>
 
                             <div class="grid max-h-130 grid-cols-2 gap-2 overflow-y-auto pr-1">
-                                <a v-for="product in solutionProducts" :key="product.name" :href="product.href" class="lauda-menu-item group rounded-2xl border border-transparent p-3 transition" @click="solutionsOpen = false">
+                                <a v-for="product in solutionProducts" :key="product.name" :href="product.href" class="lauda-menu-item group rounded-2xl border border-transparent p-3 text-left transition" @click="solutionsOpen = false">
                                     <div class="flex items-start gap-3">
                                         <span class="grid h-11 w-11 shrink-0 place-items-center rounded-xl" :style="{ background: product.color + '1a' }">
                                             <component :is="product.icon" class="h-5 w-5" :style="{ color: product.color }" />
