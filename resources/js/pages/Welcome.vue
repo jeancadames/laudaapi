@@ -10,7 +10,6 @@ import {
     Boxes,
     Calculator,
     CheckCircle2,
-    ChevronDown,
     FileText,
     Landmark,
     Menu,
@@ -614,14 +613,11 @@ const extendedModules = [
     { name: 'BI', desc: 'Dashboards, KPIs, analítica y toma de decisiones.', icon: TrendingUp, color: brand.bi, relation: 'Lee señales del ecosistema sin duplicar operación.' },
 ]
 
-const transformationNavLinks = [
-    { label: 'Qué es LAUDA 360', href: '#lauda360' },
+const mainNavLinks = [
+    { label: 'Transformación 360', href: '#lauda360', primary: true },
     { label: 'Roadmap', href: '#roadmap' },
-    { label: 'Guiado, Asistido y Gestionado', href: '#modalidades' },
-    { label: 'Diagnóstico Digital', href: '#contacto' },
-]
-
-const mobileNavLinks = [
+    { label: 'Modalidades', href: '#modalidades' },
+    { label: 'Ecosistema', href: '#ecosistema-detalle' },
     { label: 'Inteligencia', href: '#dashboard' },
     { label: 'Contacto', href: '#contacto' },
 ]
@@ -647,15 +643,9 @@ const footerLegalLinks = [
 /*  Estado de UI                                                               */
 /* -------------------------------------------------------------------------- */
 
-const transformationOpen = ref(false)
-const solutionsOpen = ref(false)
 const mobileMenuOpen = ref(false)
 const isDarkMode = ref(false)
 
-const transformationMenuRef = ref(null)
-const transformationTriggerRef = ref(null)
-const solutionsMenuRef = ref(null)
-const solutionsTriggerRef = ref(null)
 const hamburgerRef = ref(null)
 const mobileCloseRef = ref(null)
 
@@ -830,28 +820,6 @@ function goLogin() {
     router.visit('/login')
 }
 
-function closeTransformation(returnFocus = false) {
-    if (!transformationOpen.value) return
-    transformationOpen.value = false
-    if (returnFocus) nextTick(() => transformationTriggerRef.value?.focus())
-}
-
-function closeSolutions(returnFocus = false) {
-    if (!solutionsOpen.value) return
-    solutionsOpen.value = false
-    if (returnFocus) nextTick(() => solutionsTriggerRef.value?.focus())
-}
-
-function toggleTransformationMenu() {
-    transformationOpen.value = !transformationOpen.value
-    if (transformationOpen.value) solutionsOpen.value = false
-}
-
-function toggleSolutionsMenu() {
-    solutionsOpen.value = !solutionsOpen.value
-    if (solutionsOpen.value) transformationOpen.value = false
-}
-
 function openMobileMenu() {
     mobileMenuOpen.value = true
     nextTick(() => mobileCloseRef.value?.focus())
@@ -864,27 +832,8 @@ function closeMobileMenu(returnFocus = false) {
 }
 
 function handleKeydown(event) {
-    if (event.key !== 'Escape') return
-
-    if (mobileMenuOpen.value) {
+    if (event.key === 'Escape' && mobileMenuOpen.value) {
         closeMobileMenu(true)
-    } else if (transformationOpen.value) {
-        closeTransformation(true)
-    } else if (solutionsOpen.value) {
-        closeSolutions(true)
-    }
-}
-
-function closeMenusOnOutsideClick(event) {
-    const transformationMenu = transformationMenuRef.value
-    const solutionsMenu = solutionsMenuRef.value
-
-    if (transformationOpen.value && transformationMenu && !transformationMenu.contains(event.target)) {
-        transformationOpen.value = false
-    }
-
-    if (solutionsOpen.value && solutionsMenu && !solutionsMenu.contains(event.target)) {
-        solutionsOpen.value = false
     }
 }
 
@@ -911,7 +860,6 @@ onMounted(async () => {
     startLogStream()
 
     window.addEventListener('resize', scheduleRefresh)
-    window.addEventListener('pointerdown', closeMenusOnOutsideClick)
     window.addEventListener('keydown', handleKeydown)
 })
 
@@ -923,7 +871,6 @@ onBeforeUnmount(() => {
     document.body.style.overflow = ''
 
     window.removeEventListener('resize', scheduleRefresh)
-    window.removeEventListener('pointerdown', closeMenusOnOutsideClick)
     window.removeEventListener('keydown', handleKeydown)
 })
 </script>
@@ -969,78 +916,11 @@ onBeforeUnmount(() => {
                     </div>
                 </Link>
 
-                <div class="ml-auto hidden items-center gap-7 text-[15px] font-medium text-muted xl:gap-9 lg:flex">
-                    <!-- TRANSFORMACIÓN 360: propuesta principal -->
-                    <div ref="transformationMenuRef" class="relative flex h-19 items-center">
-                        <button id="transformation-trigger" ref="transformationTriggerRef" type="button" class="lauda-solutions-trigger relative flex h-19 items-center gap-1 text-(--text) transition-colors after:absolute after:bottom-0 after:left-0 after:h-0.5 after:w-full after:bg-(--brand)" aria-haspopup="true" aria-controls="transformation-menu" :aria-expanded="transformationOpen" @click.stop="toggleTransformationMenu">
-                            Transformación 360
-                            <ChevronDown class="h-3.5 w-3.5 transition-transform" :class="transformationOpen && 'rotate-180'" />
-                        </button>
-
-                        <div v-show="transformationOpen" id="transformation-menu" role="region" aria-labelledby="transformation-trigger" class="lauda-menu absolute left-0 top-17 z-50 w-92 rounded-3xl border p-4 shadow-2xl">
-                            <div class="mb-3 px-2">
-                                <p class="text-[10px] font-black uppercase tracking-[0.24em] text-(--brand)">
-                                    LAUDA Transformación Digital 360
-                                </p>
-                                <p class="mt-1 text-sm leading-relaxed text-muted">
-                                    El punto de entrada para diagnosticar, organizar y transformar su empresa.
-                                </p>
-                            </div>
-
-                            <div class="grid gap-1">
-                                <a v-for="link in transformationNavLinks" :key="link.href + link.label" :href="link.href" class="lauda-menu-item flex items-center justify-between rounded-2xl border border-transparent px-3 py-3 text-sm font-bold text-(--text) transition" @click="transformationOpen = false">
-                                    <span>{{ link.label }}</span>
-                                    <ArrowRight class="h-4 w-4 text-(--soft)" />
-                                </a>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- ECOSISTEMA: tecnología -->
-                    <div ref="solutionsMenuRef" class="relative flex h-19 items-center">
-                        <button id="solutions-trigger" ref="solutionsTriggerRef" type="button" class="lauda-solutions-trigger flex items-center gap-1 transition-colors hover:text-(--text)" :class="solutionsOpen && 'text-(--text)'" aria-haspopup="true" aria-controls="solutions-menu" :aria-expanded="solutionsOpen" @click.stop="toggleSolutionsMenu">
-                            Ecosistema
-                            <ChevronDown class="h-3.5 w-3.5 transition-transform" :class="solutionsOpen && 'rotate-180'" />
-                        </button>
-
-                        <div v-show="solutionsOpen" id="solutions-menu" role="region" aria-labelledby="solutions-trigger" class="lauda-menu absolute right-0 top-17 z-50 w-180 rounded-3xl border p-4 text-left shadow-2xl">
-                            <div class="mb-3 flex items-end justify-between gap-4 px-2">
-                                <div>
-                                    <p class="text-[10px] font-black uppercase tracking-[0.24em] text-(--brand)">
-                                        Ecosistema LAUDAAPI
-                                    </p>
-                                    <p class="mt-1 text-sm text-muted">
-                                        Tecnología especializada que ejecuta cada etapa de la transformación.
-                                    </p>
-                                </div>
-                                <a href="#ecosistema-detalle" class="shrink-0 text-xs font-black text-(--brand)" @click="solutionsOpen = false">
-                                    Ver ecosistema
-                                </a>
-                            </div>
-
-                            <div class="grid max-h-130 grid-cols-2 gap-2 overflow-y-auto pr-1">
-                                <a v-for="product in solutionProducts" :key="product.name" :href="product.href" class="lauda-menu-item group rounded-2xl border border-transparent p-3 text-left transition" @click="solutionsOpen = false">
-                                    <div class="flex items-start gap-3">
-                                        <span class="grid h-11 w-11 shrink-0 place-items-center rounded-xl" :style="{ background: product.color + '1a' }">
-                                            <component :is="product.icon" class="h-5 w-5" :style="{ color: product.color }" />
-                                        </span>
-
-                                        <div class="min-w-0">
-                                            <p class="text-sm font-black text-(--text)">{{ product.name }}</p>
-                                            <p class="mt-1 text-xs leading-5 text-muted">{{ product.desc }}</p>
-                                        </div>
-                                    </div>
-                                </a>
-                            </div>
-                        </div>
-                    </div>
-
-                    <a href="#dashboard" class="flex h-19 items-center transition-colors hover:text-(--text)">
-                        Inteligencia
-                    </a>
-
-                    <a href="#contacto" class="flex h-19 items-center transition-colors hover:text-(--text)">
-                        Contacto
+                <div class="ml-auto hidden items-center gap-4 text-[14px] font-semibold text-muted xl:gap-6 xl:text-[15px] lg:flex">
+                    <a v-for="link in mainNavLinks" :key="link.href" :href="link.href" class="relative flex h-19 items-center whitespace-nowrap transition-colors hover:text-(--text)" :class="link.primary
+                        ? 'font-black text-(--text) after:absolute after:bottom-0 after:left-0 after:h-0.5 after:w-full after:bg-(--brand)'
+                        : ''">
+                        {{ link.label }}
                     </a>
                 </div>
 
@@ -1074,40 +954,8 @@ onBeforeUnmount(() => {
                     </div>
 
                     <div class="mt-6 min-h-0 flex-1 overflow-y-auto pr-1">
-                        <div>
-                            <p class="px-3 text-[10px] font-black uppercase tracking-[0.22em] text-(--brand)">
-                                Transformación 360
-                            </p>
-                            <div class="mt-2 grid gap-1">
-                                <a v-for="link in transformationNavLinks" :key="link.href + link.label" :href="link.href" class="lauda-mobile-link rounded-xl px-3 py-2.5 text-sm font-semibold text-(--text)" @click="closeMobileMenu()">
-                                    {{ link.label }}
-                                </a>
-                            </div>
-                        </div>
-
-                        <div class="mt-6">
-                            <p class="px-3 text-[10px] font-black uppercase tracking-[0.22em] text-(--brand)">
-                                Ecosistema
-                            </p>
-
-                            <div class="mt-2 grid grid-cols-1 gap-1">
-                                <a v-for="product in solutionProducts.slice(0, 8)" :key="product.name" :href="product.href" class="lauda-mobile-link flex items-center gap-3 rounded-xl px-3 py-2.5" @click="closeMobileMenu()">
-                                    <span class="grid h-9 w-9 shrink-0 place-items-center rounded-lg" :style="{ background: product.color + '1a' }">
-                                        <component :is="product.icon" class="h-4 w-4" :style="{ color: product.color }" />
-                                    </span>
-                                    <span class="min-w-0">
-                                        <span class="block text-sm font-bold text-(--text)">{{ product.name }}</span>
-                                        <span class="block truncate text-xs text-muted">{{ product.desc }}</span>
-                                    </span>
-                                </a>
-                                <a href="#ecosistema-detalle" class="lauda-mobile-link rounded-xl px-3 py-2.5 text-sm font-black text-(--brand)" @click="closeMobileMenu()">
-                                    Ver todo el ecosistema
-                                </a>
-                            </div>
-                        </div>
-
-                        <nav class="mt-6 flex flex-col gap-1 border-t border-border pt-4">
-                            <a v-for="link in mobileNavLinks" :key="link.href" :href="link.href" class="lauda-mobile-link rounded-xl px-3 py-3 text-base font-semibold text-(--text)" @click="closeMobileMenu()">
+                        <nav class="flex flex-col gap-1">
+                            <a v-for="link in mainNavLinks" :key="link.href" :href="link.href" class="lauda-mobile-link rounded-xl px-3 py-3 text-base font-semibold text-(--text)" :class="link.primary ? 'bg-(--brand)/10 font-black text-(--brand)' : ''" @click="closeMobileMenu()">
                                 {{ link.label }}
                             </a>
                         </nav>
@@ -2112,7 +1960,6 @@ onBeforeUnmount(() => {
 /*  Foco visible para navegación por teclado                                   */
 /* -------------------------------------------------------------------------- */
 
-.lauda-solutions-trigger:focus-visible,
 .lauda-menu-item:focus-visible,
 .lauda-mobile-link:focus-visible,
 .lauda-icon-btn:focus-visible {
