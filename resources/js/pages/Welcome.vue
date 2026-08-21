@@ -2,7 +2,7 @@
 import BrandLogo from '@/components/BrandLogo.vue'
 import { Button } from '@/components/ui/button'
 import { Head, Link, router } from '@inertiajs/vue3'
-import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 
 import {
     Activity,
@@ -71,26 +71,6 @@ const brand = {
 /*  Datos del ecosistema                                                       */
 /* -------------------------------------------------------------------------- */
 
-const CORE = { x: 50, y: 44 }
-
-const nodes = [
-    // Entradas (columna izquierda)
-    { id: 'social', label: 'Social', desc: 'Captura conversaciones y oportunidades.', color: brand.social, icon: MessageCircle, x: 15, y: 20, group: 'left' },
-    { id: 'crm', label: 'CRM', desc: 'Convierte oportunidades en solicitudes reales.', color: brand.crm, icon: Users, x: 15, y: 44, group: 'left' },
-    { id: 'ecommerce', label: 'Ecommerce', desc: 'Recibe pedidos y solicitudes online.', color: brand.ecommerce, icon: ShoppingCart, x: 15, y: 68, group: 'left' },
-    // Salidas (columna derecha)
-    { id: 'pos', label: 'POS', desc: 'Opera ventas, inventario, cobros y despacho.', color: brand.pos, icon: Store, x: 85, y: 20, group: 'right' },
-    { id: 'ecf', label: 'e-CF', desc: 'Firma, envía y responde ante DGII.', color: brand.ecf, icon: FileText, x: 85, y: 44, group: 'right' },
-    { id: 'delivery', label: 'Delivery', desc: 'Asigna, entrega y registra evidencia.', color: brand.delivery, icon: Truck, x: 85, y: 68, group: 'right' },
-    // Backoffice (fila inferior)
-    { id: 'cumplimiento', label: 'Cumplimiento', desc: 'Obligaciones, validaciones y vencimientos.', color: brand.cumplimiento, icon: ShieldCheck, x: 12, y: 86, group: 'backoffice' },
-    { id: 'bys', label: 'BYS', desc: 'Compras, servicios, gastos y proveedores.', color: brand.bys, icon: Boxes, x: 37, y: 86, group: 'backoffice' },
-    { id: 'bancos', label: 'Bancos', desc: 'Conciliación y movimientos financieros.', color: brand.bancos, icon: Landmark, x: 63, y: 86, group: 'backoffice' },
-    { id: 'contabilidad', label: 'Contabilidad', desc: 'Asientos contables y reportes financieros.', color: brand.contabilidad, icon: Calculator, x: 88, y: 86, group: 'backoffice' },
-    // Monitoreo (arriba, centrado)
-    { id: 'status', label: 'Status', desc: 'Disponibilidad, DGII, APIs y salud operativa.', color: brand.status, icon: Activity, x: 50, y: 13, group: 'status' },
-]
-
 const chips = [
     { icon: Activity, text: 'Diagnóstico y roadmap digital', color: brand.main },
     { icon: Users, text: 'Personas y procesos organizados', color: brand.crm },
@@ -123,22 +103,6 @@ const transformationPillars = [
         icon: TrendingUp,
         color: brand.bi,
     },
-]
-
-const logs = [
-    { time: '10:42:12', tag: 'Social', color: brand.social, msg: 'Lead captado desde Instagram' },
-    { time: '10:42:15', tag: 'CRM', color: brand.crm, msg: 'Oportunidad creada: #OP-4821' },
-    { time: '10:42:18', tag: 'POS', color: brand.pos, msg: 'Pedido operativo generado' },
-    { time: '10:42:21', tag: 'e-CF', color: brand.ecf, msg: 'Petición fiscal firmada y enviada a DGII' },
-    { time: '10:42:24', tag: 'Cumplimiento', color: brand.cumplimiento, msg: 'Documento clasificado para trazabilidad fiscal' },
-    { time: '10:42:28', tag: 'Status', color: brand.status, msg: 'Endpoint DGII y respuesta registrados' },
-]
-
-const metrics = [
-    { icon: CheckCircle2, iconColor: brand.pos, label: 'Ambientes proyectados', value: '20+', sub: 'Core + módulos', subColor: brand.pos },
-    { icon: ShieldCheck, iconColor: brand.ecf, label: 'DGII / e-CF', value: 'Automático', sub: 'Firma, envía y responde', subColor: brand.ecf },
-    { icon: TrendingUp, iconColor: brand.crm, label: 'Operación', value: 'POS Core', sub: 'Ventas, cobros e inventario', subColor: brand.pos },
-    { icon: Zap, iconColor: brand.status, label: 'Eventos', value: 'Transformación 360', sub: 'En tiempo real', subColor: brand.status },
 ]
 
 const dashboardPreviewMetrics = [
@@ -859,152 +823,6 @@ const hamburgerRef = ref(null)
 const mobileCloseRef = ref(null)
 
 /* -------------------------------------------------------------------------- */
-/*  Escalado del diagrama                                                      */
-/*  El diagrama se maqueta a un tamaño fijo (DESIGN_W x DESIGN_H) donde todo    */
-/*  respira, y se escala proporcionalmente para caber en su contenedor.        */
-/*  Así nunca hay scroll horizontal ni nodos encimados.                        */
-/* -------------------------------------------------------------------------- */
-
-const DESIGN_W = 700
-const DESIGN_H = 560
-
-const diagramScale = ref(1)
-const scrollWrap = ref(null)
-
-/* Fondo del diagrama derivado de la posición real del CORE */
-const diagramStyle = computed(() => ({
-    backgroundImage:
-        `radial-gradient(circle at ${CORE.x}% ${CORE.y}%, rgba(245,51,60,.11), transparent 48%),` +
-        'linear-gradient(rgba(255,255,255,.025) 1px, transparent 1px),' +
-        'linear-gradient(90deg, rgba(255,255,255,.025) 1px, transparent 1px)',
-    backgroundSize: '100% 100%, 34px 34px, 34px 34px',
-    width: DESIGN_W + 'px',
-    height: DESIGN_H + 'px',
-    transform: `scale(${diagramScale.value})`,
-    transformOrigin: 'top left',
-}))
-
-/* Alto real del contenedor una vez escalado (evita espacio sobrante) */
-const wrapHeight = computed(() => Math.round(DESIGN_H * diagramScale.value))
-
-/* -------------------------------------------------------------------------- */
-/*  Conectores del diagrama                                                    */
-/* -------------------------------------------------------------------------- */
-
-const diagram = ref(null)
-const coreEl = ref(null)
-const nodeRefs = ref([])
-const lines = ref([])
-
-const setNodeRef = (el, i) => {
-    if (el) nodeRefs.value[ i ] = el
-}
-
-function getCorePoint(box) {
-    const core = coreEl.value.getBoundingClientRect()
-    return {
-        x: core.left + core.width / 2 - box.left,
-        y: core.top + core.height / 2 - box.top,
-    }
-}
-
-function getNodeConnectionPoint(node, rect, box, side = null) {
-    const centerX = rect.left + rect.width / 2 - box.left
-    const centerY = rect.top + rect.height / 2 - box.top
-
-    if (side === 'left') return { x: rect.left - box.left, y: centerY }
-    if (side === 'right') return { x: rect.right - box.left, y: centerY }
-    if (side === 'top') return { x: centerX, y: rect.top - box.top }
-    if (side === 'bottom') return { x: centerX, y: rect.bottom - box.top }
-
-    if (node.group === 'left') return { x: rect.right - box.left, y: centerY }
-    if (node.group === 'right') return { x: rect.left - box.left, y: centerY }
-    if (node.group === 'backoffice') return { x: centerX, y: rect.top - box.top }
-    if (node.group === 'status') return { x: centerX, y: rect.bottom - box.top }
-
-    return { x: centerX, y: centerY }
-}
-
-function computeLines() {
-    if (!diagram.value || !coreEl.value) return
-
-    // getBoundingClientRect devuelve px ya escalados; dividimos por la escala
-    // para trabajar en el sistema de coordenadas de diseño del SVG.
-    const s = diagramScale.value || 1
-    const box = diagram.value.getBoundingClientRect()
-    const corePoint = getCorePoint(box)
-
-    lines.value = nodes
-        .map((node, index) => {
-            const el = nodeRefs.value[ index ]
-            if (!el) return null
-
-            const nodeRect = el.getBoundingClientRect()
-            const from = getNodeConnectionPoint(node, nodeRect, box)
-
-            return {
-                type: 'line',
-                x1: from.x / s,
-                y1: from.y / s,
-                x2: corePoint.x / s,
-                y2: corePoint.y / s,
-                color: node.color,
-                group: node.group,
-            }
-        })
-        .filter(Boolean)
-}
-
-function updateScale() {
-    const w = scrollWrap.value?.clientWidth || DESIGN_W
-    // Llena siempre el ancho disponible: reduce en panels angostos, agranda
-    // ligeramente en anchos, sin dejar hueco ni provocar scroll.
-    diagramScale.value = Math.min(1.08, w / DESIGN_W)
-}
-
-let rafId = null
-function scheduleRefresh() {
-    if (rafId) return
-    rafId = requestAnimationFrame(() => {
-        rafId = null
-        updateScale()
-        nextTick(computeLines)
-    })
-}
-
-/* -------------------------------------------------------------------------- */
-/*  Transmisión en vivo (logs animados)                                        */
-/* -------------------------------------------------------------------------- */
-
-let logCounter = 0
-const liveLogs = ref(logs.map((l) => ({ ...l, uid: ++logCounter })))
-let logTimer = null
-
-function pad(n) {
-    return String(n).padStart(2, '0')
-}
-
-function nowStamp() {
-    const d = new Date()
-    return `${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`
-}
-
-function prefersReducedMotion() {
-    return window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false
-}
-
-function startLogStream() {
-    if (prefersReducedMotion()) return
-
-    let cursor = 0
-    logTimer = window.setInterval(() => {
-        const base = logs[ cursor % logs.length ]
-        cursor++
-        liveLogs.value = [ { ...base, uid: ++logCounter, time: nowStamp() }, ...liveLogs.value ].slice(0, 6)
-    }, 2600)
-}
-
-/* -------------------------------------------------------------------------- */
 /*  Modo presentación                                                          */
 /* -------------------------------------------------------------------------- */
 
@@ -1051,35 +869,16 @@ watch(mobileMenuOpen, (open) => {
     document.body.style.overflow = open ? 'hidden' : ''
 })
 
-let ro
-
-onMounted(async () => {
+onMounted(() => {
     const savedMode = window.localStorage.getItem('laudaapi-presentation-mode')
     const prefersDark = window.matchMedia?.('(prefers-color-scheme: dark)').matches
 
     setPresentationMode(savedMode ? savedMode === 'dark' : Boolean(prefersDark))
-
-    await nextTick()
-    updateScale()
-    computeLines()
-
-    ro = new ResizeObserver(scheduleRefresh)
-    if (scrollWrap.value) ro.observe(scrollWrap.value)
-
-    startLogStream()
-
-    window.addEventListener('resize', scheduleRefresh)
     window.addEventListener('keydown', handleKeydown)
 })
 
 onBeforeUnmount(() => {
-    ro && ro.disconnect()
-    if (rafId) cancelAnimationFrame(rafId)
-    if (logTimer) clearInterval(logTimer)
-
     document.body.style.overflow = ''
-
-    window.removeEventListener('resize', scheduleRefresh)
     window.removeEventListener('keydown', handleKeydown)
 })
 </script>
@@ -1382,7 +1181,7 @@ onBeforeUnmount(() => {
                 </div>
 
                 <p class="max-w-2xl text-sm leading-relaxed text-muted lg:justify-self-end">
-                    LAUDA Transformación Digital 360 combina diagnóstico, estrategia, acompañamiento e implementación.
+                    LAUDA 360 combina diagnóstico, estrategia, acompañamiento e implementación.
                     Partimos de la realidad de cada empresa, definimos prioridades y construimos una ruta progresiva para
                     conectar personas, procesos, tecnología y datos alrededor de objetivos de negocio concretos.
                 </p>
@@ -1480,31 +1279,17 @@ onBeforeUnmount(() => {
                 </div>
             </div>
 
-            <!-- Separación servicio / tecnología -->
-            <div class="mt-6 grid overflow-hidden rounded-4xl border border-border bg-(--surface) md:grid-cols-2">
-                <div class="border-b border-border p-5 md:border-b-0 md:border-r md:p-6">
-                    <p class="text-[10px] font-black uppercase tracking-[0.18em] text-(--brand)">
-                        LAUDA Transformación Digital 360
-                    </p>
-                    <p class="mt-2 text-lg font-black text-(--text)">
-                        Define el camino de transformación.
-                    </p>
-                    <p class="mt-2 text-sm leading-relaxed text-muted">
-                        Diagnóstico, estrategia, prioridades, procesos, acompañamiento, implementación, adopción y mejora continua.
+            <div class="mt-6 flex flex-col gap-3 rounded-3xl border border-border bg-(--surface-soft) p-5 sm:flex-row sm:items-center sm:justify-between">
+                <div class="max-w-4xl">
+                    <p class="text-[10px] font-black uppercase tracking-[0.16em] text-(--brand)">Una sola transformación</p>
+                    <p class="mt-1 text-sm leading-relaxed text-muted">
+                        <span class="font-black text-(--text)">LAUDA 360 define el camino</span> y
+                        <span class="font-black text-(--text)">LAUDAAPI aporta la tecnología</span> que se incorpora progresivamente según las prioridades del roadmap.
                     </p>
                 </div>
-
-                <div class="p-5 md:p-6">
-                    <p class="text-[10px] font-black uppercase tracking-[0.18em] text-[#3B82F6]">
-                        Ecosistema LAUDAAPI
-                    </p>
-                    <p class="mt-2 text-lg font-black text-(--text)">
-                        Aporta la tecnología para ejecutarlo.
-                    </p>
-                    <p class="mt-2 text-sm leading-relaxed text-muted">
-                        Social, CRM, POS, administración, integraciones, automatización, Data y BI se incorporan según el roadmap de cada empresa.
-                    </p>
-                </div>
+                <span class="inline-flex w-fit shrink-0 rounded-full border border-border bg-(--surface) px-3 py-1.5 text-[10px] font-black uppercase tracking-[0.12em] text-(--soft)">
+                    Servicio + tecnología
+                </span>
             </div>
         </section>
 
@@ -1789,7 +1574,7 @@ onBeforeUnmount(() => {
             <div class="mb-8 flex flex-col justify-between gap-4 lg:flex-row lg:items-end">
                 <div>
                     <p class="text-[10px] font-black uppercase tracking-[0.24em] text-(--brand)">
-                        Capacidades especializadas
+                        Plataformas principales
                     </p>
                     <h2 class="mt-2 max-w-4xl text-3xl font-black tracking-tight text-(--text) sm:text-4xl">
                         Cada plataforma cumple una función específica dentro del proceso de transformación.
@@ -1841,6 +1626,96 @@ onBeforeUnmount(() => {
                         <ArrowRight class="h-4 w-4 transition-transform group-hover:translate-x-1" />
                     </div>
                 </a>
+            </div>
+        </section>
+
+        <!-- ===================== EMPRESA CONECTADA / FLUJOS ===================== -->
+        <section id="flujos" class="mx-auto max-w-360 scroll-mt-24 px-4 py-10 sm:px-6 sm:py-14 2xl:px-8">
+            <div class="mb-8 flex flex-col justify-between gap-4 lg:flex-row lg:items-end">
+                <div class="max-w-4xl">
+                    <p class="text-[10px] font-black uppercase tracking-[0.24em] text-(--brand)">
+                        Empresa conectada
+                    </p>
+                    <h2 class="mt-2 text-3xl font-black tracking-tight text-(--text) sm:text-4xl">
+                        La transformación ocurre cuando los procesos dejan de trabajar aislados.
+                    </h2>
+                </div>
+
+                <p class="max-w-xl text-sm leading-relaxed text-muted">
+                    LAUDAAPI conecta las capacidades necesarias para que una interacción, una venta, una compra o una señal del negocio continúen su recorrido sin duplicar información ni depender de procesos manuales entre áreas.
+                </p>
+            </div>
+
+            <div class="mb-6 grid gap-3 sm:grid-cols-3">
+                <div class="rounded-2xl border border-border bg-(--surface-soft) p-4">
+                    <p class="text-[10px] font-black uppercase tracking-[0.14em] text-(--brand)">Antes</p>
+                    <p class="mt-2 text-sm font-black text-(--text)">Procesos separados</p>
+                    <p class="mt-1 text-xs leading-relaxed text-muted">Personas, Excel, WhatsApp y aplicaciones intercambiando información manualmente.</p>
+                </div>
+
+                <div class="rounded-2xl border border-border bg-(--surface-soft) p-4">
+                    <p class="text-[10px] font-black uppercase tracking-[0.14em] text-(--brand)">Transformación</p>
+                    <p class="mt-2 text-sm font-black text-(--text)">Procesos conectados</p>
+                    <p class="mt-1 text-xs leading-relaxed text-muted">Cada área conserva su función, pero comparte información y eventos con la siguiente etapa.</p>
+                </div>
+
+                <div class="rounded-2xl border border-border bg-(--surface-soft) p-4">
+                    <p class="text-[10px] font-black uppercase tracking-[0.14em] text-(--brand)">Resultado</p>
+                    <p class="mt-2 text-sm font-black text-(--text)">Empresa coordinada</p>
+                    <p class="mt-1 text-xs leading-relaxed text-muted">Menos reprocesos, mayor trazabilidad y datos disponibles para controlar y decidir.</p>
+                </div>
+            </div>
+
+            <div class="grid gap-5 lg:grid-cols-2">
+                <article v-for="f in flows" :key="f.title" class="lauda-card min-w-0 overflow-hidden rounded-3xl border p-6 lg:p-7">
+                    <div class="flex items-start justify-between gap-4">
+                        <div>
+                            <p class="text-[10px] font-black uppercase tracking-[0.14em] text-(--brand)">Proceso de punta a punta</p>
+                            <h3 class="mt-2 text-xl font-black tracking-tight text-(--text)">{{ f.title }}</h3>
+                        </div>
+                        <span class="shrink-0 rounded-full border border-border bg-(--surface-soft) px-2.5 py-1 text-[9px] font-black uppercase tracking-[0.12em] text-(--soft)">
+                            Conectado
+                        </span>
+                    </div>
+
+                    <div class="mt-6 flex min-w-0 flex-wrap items-start gap-x-2 gap-y-4">
+                        <template v-for="(s, i) in f.steps" :key="s.label">
+                            <div class="flex min-w-14 max-w-20 flex-col items-center gap-2 text-center">
+                                <span class="grid h-10 w-10 place-items-center rounded-full" :style="{ background: s.color + '1a' }">
+                                    <component :is="s.icon" class="h-4 w-4" :style="{ color: s.color }" />
+                                </span>
+                                <span class="max-w-20 text-[10px] font-bold leading-tight text-muted">{{ s.label }}</span>
+                            </div>
+                            <ArrowRight v-if="i < f.steps.length - 1" class="mt-3.5 h-3.5 w-3.5 shrink-0 text-(--soft)" />
+                        </template>
+                    </div>
+
+                    <div class="mt-6 grid gap-3 sm:grid-cols-2">
+                        <div class="rounded-2xl border border-border bg-(--surface-soft) p-4">
+                            <p class="text-[9px] font-black uppercase tracking-[0.14em] text-(--soft)">Objetivo empresarial</p>
+                            <p class="mt-2 text-sm leading-relaxed text-muted">{{ f.business }}</p>
+                        </div>
+                        <div class="rounded-2xl border border-border bg-(--surface-soft) p-4">
+                            <p class="text-[9px] font-black uppercase tracking-[0.14em] text-(--soft)">Resultado esperado</p>
+                            <p class="mt-2 text-sm font-semibold leading-relaxed text-(--text)">{{ f.result }}</p>
+                        </div>
+                    </div>
+                </article>
+            </div>
+
+            <div class="mt-6 flex flex-col gap-4 rounded-3xl border border-border bg-(--surface) p-5 sm:p-6 lg:flex-row lg:items-center lg:justify-between">
+                <div class="max-w-4xl">
+                    <p class="text-[10px] font-black uppercase tracking-[0.16em] text-(--brand)">Principio de integración LAUDA 360</p>
+                    <p class="mt-1 text-base font-black text-(--text)">Conectamos procesos, no solamente aplicaciones.</p>
+                    <p class="mt-2 text-sm leading-relaxed text-muted">
+                        Una integración tiene valor cuando elimina una transferencia manual, conserva la trazabilidad y permite que la siguiente área continúe el proceso con la información correcta.
+                    </p>
+                </div>
+
+                <Button type="button" variant="outline" class="lauda-outline-button shrink-0 gap-2 rounded-xl px-5 py-5" @click="scrollToId('contacto')">
+                    Evaluar mis procesos
+                    <ArrowRight class="h-4 w-4" />
+                </Button>
             </div>
         </section>
 
@@ -1984,168 +1859,48 @@ onBeforeUnmount(() => {
             </div>
         </section>
 
-        <!-- ===================== EMPRESA CONECTADA / FLUJOS ===================== -->
-        <section id="flujos" class="mx-auto max-w-360 scroll-mt-24 px-4 py-10 sm:px-6 sm:py-14 2xl:px-8">
-            <div class="mb-8 flex flex-col justify-between gap-4 lg:flex-row lg:items-end">
-                <div class="max-w-4xl">
-                    <p class="text-[10px] font-black uppercase tracking-[0.24em] text-(--brand)">
-                        Empresa conectada
-                    </p>
-                    <h2 class="mt-2 text-3xl font-black tracking-tight text-(--text) sm:text-4xl">
-                        La transformación ocurre cuando los procesos dejan de trabajar aislados.
-                    </h2>
-                </div>
-
-                <p class="max-w-xl text-sm leading-relaxed text-muted">
-                    LAUDAAPI conecta las capacidades necesarias para que una interacción, una venta, una compra o una señal del negocio continúen su recorrido sin duplicar información ni depender de procesos manuales entre áreas.
-                </p>
-            </div>
-
-            <div class="mb-6 grid gap-3 sm:grid-cols-3">
-                <div class="rounded-2xl border border-border bg-(--surface-soft) p-4">
-                    <p class="text-[10px] font-black uppercase tracking-[0.14em] text-(--brand)">Antes</p>
-                    <p class="mt-2 text-sm font-black text-(--text)">Procesos separados</p>
-                    <p class="mt-1 text-xs leading-relaxed text-muted">Personas, Excel, WhatsApp y aplicaciones intercambiando información manualmente.</p>
-                </div>
-
-                <div class="rounded-2xl border border-border bg-(--surface-soft) p-4">
-                    <p class="text-[10px] font-black uppercase tracking-[0.14em] text-(--brand)">Transformación</p>
-                    <p class="mt-2 text-sm font-black text-(--text)">Procesos conectados</p>
-                    <p class="mt-1 text-xs leading-relaxed text-muted">Cada área conserva su función, pero comparte información y eventos con la siguiente etapa.</p>
-                </div>
-
-                <div class="rounded-2xl border border-border bg-(--surface-soft) p-4">
-                    <p class="text-[10px] font-black uppercase tracking-[0.14em] text-(--brand)">Resultado</p>
-                    <p class="mt-2 text-sm font-black text-(--text)">Empresa coordinada</p>
-                    <p class="mt-1 text-xs leading-relaxed text-muted">Menos reprocesos, mayor trazabilidad y datos disponibles para controlar y decidir.</p>
-                </div>
-            </div>
-
-            <div class="grid gap-5 lg:grid-cols-2">
-                <article v-for="f in flows" :key="f.title" class="lauda-card min-w-0 overflow-hidden rounded-3xl border p-6 lg:p-7">
-                    <div class="flex items-start justify-between gap-4">
-                        <div>
-                            <p class="text-[10px] font-black uppercase tracking-[0.14em] text-(--brand)">Proceso de punta a punta</p>
-                            <h3 class="mt-2 text-xl font-black tracking-tight text-(--text)">{{ f.title }}</h3>
-                        </div>
-                        <span class="shrink-0 rounded-full border border-border bg-(--surface-soft) px-2.5 py-1 text-[9px] font-black uppercase tracking-[0.12em] text-(--soft)">
-                            Conectado
-                        </span>
-                    </div>
-
-                    <div class="mt-6 flex min-w-0 flex-wrap items-start gap-x-2 gap-y-4">
-                        <template v-for="(s, i) in f.steps" :key="s.label">
-                            <div class="flex min-w-14 max-w-20 flex-col items-center gap-2 text-center">
-                                <span class="grid h-10 w-10 place-items-center rounded-full" :style="{ background: s.color + '1a' }">
-                                    <component :is="s.icon" class="h-4 w-4" :style="{ color: s.color }" />
-                                </span>
-                                <span class="max-w-20 text-[10px] font-bold leading-tight text-muted">{{ s.label }}</span>
-                            </div>
-                            <ArrowRight v-if="i < f.steps.length - 1" class="mt-3.5 h-3.5 w-3.5 shrink-0 text-(--soft)" />
-                        </template>
-                    </div>
-
-                    <div class="mt-6 grid gap-3 sm:grid-cols-2">
-                        <div class="rounded-2xl border border-border bg-(--surface-soft) p-4">
-                            <p class="text-[9px] font-black uppercase tracking-[0.14em] text-(--soft)">Objetivo empresarial</p>
-                            <p class="mt-2 text-sm leading-relaxed text-muted">{{ f.business }}</p>
-                        </div>
-                        <div class="rounded-2xl border border-border bg-(--surface-soft) p-4">
-                            <p class="text-[9px] font-black uppercase tracking-[0.14em] text-(--soft)">Resultado esperado</p>
-                            <p class="mt-2 text-sm font-semibold leading-relaxed text-(--text)">{{ f.result }}</p>
-                        </div>
-                    </div>
-                </article>
-            </div>
-
-            <div class="mt-6 flex flex-col gap-4 rounded-3xl border border-border bg-(--surface) p-5 sm:p-6 lg:flex-row lg:items-center lg:justify-between">
-                <div class="max-w-4xl">
-                    <p class="text-[10px] font-black uppercase tracking-[0.16em] text-(--brand)">Principio de integración LAUDA 360</p>
-                    <p class="mt-1 text-base font-black text-(--text)">Conectamos procesos, no solamente aplicaciones.</p>
-                    <p class="mt-2 text-sm leading-relaxed text-muted">
-                        Una integración tiene valor cuando elimina una transferencia manual, conserva la trazabilidad y permite que la siguiente área continúe el proceso con la información correcta.
-                    </p>
-                </div>
-
-                <Button type="button" variant="outline" class="lauda-outline-button shrink-0 gap-2 rounded-xl px-5 py-5" @click="scrollToId('contacto')">
-                    Evaluar mis procesos
-                    <ArrowRight class="h-4 w-4" />
-                </Button>
-            </div>
-        </section>
-
         <!-- ===================== CAPACIDADES ESPECIALIZADAS ===================== -->
-        <section id="modulos" class="mx-auto max-w-360 scroll-mt-24 px-4 pb-16 sm:px-6 2xl:px-8">
+        <section id="modulos" class="mx-auto max-w-360 scroll-mt-24 px-4 pb-14 sm:px-6 sm:pb-16 2xl:px-8">
             <div class="rounded-4xl border border-border bg-(--surface) p-6 shadow-sm lg:p-8">
-                <div class="flex flex-col justify-between gap-5 lg:flex-row lg:items-end">
-                    <div class="max-w-3xl">
+                <div class="grid gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.1fr)] lg:items-center">
+                    <div>
                         <p class="text-[10px] font-black uppercase tracking-[0.24em] text-(--brand)">
                             Capacidades especializadas
                         </p>
                         <h2 class="mt-2 text-3xl font-black tracking-tight text-(--text) sm:text-4xl">
-                            El ecosistema crece cuando el roadmap de la empresa lo necesita.
+                            El ecosistema puede crecer sin convertir la transformación en un catálogo de módulos.
                         </h2>
                         <p class="mt-4 max-w-2xl text-sm leading-relaxed text-muted">
-                            No todas las empresas requieren las mismas capacidades especializadas. Estas soluciones se incorporan únicamente cuando el diagnóstico y el roadmap identifican una necesidad real del negocio.
+                            RRHH, Proyectos, Eventos, Transporte, Grúas, Loans y Dealers se incorporan únicamente cuando el diagnóstico identifica una necesidad específica del negocio.
                         </p>
-                    </div>
 
-                    <div class="rounded-3xl border border-border bg-(--surface-soft) p-4 lg:max-w-md">
-                        <p class="text-[10px] font-black uppercase tracking-[0.16em] text-(--brand)">
-                            Principio de activación
-                        </p>
-                        <div class="mt-3 flex flex-wrap items-center gap-2 text-[11px] font-black uppercase tracking-[0.08em] text-(--soft)">
-                            <span>Necesidad</span>
+                        <div class="mt-5 flex flex-wrap items-center gap-2 text-[10px] font-black uppercase tracking-widest text-(--soft)">
+                            <span class="rounded-full border border-border bg-(--surface-soft) px-3 py-1.5">Necesidad</span>
                             <ArrowRight class="h-3.5 w-3.5" />
-                            <span>Proceso</span>
+                            <span class="rounded-full border border-border bg-(--surface-soft) px-3 py-1.5">Proceso</span>
                             <ArrowRight class="h-3.5 w-3.5" />
-                            <span>Capacidad</span>
+                            <span class="rounded-full border border-border bg-(--surface-soft) px-3 py-1.5">Capacidad</span>
                         </div>
                     </div>
-                </div>
 
-                <div class="mt-7 grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-                    <div v-for="module in extendedModules" :key="module.name" class="rounded-3xl border border-border bg-(--surface-soft) p-4">
-                        <div class="flex items-start gap-3">
+                    <div class="grid gap-3 sm:grid-cols-2">
+                        <div v-for="module in extendedModules" :key="module.name" class="flex items-center gap-3 rounded-2xl border border-border bg-(--surface-soft) p-3.5">
                             <span class="grid h-10 w-10 shrink-0 place-items-center rounded-xl" :style="{ background: module.color + '1a' }">
                                 <component :is="module.icon" class="h-4.5 w-4.5" :style="{ color: module.color }" />
                             </span>
-
                             <div class="min-w-0">
-                                <span class="text-[9px] font-black uppercase tracking-[0.14em] text-(--soft)">
-                                    {{ module.category }}
-                                </span>
-                                <h3 class="mt-0.5 text-base font-black text-(--text)">
-                                    {{ module.name }}
-                                </h3>
+                                <p class="text-sm font-black text-(--text)">{{ module.name }}</p>
+                                <p class="mt-0.5 line-clamp-2 text-[11px] leading-relaxed text-muted">{{ module.trigger }}</p>
                             </div>
-                        </div>
-
-                        <p class="mt-3 text-sm leading-relaxed text-muted">
-                            {{ module.desc }}
-                        </p>
-
-                        <div class="mt-3 border-t border-border pt-3">
-                            <p class="text-[10px] font-black uppercase tracking-[0.12em] text-(--brand)">
-                                Se activa cuando
-                            </p>
-                            <p class="mt-1 text-xs leading-relaxed text-muted">
-                                {{ module.trigger }}
-                            </p>
                         </div>
                     </div>
                 </div>
 
-                <div class="mt-6 flex flex-col gap-4 rounded-3xl border border-border bg-(--surface-soft) p-5 lg:flex-row lg:items-center lg:justify-between">
-                    <div class="max-w-3xl">
-                        <p class="text-sm font-black text-(--text)">
-                            No implementamos por catálogo.
-                        </p>
-                        <p class="mt-1 text-sm leading-relaxed text-muted">
-                            Durante el diagnóstico definimos qué capacidades aportan valor, en qué momento deben incorporarse y cómo deben integrarse con los procesos ya transformados.
-                        </p>
-                    </div>
-
+                <div class="mt-6 flex flex-col gap-3 border-t border-border pt-5 sm:flex-row sm:items-center sm:justify-between">
+                    <p class="max-w-3xl text-sm leading-relaxed text-muted">
+                        <span class="font-black text-(--text)">No implementamos por catálogo.</span>
+                        Cada capacidad se activa cuando existe un objetivo, proceso y resultado esperado que justifiquen su incorporación.
+                    </p>
                     <Button type="button" variant="outline" class="lauda-outline-button shrink-0 gap-2 rounded-xl px-5 py-5" @click="scrollToId('contacto')">
                         Definir prioridades
                         <ArrowRight class="h-4 w-4" />
@@ -2364,7 +2119,7 @@ onBeforeUnmount(() => {
                 </div>
 
                 <div>
-                    <p class="text-xs font-black uppercase tracking-[0.2em] text-(--brand)">Soluciones</p>
+                    <p class="text-xs font-black uppercase tracking-[0.2em] text-(--brand)">Ecosistema</p>
                     <nav class="mt-4 space-y-2">
                         <a v-for="product in solutionProducts.slice(0, 8)" :key="product.name" :href="product.href" class="flex items-center gap-2 text-sm font-semibold text-muted transition hover:text-(--text)">
                             <span class="h-2 w-2 rounded-full" :style="{ background: product.color }" />
@@ -2388,7 +2143,7 @@ onBeforeUnmount(() => {
 
             <div class="border-t border-border">
                 <div class="mx-auto flex max-w-360 flex-col gap-2 px-4 py-5 text-xs text-muted sm:flex-row sm:items-center sm:justify-between sm:px-6 2xl:px-8">
-                    <span>© {{ currentYear }} LaudaAPI Digital. Todos los derechos reservados.</span>
+                    <span>© {{ currentYear }} LAUDAAPI. Todos los derechos reservados.</span>
                     <span>Transformación Digital 360 impulsada por LAUDAAPI.</span>
                 </div>
             </div>
@@ -2450,16 +2205,6 @@ onBeforeUnmount(() => {
     background: var(--nav-bg);
 }
 
-.lauda-menu {
-    border-color: var(--border);
-    background: var(--menu-bg);
-    box-shadow: 0 30px 80px rgba(2, 6, 23, 0.18);
-}
-
-.lauda-menu-item:hover {
-    border-color: var(--border);
-    background: var(--surface-soft);
-}
 
 .lauda-mode-toggle {
     border-color: var(--border);
@@ -2539,7 +2284,6 @@ onBeforeUnmount(() => {
 /*  Foco visible para navegación por teclado                                   */
 /* -------------------------------------------------------------------------- */
 
-.lauda-menu-item:focus-visible,
 .lauda-mobile-link:focus-visible,
 .lauda-icon-btn:focus-visible {
     outline: 2px solid var(--brand);
@@ -2687,17 +2431,6 @@ select.lauda-input {
         0 25px 80px rgba(0, 0, 0, 0.44);
 }
 
-.lauda-diagram-scroll {
-    width: 100%;
-    overflow: hidden;
-}
-
-.lauda-hero__status-grid {
-    display: grid;
-    grid-template-columns: 1fr;
-    gap: 16px;
-    margin-top: 16px;
-}
 
 @media (min-width: 640px) {
     .lauda-hero {
@@ -2705,11 +2438,6 @@ select.lauda-input {
     }
 }
 
-@media (min-width: 900px) {
-    .lauda-hero__status-grid {
-        grid-template-columns: minmax(0, 1.1fr) minmax(0, 0.9fr);
-    }
-}
 
 @media (min-width: 1200px) {
     .lauda-hero__layout {
@@ -2775,14 +2503,6 @@ select.lauda-input {
         border-radius: 22px;
     }
 
-    .lauda-diagram-scroll {
-        border-radius: 18px;
-    }
-
-    .lauda-hero__status-grid {
-        gap: 12px;
-        margin-top: 12px;
-    }
 }
 
 @media (max-width: 420px) {
@@ -2809,62 +2529,8 @@ select.lauda-input {
     }
 }
 
-/* -------------------------------------------------------------------------- */
-/*  Interacción de nodos                                                       */
-/* -------------------------------------------------------------------------- */
-
-.lauda-node {
-    transition: border-color 0.2s ease, box-shadow 0.2s ease, background-color 0.2s ease;
-}
-
-.lauda-node:hover {
-    border-color: rgba(255, 255, 255, 0.2);
-    background-color: #161c33;
-    box-shadow: 0 12px 30px rgba(0, 0, 0, 0.4);
-}
-
-/* -------------------------------------------------------------------------- */
-/*  Animaciones                                                                */
-/* -------------------------------------------------------------------------- */
-
-@keyframes dashflow {
-    to {
-        stroke-dashoffset: -16;
-    }
-}
-
-.flow-line {
-    animation: dashflow 1s linear infinite;
-}
-
-@keyframes corepulse {
-
-    0%,
-    100% {
-        box-shadow:
-            0 0 60px -12px rgba(var(--brand-rgb), 0.55),
-            inset 0 0 36px rgba(var(--brand-rgb), 0.12);
-    }
-
-    50% {
-        box-shadow:
-            0 0 90px -6px rgba(var(--brand-rgb), 0.8),
-            inset 0 0 48px rgba(var(--brand-rgb), 0.22);
-    }
-}
-
-.core-glow {
-    animation: corepulse 3s ease-in-out infinite;
-}
-
 @media (prefers-reduced-motion: reduce) {
 
-    .flow-line,
-    .core-glow {
-        animation: none;
-    }
-
-    .lauda-node,
     .lauda-fade-enter-active,
     .lauda-fade-leave-active {
         transition: none;
