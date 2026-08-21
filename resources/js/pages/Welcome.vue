@@ -245,44 +245,51 @@ const dashboardViews = [
 
 const flows = [
     {
-        title: 'Lead a factura y entrega',
-        desc: 'Una conversación se convierte en venta, factura fiscal, despacho y evidencia de entrega.',
+        title: 'De interacción a cliente y venta',
+        business: 'Convertir interés digital en una relación comercial medible y una venta ejecutada.',
+        result: 'Trazabilidad desde el canal de origen hasta la venta, facturación y seguimiento del cliente.',
         steps: [
             { label: 'Social', color: brand.social, icon: MessageCircle },
             { label: 'CRM', color: brand.crm, icon: Users },
             { label: 'POS', color: brand.pos, icon: Store },
             { label: 'e-CF', color: brand.ecf, icon: FileText },
-            { label: 'Delivery', color: brand.delivery, icon: Truck },
+            { label: 'Cobranza', color: brand.tesoreria, icon: Calculator },
         ],
     },
     {
-        title: 'Pedido ecommerce a operación',
-        desc: 'El pedido online entra al POS sin duplicar facturación, inventario, CxC ni conduces.',
+        title: 'De pedido a entrega y cobro',
+        business: 'Conectar la venta con inventario, preparación, entrega y cierre financiero.',
+        result: 'Menos reprocesos, mayor control operativo y una experiencia de cliente consistente de punta a punta.',
         steps: [
-            { label: 'Ecommerce', color: brand.ecommerce, icon: ShoppingCart },
+            { label: 'Pedido', color: brand.ecommerce, icon: ShoppingCart },
             { label: 'POS', color: brand.pos, icon: Store },
             { label: 'Inventario', color: brand.pos, icon: Boxes },
-            { label: 'e-CF', color: brand.ecf, icon: FileText },
-            { label: 'Delivery', color: brand.delivery, icon: Truck },
+            { label: 'Entrega', color: brand.delivery, icon: Truck },
+            { label: 'Cobro', color: brand.tesoreria, icon: Landmark },
         ],
     },
     {
-        title: 'Compra a cumplimiento',
-        desc: 'Compras, XML/PDF, validaciones fiscales y metadata contable preparada para reportes.',
+        title: 'De necesidad de compra a pago y cumplimiento',
+        business: 'Organizar compras, recepción, obligaciones con proveedores y control administrativo.',
+        result: 'Compras trazables, pagos controlados y mejor preparación de la información fiscal y financiera.',
         steps: [
             { label: 'BYS', color: brand.bys, icon: Boxes },
-            { label: 'e-CF', color: brand.ecf, icon: FileText },
+            { label: 'Recepción', color: brand.pos, icon: CheckCircle2 },
+            { label: 'CxP', color: brand.tesoreria, icon: Calculator },
+            { label: 'Tesorería', color: brand.tesoreria, icon: Landmark },
             { label: 'Cumplimiento', color: brand.cumplimiento, icon: ShieldCheck },
-            { label: 'Contabilidad', color: brand.contabilidad, icon: Calculator },
-            { label: 'Bancos', color: brand.bancos, icon: Landmark },
         ],
     },
     {
-        title: 'Operación monitoreada',
-        desc: 'Status observa eventos, disponibilidad, endpoints, DGII y salud de todo el ecosistema.',
+        title: 'De operación a decisión',
+        business: 'Consolidar señales de toda la empresa para entender qué ocurre y decidir qué hacer después.',
+        result: 'KPIs confiables, alertas, análisis transversal y una base preparada para automatización e inteligencia.',
         steps: [
-            { label: 'Todas las apps', color: brand.neutral, icon: RefreshCw },
-            { label: 'Status', color: brand.status, icon: Activity },
+            { label: 'Operación', color: brand.neutral, icon: RefreshCw },
+            { label: 'LAUDA Data', color: brand.status, icon: Activity },
+            { label: 'BI', color: brand.bi, icon: TrendingUp },
+            { label: 'Alertas', color: brand.ecf, icon: ShieldCheck },
+            { label: 'Acción', color: brand.main, icon: Zap },
         ],
     },
 ]
@@ -1914,49 +1921,93 @@ onBeforeUnmount(() => {
             </div>
         </section>
 
-        <!-- ===================== FLUJOS ===================== -->
+        <!-- ===================== EMPRESA CONECTADA / FLUJOS ===================== -->
         <section id="flujos" class="mx-auto max-w-360 scroll-mt-24 px-4 py-10 sm:px-6 sm:py-14 2xl:px-8">
             <div class="mb-8 flex flex-col justify-between gap-4 lg:flex-row lg:items-end">
-                <div>
+                <div class="max-w-4xl">
                     <p class="text-[10px] font-black uppercase tracking-[0.24em] text-(--brand)">
                         Empresa conectada
                     </p>
                     <h2 class="mt-2 text-3xl font-black tracking-tight text-(--text) sm:text-4xl">
-                        De procesos aislados a flujos digitales conectados de extremo a extremo.
+                        La transformación ocurre cuando los procesos dejan de trabajar aislados.
                     </h2>
                 </div>
 
                 <p class="max-w-xl text-sm leading-relaxed text-muted">
-                    Cada plataforma conserva su responsabilidad, pero comparte eventos e información para que la empresa pueda operar como un solo sistema y no como aplicaciones aisladas.
+                    LAUDAAPI conecta las capacidades necesarias para que una interacción, una venta, una compra o una señal del negocio continúen su recorrido sin duplicar información ni depender de procesos manuales entre áreas.
                 </p>
             </div>
 
-            <div class="grid gap-5 sm:grid-cols-2 xl:grid-cols-4">
-                <div v-for="f in flows" :key="f.title" class="lauda-card min-w-0 overflow-hidden rounded-3xl border p-6 transition-shadow hover:shadow-xl">
-                    <h3 class="text-[17px] font-bold tracking-tight text-(--text)">
-                        {{ f.title }}
-                    </h3>
+            <div class="mb-6 grid gap-3 sm:grid-cols-3">
+                <div class="rounded-2xl border border-border bg-(--surface-soft) p-4">
+                    <p class="text-[10px] font-black uppercase tracking-[0.14em] text-(--brand)">Antes</p>
+                    <p class="mt-2 text-sm font-black text-(--text)">Procesos separados</p>
+                    <p class="mt-1 text-xs leading-relaxed text-muted">Personas, Excel, WhatsApp y aplicaciones intercambiando información manualmente.</p>
+                </div>
 
-                    <div class="mt-5 flex min-w-0 flex-wrap items-start gap-x-2 gap-y-4">
+                <div class="rounded-2xl border border-border bg-(--surface-soft) p-4">
+                    <p class="text-[10px] font-black uppercase tracking-[0.14em] text-(--brand)">Transformación</p>
+                    <p class="mt-2 text-sm font-black text-(--text)">Procesos conectados</p>
+                    <p class="mt-1 text-xs leading-relaxed text-muted">Cada área conserva su función, pero comparte información y eventos con la siguiente etapa.</p>
+                </div>
+
+                <div class="rounded-2xl border border-border bg-(--surface-soft) p-4">
+                    <p class="text-[10px] font-black uppercase tracking-[0.14em] text-(--brand)">Resultado</p>
+                    <p class="mt-2 text-sm font-black text-(--text)">Empresa coordinada</p>
+                    <p class="mt-1 text-xs leading-relaxed text-muted">Menos reprocesos, mayor trazabilidad y datos disponibles para controlar y decidir.</p>
+                </div>
+            </div>
+
+            <div class="grid gap-5 lg:grid-cols-2">
+                <article v-for="f in flows" :key="f.title" class="lauda-card min-w-0 overflow-hidden rounded-3xl border p-6 lg:p-7">
+                    <div class="flex items-start justify-between gap-4">
+                        <div>
+                            <p class="text-[10px] font-black uppercase tracking-[0.14em] text-(--brand)">Proceso de punta a punta</p>
+                            <h3 class="mt-2 text-xl font-black tracking-tight text-(--text)">{{ f.title }}</h3>
+                        </div>
+                        <span class="shrink-0 rounded-full border border-border bg-(--surface-soft) px-2.5 py-1 text-[9px] font-black uppercase tracking-[0.12em] text-(--soft)">
+                            Conectado
+                        </span>
+                    </div>
+
+                    <div class="mt-6 flex min-w-0 flex-wrap items-start gap-x-2 gap-y-4">
                         <template v-for="(s, i) in f.steps" :key="s.label">
-                            <div class="flex min-w-11 max-w-16 flex-col items-center gap-2 text-center">
-                                <span class="grid h-9 w-9 place-items-center rounded-full" :style="{ background: s.color + '1a' }">
+                            <div class="flex min-w-14 max-w-20 flex-col items-center gap-2 text-center">
+                                <span class="grid h-10 w-10 place-items-center rounded-full" :style="{ background: s.color + '1a' }">
                                     <component :is="s.icon" class="h-4 w-4" :style="{ color: s.color }" />
                                 </span>
-
-                                <span class="max-w-17 truncate text-[10px] font-medium text-muted">
-                                    {{ s.label }}
-                                </span>
+                                <span class="max-w-20 text-[10px] font-bold leading-tight text-muted">{{ s.label }}</span>
                             </div>
-
-                            <ArrowRight v-if="i < f.steps.length - 1" class="mt-3 h-3.5 w-3.5 shrink-0 text-(--soft)" />
+                            <ArrowRight v-if="i < f.steps.length - 1" class="mt-3.5 h-3.5 w-3.5 shrink-0 text-(--soft)" />
                         </template>
                     </div>
 
-                    <p class="mt-5 text-[13px] leading-relaxed text-muted">
-                        {{ f.desc }}
+                    <div class="mt-6 grid gap-3 sm:grid-cols-2">
+                        <div class="rounded-2xl border border-border bg-(--surface-soft) p-4">
+                            <p class="text-[9px] font-black uppercase tracking-[0.14em] text-(--soft)">Objetivo empresarial</p>
+                            <p class="mt-2 text-sm leading-relaxed text-muted">{{ f.business }}</p>
+                        </div>
+                        <div class="rounded-2xl border border-border bg-(--surface-soft) p-4">
+                            <p class="text-[9px] font-black uppercase tracking-[0.14em] text-(--soft)">Resultado esperado</p>
+                            <p class="mt-2 text-sm font-semibold leading-relaxed text-(--text)">{{ f.result }}</p>
+                        </div>
+                    </div>
+                </article>
+            </div>
+
+            <div class="mt-6 flex flex-col gap-4 rounded-3xl border border-border bg-(--surface) p-5 sm:p-6 lg:flex-row lg:items-center lg:justify-between">
+                <div class="max-w-4xl">
+                    <p class="text-[10px] font-black uppercase tracking-[0.16em] text-(--brand)">Principio de integración LAUDA 360</p>
+                    <p class="mt-1 text-base font-black text-(--text)">Conectamos procesos, no solamente aplicaciones.</p>
+                    <p class="mt-2 text-sm leading-relaxed text-muted">
+                        Una integración tiene valor cuando elimina una transferencia manual, conserva la trazabilidad y permite que la siguiente área continúe el proceso con la información correcta.
                     </p>
                 </div>
+
+                <Button type="button" variant="outline" class="lauda-outline-button shrink-0 gap-2 rounded-xl px-5 py-5" @click="scrollToId('contacto')">
+                    Evaluar mis procesos
+                    <ArrowRight class="h-4 w-4" />
+                </Button>
             </div>
         </section>
 
