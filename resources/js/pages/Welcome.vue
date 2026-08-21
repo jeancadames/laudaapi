@@ -412,57 +412,73 @@ const serviceModels = [
 const roadmapStages = [
     {
         number: '01',
-        title: 'Diagnóstico Digital',
-        desc: 'Entender dónde está la empresa, identificar brechas y establecer prioridades.',
+        phase: 'Entender',
+        title: 'Diagnóstico y Madurez Digital',
+        desc: 'Conocer cómo opera hoy la empresa, qué tan preparada está para transformarse y dónde están las brechas de mayor impacto.',
+        result: 'Diagnóstico, prioridades y roadmap de transformación.',
         icon: Activity,
         color: brand.main,
     },
     {
         number: '02',
-        title: 'Fundamentos Digitales',
-        desc: 'Preparar la organización, la información, los responsables y las bases necesarias para transformarse.',
+        phase: 'Preparar',
+        title: 'Fundamentos para Transformar',
+        desc: 'Organizar información, responsables, procesos esenciales y condiciones mínimas para que la transformación pueda ejecutarse con orden.',
+        result: 'Empresa preparada para iniciar la digitalización.',
         icon: ShieldCheck,
         color: brand.cumplimiento,
     },
     {
         number: '03',
-        title: 'Presencia e Identidad Digital',
-        desc: 'Organizar la representación digital de la empresa, sus canales, presencia y relación con el mercado mediante Social.',
+        phase: 'Digitalizar',
+        title: 'Presencia y Relación Digital',
+        desc: 'Construir una presencia digital coherente y organizar los canales desde los cuales la empresa comunica, atiende y capta oportunidades.',
+        result: 'Canales digitales organizados y conectados con el negocio.',
         icon: MessageCircle,
         color: brand.social,
     },
     {
         number: '04',
+        phase: 'Digitalizar',
         title: 'Gestión Comercial Digital',
-        desc: 'Centralizar contactos, leads, oportunidades, seguimiento y conversión mediante CRM.',
+        desc: 'Convertir contactos e interacciones en un proceso comercial medible, con seguimiento, oportunidades, responsables y trazabilidad.',
+        result: 'Proceso comercial centralizado y controlable.',
         icon: Users,
         color: brand.crm,
     },
     {
         number: '05',
+        phase: 'Digitalizar',
         title: 'Operación Digital',
-        desc: 'Digitalizar ventas, servicios, inventario, caja, crédito, ecommerce y logística según el modelo de negocio.',
+        desc: 'Llevar los procesos principales del negocio a una operación digital estructurada: ventas, servicios, inventario, cobros, ecommerce o logística según corresponda.',
+        result: 'Operación diaria digitalizada y trazable.',
         icon: Store,
         color: brand.pos,
     },
     {
         number: '06',
-        title: 'Administración y Cumplimiento',
-        desc: 'Conectar compras, proveedores, e-CF, obligaciones y procesos administrativos mediante BYS y Cumplimiento.',
+        phase: 'Digitalizar',
+        title: 'Administración y Cumplimiento Digital',
+        desc: 'Digitalizar compras, proveedores, facturación electrónica, obligaciones y procesos administrativos que sostienen la operación.',
+        result: 'Backoffice organizado, conectado y con mayor control.',
         icon: Calculator,
         color: brand.bys,
     },
     {
         number: '07',
-        title: 'Integración y Automatización',
-        desc: 'Conectar los procesos de extremo a extremo y reducir tareas manuales mediante eventos, APIs y automatización.',
+        phase: 'Conectar',
+        title: 'Empresa Conectada',
+        desc: 'Integrar las áreas digitalizadas para que la información fluya entre procesos y reducir duplicidad, tareas manuales y puntos de ruptura.',
+        result: 'Procesos de extremo a extremo integrados y automatizables.',
         icon: RefreshCw,
         color: brand.status,
     },
     {
         number: '08',
-        title: 'Data, BI e Inteligencia',
-        desc: 'Consolidar datos, indicadores, dashboards y analítica para convertir la operación en decisiones.',
+        phase: 'Decidir',
+        title: 'Empresa Inteligente',
+        desc: 'Consolidar información confiable en indicadores, dashboards y analítica para dirigir la empresa con una visión integral del negocio.',
+        result: 'Decisiones basadas en datos y mejora continua.',
         icon: TrendingUp,
         color: brand.bi,
     },
@@ -1307,32 +1323,88 @@ onBeforeUnmount(() => {
                         Roadmap de Transformación
                     </p>
                     <h2 class="mt-2 max-w-4xl text-3xl font-black tracking-tight text-(--text) sm:text-4xl">
-                        El destino es integral. La implementación es progresiva.
+                        De entender la empresa a convertirla en una organización conectada e inteligente.
                     </h2>
                 </div>
+
                 <p class="max-w-xl text-sm leading-relaxed text-muted">
-                    Cada empresa recorre el mismo marco de transformación, pero el orden, profundidad y velocidad se ajustan
-                    según su madurez digital, prioridades y capacidad interna.
+                    La metodología es común, pero no todas las empresas comienzan en el mismo punto. El diagnóstico define
+                    qué debe priorizarse, cuánto acompañamiento se necesita y el ritmo adecuado para avanzar.
                 </p>
             </div>
 
+            <div class="mb-6 rounded-3xl border border-border bg-(--surface) p-4 shadow-sm sm:p-5">
+                <div class="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+                    <div class="rounded-2xl border border-border bg-(--surface-soft) p-4">
+                        <p class="text-[10px] font-black uppercase tracking-[0.16em] text-(--brand)">01 · Entender</p>
+                        <p class="mt-2 text-sm font-black text-(--text)">Dónde está su empresa hoy.</p>
+                    </div>
+                    <div class="rounded-2xl border border-border bg-(--surface-soft) p-4">
+                        <p class="text-[10px] font-black uppercase tracking-[0.16em] text-(--brand)">02 · Preparar y digitalizar</p>
+                        <p class="mt-2 text-sm font-black text-(--text)">Construir las capacidades digitales prioritarias.</p>
+                    </div>
+                    <div class="rounded-2xl border border-border bg-(--surface-soft) p-4">
+                        <p class="text-[10px] font-black uppercase tracking-[0.16em] text-(--brand)">03 · Conectar</p>
+                        <p class="mt-2 text-sm font-black text-(--text)">Hacer que los procesos trabajen como un sistema.</p>
+                    </div>
+                    <div class="rounded-2xl border border-border bg-(--surface-soft) p-4">
+                        <p class="text-[10px] font-black uppercase tracking-[0.16em] text-(--brand)">04 · Decidir</p>
+                        <p class="mt-2 text-sm font-black text-(--text)">Convertir la operación en información para dirigir.</p>
+                    </div>
+                </div>
+            </div>
+
             <div class="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-                <div v-for="stage in roadmapStages" :key="stage.number" class="lauda-card relative overflow-hidden rounded-3xl border p-5">
+                <div v-for="stage in roadmapStages" :key="stage.number" class="lauda-card relative flex min-h-full flex-col overflow-hidden rounded-3xl border p-5">
                     <div class="flex items-start justify-between gap-4">
-                        <span class="text-3xl font-black tracking-[-0.04em]" :style="{ color: stage.color }">
-                            {{ stage.number }}
-                        </span>
+                        <div>
+                            <span class="text-3xl font-black tracking-[-0.04em]" :style="{ color: stage.color }">
+                                {{ stage.number }}
+                            </span>
+                            <p class="mt-1 text-[9px] font-black uppercase tracking-[0.16em] text-(--soft)">
+                                {{ stage.phase }}
+                            </p>
+                        </div>
+
                         <span class="grid h-10 w-10 place-items-center rounded-xl" :style="{ background: stage.color + '1a' }">
                             <component :is="stage.icon" class="h-5 w-5" :style="{ color: stage.color }" />
                         </span>
                     </div>
+
                     <h3 class="mt-5 text-base font-black text-(--text)">
                         {{ stage.title }}
                     </h3>
+
                     <p class="mt-2 text-sm leading-relaxed text-muted">
                         {{ stage.desc }}
                     </p>
+
+                    <div class="mt-auto pt-5">
+                        <div class="rounded-2xl border border-border bg-(--surface-soft) p-3">
+                            <p class="text-[9px] font-black uppercase tracking-[0.14em]" :style="{ color: stage.color }">
+                                Resultado esperado
+                            </p>
+                            <p class="mt-1.5 text-xs font-semibold leading-relaxed text-(--text)">
+                                {{ stage.result }}
+                            </p>
+                        </div>
+                    </div>
                 </div>
+            </div>
+
+            <div class="mt-6 flex flex-col gap-4 rounded-3xl border border-border bg-(--surface-soft) p-5 lg:flex-row lg:items-center lg:justify-between">
+                <div class="max-w-4xl">
+                    <p class="text-sm font-black text-(--text)">
+                        LAUDAAPI entra cuando la transformación lo requiere.
+                    </p>
+                    <p class="mt-1 text-sm leading-relaxed text-muted">
+                        Social, CRM, POS, BYS, e-CF, Cumplimiento, integraciones, Data y BI se incorporan progresivamente como capacidades tecnológicas del roadmap, no como aplicaciones aisladas que la empresa debe elegir desde el inicio.
+                    </p>
+                </div>
+
+                <Button type="button" variant="outline" class="lauda-outline-button shrink-0 justify-center rounded-xl px-5 py-5" @click="scrollToId('modalidades')">
+                    Ver modalidades de acompañamiento
+                </Button>
             </div>
         </section>
 
