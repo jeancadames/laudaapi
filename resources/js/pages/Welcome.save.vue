@@ -31,10 +31,10 @@ import {
 
 
 const seo = {
-    title: 'LAUDAAPI | Transformación Digital Empresarial 360',
-    description: 'Acompañamos a las empresas en su transformación digital mediante estrategia, procesos, tecnología, integración y datos, impulsados por el ecosistema LAUDAAPI.',
+    title: 'LaudaAPI | Ecosistema para vender, operar, facturar y cumplir',
+    description: 'Hub de soluciones conectadas para Social, CRM, POS, BYS, Tesorería, Ecommerce, e-CF, Cumplimiento, Status, Delivery, BI y una visión centralizada de la operación empresarial.',
     url: 'https://laudaapi.com',
-    siteName: 'LAUDAAPI',
+    siteName: 'LaudaAPI',
 }
 
 /* -------------------------------------------------------------------------- */
@@ -93,37 +93,10 @@ const nodes = [
 ]
 
 const chips = [
-    { icon: Activity, text: 'Diagnóstico y roadmap digital', color: brand.main },
-    { icon: Users, text: 'Personas y procesos organizados', color: brand.crm },
-    { icon: RefreshCw, text: 'Tecnología e integración', color: brand.pos },
-    { icon: TrendingUp, text: 'Datos para tomar decisiones', color: brand.bi },
-]
-
-const transformationPillars = [
-    {
-        title: 'Estrategia',
-        desc: 'Entendemos la situación actual, definimos prioridades y construimos un roadmap de transformación alineado con los objetivos del negocio.',
-        icon: Activity,
-        color: brand.main,
-    },
-    {
-        title: 'Personas y procesos',
-        desc: 'Organizamos responsabilidades, procesos y formas de trabajo para que la transformación sea adoptada por la empresa y no dependa solo de tecnología.',
-        icon: Users,
-        color: brand.crm,
-    },
-    {
-        title: 'Tecnología e integración',
-        desc: 'Implementamos las capacidades necesarias y conectamos los procesos mediante LAUDAAPI y otras soluciones cuando el negocio lo requiera.',
-        icon: RefreshCw,
-        color: brand.pos,
-    },
-    {
-        title: 'Datos e inteligencia',
-        desc: 'Consolidamos información, indicadores y analítica para convertir la operación diaria en decisiones empresariales más rápidas y confiables.',
-        icon: TrendingUp,
-        color: brand.bi,
-    },
+    { icon: RefreshCw, text: 'POS como fuente de verdad', color: brand.main },
+    { icon: FileText, text: 'e-CF responde automáticamente', color: brand.ecf },
+    { icon: Activity, text: 'Status monitorea DGII y APIs', color: brand.status },
+    { icon: TrendingUp, text: 'Dashboard con visión unificada', color: brand.bi },
 ]
 
 const logs = [
@@ -139,7 +112,7 @@ const metrics = [
     { icon: CheckCircle2, iconColor: brand.pos, label: 'Ambientes proyectados', value: '20+', sub: 'Core + módulos', subColor: brand.pos },
     { icon: ShieldCheck, iconColor: brand.ecf, label: 'DGII / e-CF', value: 'Automático', sub: 'Firma, envía y responde', subColor: brand.ecf },
     { icon: TrendingUp, iconColor: brand.crm, label: 'Operación', value: 'POS Core', sub: 'Ventas, cobros e inventario', subColor: brand.pos },
-    { icon: Zap, iconColor: brand.status, label: 'Eventos', value: 'Transformación 360', sub: 'En tiempo real', subColor: brand.status },
+    { icon: Zap, iconColor: brand.status, label: 'Eventos', value: 'API-first', sub: 'En tiempo real', subColor: brand.status },
 ]
 
 const dashboardPreviewMetrics = [
@@ -383,104 +356,44 @@ const ecosystemSteps = [
     },
 ]
 
-const serviceModels = [
+const activationOptions = [
     {
-        title: 'LAUDA 360 Guiado',
-        desc: 'Su equipo ejecuta la transformación con nuestra metodología, orientación, capacitación y seguimiento.',
-        badge: 'Guiado',
-        examples: [ 'Diagnóstico', 'Roadmap', 'Metodología', 'Sesiones de seguimiento' ],
+        title: 'Activación individual',
+        desc: 'Cada solución mantiene su propio onboarding para empresas que quieren contratar un módulo específico.',
+        badge: 'Por app',
+        examples: [ 'e-CF', 'Cumplimiento', 'POS', 'CRM', 'BYS', 'Tesorería' ],
         icon: CheckCircle2,
         color: brand.pos,
     },
     {
-        title: 'LAUDA 360 Asistido',
-        desc: 'Trabajamos junto con su equipo en el levantamiento, organización, configuración, implementación, integración y adopción.',
-        badge: 'Recomendado',
-        examples: [ 'Diseño de procesos', 'Configuración', 'Migración', 'Capacitación' ],
+        title: 'Implementación asistida',
+        desc: 'LaudaAPI.com centraliza solicitudes donde el cliente necesita acompañamiento, configuración, pruebas o migración.',
+        badge: 'Asistida',
+        examples: [ 'Configuración fiscal', 'Usuarios', 'Datos iniciales', 'Entrenamiento' ],
         icon: Users,
         color: brand.crm,
     },
     {
-        title: 'LAUDA 360 Gestionado',
-        desc: 'LAUDA lidera el proceso de transformación de principio a fin y funciona como una oficina externa de transformación digital.',
-        badge: 'Gestionado',
-        examples: [ 'Dirección del proyecto', 'Ejecución integral', 'Gestión del cambio', 'Optimización' ],
-        icon: ShieldCheck,
-        color: brand.main,
-    },
-]
-
-const roadmapStages = [
-    {
-        number: '01',
-        title: 'Diagnóstico Digital',
-        desc: 'Entender dónde está la empresa, identificar brechas y establecer prioridades.',
-        icon: Activity,
-        color: brand.main,
-    },
-    {
-        number: '02',
-        title: 'Fundamentos Digitales',
-        desc: 'Preparar la organización, la información, los responsables y las bases necesarias para transformarse.',
-        icon: ShieldCheck,
-        color: brand.cumplimiento,
-    },
-    {
-        number: '03',
-        title: 'Presencia e Identidad Digital',
-        desc: 'Organizar la representación digital de la empresa, sus canales, presencia y relación con el mercado mediante Social.',
-        icon: MessageCircle,
-        color: brand.social,
-    },
-    {
-        number: '04',
-        title: 'Gestión Comercial Digital',
-        desc: 'Centralizar contactos, leads, oportunidades, seguimiento y conversión mediante CRM.',
-        icon: Users,
-        color: brand.crm,
-    },
-    {
-        number: '05',
-        title: 'Operación Digital',
-        desc: 'Digitalizar ventas, servicios, inventario, caja, crédito, ecommerce y logística según el modelo de negocio.',
-        icon: Store,
-        color: brand.pos,
-    },
-    {
-        number: '06',
-        title: 'Administración y Cumplimiento',
-        desc: 'Conectar compras, proveedores, e-CF, obligaciones y procesos administrativos mediante BYS y Cumplimiento.',
-        icon: Calculator,
-        color: brand.bys,
-    },
-    {
-        number: '07',
-        title: 'Integración y Automatización',
-        desc: 'Conectar los procesos de extremo a extremo y reducir tareas manuales mediante eventos, APIs y automatización.',
+        title: 'Ecosistema completo',
+        desc: 'Para empresas que necesitan varias soluciones conectadas bajo una misma estrategia operativa y comercial.',
+        badge: 'Todo incluido',
+        examples: [ 'POS + e-CF', 'CRM + POS', 'BYS + Tesorería', 'BI + Backoffice' ],
         icon: RefreshCw,
-        color: brand.status,
-    },
-    {
-        number: '08',
-        title: 'Data, BI e Inteligencia',
-        desc: 'Consolidar datos, indicadores, dashboards y analítica para convertir la operación en decisiones.',
-        icon: TrendingUp,
-        color: brand.bi,
+        color: brand.main,
     },
 ]
 
 const requestTypes = [
-    'Iniciar Transformación Digital 360',
-    'Solicitar Diagnóstico Digital',
-    'Conocer LAUDA 360 Guiado',
-    'Conocer LAUDA 360 Asistido',
-    'Conocer LAUDA 360 Gestionado',
-    'Ya soy cliente / necesito asistencia',
+    'Demo',
+    'Activar una solución',
+    'Implementación asistida',
+    'Paquete todo incluido',
+    'Migración / integración',
 ]
 
 /*
 |--------------------------------------------------------------------------
-| Formulario público de Transformación Digital 360
+| Formulario público de contacto / activación asistida
 |--------------------------------------------------------------------------
 | Tu backend responde JSON desde ContactRequestController, por eso este form
 | se envía con fetch en vez de Inertia useForm.
@@ -498,8 +411,8 @@ const contactForm = ref({
     rnc: '',
     phone: '',
     email: '',
-    request_type: 'Iniciar Transformación Digital 360',
-    solution_interest: 'Por definir después del diagnóstico',
+    request_type: 'Demo',
+    solution_interest: 'Varias soluciones',
     message: '',
     terms: true,
 })
@@ -511,8 +424,8 @@ function resetContactForm() {
         rnc: '',
         phone: '',
         email: '',
-        request_type: 'Iniciar Transformación Digital 360',
-        solution_interest: 'Por definir después del diagnóstico',
+        request_type: 'Demo',
+        solution_interest: 'Varias soluciones',
         message: '',
         terms: true,
     }
@@ -543,11 +456,11 @@ function buildContactPayload() {
             request_type: form.request_type,
             solution_interest: form.solution_interest,
             rnc: form.rnc || null,
-            intake_type: 'digital_transformation_360',
+            intake_type: 'centralized_assisted_activation',
         },
         message: [
             `Tipo de solicitud: ${form.request_type}`,
-            `Modalidad de interés: ${form.solution_interest}`,
+            `Solución de interés: ${form.solution_interest}`,
             `RNC: ${form.rnc || 'No indicado'}`,
             '',
             'Mensaje:',
@@ -615,22 +528,23 @@ const extendedModules = [
 ]
 
 const mobileNavLinks = [
-    { label: 'Transformación 360', href: '#lauda360' },
-    { label: 'Roadmap', href: '#roadmap' },
-    { label: 'Modalidades', href: '#modalidades' },
     { label: 'Ecosistema', href: '#ecosistema-detalle' },
-    { label: 'Inteligencia', href: '#dashboard' },
+    { label: 'Dashboard', href: '#dashboard' },
+    { label: 'Soluciones', href: '#soluciones' },
+    { label: 'Activación', href: '#activacion' },
+    { label: 'Flujos', href: '#flujos' },
     { label: 'Contacto', href: '#contacto' },
 ]
 
 const currentYear = new Date().getFullYear()
 
 const footerQuickLinks = [
-    { label: 'Transformación 360', href: '#lauda360' },
-    { label: 'Roadmap', href: '#roadmap' },
-    { label: 'Modalidades', href: '#modalidades' },
     { label: 'Ecosistema', href: '#ecosistema-detalle' },
-    { label: 'Inteligencia', href: '#dashboard' },
+    { label: 'Dashboard', href: '#dashboard' },
+    { label: 'Soluciones', href: '#soluciones' },
+    { label: 'Activación', href: '#activacion' },
+    { label: 'Flujos', href: '#flujos' },
+    { label: 'Módulos', href: '#modulos' },
     { label: 'Contacto', href: '#contacto' },
 ]
 
@@ -908,7 +822,7 @@ onBeforeUnmount(() => {
         <meta name="author" content="LaudaAPI" />
         <meta name="application-name" content="LaudaAPI" />
         <meta name="theme-color" content="#F5333C" />
-        <meta name="keywords" content="transformación digital, transformación digital empresarial, LAUDA 360, LAUDAAPI, digitalización de empresas, CRM, Social, POS, e-CF, cumplimiento, compras, Business Intelligence, BI, República Dominicana" />
+        <meta name="keywords" content="LaudaAPI, facturación electrónica, e-CF, DGII, cumplimiento fiscal, POS, CRM, BYS, Tesorería, pagos, bancos, conciliación, nómina, compras, proveedores, ecommerce, delivery, BI, República Dominicana" />
 
         <link rel="canonical" :href="seo.url" />
 
@@ -955,7 +869,7 @@ onBeforeUnmount(() => {
                                     Soluciones LaudaAPI
                                 </p>
                                 <p class="mt-1 text-sm text-muted">
-                                    Tecnología especializada que acompaña las etapas de la transformación.
+                                    Productos conectados dentro del ecosistema operativo.
                                 </p>
                             </div>
 
@@ -980,24 +894,24 @@ onBeforeUnmount(() => {
                         </div>
                     </div>
 
-                    <a href="#lauda360" class="relative flex h-19 items-center text-(--text) transition-colors after:absolute after:bottom-0 after:left-0 after:h-0.5 after:w-full after:bg-(--brand)">
-                        Transformación 360
-                    </a>
-
-                    <a href="#roadmap" class="flex h-19 items-center transition-colors hover:text-(--text)">
-                        Roadmap
-                    </a>
-
-                    <a href="#modalidades" class="flex h-19 items-center transition-colors hover:text-(--text)">
-                        Modalidades
-                    </a>
-
-                    <a href="#ecosistema-detalle" class="flex h-19 items-center transition-colors hover:text-(--text)">
+                    <a href="#ecosistema-detalle" class="relative flex h-19 items-center text-(--text) transition-colors after:absolute after:bottom-0 after:left-0 after:h-0.5 after:w-full after:bg-(--brand)">
                         Ecosistema
                     </a>
 
                     <a href="#dashboard" class="flex h-19 items-center transition-colors hover:text-(--text)">
-                        Inteligencia
+                        Dashboard
+                    </a>
+
+                    <a href="#soluciones" class="flex h-19 items-center transition-colors hover:text-(--text)">
+                        Soluciones
+                    </a>
+
+                    <a href="#activacion" class="flex h-19 items-center transition-colors hover:text-(--text)">
+                        Activación
+                    </a>
+
+                    <a href="#flujos" class="flex h-19 items-center transition-colors hover:text-(--text)">
+                        Flujos
                     </a>
 
                     <a href="#contacto" class="flex h-19 items-center transition-colors hover:text-(--text)">
@@ -1076,45 +990,42 @@ onBeforeUnmount(() => {
                 <div class="lauda-hero__copy">
                     <span class="inline-flex items-center gap-2 rounded-full bg-(--brand)/10 px-3.5 py-1.5 text-[11px] font-bold uppercase tracking-[0.14em] text-(--brand)">
                         <span class="h-1.5 w-1.5 rounded-full bg-(--brand)" />
-                        Transformación Digital Empresarial
+                        Ecosistema API-first
                     </span>
 
                     <h1 class="mt-6 text-[34px] font-extrabold leading-[1.02] tracking-[-0.04em] text-(--text) sm:text-[48px] lg:text-[56px]">
-                        Transformamos su empresa para competir
-                        <span class="text-(--brand)">en un mundo digital.</span>
+                        El hub que conecta las soluciones
+                        <span class="text-(--brand)">para vender, operar, facturar y cumplir.</span>
                     </h1>
 
                     <p class="mt-6 max-w-140 text-[17px] leading-relaxed text-muted">
-                        Acompañamos a su empresa desde el diagnóstico y organización de sus procesos hasta la
-                        implementación, integración y uso estratégico de tecnología y datos.
+                        LaudaAPI.com es la entrada principal del ecosistema: presenta las soluciones,
+                        conecta los subdominios, anticipa una visión centralizada del negocio y organiza las
+                        solicitudes de demo, activación individual o implementación asistida.
                     </p>
 
-                    <div class="mt-6 rounded-2xl border border-border bg-(--surface) p-4 shadow-sm">
-                        <p class="text-[10px] font-black uppercase tracking-[0.18em] text-(--brand)">
-                            LAUDA Transformación Digital 360
-                        </p>
-
-                        <div class="mt-3 flex flex-wrap items-center gap-2 text-[11px] font-black uppercase tracking-widest text-(--soft)">
-                            <span>Diagnosticar</span>
+                    <div class="mt-6 rounded-2xl border border-border bg-(--surface) p-3 shadow-sm">
+                        <div class="flex flex-wrap items-center gap-2 text-[11px] font-black uppercase tracking-[0.12em] text-(--soft)">
+                            <span class="rounded-full bg-[#EC4899]/10 px-3 py-1 text-[#EC4899]">Social</span>
                             <ArrowRight class="h-3.5 w-3.5" />
-                            <span>Organizar</span>
+                            <span class="rounded-full bg-[#A855F7]/10 px-3 py-1 text-[#A855F7]">CRM</span>
                             <ArrowRight class="h-3.5 w-3.5" />
-                            <span>Digitalizar</span>
+                            <span class="rounded-full bg-[#22C55E]/10 px-3 py-1 text-[#22C55E]">POS</span>
                             <ArrowRight class="h-3.5 w-3.5" />
-                            <span>Conectar</span>
+                            <span class="rounded-full bg-[#F59E0B]/10 px-3 py-1 text-[#D97706]">e-CF</span>
                             <ArrowRight class="h-3.5 w-3.5" />
-                            <span>Analizar</span>
+                            <span class="rounded-full bg-[#14B8A6]/10 px-3 py-1 text-[#0F766E]">Cumplimiento</span>
                         </div>
                     </div>
 
                     <div class="mt-8 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
-                        <Button class="w-full justify-center gap-2 rounded-xl bg-(--brand) px-6 py-6 text-white hover:bg-(--brand-hover) sm:w-auto" @click="scrollToId('contacto')">
-                            Iniciar diagnóstico digital
+                        <Button class="w-full justify-center gap-2 rounded-xl bg-(--brand) px-6 py-6 text-white hover:bg-(--brand-hover) sm:w-auto" @click="scrollToId('ecosistema-detalle')">
+                            Explorar ecosistema
                             <ArrowRight class="h-4 w-4" />
                         </Button>
 
-                        <Button variant="outline" class="lauda-outline-button w-full justify-center rounded-xl px-6 py-6 sm:w-auto" @click="scrollToId('lauda360')">
-                            Conocer LAUDA 360
+                        <Button variant="outline" class="lauda-outline-button w-full justify-center rounded-xl px-6 py-6 sm:w-auto" @click="scrollToId('contacto')">
+                            Solicitar demo o asistencia
                         </Button>
                     </div>
 
@@ -1136,7 +1047,7 @@ onBeforeUnmount(() => {
                     <!-- header -->
                     <div class="mb-3 flex flex-wrap items-center justify-center gap-3 text-center text-[11px] font-semibold uppercase tracking-[0.22em] text-[#7A8298]">
                         <span class="h-1.5 w-1.5 rounded-full bg-(--brand)" />
-                        Tecnología que impulsa la transformación
+                        Ecosistema LaudaAPI
                         <span class="h-1.5 w-1.5 rounded-full bg-[#22C55E]" />
                         En vivo
                         <span class="rounded-full border border-white/10 bg-white/5 px-2 py-0.5 normal-case tracking-normal text-[#B8C0D8]">
@@ -1250,85 +1161,6 @@ onBeforeUnmount(() => {
             </div>
         </section>
 
-        <!-- ===================== LAUDA 360 ===================== -->
-        <section id="lauda360" class="mx-auto max-w-360 scroll-mt-24 px-4 py-12 sm:px-6 sm:py-16 2xl:px-8">
-            <div class="grid gap-8 lg:grid-cols-[minmax(0,0.85fr)_minmax(0,1.15fr)] lg:items-start">
-                <div class="lg:sticky lg:top-28">
-                    <p class="text-[10px] font-black uppercase tracking-[0.24em] text-(--brand)">
-                        LAUDA Transformación Digital 360
-                    </p>
-                    <h2 class="mt-2 text-3xl font-black tracking-tight text-(--text) sm:text-4xl">
-                        No comenzamos instalando software. Comenzamos entendiendo su empresa.
-                    </h2>
-                    <p class="mt-4 max-w-xl text-sm leading-relaxed text-muted">
-                        LAUDA 360 es un servicio integral de transformación empresarial. Diagnosticamos la situación actual,
-                        organizamos procesos y responsabilidades, definimos el roadmap y acompañamos la ejecución hasta
-                        convertir la empresa en una organización digitalmente conectada y orientada por datos.
-                    </p>
-
-                    <div class="mt-6 rounded-3xl border border-border bg-(--surface) p-5 shadow-sm">
-                        <p class="text-xs font-black uppercase tracking-[0.16em] text-(--brand)">
-                            Principio del modelo
-                        </p>
-                        <p class="mt-2 text-lg font-black leading-snug text-(--text)">
-                            La transformación define el camino. LAUDAAPI aporta la tecnología para ejecutarlo.
-                        </p>
-                    </div>
-                </div>
-
-                <div class="grid gap-4 sm:grid-cols-2">
-                    <div v-for="pillar in transformationPillars" :key="pillar.title" class="lauda-card rounded-3xl border p-5">
-                        <span class="grid h-12 w-12 place-items-center rounded-2xl" :style="{ background: pillar.color + '1a' }">
-                            <component :is="pillar.icon" class="h-5 w-5" :style="{ color: pillar.color }" />
-                        </span>
-                        <h3 class="mt-5 text-lg font-black text-(--text)">
-                            {{ pillar.title }}
-                        </h3>
-                        <p class="mt-2 text-sm leading-relaxed text-muted">
-                            {{ pillar.desc }}
-                        </p>
-                    </div>
-                </div>
-            </div>
-        </section>
-
-        <!-- ===================== ROADMAP ===================== -->
-        <section id="roadmap" class="mx-auto max-w-360 scroll-mt-24 px-4 py-10 sm:px-6 sm:py-14 2xl:px-8">
-            <div class="mb-8 flex flex-col justify-between gap-4 lg:flex-row lg:items-end">
-                <div>
-                    <p class="text-[10px] font-black uppercase tracking-[0.24em] text-(--brand)">
-                        Roadmap de Transformación
-                    </p>
-                    <h2 class="mt-2 max-w-4xl text-3xl font-black tracking-tight text-(--text) sm:text-4xl">
-                        El destino es integral. La implementación es progresiva.
-                    </h2>
-                </div>
-                <p class="max-w-xl text-sm leading-relaxed text-muted">
-                    Cada empresa recorre el mismo marco de transformación, pero el orden, profundidad y velocidad se ajustan
-                    según su madurez digital, prioridades y capacidad interna.
-                </p>
-            </div>
-
-            <div class="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-                <div v-for="stage in roadmapStages" :key="stage.number" class="lauda-card relative overflow-hidden rounded-3xl border p-5">
-                    <div class="flex items-start justify-between gap-4">
-                        <span class="text-3xl font-black tracking-[-0.04em]" :style="{ color: stage.color }">
-                            {{ stage.number }}
-                        </span>
-                        <span class="grid h-10 w-10 place-items-center rounded-xl" :style="{ background: stage.color + '1a' }">
-                            <component :is="stage.icon" class="h-5 w-5" :style="{ color: stage.color }" />
-                        </span>
-                    </div>
-                    <h3 class="mt-5 text-base font-black text-(--text)">
-                        {{ stage.title }}
-                    </h3>
-                    <p class="mt-2 text-sm leading-relaxed text-muted">
-                        {{ stage.desc }}
-                    </p>
-                </div>
-            </div>
-        </section>
-
         <!-- ===================== ECOSISTEMA DETALLE ===================== -->
         <section id="ecosistema-detalle" class="mx-auto max-w-360 scroll-mt-24 px-4 py-10 sm:px-6 sm:py-14 2xl:px-8">
             <div class="mb-8 flex flex-col justify-between gap-4 lg:flex-row lg:items-end">
@@ -1337,12 +1169,13 @@ onBeforeUnmount(() => {
                         Ecosistema conectado
                     </p>
                     <h2 class="mt-2 text-3xl font-black tracking-tight text-(--text) sm:text-4xl">
-                        LAUDAAPI es el ecosistema tecnológico que ejecuta la transformación.
+                        LaudaAPI.com organiza el ecosistema; cada app opera su especialidad.
                     </h2>
                 </div>
 
                 <p class="max-w-xl text-sm leading-relaxed text-muted">
-                    Social, CRM, POS, BYS, e-CF, Cumplimiento y las demás plataformas se especializan en cada proceso, mientras LAUDAAPI las conecta bajo una misma estrategia empresarial.
+                    El portal principal funciona como marca, catálogo, navegación, contacto y activación asistida.
+                    Las operaciones reales viven en los subdominios especializados.
                 </p>
             </div>
 
@@ -1381,7 +1214,7 @@ onBeforeUnmount(() => {
                 <div>
                     <div class="flex flex-wrap items-center gap-3">
                         <p class="text-[10px] font-black uppercase tracking-[0.24em] text-(--brand)">
-                            Empresa inteligente
+                            Dashboard centralizado
                         </p>
                         <span class="rounded-full border border-border bg-(--surface) px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.12em] text-(--soft)">
                             En desarrollo
@@ -1389,12 +1222,13 @@ onBeforeUnmount(() => {
                     </div>
 
                     <h2 class="mt-2 max-w-4xl text-3xl font-black tracking-tight text-(--text) sm:text-4xl">
-                        De la operación diaria a decisiones empresariales basadas en datos.
+                        Una sola vista para comprender la operación y la administración del negocio.
                     </h2>
                 </div>
 
                 <p class="max-w-xl text-sm leading-relaxed text-muted">
-                    A medida que la empresa avanza en su transformación, LAUDAAPI consolida información de las plataformas activas para ofrecer indicadores ejecutivos, BI y una visión transversal del negocio.
+                    El Dashboard LaudaAPI reunirá la información más importante de las aplicaciones activas,
+                    evitando que el administrador tenga que revisar cada módulo individualmente.
                 </p>
             </div>
 
@@ -1495,15 +1329,16 @@ onBeforeUnmount(() => {
             <div class="mb-8 flex flex-col justify-between gap-4 lg:flex-row lg:items-end">
                 <div>
                     <p class="text-[10px] font-black uppercase tracking-[0.24em] text-(--brand)">
-                        Tecnología para ejecutar la transformación
+                        Soluciones principales
                     </p>
                     <h2 class="mt-2 text-3xl font-black tracking-tight text-(--text) sm:text-4xl">
-                        Cada etapa se apoya en capacidades especializadas del ecosistema LAUDAAPI.
+                        Apps independientes, conectadas bajo una misma marca.
                     </h2>
                 </div>
 
                 <p class="max-w-xl text-sm leading-relaxed text-muted">
-                    Las plataformas conservan su especialidad y su tenant, pero se relacionan con una misma empresa dentro del ecosistema y se activan progresivamente según el roadmap de transformación.
+                    Cada solución puede contratarse por separado, manejar su tenant y completar su propio onboarding.
+                    LaudaAPI.com organiza la entrada y conecta los casos que necesitan asistencia.
                 </p>
             </div>
 
@@ -1544,26 +1379,27 @@ onBeforeUnmount(() => {
             </div>
         </section>
 
-        <!-- ===================== MODALIDADES ===================== -->
-        <section id="modalidades" class="mx-auto max-w-360 scroll-mt-24 px-4 py-10 sm:px-6 sm:py-14 2xl:px-8">
+        <!-- ===================== ACTIVACIÓN ===================== -->
+        <section id="activacion" class="mx-auto max-w-360 scroll-mt-24 px-4 py-10 sm:px-6 sm:py-14 2xl:px-8">
             <div class="rounded-4xl border border-border bg-(--surface) p-6 shadow-sm lg:p-8">
                 <div class="mb-8 flex flex-col justify-between gap-4 lg:flex-row lg:items-end">
                     <div>
                         <p class="text-[10px] font-black uppercase tracking-[0.24em] text-(--brand)">
-                            Modalidades de acompañamiento
+                            Activación centralizada
                         </p>
                         <h2 class="mt-2 text-3xl font-black tracking-tight text-(--text) sm:text-4xl">
-                            El mismo camino de transformación, con el nivel de asistencia que su empresa necesita.
+                            Dos formas de iniciar: individual o con asistencia.
                         </h2>
                     </div>
 
                     <p class="max-w-xl text-sm leading-relaxed text-muted">
-                        El alcance tecnológico se define a partir del diagnóstico. Lo que cambia entre Guiado, Asistido y Gestionado es cuánto trabajo asume LAUDA y cuánto ejecuta el equipo interno del cliente.
+                        Las apps conservan su onboarding propio. LaudaAPI.com agrega una capa central para clientes
+                        que necesitan acompañamiento, varias soluciones, migración o implementación todo incluido.
                     </p>
                 </div>
 
                 <div class="grid gap-5 lg:grid-cols-3">
-                    <div v-for="option in serviceModels" :key="option.title" class="rounded-3xl border border-border bg-(--surface-soft) p-5">
+                    <div v-for="option in activationOptions" :key="option.title" class="rounded-3xl border border-border bg-(--surface-soft) p-5">
                         <div class="mb-4 flex items-start justify-between gap-4">
                             <span class="grid h-11 w-11 shrink-0 place-items-center rounded-2xl" :style="{ background: option.color + '1a' }">
                                 <component :is="option.icon" class="h-5 w-5" :style="{ color: option.color }" />
@@ -1592,14 +1428,15 @@ onBeforeUnmount(() => {
 
                 <div class="mt-7 flex flex-col gap-4 rounded-3xl border border-border bg-(--surface-soft) p-5 lg:flex-row lg:items-center lg:justify-between">
                     <div>
-                        <p class="text-sm font-black text-(--text)">¿Qué modalidad necesita su empresa?</p>
+                        <p class="text-sm font-black text-(--text)">¿No sabes por dónde iniciar?</p>
                         <p class="mt-1 text-sm leading-relaxed text-muted">
-                            El diagnóstico inicial nos permite recomendar el nivel de acompañamiento, las prioridades y el roadmap antes de comprometer una implementación completa.
+                            Envía una solicitud centralizada y el equipo puede orientar si conviene una app individual,
+                            una implementación asistida o un paquete conectado.
                         </p>
                     </div>
 
                     <Button type="button" class="shrink-0 gap-2 rounded-xl bg-(--brand) px-6 py-6 text-white hover:bg-(--brand-hover)" @click="scrollToId('contacto')">
-                        Solicitar diagnóstico
+                        Solicitar orientación
                         <ArrowRight class="h-4 w-4" />
                     </Button>
                 </div>
@@ -1611,15 +1448,16 @@ onBeforeUnmount(() => {
             <div class="mb-8 flex flex-col justify-between gap-4 lg:flex-row lg:items-end">
                 <div>
                     <p class="text-[10px] font-black uppercase tracking-[0.24em] text-(--brand)">
-                        Empresa conectada
+                        Flujos operativos
                     </p>
                     <h2 class="mt-2 text-3xl font-black tracking-tight text-(--text) sm:text-4xl">
-                        De procesos aislados a flujos digitales conectados de extremo a extremo.
+                        De una punta a otra, sin duplicar la operación.
                     </h2>
                 </div>
 
                 <p class="max-w-xl text-sm leading-relaxed text-muted">
-                    Cada plataforma conserva su responsabilidad, pero comparte eventos e información para que la empresa pueda operar como un solo sistema y no como aplicaciones aisladas.
+                    Cada evento entra por una app, pasa por el core y activa a los módulos siguientes.
+                    La facturación, el inventario y la fiscalidad viven en un solo lugar.
                 </p>
             </div>
 
@@ -1702,29 +1540,30 @@ onBeforeUnmount(() => {
             <div class="grid gap-6 lg:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)] lg:items-start">
                 <div class="lauda-card rounded-4xl border p-6 lg:p-8">
                     <p class="text-[10px] font-black uppercase tracking-[0.24em] text-(--brand)">
-                        Inicie su Transformación Digital 360
+                        Contacto y activación asistida
                     </p>
 
                     <h2 class="mt-2 text-3xl font-black tracking-tight text-(--text) sm:text-4xl">
-                        El primer paso es entender dónde está su empresa y definir el camino correcto.
+                        Solicita una demo o guía para activar LaudaAPI.
                     </h2>
 
                     <p class="mt-4 text-sm leading-relaxed text-muted">
-                        Solicite un diagnóstico inicial para evaluar su nivel de madurez digital, identificar prioridades y definir un roadmap de transformación antes de decidir qué tecnologías deben implementarse.
+                        Usa este punto de entrada cuando necesitas conocer una solución, activar una app específica,
+                        evaluar varias soluciones conectadas o coordinar una implementación con asistencia.
                     </p>
 
                     <div class="mt-6 space-y-3 text-sm text-muted">
                         <div class="flex gap-3 rounded-2xl border border-border bg-(--surface-soft) p-3">
                             <CheckCircle2 class="mt-0.5 h-4 w-4 shrink-0 text-[#22C55E]" />
-                            <span>Comenzamos con diagnóstico, prioridades y roadmap; no con la venta aislada de una aplicación.</span>
+                            <span>Las apps mantienen su activación y onboarding individual.</span>
                         </div>
                         <div class="flex gap-3 rounded-2xl border border-border bg-(--surface-soft) p-3">
                             <CheckCircle2 class="mt-0.5 h-4 w-4 shrink-0 text-[#22C55E]" />
-                            <span>El ecosistema LAUDAAPI se activa progresivamente según las necesidades reales de la empresa.</span>
+                            <span>LaudaAPI.com centraliza solicitudes con asistencia, demo o varias soluciones.</span>
                         </div>
                         <div class="flex gap-3 rounded-2xl border border-border bg-(--surface-soft) p-3">
                             <CheckCircle2 class="mt-0.5 h-4 w-4 shrink-0 text-[#22C55E]" />
-                            <span>Puede elegir acompañamiento Guiado, Asistido o Gestionado según su capacidad interna.</span>
+                            <span>Recibirás seguimiento desde contacto@laudaapi.com.</span>
                         </div>
                     </div>
                 </div>
@@ -1734,7 +1573,7 @@ onBeforeUnmount(() => {
                         <div>
                             <p class="text-lg font-black text-(--text)">Datos de la solicitud</p>
                             <p class="mt-1 text-sm leading-relaxed text-muted">
-                                El equipo LAUDA revisará la solicitud para coordinar el diagnóstico y orientar el siguiente paso.
+                                El formulario llega a contacto@laudaapi.com y queda registrado como contacto central.
                             </p>
                         </div>
 
@@ -1798,17 +1637,15 @@ onBeforeUnmount(() => {
                         <label class="block">
                             <span class="mb-1.5 block text-xs font-black uppercase tracking-[0.12em] text-(--soft)">Solución de interés</span>
                             <select v-model="contactForm.solution_interest" class="lauda-input" :class="contactErrors.solution_interest && 'lauda-input--error'" required>
-                                <option value="Por definir después del diagnóstico">Por definir después del diagnóstico</option>
-                                <option value="LAUDA 360 Guiado">LAUDA 360 Guiado</option>
-                                <option value="LAUDA 360 Asistido">LAUDA 360 Asistido</option>
-                                <option value="LAUDA 360 Gestionado">LAUDA 360 Gestionado</option>
+                                <option value="Varias soluciones">Varias soluciones</option>
+                                <option v-for="solution in solutionProducts" :key="solution.name" :value="solution.name">{{ solution.name }}</option>
                             </select>
                             <span v-if="contactErrors.solution_interest" class="lauda-form-error">{{ contactErrors.solution_interest?.[ 0 ] || contactErrors.solution_interest }}</span>
                         </label>
 
                         <label class="block sm:col-span-2">
                             <span class="mb-1.5 block text-xs font-black uppercase tracking-[0.12em] text-(--soft)">Mensaje</span>
-                            <textarea v-model="contactForm.message" rows="5" class="lauda-input resize-none" :class="contactErrors.message && 'lauda-input--error'" placeholder="Cuéntanos brevemente cómo opera hoy tu empresa, qué procesos quieres mejorar y cuáles son tus principales retos digitales." required />
+                            <textarea v-model="contactForm.message" rows="5" class="lauda-input resize-none" :class="contactErrors.message && 'lauda-input--error'" placeholder="Ejemplo: quiero demo de e-CF, activar POS con asistencia, conocer BYS, activar Tesorería, conectar CRM + POS o evaluar un paquete completo." required />
                             <span v-if="contactErrors.message" class="lauda-form-error">{{ contactErrors.message?.[ 0 ] || contactErrors.message }}</span>
                         </label>
 
@@ -1827,11 +1664,11 @@ onBeforeUnmount(() => {
 
                     <div class="mt-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                         <p class="text-xs leading-relaxed text-muted">
-                            Usaremos estos datos únicamente para dar seguimiento a tu solicitud de diagnóstico, transformación o asistencia.
+                            Usaremos estos datos solo para dar seguimiento a tu demo, activación o implementación asistida.
                         </p>
 
                         <Button type="submit" class="w-full justify-center gap-2 rounded-xl bg-(--brand) px-6 py-6 text-white hover:bg-(--brand-hover) disabled:cursor-not-allowed disabled:opacity-70 sm:w-auto" :disabled="contactProcessing">
-                            {{ contactProcessing ? 'Enviando...' : 'Solicitar diagnóstico' }}
+                            {{ contactProcessing ? 'Enviando...' : 'Enviar solicitud a LaudaAPI' }}
                             <ArrowRight class="h-4 w-4" />
                         </Button>
                     </div>
@@ -1857,7 +1694,8 @@ onBeforeUnmount(() => {
                     </Link>
 
                     <p class="mt-4 max-w-md text-sm leading-relaxed text-muted">
-                        LAUDA acompaña a las empresas en su Transformación Digital 360 y utiliza el ecosistema LAUDAAPI para digitalizar, conectar y convertir la operación en información para decidir.
+                        LaudaAPI.com es el hub principal del ecosistema: presenta las soluciones, conecta los
+                        subdominios, centraliza solicitudes y orienta activaciones con asistencia cuando el cliente lo necesita.
                     </p>
 
                     <div class="mt-5 flex flex-wrap gap-2">
@@ -1865,16 +1703,16 @@ onBeforeUnmount(() => {
                             API-first
                         </span>
                         <span class="rounded-full border border-border bg-(--surface-soft) px-3 py-1 text-[10px] font-black uppercase tracking-[0.12em] text-(--soft)">
-                            Empresa conectada
+                            Multi-app
                         </span>
                         <span class="rounded-full border border-border bg-(--surface-soft) px-3 py-1 text-[10px] font-black uppercase tracking-[0.12em] text-(--soft)">
-                            Datos + BI
+                            Activación asistida
                         </span>
                     </div>
                 </div>
 
                 <div>
-                    <p class="text-xs font-black uppercase tracking-[0.2em] text-(--brand)">Transformación</p>
+                    <p class="text-xs font-black uppercase tracking-[0.2em] text-(--brand)">Portal</p>
                     <nav class="mt-4 space-y-2">
                         <a v-for="link in footerQuickLinks" :key="link.href" :href="link.href" class="block text-sm font-semibold text-muted transition hover:text-(--text)">
                             {{ link.label }}
@@ -1908,7 +1746,7 @@ onBeforeUnmount(() => {
             <div class="border-t border-border">
                 <div class="mx-auto flex max-w-360 flex-col gap-2 px-4 py-5 text-xs text-muted sm:flex-row sm:items-center sm:justify-between sm:px-6 2xl:px-8">
                     <span>© {{ currentYear }} LaudaAPI Digital. Todos los derechos reservados.</span>
-                    <span>Transformación Digital 360 impulsada por LAUDAAPI.</span>
+                    <span>Portal central del ecosistema LaudaAPI.</span>
                 </div>
             </div>
         </footer>
