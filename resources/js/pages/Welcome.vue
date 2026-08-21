@@ -974,11 +974,11 @@ onBeforeUnmount(() => {
         <!-- ===================== HERO ===================== -->
         <section class="lauda-hero">
             <div class="lauda-hero__layout">
-                <!-- Columna izquierda -->
+                <!-- Columna izquierda: propuesta de valor -->
                 <div class="lauda-hero__copy">
                     <span class="inline-flex items-center gap-2 rounded-full bg-(--brand)/10 px-3.5 py-1.5 text-[11px] font-bold uppercase tracking-[0.14em] text-(--brand)">
                         <span class="h-1.5 w-1.5 rounded-full bg-(--brand)" />
-                        Transformación Digital Empresarial
+                        LAUDA Transformación Digital 360
                     </span>
 
                     <h1 class="mt-6 text-[34px] font-extrabold leading-[1.02] tracking-[-0.04em] text-(--text) sm:text-[48px] lg:text-[56px]">
@@ -986,26 +986,26 @@ onBeforeUnmount(() => {
                         <span class="text-(--brand)">en un mundo digital.</span>
                     </h1>
 
-                    <p class="mt-6 max-w-140 text-[17px] leading-relaxed text-muted">
-                        Acompañamos a su empresa desde el diagnóstico y organización de sus procesos hasta la
-                        implementación, integración y uso estratégico de tecnología y datos.
+                    <p class="mt-6 max-w-145 text-[17px] leading-relaxed text-muted">
+                        Evaluamos dónde está su empresa, diseñamos su hoja de ruta y la acompañamos en la
+                        digitalización e integración de sus procesos, personas, tecnología y datos.
                     </p>
 
                     <div class="mt-6 rounded-2xl border border-border bg-(--surface) p-4 shadow-sm">
-                        <p class="text-[10px] font-black uppercase tracking-[0.18em] text-(--brand)">
-                            LAUDA Transformación Digital 360
-                        </p>
+                        <div class="flex items-start gap-3">
+                            <span class="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-(--brand)/10 text-(--brand)">
+                                <RefreshCw class="h-5 w-5" />
+                            </span>
 
-                        <div class="mt-3 flex flex-wrap items-center gap-2 text-[11px] font-black uppercase tracking-widest text-(--soft)">
-                            <span>Diagnosticar</span>
-                            <ArrowRight class="h-3.5 w-3.5" />
-                            <span>Organizar</span>
-                            <ArrowRight class="h-3.5 w-3.5" />
-                            <span>Digitalizar</span>
-                            <ArrowRight class="h-3.5 w-3.5" />
-                            <span>Conectar</span>
-                            <ArrowRight class="h-3.5 w-3.5" />
-                            <span>Analizar</span>
+                            <div>
+                                <p class="text-[10px] font-black uppercase tracking-[0.18em] text-(--brand)">
+                                    Un proceso, no una instalación de software
+                                </p>
+                                <p class="mt-1.5 text-sm leading-relaxed text-muted">
+                                    Diagnóstico, roadmap, implementación, integración, adopción y mejora continua,
+                                    con el ecosistema LAUDAAPI como plataforma tecnológica principal.
+                                </p>
+                            </div>
                         </div>
                     </div>
 
@@ -1015,10 +1015,15 @@ onBeforeUnmount(() => {
                             <ArrowRight class="h-4 w-4" />
                         </Button>
 
-                        <Button variant="outline" class="lauda-outline-button w-full justify-center rounded-xl px-6 py-6 sm:w-auto" @click="scrollToId('lauda360')">
-                            Conocer LAUDA 360
+                        <Button variant="outline" class="lauda-outline-button w-full justify-center gap-2 rounded-xl px-6 py-6 sm:w-auto" @click="scrollToId('lauda360')">
+                            Ver cómo funciona
+                            <ArrowRight class="h-4 w-4" />
                         </Button>
                     </div>
+
+                    <p class="mt-4 text-xs font-semibold leading-relaxed text-(--soft)">
+                        Modalidades de acompañamiento: Guiado · Asistido · Gestionado
+                    </p>
 
                     <div class="lauda-hero__chips">
                         <div v-for="c in chips" :key="c.text" class="lauda-chip flex min-h-16.5 items-center gap-2.5 rounded-xl border px-3 py-3">
@@ -1033,120 +1038,123 @@ onBeforeUnmount(() => {
                     </div>
                 </div>
 
-                <!-- Columna derecha: panel oscuro -->
-                <div id="ecosistema" class="lauda-hero__panel">
-                    <!-- header -->
-                    <div class="mb-3 flex flex-wrap items-center justify-center gap-3 text-center text-[11px] font-semibold uppercase tracking-[0.22em] text-[#7A8298]">
-                        <span class="h-1.5 w-1.5 rounded-full bg-(--brand)" />
-                        Tecnología que impulsa la transformación
-                        <span class="h-1.5 w-1.5 rounded-full bg-[#22C55E]" />
-                        En vivo
-                        <span class="rounded-full border border-white/10 bg-white/5 px-2 py-0.5 normal-case tracking-normal text-[#B8C0D8]">
-                            presentación {{ isDarkMode ? 'dark' : 'light' }}
+                <!-- Columna derecha: evolución de la empresa -->
+                <div class="lauda-hero__panel">
+                    <div class="flex flex-col gap-4 border-b border-white/8 pb-5 sm:flex-row sm:items-start sm:justify-between">
+                        <div>
+                            <div class="flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.2em] text-[#F5333C]">
+                                <span class="h-2 w-2 rounded-full bg-[#F5333C]" />
+                                El objetivo de la transformación
+                            </div>
+                            <h2 class="mt-2 max-w-xl text-2xl font-black tracking-tight text-white sm:text-[30px]">
+                                De empresa tradicional a empresa conectada e inteligente.
+                            </h2>
+                            <p class="mt-2 max-w-xl text-sm leading-relaxed text-[#9AA1B8]">
+                                La tecnología llega en el momento correcto: primero entendemos y organizamos la empresa;
+                                después digitalizamos, conectamos y convertimos sus datos en decisiones.
+                            </p>
+                        </div>
+
+                        <span class="inline-flex w-fit shrink-0 items-center gap-2 rounded-full border border-[#22C55E]/20 bg-[#22C55E]/10 px-3 py-1.5 text-[10px] font-black uppercase tracking-[0.12em] text-[#4ADE80]">
+                            <span class="h-1.5 w-1.5 rounded-full bg-[#4ADE80]" />
+                            LAUDA 360
                         </span>
                     </div>
 
-                    <!-- Diagrama -->
-                    <div ref="scrollWrap" class="lauda-diagram-scroll" :style="{ height: wrapHeight + 'px' }">
-                        <div ref="diagram" class="relative rounded-2xl bg-[#080B15]" :style="diagramStyle">
-                            <!-- conectores (decorativos) -->
-                            <svg class="pointer-events-none absolute inset-0 h-full w-full" style="z-index:0" aria-hidden="true" focusable="false">
-                                <line v-for="(l, i) in lines" :key="i" :x1="l.x1" :y1="l.y1" :x2="l.x2" :y2="l.y2" :stroke="l.color" stroke-width="1.5" stroke-dasharray="4 6" stroke-linecap="round" class="flow-line" style="opacity:.55" />
-                            </svg>
-
-                            <!-- etiqueta -->
-                            <div class="absolute left-5 top-5 z-10 rounded-full border border-white/10 bg-white/5 px-4 py-1.5 text-[10px] font-semibold uppercase tracking-[0.16em] text-[#9AA1B8]">
-                                Eventos en tiempo real
-                            </div>
-
-                            <!-- CORE -->
-                            <div ref="coreEl" class="core-glow absolute z-30 flex aspect-square w-44 -translate-x-1/2 -translate-y-1/2 flex-col items-center justify-center rounded-full border border-(--brand)/40 bg-[#0A0D18] text-center" :style="{ left: CORE.x + '%', top: CORE.y + '%' }">
-                                <div class="mb-2 grid h-10 w-10 place-items-center rounded-xl bg-(--brand) font-black text-white">
-                                    L
-                                </div>
-
-                                <div class="text-[16px] font-extrabold tracking-tight text-white">
-                                    LAUDAAPI CORE
-                                </div>
-
-                                <div class="mt-0.5 text-[9.5px] font-bold uppercase tracking-[0.14em] text-(--brand)">
-                                    API-First Environment
-                                </div>
-
-                                <div class="mt-2 text-[10px] leading-snug text-[#9AA1B8]">
-                                    Conecta eventos.<br />
-                                    Orquesta procesos.
-                                </div>
-                            </div>
-
-                            <!-- nodos -->
-                            <div v-for="(n, i) in nodes" :key="n.id" :ref="(el) => setNodeRef(el, i)" class="lauda-node absolute z-10 flex min-h-17 w-44.5 -translate-x-1/2 -translate-y-1/2 items-start gap-2.5 rounded-2xl border border-white/[0.07] bg-[#12172A] p-3 shadow-lg shadow-black/10" :class="n.group === 'backoffice' && 'w-37.5'" :style="{ left: n.x + '%', top: n.y + '%' }">
-                                <span class="grid h-8 w-8 shrink-0 place-items-center rounded-lg shadow-lg" :style="{ background: n.color }">
-                                    <component :is="n.icon" class="h-4 w-4 text-white" />
+                    <div class="mt-5 grid gap-3 sm:grid-cols-2">
+                        <div class="rounded-2xl border border-white/[0.07] bg-[#111625] p-4">
+                            <div class="flex items-center justify-between gap-3">
+                                <span class="grid h-10 w-10 place-items-center rounded-xl bg-white/6 text-[#A8B0C3]">
+                                    <Boxes class="h-5 w-5" />
                                 </span>
-
-                                <div class="min-w-0">
-                                    <div class="truncate text-[12px] font-bold leading-tight text-white">
-                                        {{ n.label }}
-                                    </div>
-
-                                    <div class="mt-0.5 text-[10px] leading-snug text-[#9BA2B8]">
-                                        {{ n.desc }}
-                                    </div>
-                                </div>
+                                <span class="text-[10px] font-black uppercase tracking-[0.12em] text-[#6F7890]">01</span>
                             </div>
+                            <p class="mt-4 text-sm font-black text-white">Empresa tradicional</p>
+                            <p class="mt-1.5 text-xs leading-relaxed text-[#9AA1B8]">
+                                Procesos manuales, información dispersa, Excel, WhatsApp y sistemas aislados.
+                            </p>
+                        </div>
+
+                        <div class="rounded-2xl border border-[#3B82F6]/20 bg-[#3B82F6]/8 p-4">
+                            <div class="flex items-center justify-between gap-3">
+                                <span class="grid h-10 w-10 place-items-center rounded-xl bg-[#3B82F6]/15 text-[#60A5FA]">
+                                    <Zap class="h-5 w-5" />
+                                </span>
+                                <span class="text-[10px] font-black uppercase tracking-[0.12em] text-[#60A5FA]">02</span>
+                            </div>
+                            <p class="mt-4 text-sm font-black text-white">Empresa digital</p>
+                            <p class="mt-1.5 text-xs leading-relaxed text-[#AAB4CA]">
+                                Canales, información y procesos prioritarios pasan a operar digitalmente.
+                            </p>
+                        </div>
+
+                        <div class="rounded-2xl border border-[#A855F7]/20 bg-[#A855F7]/8 p-4">
+                            <div class="flex items-center justify-between gap-3">
+                                <span class="grid h-10 w-10 place-items-center rounded-xl bg-[#A855F7]/15 text-[#C084FC]">
+                                    <RefreshCw class="h-5 w-5" />
+                                </span>
+                                <span class="text-[10px] font-black uppercase tracking-[0.12em] text-[#C084FC]">03</span>
+                            </div>
+                            <p class="mt-4 text-sm font-black text-white">Empresa conectada</p>
+                            <p class="mt-1.5 text-xs leading-relaxed text-[#AAB4CA]">
+                                Comercial, operación y administración comparten información y flujos integrados.
+                            </p>
+                        </div>
+
+                        <div class="rounded-2xl border border-[#22C55E]/20 bg-[#22C55E]/8 p-4">
+                            <div class="flex items-center justify-between gap-3">
+                                <span class="grid h-10 w-10 place-items-center rounded-xl bg-[#22C55E]/15 text-[#4ADE80]">
+                                    <TrendingUp class="h-5 w-5" />
+                                </span>
+                                <span class="text-[10px] font-black uppercase tracking-[0.12em] text-[#4ADE80]">04</span>
+                            </div>
+                            <p class="mt-4 text-sm font-black text-white">Empresa inteligente</p>
+                            <p class="mt-1.5 text-xs leading-relaxed text-[#AAB4CA]">
+                                Data, BI, indicadores y automatización convierten la operación en mejores decisiones.
+                            </p>
                         </div>
                     </div>
 
-                    <!-- panels -->
-                    <div class="lauda-hero__status-grid">
-                        <!-- transmisión -->
-                        <div class="min-w-0 rounded-2xl border border-white/[0.07] bg-[#0D1120] p-4">
-                            <div class="mb-3 flex items-center gap-2 text-[10.5px] font-semibold uppercase tracking-[0.14em] text-[#9AA1B8]">
-                                <Activity class="h-3.5 w-3.5" />
-                                Transmisión en vivo
+                    <div class="mt-5 rounded-3xl border border-white/[0.07] bg-[#0D1120] p-4 sm:p-5">
+                        <div class="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                            <div>
+                                <p class="text-[10px] font-black uppercase tracking-[0.18em] text-[#F5333C]">
+                                    Ecosistema tecnológico LAUDAAPI
+                                </p>
+                                <p class="mt-1 text-xs leading-relaxed text-[#9AA1B8]">
+                                    Las plataformas se incorporan progresivamente según el roadmap de la empresa.
+                                </p>
                             </div>
 
-                            <div class="space-y-2 font-mono text-[11px]">
-                                <div v-for="log in liveLogs" :key="log.uid" class="flex min-w-0 items-center gap-3">
-                                    <span class="shrink-0 text-[#6E6E86]">{{ log.time }}</span>
-
-                                    <span class="flex shrink-0 items-center gap-1.5 font-medium" :style="{ color: log.color }">
-                                        <span class="h-1.5 w-1.5 rounded-full" :style="{ background: log.color }" />
-                                        {{ log.tag }}
-                                    </span>
-
-                                    <span class="min-w-0 flex-1 truncate text-[#9AA1B8]">{{ log.msg }}</span>
-                                    <span class="h-1.5 w-1.5 shrink-0 rounded-full bg-[#22C55E]" />
-                                </div>
-                            </div>
+                            <button type="button" class="inline-flex w-fit items-center gap-1.5 text-xs font-black text-[#F5333C] transition hover:text-[#FF6970]" @click="scrollToId('ecosistema-detalle')">
+                                Ver ecosistema
+                                <ArrowRight class="h-3.5 w-3.5" />
+                            </button>
                         </div>
 
-                        <!-- estado -->
-                        <div class="min-w-0 rounded-2xl border border-white/[0.07] bg-[#0D1120] p-4">
-                            <div class="mb-3 flex items-center gap-2 text-[10.5px] font-semibold uppercase tracking-[0.14em] text-[#9AA1B8]">
-                                <ShieldCheck class="h-3.5 w-3.5" />
-                                Estado operativo
-                            </div>
-
-                            <div class="grid grid-cols-2 gap-2.5">
-                                <div v-for="m in metrics" :key="m.label" class="min-w-0 rounded-xl border border-white/6 bg-[#12172A] p-3">
-                                    <component :is="m.icon" class="h-4 w-4" :style="{ color: m.iconColor }" />
-
-                                    <div class="mt-2 text-[10px] text-[#9BA2B8]">
-                                        {{ m.label }}
-                                    </div>
-
-                                    <div class="truncate text-[15px] font-bold leading-tight text-white">
-                                        {{ m.value }}
-                                    </div>
-
-                                    <div class="truncate text-[10px] font-medium" :style="{ color: m.subColor }">
-                                        {{ m.sub }}
-                                    </div>
-                                </div>
-                            </div>
+                        <div class="mt-4 flex min-w-0 flex-wrap items-center gap-2">
+                            <span class="rounded-full border border-[#EC4899]/20 bg-[#EC4899]/10 px-3 py-1.5 text-[10px] font-black uppercase tracking-widest text-[#F472B6]">Social</span>
+                            <ArrowRight class="h-3.5 w-3.5 text-[#596277]" />
+                            <span class="rounded-full border border-[#A855F7]/20 bg-[#A855F7]/10 px-3 py-1.5 text-[10px] font-black uppercase tracking-widest text-[#C084FC]">CRM</span>
+                            <ArrowRight class="h-3.5 w-3.5 text-[#596277]" />
+                            <span class="rounded-full border border-[#22C55E]/20 bg-[#22C55E]/10 px-3 py-1.5 text-[10px] font-black uppercase tracking-widest text-[#4ADE80]">POS</span>
+                            <ArrowRight class="h-3.5 w-3.5 text-[#596277]" />
+                            <span class="rounded-full border border-[#F59E0B]/20 bg-[#F59E0B]/10 px-3 py-1.5 text-[10px] font-black uppercase tracking-widest text-[#FBBF24]">Administración</span>
+                            <ArrowRight class="h-3.5 w-3.5 text-[#596277]" />
+                            <span class="rounded-full border border-[#3B82F6]/20 bg-[#3B82F6]/10 px-3 py-1.5 text-[10px] font-black uppercase tracking-widest text-[#60A5FA]">Data</span>
+                            <ArrowRight class="h-3.5 w-3.5 text-[#596277]" />
+                            <span class="rounded-full border border-[#3B82F6]/20 bg-[#3B82F6]/10 px-3 py-1.5 text-[10px] font-black uppercase tracking-widest text-[#93C5FD]">BI</span>
                         </div>
+                    </div>
+
+                    <div class="mt-4 flex items-center gap-3 rounded-2xl border border-white/[0.07] bg-white/2.5 px-4 py-3">
+                        <span class="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-[#F5333C]/12 text-[#F5333C]">
+                            <ShieldCheck class="h-4 w-4" />
+                        </span>
+                        <p class="text-xs leading-relaxed text-[#AAB4CA]">
+                            <span class="font-black text-white">LAUDAAPI no define la estrategia de transformación.</span>
+                            Es la plataforma tecnológica que permite ejecutarla, integrarla y medirla.
+                        </p>
                     </div>
                 </div>
             </div>
