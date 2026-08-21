@@ -385,27 +385,69 @@ const ecosystemSteps = [
 const serviceModels = [
     {
         title: 'LAUDA 360 Guiado',
-        desc: 'Su equipo ejecuta la transformación con nuestra metodología, orientación, capacitación y seguimiento.',
+        level: 'LAUDA orienta',
+        desc: 'Diseñamos el camino, transferimos la metodología y acompañamos a su equipo mientras la empresa ejecuta gran parte del roadmap con recursos internos.',
         badge: 'Guiado',
-        examples: [ 'Diagnóstico', 'Roadmap', 'Metodología', 'Sesiones de seguimiento' ],
+        idealFor: 'Empresas con personal interno capaz de ejecutar tareas, organizar información y coordinar la implementación.',
+        laudaDoes: [
+            'Diagnóstico y roadmap',
+            'Metodología y mejores prácticas',
+            'Capacitación y validación',
+            'Sesiones de seguimiento',
+        ],
+        clientDoes: [
+            'Ejecuta las tareas internas',
+            'Prepara y depura información',
+            'Coordina a sus equipos',
+            'Implementa las acciones acordadas',
+        ],
         icon: CheckCircle2,
         color: brand.pos,
+        recommended: false,
     },
     {
         title: 'LAUDA 360 Asistido',
-        desc: 'Trabajamos junto con su equipo en el levantamiento, organización, configuración, implementación, integración y adopción.',
+        level: 'Trabajamos juntos',
+        desc: 'LAUDA y su equipo ejecutan la transformación de forma conjunta, combinando el conocimiento interno del negocio con nuestra metodología y capacidad de implementación.',
         badge: 'Recomendado',
-        examples: [ 'Diseño de procesos', 'Configuración', 'Migración', 'Capacitación' ],
+        idealFor: 'Empresas con responsables internos, pero sin un equipo especializado que pueda conducir por sí solo toda la transformación digital.',
+        laudaDoes: [
+            'Levantamiento y diseño de procesos',
+            'Configuración e implementación',
+            'Migración e integración',
+            'Capacitación y seguimiento',
+        ],
+        clientDoes: [
+            'Aporta conocimiento del negocio',
+            'Designa responsables internos',
+            'Valida datos y decisiones',
+            'Participa activamente en la adopción',
+        ],
         icon: Users,
         color: brand.crm,
+        recommended: true,
     },
     {
         title: 'LAUDA 360 Gestionado',
-        desc: 'LAUDA lidera el proceso de transformación de principio a fin y funciona como una oficina externa de transformación digital.',
+        level: 'LAUDA lidera',
+        desc: 'Asumimos la dirección integral del programa y actuamos como una oficina externa de transformación digital para coordinar y ejecutar el roadmap de principio a fin.',
         badge: 'Gestionado',
-        examples: [ 'Dirección del proyecto', 'Ejecución integral', 'Gestión del cambio', 'Optimización' ],
+        idealFor: 'Empresas que necesitan transformarse, pero no cuentan con la estructura, tiempo o experiencia interna para liderar el proceso.',
+        laudaDoes: [
+            'Dirección integral del programa',
+            'Coordinación entre áreas',
+            'Ejecución técnica y funcional',
+            'Gestión del cambio y optimización',
+        ],
+        clientDoes: [
+            'Designa un patrocinador interno',
+            'Facilita información y acceso',
+            'Toma decisiones estratégicas',
+            'Valida resultados e hitos',
+        ],
         icon: ShieldCheck,
         color: brand.main,
+        recommended: false,
     },
 ]
 
@@ -1408,6 +1450,107 @@ onBeforeUnmount(() => {
             </div>
         </section>
 
+        <!-- ===================== MODALIDADES ===================== -->
+        <section id="modalidades" class="mx-auto max-w-360 scroll-mt-24 px-4 py-10 sm:px-6 sm:py-14 2xl:px-8">
+            <div class="rounded-4xl border border-border bg-(--surface) p-6 shadow-sm lg:p-8">
+                <div class="mb-8 flex flex-col justify-between gap-4 lg:flex-row lg:items-end">
+                    <div class="max-w-4xl">
+                        <p class="text-[10px] font-black uppercase tracking-[0.24em] text-(--brand)">
+                            Modalidades de acompañamiento
+                        </p>
+                        <h2 class="mt-2 text-3xl font-black tracking-tight text-(--text) sm:text-4xl">
+                            Elija cuánto acompañamiento necesita, no qué tecnología comprar.
+                        </h2>
+                    </div>
+
+                    <p class="max-w-xl text-sm leading-relaxed text-muted">
+                        Las tres modalidades recorren la misma metodología LAUDA 360. Lo que cambia es la distribución del trabajo entre su empresa y nuestro equipo durante cada etapa de la transformación.
+                    </p>
+                </div>
+
+                <div class="grid gap-5 lg:grid-cols-3">
+                    <article v-for="option in serviceModels" :key="option.title" class="lauda-service-card relative flex h-full flex-col rounded-3xl border border-border bg-(--surface-soft) p-5 sm:p-6" :class="option.recommended && 'lauda-service-card--recommended'">
+                        <div v-if="option.recommended" class="absolute -top-3 left-1/2 -translate-x-1/2 rounded-full bg-(--brand) px-3 py-1 text-[9px] font-black uppercase tracking-[0.14em] text-white shadow-lg shadow-[#F5333C]/20">
+                            Recomendado
+                        </div>
+
+                        <div class="flex items-start justify-between gap-4">
+                            <span class="grid h-12 w-12 shrink-0 place-items-center rounded-2xl" :style="{ background: option.color + '1a' }">
+                                <component :is="option.icon" class="h-5 w-5" :style="{ color: option.color }" />
+                            </span>
+
+                            <span v-if="!option.recommended" class="rounded-full px-2.5 py-1 text-[9px] font-black uppercase tracking-[0.12em]" :style="{ background: option.color + '1a', color: option.color }">
+                                {{ option.badge }}
+                            </span>
+                        </div>
+
+                        <p class="mt-5 text-[10px] font-black uppercase tracking-[0.16em]" :style="{ color: option.color }">
+                            {{ option.level }}
+                        </p>
+
+                        <h3 class="mt-1 text-xl font-black text-(--text)">
+                            {{ option.title }}
+                        </h3>
+
+                        <p class="mt-3 text-sm leading-relaxed text-muted">
+                            {{ option.desc }}
+                        </p>
+
+                        <div class="mt-5 rounded-2xl border border-border bg-(--surface-solid) p-4">
+                            <p class="text-[9px] font-black uppercase tracking-[0.14em] text-(--soft)">
+                                Ideal para
+                            </p>
+                            <p class="mt-2 text-xs font-semibold leading-relaxed text-(--text)">
+                                {{ option.idealFor }}
+                            </p>
+                        </div>
+
+                        <div class="mt-5 grid gap-3">
+                            <div class="rounded-2xl border border-border bg-(--surface-soft) p-4">
+                                <p class="text-[10px] font-black uppercase tracking-[0.14em]" :style="{ color: option.color }">
+                                    LAUDA
+                                </p>
+                                <div class="mt-3 space-y-2.5">
+                                    <div v-for="item in option.laudaDoes" :key="item" class="flex items-start gap-2.5">
+                                        <CheckCircle2 class="mt-0.5 h-3.5 w-3.5 shrink-0" :style="{ color: option.color }" />
+                                        <span class="text-xs font-semibold leading-relaxed text-muted">{{ item }}</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="rounded-2xl border border-border bg-(--surface-soft) p-4">
+                                <p class="text-[10px] font-black uppercase tracking-[0.14em] text-(--soft)">
+                                    Su empresa
+                                </p>
+                                <div class="mt-3 space-y-2.5">
+                                    <div v-for="item in option.clientDoes" :key="item" class="flex items-start gap-2.5">
+                                        <ArrowRight class="mt-0.5 h-3.5 w-3.5 shrink-0 text-(--soft)" />
+                                        <span class="text-xs font-semibold leading-relaxed text-muted">{{ item }}</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </article>
+                </div>
+
+                <div class="mt-7 grid gap-4 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-center">
+                    <div class="rounded-3xl border border-border bg-(--surface-soft) p-5">
+                        <p class="text-sm font-black text-(--text)">
+                            La modalidad se recomienda después del diagnóstico.
+                        </p>
+                        <p class="mt-1 text-sm leading-relaxed text-muted">
+                            Una empresa puede trabajar bajo una modalidad general y requerir mayor o menor asistencia en etapas específicas. El objetivo es asignar recursos donde realmente generan valor, sin sobredimensionar el proyecto.
+                        </p>
+                    </div>
+
+                    <Button type="button" class="w-full justify-center gap-2 rounded-xl bg-(--brand) px-6 py-6 text-white hover:bg-(--brand-hover) lg:w-auto" @click="scrollToId('contacto')">
+                        Solicitar diagnóstico
+                        <ArrowRight class="h-4 w-4" />
+                    </Button>
+                </div>
+            </div>
+        </section>
+
         <!-- ===================== ECOSISTEMA DETALLE ===================== -->
         <section id="ecosistema-detalle" class="mx-auto max-w-360 scroll-mt-24 px-4 py-10 sm:px-6 sm:py-14 2xl:px-8">
             <div class="mb-8 flex flex-col justify-between gap-4 lg:flex-row lg:items-end">
@@ -1620,68 +1763,6 @@ onBeforeUnmount(() => {
                         <ArrowRight class="h-4 w-4 transition-transform group-hover:translate-x-1" />
                     </div>
                 </a>
-            </div>
-        </section>
-
-        <!-- ===================== MODALIDADES ===================== -->
-        <section id="modalidades" class="mx-auto max-w-360 scroll-mt-24 px-4 py-10 sm:px-6 sm:py-14 2xl:px-8">
-            <div class="rounded-4xl border border-border bg-(--surface) p-6 shadow-sm lg:p-8">
-                <div class="mb-8 flex flex-col justify-between gap-4 lg:flex-row lg:items-end">
-                    <div>
-                        <p class="text-[10px] font-black uppercase tracking-[0.24em] text-(--brand)">
-                            Modalidades de acompañamiento
-                        </p>
-                        <h2 class="mt-2 text-3xl font-black tracking-tight text-(--text) sm:text-4xl">
-                            El mismo camino de transformación, con el nivel de asistencia que su empresa necesita.
-                        </h2>
-                    </div>
-
-                    <p class="max-w-xl text-sm leading-relaxed text-muted">
-                        El alcance tecnológico se define a partir del diagnóstico. Lo que cambia entre Guiado, Asistido y Gestionado es cuánto trabajo asume LAUDA y cuánto ejecuta el equipo interno del cliente.
-                    </p>
-                </div>
-
-                <div class="grid gap-5 lg:grid-cols-3">
-                    <div v-for="option in serviceModels" :key="option.title" class="rounded-3xl border border-border bg-(--surface-soft) p-5">
-                        <div class="mb-4 flex items-start justify-between gap-4">
-                            <span class="grid h-11 w-11 shrink-0 place-items-center rounded-2xl" :style="{ background: option.color + '1a' }">
-                                <component :is="option.icon" class="h-5 w-5" :style="{ color: option.color }" />
-                            </span>
-
-                            <span class="rounded-full px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.12em]" :style="{ background: option.color + '1a', color: option.color }">
-                                {{ option.badge }}
-                            </span>
-                        </div>
-
-                        <h3 class="text-lg font-black text-(--text)">
-                            {{ option.title }}
-                        </h3>
-
-                        <p class="mt-2 text-sm leading-relaxed text-muted">
-                            {{ option.desc }}
-                        </p>
-
-                        <div class="mt-4 flex flex-wrap gap-2">
-                            <span v-for="example in option.examples" :key="example" class="rounded-full border border-border bg-(--surface-solid) px-2.5 py-1 text-[10px] font-bold text-muted">
-                                {{ example }}
-                            </span>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="mt-7 flex flex-col gap-4 rounded-3xl border border-border bg-(--surface-soft) p-5 lg:flex-row lg:items-center lg:justify-between">
-                    <div>
-                        <p class="text-sm font-black text-(--text)">¿Qué modalidad necesita su empresa?</p>
-                        <p class="mt-1 text-sm leading-relaxed text-muted">
-                            El diagnóstico inicial nos permite recomendar el nivel de acompañamiento, las prioridades y el roadmap antes de comprometer una implementación completa.
-                        </p>
-                    </div>
-
-                    <Button type="button" class="shrink-0 gap-2 rounded-xl bg-(--brand) px-6 py-6 text-white hover:bg-(--brand-hover)" @click="scrollToId('contacto')">
-                        Solicitar diagnóstico
-                        <ArrowRight class="h-4 w-4" />
-                    </Button>
-                </div>
             </div>
         </section>
 
@@ -2143,6 +2224,32 @@ onBeforeUnmount(() => {
     outline: 2px solid var(--brand);
     outline-offset: 2px;
     border-radius: 12px;
+}
+
+/* -------------------------------------------------------------------------- */
+/*  Modalidades LAUDA 360                                                     */
+/* -------------------------------------------------------------------------- */
+
+.lauda-service-card {
+    transition: transform 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease, background-color 0.2s ease;
+}
+
+.lauda-service-card:hover {
+    transform: translateY(-3px);
+    border-color: rgba(var(--brand-rgb), 0.18);
+}
+
+.lauda-service-card--recommended {
+    border-color: rgba(var(--brand-rgb), 0.32);
+    background:
+        linear-gradient(180deg, rgba(var(--brand-rgb), 0.055), transparent 42%),
+        var(--surface-soft);
+    box-shadow: 0 22px 60px rgba(var(--brand-rgb), 0.10);
+}
+
+.lauda-page--dark .lauda-service-card--recommended {
+    border-color: rgba(var(--brand-rgb), 0.38);
+    box-shadow: 0 24px 70px rgba(var(--brand-rgb), 0.14);
 }
 
 /* -------------------------------------------------------------------------- */
