@@ -614,13 +614,28 @@ const roadmapStages = [
     },
 ]
 
-const requestTypes = [
-    'Iniciar Transformación Digital 360',
-    'Solicitar Diagnóstico Digital',
-    'Conocer LAUDA 360 Guiado',
-    'Conocer LAUDA 360 Asistido',
-    'Conocer LAUDA 360 Gestionado',
-    'Ya soy cliente / necesito asistencia',
+const companySizes = [
+    '1 a 10 personas',
+    '11 a 50 personas',
+    '51 a 200 personas',
+    'Más de 200 personas',
+]
+
+const transformationChallenges = [
+    'No sé por dónde comenzar',
+    'Organizar procesos y reducir trabajo manual',
+    'Mejorar captación, clientes y ventas',
+    'Digitalizar la operación diaria',
+    'Integrar administración, fiscalidad y cumplimiento',
+    'Centralizar datos, indicadores y BI',
+    'Conectar sistemas que hoy trabajan separados',
+]
+
+const assistanceLevels = [
+    'Quiero que LAUDA me recomiende la modalidad',
+    'LAUDA 360 Guiado',
+    'LAUDA 360 Asistido',
+    'LAUDA 360 Gestionado',
 ]
 
 /*
@@ -640,11 +655,11 @@ const contactSuccessMessage = ref('')
 const contactForm = ref({
     name: '',
     company: '',
-    rnc: '',
     phone: '',
     email: '',
-    request_type: 'Iniciar Transformación Digital 360',
-    solution_interest: 'Por definir después del diagnóstico',
+    company_size: '',
+    main_challenge: 'No sé por dónde comenzar',
+    assistance_level: 'Quiero que LAUDA me recomiende la modalidad',
     message: '',
     terms: true,
 })
@@ -653,11 +668,11 @@ function resetContactForm() {
     contactForm.value = {
         name: '',
         company: '',
-        rnc: '',
         phone: '',
         email: '',
-        request_type: 'Iniciar Transformación Digital 360',
-        solution_interest: 'Por definir después del diagnóstico',
+        company_size: '',
+        main_challenge: 'No sé por dónde comenzar',
+        assistance_level: 'Quiero que LAUDA me recomiende la modalidad',
         message: '',
         terms: true,
     }
@@ -671,32 +686,33 @@ function buildContactPayload() {
     const form = contactForm.value
 
     // Compatible con ContactRequest:
-    // - Los campos base van directo a columnas reales.
-    // - La intención comercial se guarda en topic.
-    // - Los datos extra del intake centralizado van en metadata.
-    // - También se anexan al message para que los correos actuales los muestren
-    //   aunque los Mailables todavía no lean metadata.
+    // - Los campos base continúan usando las columnas actuales.
+    // - El diagnóstico siempre entra por un único topic comercial.
+    // - El contexto adicional se conserva en metadata y también en message
+    //   para mantener compatibilidad con los correos actuales.
     return {
         name: form.name,
         company: form.company,
         email: form.email,
         phone: form.phone,
-        topic: `${form.request_type} - ${form.solution_interest}`,
+        topic: 'Solicitud de Diagnóstico Digital 360',
         terms: form.terms,
         metadata: {
             source: 'laudaapi.com',
-            request_type: form.request_type,
-            solution_interest: form.solution_interest,
-            rnc: form.rnc || null,
+            request_type: 'digital_transformation_diagnosis',
+            company_size: form.company_size || null,
+            main_challenge: form.main_challenge,
+            assistance_level: form.assistance_level,
             intake_type: 'digital_transformation_360',
         },
         message: [
-            `Tipo de solicitud: ${form.request_type}`,
-            `Modalidad de interés: ${form.solution_interest}`,
-            `RNC: ${form.rnc || 'No indicado'}`,
+            'Solicitud: Diagnóstico Digital 360',
+            `Tamaño aproximado: ${form.company_size || 'No indicado'}`,
+            `Reto principal: ${form.main_challenge}`,
+            `Acompañamiento: ${form.assistance_level}`,
             '',
-            'Mensaje:',
-            form.message,
+            'Contexto adicional:',
+            form.message || 'No indicado',
             '',
             'Origen: laudaapi.com',
         ].join('\n'),
@@ -2143,45 +2159,69 @@ onBeforeUnmount(() => {
             <div class="grid gap-6 lg:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)] lg:items-start">
                 <div class="lauda-card rounded-4xl border p-6 lg:p-8">
                     <p class="text-[10px] font-black uppercase tracking-[0.24em] text-(--brand)">
-                        Inicie su Transformación Digital 360
+                        Primer paso: Diagnóstico Digital 360
                     </p>
 
                     <h2 class="mt-2 text-3xl font-black tracking-tight text-(--text) sm:text-4xl">
-                        El primer paso es entender dónde está su empresa y definir el camino correcto.
+                        Antes de recomendar tecnología, necesitamos entender su empresa.
                     </h2>
 
                     <p class="mt-4 text-sm leading-relaxed text-muted">
-                        Solicite un diagnóstico inicial para evaluar su nivel de madurez digital, identificar prioridades y definir un roadmap de transformación antes de decidir qué tecnologías deben implementarse.
+                        Comparta información básica sobre su organización y sus principales retos. A partir de esta solicitud coordinamos una conversación inicial para determinar el alcance del diagnóstico, el nivel de acompañamiento adecuado y los próximos pasos.
                     </p>
 
-                    <div class="mt-6 space-y-3 text-sm text-muted">
-                        <div class="flex gap-3 rounded-2xl border border-border bg-(--surface-soft) p-3">
-                            <CheckCircle2 class="mt-0.5 h-4 w-4 shrink-0 text-[#22C55E]" />
-                            <span>Comenzamos con diagnóstico, prioridades y roadmap; no con la venta aislada de una aplicación.</span>
+                    <div class="mt-6 grid gap-3">
+                        <div class="rounded-2xl border border-border bg-(--surface-soft) p-4">
+                            <div class="flex items-start gap-3">
+                                <span class="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-(--brand)/10 text-xs font-black text-(--brand)">1</span>
+                                <div>
+                                    <p class="text-sm font-black text-(--text)">Conversación inicial</p>
+                                    <p class="mt-1 text-xs leading-relaxed text-muted">Entendemos el contexto, los retos y los objetivos generales de la empresa.</p>
+                                </div>
+                            </div>
                         </div>
-                        <div class="flex gap-3 rounded-2xl border border-border bg-(--surface-soft) p-3">
-                            <CheckCircle2 class="mt-0.5 h-4 w-4 shrink-0 text-[#22C55E]" />
-                            <span>El ecosistema LAUDAAPI se activa progresivamente según las necesidades reales de la empresa.</span>
+
+                        <div class="rounded-2xl border border-border bg-(--surface-soft) p-4">
+                            <div class="flex items-start gap-3">
+                                <span class="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-(--brand)/10 text-xs font-black text-(--brand)">2</span>
+                                <div>
+                                    <p class="text-sm font-black text-(--text)">Diagnóstico y madurez digital</p>
+                                    <p class="mt-1 text-xs leading-relaxed text-muted">Evaluamos procesos, personas, tecnología, datos y nivel de integración.</p>
+                                </div>
+                            </div>
                         </div>
-                        <div class="flex gap-3 rounded-2xl border border-border bg-(--surface-soft) p-3">
-                            <CheckCircle2 class="mt-0.5 h-4 w-4 shrink-0 text-[#22C55E]" />
-                            <span>Puede elegir acompañamiento Guiado, Asistido o Gestionado según su capacidad interna.</span>
+
+                        <div class="rounded-2xl border border-border bg-(--surface-soft) p-4">
+                            <div class="flex items-start gap-3">
+                                <span class="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-(--brand)/10 text-xs font-black text-(--brand)">3</span>
+                                <div>
+                                    <p class="text-sm font-black text-(--text)">Roadmap de transformación</p>
+                                    <p class="mt-1 text-xs leading-relaxed text-muted">Definimos prioridades, etapas, objetivos y la modalidad de acompañamiento recomendada.</p>
+                                </div>
+                            </div>
                         </div>
+                    </div>
+
+                    <div class="mt-6 rounded-2xl border border-(--brand)/20 bg-(--brand)/5 p-4">
+                        <p class="text-xs font-black uppercase tracking-[0.16em] text-(--brand)">Importante</p>
+                        <p class="mt-2 text-sm leading-relaxed text-muted">
+                            No necesita saber si requiere Social, CRM, POS u otra solución. Primero definimos qué debe transformar la empresa; la tecnología se incorpora después según el roadmap.
+                        </p>
                     </div>
                 </div>
 
                 <form class="lauda-card rounded-4xl border p-6 lg:p-8" @submit.prevent="submitContact">
                     <div class="mb-6 flex flex-col gap-3 border-b border-border pb-5 sm:flex-row sm:items-start sm:justify-between">
                         <div>
-                            <p class="text-lg font-black text-(--text)">Datos de la solicitud</p>
+                            <p class="text-lg font-black text-(--text)">Solicitar Diagnóstico Digital 360</p>
                             <p class="mt-1 text-sm leading-relaxed text-muted">
-                                El equipo LAUDA revisará la solicitud para coordinar el diagnóstico y orientar el siguiente paso.
+                                Solo necesitamos información inicial. El alcance definitivo se determina después de conversar con su empresa.
                             </p>
                         </div>
 
                         <span class="inline-flex w-fit items-center gap-2 rounded-full border border-[#22C55E]/20 bg-[#22C55E]/10 px-3 py-1 text-[10px] font-black uppercase tracking-[0.12em] text-[#16A34A]">
                             <span class="h-1.5 w-1.5 rounded-full bg-[#22C55E]" />
-                            Formulario activo
+                            Punto de entrada
                         </span>
                     </div>
 
@@ -2191,7 +2231,7 @@ onBeforeUnmount(() => {
                             <div>
                                 <p class="font-black">Solicitud recibida.</p>
                                 <p class="mt-1">
-                                    {{ contactSuccessMessage || 'Gracias. El equipo de LaudaAPI revisará la solicitud y responderá desde contacto@laudaapi.com.' }}
+                                    {{ contactSuccessMessage || 'Gracias. El equipo LAUDA revisará la información para coordinar el siguiente paso del diagnóstico.' }}
                                 </p>
                             </div>
                         </div>
@@ -2211,52 +2251,52 @@ onBeforeUnmount(() => {
                         </label>
 
                         <label class="block">
-                            <span class="mb-1.5 block text-xs font-black uppercase tracking-[0.12em] text-(--soft)">RNC</span>
-                            <input v-model="contactForm.rnc" type="text" class="lauda-input" :class="contactErrors.rnc && 'lauda-input--error'" placeholder="Opcional / RNC de la empresa" inputmode="numeric" />
-                            <span v-if="contactErrors.rnc" class="lauda-form-error">{{ contactErrors.rnc?.[ 0 ] || contactErrors.rnc }}</span>
-                        </label>
-
-                        <label class="block">
-                            <span class="mb-1.5 block text-xs font-black uppercase tracking-[0.12em] text-(--soft)">Teléfono</span>
-                            <input v-model="contactForm.phone" type="tel" class="lauda-input" :class="contactErrors.phone && 'lauda-input--error'" placeholder="809-000-0000" autocomplete="tel" />
-                            <span v-if="contactErrors.phone" class="lauda-form-error">{{ contactErrors.phone?.[ 0 ] || contactErrors.phone }}</span>
-                        </label>
-
-                        <label class="block sm:col-span-2">
                             <span class="mb-1.5 block text-xs font-black uppercase tracking-[0.12em] text-(--soft)">Correo</span>
                             <input v-model="contactForm.email" type="email" class="lauda-input" :class="contactErrors.email && 'lauda-input--error'" placeholder="correo@empresa.com" autocomplete="email" required />
                             <span v-if="contactErrors.email" class="lauda-form-error">{{ contactErrors.email?.[ 0 ] || contactErrors.email }}</span>
                         </label>
 
                         <label class="block">
-                            <span class="mb-1.5 block text-xs font-black uppercase tracking-[0.12em] text-(--soft)">Tipo de solicitud</span>
-                            <select v-model="contactForm.request_type" class="lauda-input" :class="contactErrors.request_type && 'lauda-input--error'" required>
-                                <option v-for="type in requestTypes" :key="type" :value="type">{{ type }}</option>
-                            </select>
-                            <span v-if="contactErrors.request_type" class="lauda-form-error">{{ contactErrors.request_type?.[ 0 ] || contactErrors.request_type }}</span>
+                            <span class="mb-1.5 block text-xs font-black uppercase tracking-[0.12em] text-(--soft)">Teléfono</span>
+                            <input v-model="contactForm.phone" type="tel" class="lauda-input" :class="contactErrors.phone && 'lauda-input--error'" placeholder="809-000-0000" autocomplete="tel" required />
+                            <span v-if="contactErrors.phone" class="lauda-form-error">{{ contactErrors.phone?.[ 0 ] || contactErrors.phone }}</span>
                         </label>
 
                         <label class="block">
-                            <span class="mb-1.5 block text-xs font-black uppercase tracking-[0.12em] text-(--soft)">Solución de interés</span>
-                            <select v-model="contactForm.solution_interest" class="lauda-input" :class="contactErrors.solution_interest && 'lauda-input--error'" required>
-                                <option value="Por definir después del diagnóstico">Por definir después del diagnóstico</option>
-                                <option value="LAUDA 360 Guiado">LAUDA 360 Guiado</option>
-                                <option value="LAUDA 360 Asistido">LAUDA 360 Asistido</option>
-                                <option value="LAUDA 360 Gestionado">LAUDA 360 Gestionado</option>
+                            <span class="mb-1.5 block text-xs font-black uppercase tracking-[0.12em] text-(--soft)">Tamaño aproximado</span>
+                            <select v-model="contactForm.company_size" class="lauda-input" required>
+                                <option disabled value="">Seleccione una opción</option>
+                                <option v-for="size in companySizes" :key="size" :value="size">{{ size }}</option>
                             </select>
-                            <span v-if="contactErrors.solution_interest" class="lauda-form-error">{{ contactErrors.solution_interest?.[ 0 ] || contactErrors.solution_interest }}</span>
+                        </label>
+
+                        <label class="block">
+                            <span class="mb-1.5 block text-xs font-black uppercase tracking-[0.12em] text-(--soft)">Principal reto</span>
+                            <select v-model="contactForm.main_challenge" class="lauda-input" required>
+                                <option v-for="challenge in transformationChallenges" :key="challenge" :value="challenge">{{ challenge }}</option>
+                            </select>
                         </label>
 
                         <label class="block sm:col-span-2">
-                            <span class="mb-1.5 block text-xs font-black uppercase tracking-[0.12em] text-(--soft)">Mensaje</span>
-                            <textarea v-model="contactForm.message" rows="5" class="lauda-input resize-none" :class="contactErrors.message && 'lauda-input--error'" placeholder="Cuéntanos brevemente cómo opera hoy tu empresa, qué procesos quieres mejorar y cuáles son tus principales retos digitales." required />
+                            <span class="mb-1.5 block text-xs font-black uppercase tracking-[0.12em] text-(--soft)">Nivel de acompañamiento</span>
+                            <select v-model="contactForm.assistance_level" class="lauda-input" required>
+                                <option v-for="level in assistanceLevels" :key="level" :value="level">{{ level }}</option>
+                            </select>
+                            <span class="mt-1.5 block text-[11px] leading-relaxed text-muted">
+                                Si todavía no conoce la diferencia entre Guiado, Asistido y Gestionado, seleccione la primera opción. La modalidad final se recomienda después del diagnóstico.
+                            </span>
+                        </label>
+
+                        <label class="block sm:col-span-2">
+                            <span class="mb-1.5 block text-xs font-black uppercase tracking-[0.12em] text-(--soft)">Cuéntenos brevemente su situación</span>
+                            <textarea v-model="contactForm.message" rows="5" class="lauda-input resize-none" :class="contactErrors.message && 'lauda-input--error'" placeholder="Ejemplo: usamos Excel y WhatsApp para varios procesos, queremos organizar ventas y clientes, y necesitamos tener una visión más clara de la operación." />
                             <span v-if="contactErrors.message" class="lauda-form-error">{{ contactErrors.message?.[ 0 ] || contactErrors.message }}</span>
                         </label>
 
                         <label class="flex items-start gap-3 sm:col-span-2">
                             <input v-model="contactForm.terms" type="checkbox" class="mt-1 h-4 w-4 rounded border-border accent-[#F5333C]" required />
                             <span class="text-xs leading-relaxed text-muted">
-                                Acepto que LaudaAPI me contacte para dar seguimiento a esta solicitud.
+                                Acepto que LAUDA me contacte para dar seguimiento a esta solicitud.
                                 <span v-if="contactErrors.terms" class="lauda-form-error block">{{ contactErrors.terms?.[ 0 ] || contactErrors.terms }}</span>
                             </span>
                         </label>
@@ -2268,7 +2308,7 @@ onBeforeUnmount(() => {
 
                     <div class="mt-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                         <p class="text-xs leading-relaxed text-muted">
-                            Usaremos estos datos únicamente para dar seguimiento a tu solicitud de diagnóstico, transformación o asistencia.
+                            La solicitud no implica contratación. La conversación inicial permite determinar el alcance y los próximos pasos.
                         </p>
 
                         <Button type="submit" class="w-full justify-center gap-2 rounded-xl bg-(--brand) px-6 py-6 text-white hover:bg-(--brand-hover) disabled:cursor-not-allowed disabled:opacity-70 sm:w-auto" :disabled="contactProcessing">
