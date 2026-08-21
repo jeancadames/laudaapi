@@ -1162,42 +1162,139 @@ onBeforeUnmount(() => {
 
         <!-- ===================== LAUDA 360 ===================== -->
         <section id="lauda360" class="mx-auto max-w-360 scroll-mt-24 px-4 py-12 sm:px-6 sm:py-16 2xl:px-8">
-            <div class="grid gap-8 lg:grid-cols-[minmax(0,0.85fr)_minmax(0,1.15fr)] lg:items-start">
-                <div class="lg:sticky lg:top-28">
+            <div class="mb-9 grid gap-6 lg:grid-cols-[minmax(0,0.95fr)_minmax(0,1.05fr)] lg:items-end">
+                <div>
                     <p class="text-[10px] font-black uppercase tracking-[0.24em] text-(--brand)">
-                        LAUDA Transformación Digital 360
+                        Qué es LAUDA 360
                     </p>
-                    <h2 class="mt-2 text-3xl font-black tracking-tight text-(--text) sm:text-4xl">
-                        No comenzamos instalando software. Comenzamos entendiendo su empresa.
+                    <h2 class="mt-2 max-w-3xl text-3xl font-black tracking-tight text-(--text) sm:text-4xl">
+                        Un servicio para transformar la empresa, no solo para digitalizar tareas.
                     </h2>
-                    <p class="mt-4 max-w-xl text-sm leading-relaxed text-muted">
-                        LAUDA 360 es un servicio integral de transformación empresarial. Diagnosticamos la situación actual,
-                        organizamos procesos y responsabilidades, definimos el roadmap y acompañamos la ejecución hasta
-                        convertir la empresa en una organización digitalmente conectada y orientada por datos.
-                    </p>
-
-                    <div class="mt-6 rounded-3xl border border-border bg-(--surface) p-5 shadow-sm">
-                        <p class="text-xs font-black uppercase tracking-[0.16em] text-(--brand)">
-                            Principio del modelo
-                        </p>
-                        <p class="mt-2 text-lg font-black leading-snug text-(--text)">
-                            La transformación define el camino. LAUDAAPI aporta la tecnología para ejecutarlo.
-                        </p>
-                    </div>
                 </div>
 
-                <div class="grid gap-4 sm:grid-cols-2">
-                    <div v-for="pillar in transformationPillars" :key="pillar.title" class="lauda-card rounded-3xl border p-5">
-                        <span class="grid h-12 w-12 place-items-center rounded-2xl" :style="{ background: pillar.color + '1a' }">
-                            <component :is="pillar.icon" class="h-5 w-5" :style="{ color: pillar.color }" />
+                <p class="max-w-2xl text-sm leading-relaxed text-muted lg:justify-self-end">
+                    LAUDA Transformación Digital 360 combina diagnóstico, estrategia, acompañamiento e implementación.
+                    Partimos de la realidad de cada empresa, definimos prioridades y construimos una ruta progresiva para
+                    conectar personas, procesos, tecnología y datos alrededor de objetivos de negocio concretos.
+                </p>
+            </div>
+
+            <div class="grid gap-5 lg:grid-cols-[minmax(0,0.78fr)_minmax(0,1.22fr)]">
+                <!-- Qué obtiene el cliente -->
+                <div class="lauda-card rounded-4xl border p-6 lg:p-7">
+                    <div class="flex items-start gap-4">
+                        <span class="grid h-12 w-12 shrink-0 place-items-center rounded-2xl bg-(--brand)/10 text-(--brand)">
+                            <Activity class="h-5 w-5" />
                         </span>
-                        <h3 class="mt-5 text-lg font-black text-(--text)">
-                            {{ pillar.title }}
-                        </h3>
-                        <p class="mt-2 text-sm leading-relaxed text-muted">
-                            {{ pillar.desc }}
-                        </p>
+                        <div>
+                            <p class="text-[10px] font-black uppercase tracking-[0.18em] text-(--brand)">
+                                Punto de partida
+                            </p>
+                            <h3 class="mt-1 text-xl font-black text-(--text)">
+                                Primero entendemos dónde está la empresa y qué necesita transformar.
+                            </h3>
+                        </div>
                     </div>
+
+                    <div class="mt-6 space-y-3">
+                        <div class="flex gap-3 rounded-2xl border border-border bg-(--surface-soft) p-4">
+                            <CheckCircle2 class="mt-0.5 h-4 w-4 shrink-0 text-[#22C55E]" />
+                            <div>
+                                <p class="text-sm font-black text-(--text)">Diagnóstico claro</p>
+                                <p class="mt-1 text-xs leading-relaxed text-muted">
+                                    Identificamos nivel de madurez, brechas, riesgos y oportunidades de transformación.
+                                </p>
+                            </div>
+                        </div>
+
+                        <div class="flex gap-3 rounded-2xl border border-border bg-(--surface-soft) p-4">
+                            <CheckCircle2 class="mt-0.5 h-4 w-4 shrink-0 text-[#22C55E]" />
+                            <div>
+                                <p class="text-sm font-black text-(--text)">Roadmap por prioridades</p>
+                                <p class="mt-1 text-xs leading-relaxed text-muted">
+                                    Ordenamos objetivos y etapas según impacto, capacidad de la empresa y dependencias reales.
+                                </p>
+                            </div>
+                        </div>
+
+                        <div class="flex gap-3 rounded-2xl border border-border bg-(--surface-soft) p-4">
+                            <CheckCircle2 class="mt-0.5 h-4 w-4 shrink-0 text-[#22C55E]" />
+                            <div>
+                                <p class="text-sm font-black text-(--text)">Acompañamiento hasta la adopción</p>
+                                <p class="mt-1 text-xs leading-relaxed text-muted">
+                                    No terminamos al configurar herramientas: acompañamos implementación, integración y uso real.
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <Button variant="outline" class="lauda-outline-button mt-6 w-full justify-center gap-2 rounded-xl px-5 py-5" @click="scrollToId('roadmap')">
+                        Ver roadmap de transformación
+                        <ArrowRight class="h-4 w-4" />
+                    </Button>
+                </div>
+
+                <!-- Qué transforma -->
+                <div>
+                    <div class="mb-4 flex items-end justify-between gap-4">
+                        <div>
+                            <p class="text-[10px] font-black uppercase tracking-[0.18em] text-(--brand)">
+                                Qué transformamos
+                            </p>
+                            <h3 class="mt-1 text-xl font-black text-(--text)">
+                                Cuatro dimensiones que deben avanzar juntas.
+                            </h3>
+                        </div>
+                        <span class="hidden rounded-full border border-border bg-(--surface) px-3 py-1 text-[10px] font-black uppercase tracking-[0.12em] text-(--soft) sm:inline-flex">
+                            Modelo 360
+                        </span>
+                    </div>
+
+                    <div class="grid gap-4 sm:grid-cols-2">
+                        <div v-for="(pillar, index) in transformationPillars" :key="pillar.title" class="lauda-card rounded-3xl border p-5">
+                            <div class="flex items-start justify-between gap-4">
+                                <span class="grid h-12 w-12 place-items-center rounded-2xl" :style="{ background: pillar.color + '1a' }">
+                                    <component :is="pillar.icon" class="h-5 w-5" :style="{ color: pillar.color }" />
+                                </span>
+                                <span class="text-[11px] font-black tracking-[0.14em] text-(--soft)">
+                                    0{{ index + 1 }}
+                                </span>
+                            </div>
+                            <h3 class="mt-5 text-lg font-black text-(--text)">
+                                {{ pillar.title }}
+                            </h3>
+                            <p class="mt-2 text-sm leading-relaxed text-muted">
+                                {{ pillar.desc }}
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Separación servicio / tecnología -->
+            <div class="mt-6 grid overflow-hidden rounded-4xl border border-border bg-(--surface) md:grid-cols-2">
+                <div class="border-b border-border p-5 md:border-b-0 md:border-r md:p-6">
+                    <p class="text-[10px] font-black uppercase tracking-[0.18em] text-(--brand)">
+                        LAUDA Transformación Digital 360
+                    </p>
+                    <p class="mt-2 text-lg font-black text-(--text)">
+                        Define el camino de transformación.
+                    </p>
+                    <p class="mt-2 text-sm leading-relaxed text-muted">
+                        Diagnóstico, estrategia, prioridades, procesos, acompañamiento, implementación, adopción y mejora continua.
+                    </p>
+                </div>
+
+                <div class="p-5 md:p-6">
+                    <p class="text-[10px] font-black uppercase tracking-[0.18em] text-[#3B82F6]">
+                        Ecosistema LAUDAAPI
+                    </p>
+                    <p class="mt-2 text-lg font-black text-(--text)">
+                        Aporta la tecnología para ejecutarlo.
+                    </p>
+                    <p class="mt-2 text-sm leading-relaxed text-muted">
+                        Social, CRM, POS, administración, integraciones, automatización, Data y BI se incorporan según el roadmap de cada empresa.
+                    </p>
                 </div>
             </div>
         </section>
