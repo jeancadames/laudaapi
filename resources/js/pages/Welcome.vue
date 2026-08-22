@@ -386,18 +386,18 @@ const serviceModels = [
     {
         title: 'LAUDA 360 Guiado',
         level: 'LAUDA orienta',
-        desc: 'Definimos el camino y acompañamos a su equipo mientras la empresa ejecuta el roadmap con recursos internos.',
+        desc: 'Modalidad principalmente de autoservicio: su equipo ejecuta el roadmap con metodología LAUDA y recibe asistencia puntual por email.',
         badge: 'Guiado',
-        idealFor: 'Empresas con capacidad interna para ejecutar y coordinar la implementación.',
+        idealFor: 'Empresas con capacidad interna para ejecutar, documentar y coordinar su transformación con poca intervención consultiva.',
         laudaDoes: [
-            'Diagnóstico y roadmap',
-            'Metodología y capacitación',
-            'Seguimiento y validación',
+            'Metodología y herramientas de autoservicio',
+            'Guías, plantillas y criterios de validación',
+            'Soporte y aclaraciones por email',
         ],
         clientDoes: [
-            'Ejecuta las tareas internas',
-            'Prepara información',
-            'Coordina sus equipos',
+            'Completa el diagnóstico y prepara información',
+            'Ejecuta las tareas del roadmap',
+            'Coordina y valida internamente',
         ],
         icon: CheckCircle2,
         color: brand.pos,
@@ -539,9 +539,9 @@ const transformationChallenges = [
 
 const assistanceLevels = [
     'Quiero que LAUDA me recomiende la modalidad',
-    'LAUDA 360 Guiado',
-    'LAUDA 360 Asistido',
-    'LAUDA 360 Gestionado',
+    'LAUDA 360 Guiado — autoservicio + soporte por email',
+    'LAUDA 360 Asistido — trabajo conjunto',
+    'LAUDA 360 Gestionado — LAUDA lidera',
 ]
 
 /*
@@ -557,6 +557,30 @@ const contactSubmitted = ref(false)
 const contactProcessing = ref(false)
 const contactErrors = ref({})
 const contactSuccessMessage = ref('')
+const contactToastVisible = ref(false)
+let contactToastTimer = null
+
+function showContactToast() {
+    contactToastVisible.value = true
+
+    if (contactToastTimer) {
+        window.clearTimeout(contactToastTimer)
+    }
+
+    contactToastTimer = window.setTimeout(() => {
+        contactToastVisible.value = false
+        contactToastTimer = null
+    }, 5000)
+}
+
+function closeContactToast() {
+    contactToastVisible.value = false
+
+    if (contactToastTimer) {
+        window.clearTimeout(contactToastTimer)
+        contactToastTimer = null
+    }
+}
 
 const contactForm = ref({
     name: '',
@@ -601,18 +625,19 @@ function buildContactPayload() {
         company: form.company,
         email: form.email,
         phone: form.phone,
-        topic: 'Solicitud de Diagnóstico Digital 360',
+        topic: 'Solicitud de acceso al Diagnóstico LAUDA 360',
         terms: form.terms,
         metadata: {
             source: 'laudaapi.com',
-            request_type: 'digital_transformation_diagnosis',
+            request_type: 'digital_diagnosis_access_request',
             company_size: form.company_size || null,
             main_challenge: form.main_challenge,
             assistance_level: form.assistance_level,
             intake_type: 'digital_transformation_360',
+            diagnosis_access: 'private_invitation',
         },
         message: [
-            'Solicitud: Diagnóstico Digital 360',
+            'Solicitud: Acceso al Diagnóstico LAUDA 360',
             `Tamaño aproximado: ${form.company_size || 'No indicado'}`,
             `Reto principal: ${form.main_challenge}`,
             `Acompañamiento: ${form.assistance_level}`,
@@ -658,8 +683,9 @@ async function submitContact() {
         }
 
         contactSubmitted.value = true
-        contactSuccessMessage.value = data.message || 'Formulario enviado correctamente.'
+        contactSuccessMessage.value = data.message || 'Gracias. LAUDA revisará la solicitud y, si procede, enviará las instrucciones para acceder al Diagnóstico LAUDA 360 de forma privada.'
         resetContactForm()
+        showContactToast()
     } catch (error) {
         contactErrors.value = {
             general: error?.message || 'Ocurrió un error al procesar la solicitud.',
@@ -875,6 +901,11 @@ onBeforeUnmount(() => {
     document.body.style.overflow = ''
     window.removeEventListener('keydown', handleKeydown)
     window.removeEventListener('scroll', handleScroll)
+
+    if (contactToastTimer) {
+        window.clearTimeout(contactToastTimer)
+        contactToastTimer = null
+    }
 })
 </script>
 
@@ -903,6 +934,26 @@ onBeforeUnmount(() => {
     </Head>
 
     <div :class="[ 'lauda-page min-h-screen antialiased', { 'lauda-page--dark': isDarkMode } ]">
+        <Transition name="lauda-toast">
+            <div v-if="contactToastVisible" class="lauda-toast fixed right-4 top-24 z-70 w-[calc(100%-2rem)] max-w-sm rounded-2xl border px-4 py-3 shadow-2xl sm:right-6 sm:w-full" role="status" aria-live="polite" aria-atomic="true">
+                <div class="flex items-start gap-3">
+                    <div class="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-[#22C55E]/12 text-[#16A34A]">
+                        <CheckCircle2 class="h-5 w-5" />
+                    </div>
+
+                    <div class="min-w-0 flex-1 pt-0.5">
+                        <p class="text-sm font-black text-(--text)">Su solicitud ha sido enviada.</p>
+                        <p class="mt-0.5 text-xs leading-relaxed text-muted">
+                            LAUDA revisará la información y le contactará con los próximos pasos.
+                        </p>
+                    </div>
+
+                    <button type="button" class="grid h-8 w-8 shrink-0 place-items-center rounded-lg text-muted transition-colors hover:bg-black/5 hover:text-(--text) focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-(--brand) dark:hover:bg-white/6" aria-label="Cerrar notificación" @click="closeContactToast">
+                        <X class="h-4 w-4" />
+                    </button>
+                </div>
+            </div>
+        </Transition>
         <!-- ===================== NAV ===================== -->
         <nav class="lauda-nav fixed inset-x-0 top-0 z-50 border-b backdrop-blur-xl" :class="{ 'lauda-nav--compact': navCompact }">
             <div class="lauda-nav-inner mx-auto flex h-19 max-w-none items-center gap-3 px-4 sm:gap-6 sm:px-6 lg:gap-8 lg:px-8 2xl:px-10">
@@ -1911,15 +1962,15 @@ onBeforeUnmount(() => {
             <div class="grid gap-6 lg:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)] lg:items-start">
                 <div class="lauda-card rounded-3xl border p-5 lg:p-6">
                     <p class="text-[10px] font-black uppercase tracking-[0.24em] text-(--brand)">
-                        Primer paso: Diagnóstico Digital 360
+                        Primer paso: solicitar acceso al Diagnóstico LAUDA 360
                     </p>
 
                     <h2 class="mt-2 text-[28px] font-black leading-[1.08] tracking-tight text-(--text) sm:text-[34px]">
-                        Antes de recomendar tecnología, necesitamos entender su empresa.
+                        El diagnóstico comienza en un espacio privado y seguro.
                     </h2>
 
                     <p class="mt-4 text-sm leading-relaxed text-muted">
-                        Comparta información básica sobre su organización y sus principales retos. A partir de esta solicitud coordinamos una conversación inicial para determinar el alcance del diagnóstico, el nivel de acompañamiento adecuado y los próximos pasos.
+                        Comparta información básica sobre su organización. LAUDA revisa la solicitud y, cuando corresponda, habilita acceso privado al Diagnóstico LAUDA 360 dentro de app.laudaapi.com. El cuestionario completo nunca se expone públicamente.
                     </p>
 
                     <div class="mt-5 grid gap-2.5">
@@ -1955,9 +2006,9 @@ onBeforeUnmount(() => {
                     </div>
 
                     <div class="mt-6 rounded-2xl border border-(--brand)/20 bg-(--brand)/5 p-4">
-                        <p class="text-xs font-black uppercase tracking-[0.16em] text-(--brand)">Importante</p>
+                        <p class="text-xs font-black uppercase tracking-[0.16em] text-(--brand)">Acceso controlado</p>
                         <p class="mt-2 text-sm leading-relaxed text-muted">
-                            No necesita saber si requiere Social, CRM, POS u otra solución. Primero definimos qué debe transformar la empresa; la tecnología se incorpora después según el roadmap.
+                            El Diagnóstico LAUDA 360 no es público. Una vez aprobada la solicitud, la empresa recibe acceso autenticado en app.laudaapi.com para completar el proceso, guardar avances y consultar sus resultados.
                         </p>
                     </div>
                 </div>
@@ -1965,15 +2016,15 @@ onBeforeUnmount(() => {
                 <form class="lauda-card rounded-3xl border p-5 lg:p-6" @submit.prevent="submitContact">
                     <div class="mb-6 flex flex-col gap-3 border-b border-border pb-5 sm:flex-row sm:items-start sm:justify-between">
                         <div>
-                            <p class="text-lg font-black text-(--text)">Solicitar Diagnóstico Digital 360</p>
+                            <p class="text-lg font-black text-(--text)">Solicitar acceso al Diagnóstico LAUDA 360</p>
                             <p class="mt-1 text-sm leading-relaxed text-muted">
-                                Solo necesitamos información inicial. El alcance definitivo se determina después de conversar con su empresa.
+                                Esta solicitud no contiene el diagnóstico. Solo recoge la información necesaria para revisar el caso y habilitar, cuando corresponda, un acceso privado al proceso.
                             </p>
                         </div>
 
                         <span class="inline-flex w-fit items-center gap-2 rounded-full border border-[#22C55E]/20 bg-[#22C55E]/10 px-3 py-1 text-[10px] font-black uppercase tracking-[0.12em] text-[#16A34A]">
                             <span class="h-1.5 w-1.5 rounded-full bg-[#22C55E]" />
-                            Punto de entrada
+                            Acceso privado
                         </span>
                     </div>
 
@@ -1983,7 +2034,7 @@ onBeforeUnmount(() => {
                             <div>
                                 <p class="font-black">Solicitud recibida.</p>
                                 <p class="mt-1">
-                                    {{ contactSuccessMessage || 'Gracias. El equipo LAUDA revisará la información para coordinar el siguiente paso del diagnóstico.' }}
+                                    {{ contactSuccessMessage || 'Gracias. LAUDA revisará la solicitud y, si procede, enviará las instrucciones para acceder al Diagnóstico LAUDA 360 de forma privada.' }}
                                 </p>
                             </div>
                         </div>
@@ -2030,12 +2081,12 @@ onBeforeUnmount(() => {
                         </label>
 
                         <label class="block sm:col-span-2">
-                            <span class="mb-1.5 block text-xs font-black uppercase tracking-[0.12em] text-(--soft)">Nivel de acompañamiento</span>
+                            <span class="mb-1.5 block text-xs font-black uppercase tracking-[0.12em] text-(--soft)">Preferencia de acompañamiento</span>
                             <select v-model="contactForm.assistance_level" class="lauda-input" required>
                                 <option v-for="level in assistanceLevels" :key="level" :value="level">{{ level }}</option>
                             </select>
                             <span class="mt-1.5 block text-[11px] leading-relaxed text-muted">
-                                Si todavía no conoce la diferencia entre Guiado, Asistido y Gestionado, seleccione la primera opción. La modalidad final se recomienda después del diagnóstico.
+                                Puede dejar que LAUDA recomiende la modalidad. Guiado es principalmente autoservicio con soporte por email; Asistido implica trabajo conjunto; Gestionado significa que LAUDA lidera el proceso.
                             </span>
                         </label>
 
@@ -2048,7 +2099,7 @@ onBeforeUnmount(() => {
                         <label class="flex items-start gap-3 sm:col-span-2">
                             <input v-model="contactForm.terms" type="checkbox" class="mt-1 h-4 w-4 rounded border-border accent-[#F5333C]" required />
                             <span class="text-xs leading-relaxed text-muted">
-                                Acepto que LAUDA me contacte para dar seguimiento a esta solicitud.
+                                Acepto que LAUDA me contacte para revisar esta solicitud y, cuando corresponda, habilitar el acceso privado al diagnóstico.
                                 <span v-if="contactErrors.terms" class="lauda-form-error block">{{ contactErrors.terms?.[ 0 ] || contactErrors.terms }}</span>
                             </span>
                         </label>
@@ -2060,7 +2111,7 @@ onBeforeUnmount(() => {
 
                     <div class="mt-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                         <p class="text-xs leading-relaxed text-muted">
-                            La solicitud no implica contratación. La conversación inicial permite determinar el alcance y los próximos pasos.
+                            La solicitud no implica contratación ni acceso automático. LAUDA revisa el caso antes de habilitar el diagnóstico privado.
                         </p>
 
                         <Button type="submit" class="w-full justify-center gap-2 rounded-xl bg-(--brand) px-6 py-6 text-white hover:bg-(--brand-hover) disabled:cursor-not-allowed disabled:opacity-70 sm:w-auto" :disabled="contactProcessing">
@@ -2307,6 +2358,28 @@ onBeforeUnmount(() => {
     .lauda-nav--compact .lauda-brand-tagline {
         display: none;
     }
+}
+
+.lauda-toast {
+    border-color: rgba(34, 197, 94, 0.22);
+    background: var(--surface);
+    box-shadow: 0 18px 50px -18px rgba(15, 23, 42, 0.35);
+}
+
+.lauda-page--dark .lauda-toast {
+    border-color: rgba(34, 197, 94, 0.28);
+    box-shadow: 0 22px 60px -20px rgba(0, 0, 0, 0.62);
+}
+
+.lauda-toast-enter-active,
+.lauda-toast-leave-active {
+    transition: opacity 180ms ease, transform 180ms ease;
+}
+
+.lauda-toast-enter-from,
+.lauda-toast-leave-to {
+    opacity: 0;
+    transform: translateY(-8px);
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -2685,7 +2758,9 @@ select.lauda-input {
 @media (prefers-reduced-motion: reduce) {
 
     .lauda-fade-enter-active,
-    .lauda-fade-leave-active {
+    .lauda-fade-leave-active,
+    .lauda-toast-enter-active,
+    .lauda-toast-leave-active {
         transition: none;
     }
 }
