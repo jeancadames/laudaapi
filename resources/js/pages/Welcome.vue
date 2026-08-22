@@ -7,6 +7,7 @@ import { nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import {
     Activity,
     ArrowRight,
+    ArrowUp,
     Boxes,
     Calculator,
     CheckCircle2,
@@ -759,6 +760,7 @@ const footerLegalLinks = [
 
 const mobileMenuOpen = ref(false)
 const isDarkMode = ref(false)
+const showBackToTop = ref(false)
 
 const hamburgerRef = ref(null)
 const mobileCloseRef = ref(null)
@@ -782,6 +784,14 @@ function togglePresentationMode() {
 
 function scrollToId(id) {
     document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+}
+
+function scrollToTop() {
+    window.scrollTo({ top: 0, behavior: 'smooth' })
+}
+
+function handleScroll() {
+    showBackToTop.value = window.scrollY > 520
 }
 
 function goLogin() {
@@ -815,12 +825,15 @@ onMounted(() => {
     const prefersDark = window.matchMedia?.('(prefers-color-scheme: dark)').matches
 
     setPresentationMode(savedMode ? savedMode === 'dark' : Boolean(prefersDark))
+    handleScroll()
     window.addEventListener('keydown', handleKeydown)
+    window.addEventListener('scroll', handleScroll, { passive: true })
 })
 
 onBeforeUnmount(() => {
     document.body.style.overflow = ''
     window.removeEventListener('keydown', handleKeydown)
+    window.removeEventListener('scroll', handleScroll)
 })
 </script>
 
@@ -2077,6 +2090,14 @@ onBeforeUnmount(() => {
                 </div>
             </div>
         </footer>
+
+        <!-- ===================== VOLVER AL INICIO ===================== -->
+        <transition name="lauda-backtop">
+            <button v-if="showBackToTop" type="button" class="lauda-back-to-top fixed bottom-5 right-5 z-50 inline-flex h-12 items-center justify-center gap-2 rounded-full border px-4 text-sm font-black shadow-lg sm:bottom-6 sm:right-6" aria-label="Volver al inicio" title="Volver al inicio" @click="scrollToTop">
+                <ArrowUp class="h-4 w-4" />
+                <span class="hidden sm:inline">Inicio</span>
+            </button>
+        </transition>
     </div>
 </template>
 
@@ -2285,6 +2306,50 @@ onBeforeUnmount(() => {
 
 select.lauda-input {
     cursor: pointer;
+}
+
+
+/* -------------------------------------------------------------------------- */
+/*  Volver al inicio                                                           */
+/* -------------------------------------------------------------------------- */
+
+.lauda-back-to-top {
+    border-color: rgba(var(--brand-rgb), 0.22);
+    color: #ffffff;
+    background: var(--brand);
+    box-shadow: 0 14px 34px rgba(var(--brand-rgb), 0.28);
+    transition: transform 0.2s ease, background-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.lauda-back-to-top:hover {
+    transform: translateY(-2px);
+    background: var(--brand-hover);
+    box-shadow: 0 18px 40px rgba(var(--brand-rgb), 0.34);
+}
+
+.lauda-back-to-top:focus-visible {
+    outline: 2px solid var(--brand);
+    outline-offset: 3px;
+}
+
+.lauda-backtop-enter-active,
+.lauda-backtop-leave-active {
+    transition: opacity 0.2s ease, transform 0.2s ease;
+}
+
+.lauda-backtop-enter-from,
+.lauda-backtop-leave-to {
+    opacity: 0;
+    transform: translateY(10px);
+}
+
+@media (prefers-reduced-motion: reduce) {
+
+    .lauda-back-to-top,
+    .lauda-backtop-enter-active,
+    .lauda-backtop-leave-active {
+        transition: none;
+    }
 }
 
 /* -------------------------------------------------------------------------- */
