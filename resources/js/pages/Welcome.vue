@@ -761,6 +761,7 @@ const footerLegalLinks = [
 const mobileMenuOpen = ref(false)
 const isDarkMode = ref(false)
 const showBackToTop = ref(false)
+const activeSection = ref('lauda360')
 
 const hamburgerRef = ref(null)
 const mobileCloseRef = ref(null)
@@ -790,8 +791,32 @@ function scrollToTop() {
     window.scrollTo({ top: 0, behavior: 'smooth' })
 }
 
+function updateActiveSection() {
+    const offset = 150
+
+    // Al llegar al final de la página, fuerza Diagnóstico como sección activa.
+    if (window.scrollY + window.innerHeight >= document.documentElement.scrollHeight - 24) {
+        activeSection.value = 'contacto'
+        return
+    }
+
+    let current = 'lauda360'
+
+    for (const link of mainNavLinks) {
+        const id = link.href.replace('#', '')
+        const section = document.getElementById(id)
+
+        if (section && section.getBoundingClientRect().top <= offset) {
+            current = id
+        }
+    }
+
+    activeSection.value = current
+}
+
 function handleScroll() {
     showBackToTop.value = window.scrollY > 520
+    updateActiveSection()
 }
 
 function goLogin() {
@@ -879,9 +904,14 @@ onBeforeUnmount(() => {
                 </Link>
 
                 <div class="ml-auto hidden items-center gap-4 text-[14px] font-semibold text-muted xl:gap-6 xl:text-[15px] lg:flex">
-                    <a v-for="link in mainNavLinks" :key="link.href" :href="link.href" class="relative flex h-19 items-center whitespace-nowrap transition-colors hover:text-(--text)" :class="link.primary
-                        ? 'font-black text-(--text) after:absolute after:bottom-0 after:left-0 after:h-0.5 after:w-full after:bg-(--brand)'
-                        : ''">
+                    <a v-for="link in mainNavLinks" :key="link.href" :href="link.href" class="relative flex h-19 items-center whitespace-nowrap transition-colors hover:text-(--text)" :class="[
+                        link.primary ? 'font-black' : '',
+                        activeSection === link.href.replace('#', '')
+                            ? 'text-(--text) after:absolute after:bottom-0 after:left-0 after:h-0.5 after:w-full after:bg-(--brand)'
+                            : link.primary
+                                ? 'text-(--brand)'
+                                : ''
+                    ]" :aria-current="activeSection === link.href.replace('#', '') ? 'location' : undefined" @click.prevent="scrollToId(link.href.replace('#', ''))">
                         {{ link.label }}
                     </a>
                 </div>
@@ -917,7 +947,12 @@ onBeforeUnmount(() => {
 
                     <div class="mt-6 min-h-0 flex-1 overflow-y-auto pr-1">
                         <nav class="flex flex-col gap-1">
-                            <a v-for="link in mainNavLinks" :key="link.href" :href="link.href" class="lauda-mobile-link rounded-xl px-3 py-3 text-base font-semibold text-(--text)" :class="link.primary ? 'bg-(--brand)/10 font-black text-(--brand)' : ''" @click="closeMobileMenu()">
+                            <a v-for="link in mainNavLinks" :key="link.href" :href="link.href" class="lauda-mobile-link rounded-xl px-3 py-3 text-base font-semibold text-(--text)" :class="[
+                                link.primary ? 'font-black' : '',
+                                activeSection === link.href.replace('#', '')
+                                    ? 'bg-(--brand)/10 text-(--brand)'
+                                    : ''
+                            ]" :aria-current="activeSection === link.href.replace('#', '') ? 'location' : undefined" @click.prevent="closeMobileMenu(); scrollToId(link.href.replace('#', ''))">
                                 {{ link.label }}
                             </a>
                         </nav>
