@@ -27,13 +27,8 @@ class AdminDiagnosisAccessRequestController extends Controller
 
         $base = ContactRequest::query()
             ->where(function ($q): void {
-                $q->whereIn('topic', [
-                    'Solicitud de acceso al Diagnóstico LAUDA 360',
-                    'Solicitud de Diagnóstico Digital 360',
-                ])->orWhereIn('metadata->request_type', [
-                    'digital_diagnosis_access_request',
-                    'digital_transformation_diagnosis',
-                ]);
+                $q->where('topic', 'Solicitud de Diagnóstico Digital 360')
+                    ->orWhere('metadata->request_type', 'digital_transformation_diagnosis');
             });
 
         if ($search !== '') {
@@ -103,13 +98,8 @@ class AdminDiagnosisAccessRequestController extends Controller
         $countsQuery = DB::table('contact_requests as c')
             ->leftJoin('diagnosis_access_requests as dar', 'dar.contact_request_id', '=', 'c.id')
             ->where(function ($q): void {
-                $q->whereIn('c.topic', [
-                    'Solicitud de acceso al Diagnóstico LAUDA 360',
-                    'Solicitud de Diagnóstico Digital 360',
-                ])->orWhereIn('c.metadata->request_type', [
-                    'digital_diagnosis_access_request',
-                    'digital_transformation_diagnosis',
-                ]);
+                $q->where('c.topic', 'Solicitud de Diagnóstico Digital 360')
+                    ->orWhere('c.metadata->request_type', 'digital_transformation_diagnosis');
             });
 
         $counts = [

@@ -21,21 +21,8 @@ class DiagnosisAccessService
     {
         $metadata = $contact->metadata ?? [];
 
-        return in_array(
-            $metadata['request_type'] ?? null,
-            [
-                'digital_diagnosis_access_request',
-                'digital_transformation_diagnosis',
-            ],
-            true
-        ) || in_array(
-            $contact->topic,
-            [
-                'Solicitud de acceso al Diagnóstico LAUDA 360',
-                'Solicitud de Diagnóstico Digital 360',
-            ],
-            true
-        );
+        return ($metadata['request_type'] ?? null) === 'digital_transformation_diagnosis'
+            || $contact->topic === 'Solicitud de Diagnóstico Digital 360';
     }
 
     public function workflowFor(ContactRequest $contact): DiagnosisAccessRequest

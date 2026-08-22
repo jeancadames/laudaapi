@@ -17,7 +17,10 @@ withDefaults(defineProps<Props>(), {
 <template>
     <AppShell variant="sidebar">
         <AppSidebar />
-        <AppContent variant="sidebar" class="overflow-x-hidden">
+        <AppContent
+            variant="sidebar"
+            class="lauda-app-surface overflow-x-hidden border-l border-slate-200/80 bg-white shadow-[-4px_0_24px_rgba(0,0,0,0.06)] dark:border-white/5 dark:bg-[#0a0a0a] dark:shadow-[-4px_0_24px_rgba(0,0,0,0.3)]"
+        >
             <AppSidebarHeader :breadcrumbs="breadcrumbs" />
             <slot />
         </AppContent>

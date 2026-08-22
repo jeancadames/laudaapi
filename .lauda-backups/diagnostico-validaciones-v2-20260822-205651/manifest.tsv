@@ -1,0 +1,4 @@
+existing	app/Http/Requests/StoreContactRequest.php
+existing	app/Services/Diagnosis/DiagnosisAccessService.php
+existing	app/Http/Controllers/Admin/AdminDiagnosisAccessRequestController.php
+new	tests/Feature/Diagnosis/DiagnosisContactRequestValidationTest.php

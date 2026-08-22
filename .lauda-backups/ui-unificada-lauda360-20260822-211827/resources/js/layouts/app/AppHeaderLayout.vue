@@ -16,7 +16,7 @@ withDefaults(defineProps<Props>(), {
 <template>
     <AppShell class="flex-col">
         <AppHeader :breadcrumbs="breadcrumbs" />
-        <AppContent class="lauda-app-surface">
+        <AppContent>
             <slot />
         </AppContent>
     </AppShell>
