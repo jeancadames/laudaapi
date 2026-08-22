@@ -1,3 +1,0 @@
-resources/js/Pages/Diagnosis/DigitalDiagnosisWizard.vue
-resources/js/Pages/Diagnosis/Show.vue
-tests/Unit/Diagnosis/Lauda360ScoringServiceTest.php

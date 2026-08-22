@@ -26,3 +26,9 @@ yarn-error.log
 /.nova
 /.vscode
 /.zed
+
+# Backups locales de instaladores LAUDA
+.lauda-backups/
+
+# Backups locales de instaladores LAUDA
+.lauda-backups/
