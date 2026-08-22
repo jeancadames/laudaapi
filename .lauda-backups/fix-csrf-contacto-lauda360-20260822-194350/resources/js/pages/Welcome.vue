@@ -612,86 +612,6 @@ function getCsrfToken() {
     return document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || ''
 }
 
-function getXsrfCookie() {
-    const prefix = 'XSRF-TOKEN='
-    const item = document.cookie
-        .split('; ')
-        .find((cookie) => cookie.startsWith(prefix))
-
-    if (!item) return ''
-
-    const value = item.slice(prefix.length)
-
-    try {
-        return decodeURIComponent(value)
-    } catch {
-        return value
-    }
-}
-
-function getContactCsrfHeaders() {
-    // Preferimos la cookie actual porque Laravel puede renovar/rotar la sesión
-    // mientras una pestaña del landing permanece abierta.
-    const xsrfToken = getXsrfCookie()
-
-    if (xsrfToken) {
-        return { 'X-XSRF-TOKEN': xsrfToken }
-    }
-
-    // Fallback para la primera carga o navegadores donde la cookie todavía
-    // no esté disponible.
-    const metaToken = getCsrfToken()
-
-    return metaToken ? { 'X-CSRF-TOKEN': metaToken } : {}
-}
-
-async function refreshContactCsrf() {
-    // GET seguro: Laravel renueva XSRF-TOKEN + cookie de sesión.
-    // cache:no-store evita reutilizar una respuesta local antigua.
-    const response = await fetch('/', {
-        method: 'GET',
-        headers: {
-            Accept: 'text/html',
-        },
-        credentials: 'same-origin',
-        cache: 'no-store',
-    })
-
-    if (!response.ok) {
-        return false
-    }
-
-    // Actualizamos también el meta de la pestaña para mantener ambos
-    // mecanismos sincronizados.
-    const html = await response.text()
-    const documentFresh = new DOMParser().parseFromString(html, 'text/html')
-    const freshMetaToken = documentFresh
-        .querySelector('meta[name="csrf-token"]')
-        ?.getAttribute('content') || ''
-
-    const currentMeta = document.querySelector('meta[name="csrf-token"]')
-
-    if (currentMeta && freshMetaToken) {
-        currentMeta.setAttribute('content', freshMetaToken)
-    }
-
-    return Boolean(getXsrfCookie() || freshMetaToken)
-}
-
-async function sendContactRequest(payload) {
-    return fetch(CONTACT_REQUEST_ENDPOINT, {
-        method: 'POST',
-        headers: {
-            Accept: 'application/json',
-            'Content-Type': 'application/json',
-            'X-Requested-With': 'XMLHttpRequest',
-            ...getContactCsrfHeaders(),
-        },
-        credentials: 'same-origin',
-        body: JSON.stringify(payload),
-    })
-}
-
 function buildContactPayload() {
     const form = contactForm.value
 
@@ -737,28 +657,21 @@ async function submitContact() {
     contactProcessing.value = true
 
     try {
-        const payload = buildContactPayload()
+        const csrfToken = getCsrfToken()
 
-        let response = await sendContactRequest(payload)
-
-        // Un 419 ocurre antes del controller, por lo que este reintento no
-        // puede duplicar una solicitud ya creada.
-        if (response.status === 419) {
-            const refreshed = await refreshContactCsrf()
-
-            if (refreshed) {
-                response = await sendContactRequest(payload)
-            }
-        }
+        const response = await fetch(CONTACT_REQUEST_ENDPOINT, {
+            method: 'POST',
+            headers: {
+                Accept: 'application/json',
+                'Content-Type': 'application/json',
+                'X-Requested-With': 'XMLHttpRequest',
+                ...(csrfToken ? { 'X-CSRF-TOKEN': csrfToken } : {}),
+            },
+            credentials: 'same-origin',
+            body: JSON.stringify(buildContactPayload()),
+        })
 
         const data = await response.json().catch(() => ({}))
-
-        if (response.status === 419) {
-            contactErrors.value = {
-                general: 'La sesión de seguridad expiró. Actualice la página e intente nuevamente.',
-            }
-            return
-        }
 
         if (response.status === 422) {
             contactErrors.value = data.errors || {}
