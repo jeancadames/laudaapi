@@ -1,0 +1,7 @@
+
+  GET|HEAD   diagnostico/{assessment} ................................................. diagnosis.show › Diagnosis\DigitalDiagnosisController@show
+  PATCH      diagnostico/{assessment} ............................................. diagnosis.update › Diagnosis\DigitalDiagnosisController@update
+  POST       diagnostico/{assessment}/submit ...................................... diagnosis.submit › Diagnosis\DigitalDiagnosisController@submit
+
+                                                                                                                                Showing [3] routes
+
