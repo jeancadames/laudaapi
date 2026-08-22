@@ -4,62 +4,13 @@ export const navigationByRole = {
     admin: {
         main: [
             { title: 'Dashboard', href: '/dashboard', icon: 'LayoutGrid' },
-
-            // LAUDA 360
             {
                 title: 'Diagnósticos 360',
                 href: '/admin/diagnosis-requests',
                 icon: 'Contact',
             },
-
-            // Gestión comercial
-            {
-                title: 'Solicitudes generales',
-                href: '/admin/contacts',
-                icon: 'Contact',
-            },
-            {
-                title: 'Activaciones',
-                href: '/admin/requests',
-                icon: 'ClipboardCheck',
-            },
-            { title: 'Empresas', href: '/admin/company', icon: 'Building2' },
-            {
-                title: 'Suscriptores',
-                href: '/admin/subscribers',
-                icon: 'PlugZap',
-            },
-
-            // Facturación
-            {
-                title: 'Suscripciones',
-                href: '/admin/subscriptions',
-                icon: 'PlugZap',
-            },
-            { title: 'Facturas', href: '/admin/invoices', icon: 'ReceiptText' },
-            { title: 'Pagos', href: '/admin/payments', icon: 'CreditCard' },
-
-            // Ecosistema
-            {
-                title: 'API Facturación Electrónica',
-                href: '/admin/services/api-facturacion-electronica',
-                icon: 'Webhook',
-            },
-            {
-                title: 'API Hub Marketplace',
-                href: '/admin/services/marketplace',
-                icon: 'Webhook',
-            },
-            {
-                title: 'API LaudaOne',
-                href: '/admin/services/laudaone',
-                icon: 'Webhook',
-            },
         ],
-        footer: [
-            { title: 'Auditoría', href: '/admin/auditlog', icon: 'Logs' },
-            { title: 'Errores', href: '/admin/errorlog', icon: 'Logs' },
-        ],
+        footer: [],
     },
 
     subscriber: {

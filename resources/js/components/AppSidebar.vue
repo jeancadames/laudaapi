@@ -66,32 +66,6 @@ const adminSections = computed<SidebarSection[]>(() => [
         title: 'LAUDA 360',
         items: byHrefs(adminMain, ['/admin/diagnosis-requests']),
     },
-    {
-        title: 'Gestión comercial',
-        items: byHrefs(adminMain, [
-            '/admin/contacts',
-            '/admin/requests',
-            '/admin/company',
-            '/admin/subscribers',
-        ]),
-    },
-    {
-        title: 'Facturación',
-        items: byHrefs(adminMain, [
-            '/admin/subscriptions',
-            '/admin/invoices',
-            '/admin/payments',
-        ]),
-    },
-    {
-        title: 'Ecosistema',
-        items: byHrefs(adminMain, [
-            '/admin/services/api-facturacion-electronica',
-            '/admin/services/marketplace',
-            '/admin/services/laudaone',
-        ]),
-    },
-    { title: 'Sistema', items: adminFooter },
 ]);
 
 const subscriberSections = computed<SidebarSection[]>(() => [
