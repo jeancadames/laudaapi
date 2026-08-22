@@ -282,8 +282,8 @@ const primarySolutions = [
         name: 'Social',
         href: 'https://social.laudaapi.com',
         stage: 'Presencia y relación digital',
-        desc: 'Identidad digital, contenido, campañas, inbox social, interacción, leads y analítica de canales.',
-        role: 'Construye la presencia digital de la empresa y convierte conversaciones e interacciones en oportunidades identificables.',
+        desc: 'Identidad digital, contenido, canales, interacción, campañas, inbox y captación de oportunidades.',
+        role: 'Construye la presencia digital de la empresa y convierte interacciones en oportunidades identificables.',
         connects: 'CRM, campañas, leads y analítica.',
         icon: MessageCircle,
         color: brand.social,
@@ -293,7 +293,7 @@ const primarySolutions = [
         href: 'https://crm.laudaapi.com',
         stage: 'Gestión comercial digital',
         desc: 'Contactos, leads, clientes, oportunidades, actividades, pipeline y seguimiento comercial.',
-        role: 'Organiza la relación comercial y convierte oportunidades digitales en procesos de venta gestionados.',
+        role: 'Organiza la relación comercial y convierte oportunidades en procesos de venta gestionados.',
         connects: 'Social, POS, Ecommerce y BI.',
         icon: Users,
         color: brand.crm,
@@ -302,61 +302,31 @@ const primarySolutions = [
         name: 'POS',
         href: 'https://pos.laudaapi.com',
         stage: 'Operación digital',
-        desc: 'Pedidos, ventas, servicios, caja, crédito, CxC, inventario, almacén, empaque, rutas y despacho.',
-        role: 'Digitaliza la ejecución comercial y operativa para convertir oportunidades en transacciones y procesos controlados.',
-        connects: 'CRM, Ecommerce, e-CF, Delivery, Bancos y BI.',
+        desc: 'Pedidos, ventas, servicios, caja, crédito, inventario, almacén, ecommerce, rutas y despacho.',
+        role: 'Digitaliza la ejecución comercial y operativa para convertir oportunidades en transacciones controladas.',
+        connects: 'CRM, Ecommerce, e-CF, Delivery y BI.',
         icon: Store,
         color: brand.pos,
     },
     {
-        name: 'BYS',
-        href: 'https://bys.laudaapi.com',
-        stage: 'Administración digital',
-        desc: 'Compras, proveedores, abastecimiento, importaciones, recepción de mercancía y control documental.',
-        role: 'Digitaliza el ciclo de compras y abastecimiento, conectando proveedores, documentos y obligaciones administrativas.',
-        connects: 'POS, e-CF, Cumplimiento, Tesorería y Contabilidad.',
-        icon: Boxes,
+        name: 'Administración',
+        href: '#ecosistema-detalle',
+        stage: 'Administración y cumplimiento',
+        desc: 'BYS, e-CF, Cumplimiento y Tesorería conectan compras, proveedores, fiscalidad, obligaciones y pagos.',
+        role: 'Integra el backoffice al flujo digital de la empresa sin separar la operación de sus procesos administrativos.',
+        connects: 'POS, BYS, e-CF, Cumplimiento, Tesorería y Contabilidad.',
+        icon: ShieldCheck,
         color: brand.bys,
     },
     {
-        name: 'e-CF',
-        href: 'https://ecf.laudaapi.com',
-        stage: 'Fiscalidad digital',
-        desc: 'Motor fiscal para firmar, enviar, consultar estados y responder comprobantes electrónicos ante DGII.',
-        role: 'Incorpora la facturación electrónica al flujo operativo sin separar la operación comercial del cumplimiento fiscal.',
-        connects: 'POS, Cumplimiento, BYS y Contabilidad.',
-        icon: FileText,
-        color: brand.ecf,
-    },
-    {
-        name: 'Cumplimiento',
-        href: 'https://cumplimiento.laudaapi.com',
-        stage: 'Cumplimiento digital',
-        desc: 'Control de obligaciones, documentos fiscales, vencimientos, soporte y trazabilidad.',
-        role: 'Centraliza seguimiento y evidencia de cumplimiento para reducir tareas manuales y riesgos administrativos.',
-        connects: 'e-CF, POS, BYS, Contabilidad y Status.',
-        icon: ShieldCheck,
-        color: brand.cumplimiento,
-    },
-    {
-        name: 'Tesorería',
-        href: 'https://tesoreria.laudaapi.com',
-        stage: 'Gestión financiera',
-        desc: 'Pagos, bancos, caja, conciliación, transferencias, cheques y ejecución de pagos autorizados.',
-        role: 'Conecta los movimientos de dinero con ventas, compras y obligaciones para mejorar el control financiero.',
-        connects: 'POS, BYS, Bancos, Contabilidad y RRHH.',
-        icon: Landmark,
-        color: brand.tesoreria,
-    },
-    {
-        name: 'Status',
-        href: 'https://status.laudaapi.com',
-        stage: 'Integración y continuidad',
-        desc: 'Monitoreo de disponibilidad, DGII, endpoints, APIs, incidencias y salud general del ecosistema.',
-        role: 'Aporta observabilidad y trazabilidad técnica para operar un ecosistema integrado con mayor continuidad.',
-        connects: 'Todas las soluciones LAUDAAPI.',
-        icon: Activity,
-        color: brand.status,
+        name: 'BI / Inteligencia',
+        href: '#inteligencia',
+        stage: 'Empresa inteligente',
+        desc: 'LAUDA Data, Dashboard 360 y BI consolidan la operación para generar indicadores, análisis, alertas y decisiones.',
+        role: 'Convierte los datos generados por la transformación en información para controlar, anticipar y actuar.',
+        connects: 'Social, CRM, POS, Administración y LAUDA Data.',
+        icon: TrendingUp,
+        color: brand.bi,
     },
 ]
 
@@ -1125,17 +1095,17 @@ onBeforeUnmount(() => {
                         </div>
 
                         <div class="mt-4 flex min-w-0 flex-wrap items-center gap-2">
-                            <span class="rounded-full border border-[#EC4899]/20 bg-[#EC4899]/10 px-3 py-1.5 text-[10px] font-black uppercase tracking-[0.1em] text-[#F472B6]">Social</span>
+                            <span class="rounded-full border border-[#EC4899]/20 bg-[#EC4899]/10 px-3 py-1.5 text-[10px] font-black uppercase tracking-widest text-[#F472B6]">Social</span>
                             <ArrowRight class="h-3.5 w-3.5 text-[#596277]" />
-                            <span class="rounded-full border border-[#A855F7]/20 bg-[#A855F7]/10 px-3 py-1.5 text-[10px] font-black uppercase tracking-[0.1em] text-[#C084FC]">CRM</span>
+                            <span class="rounded-full border border-[#A855F7]/20 bg-[#A855F7]/10 px-3 py-1.5 text-[10px] font-black uppercase tracking-widest text-[#C084FC]">CRM</span>
                             <ArrowRight class="h-3.5 w-3.5 text-[#596277]" />
-                            <span class="rounded-full border border-[#22C55E]/20 bg-[#22C55E]/10 px-3 py-1.5 text-[10px] font-black uppercase tracking-[0.1em] text-[#4ADE80]">POS</span>
+                            <span class="rounded-full border border-[#22C55E]/20 bg-[#22C55E]/10 px-3 py-1.5 text-[10px] font-black uppercase tracking-widest text-[#4ADE80]">POS</span>
                             <ArrowRight class="h-3.5 w-3.5 text-[#596277]" />
-                            <span class="rounded-full border border-[#F59E0B]/20 bg-[#F59E0B]/10 px-3 py-1.5 text-[10px] font-black uppercase tracking-[0.1em] text-[#FBBF24]">Administración</span>
+                            <span class="rounded-full border border-[#F59E0B]/20 bg-[#F59E0B]/10 px-3 py-1.5 text-[10px] font-black uppercase tracking-widest text-[#FBBF24]">Administración</span>
                             <ArrowRight class="h-3.5 w-3.5 text-[#596277]" />
-                            <span class="rounded-full border border-[#3B82F6]/20 bg-[#3B82F6]/10 px-3 py-1.5 text-[10px] font-black uppercase tracking-[0.1em] text-[#60A5FA]">Data</span>
+                            <span class="rounded-full border border-[#3B82F6]/20 bg-[#3B82F6]/10 px-3 py-1.5 text-[10px] font-black uppercase tracking-widest text-[#60A5FA]">Data</span>
                             <ArrowRight class="h-3.5 w-3.5 text-[#596277]" />
-                            <span class="rounded-full border border-[#3B82F6]/20 bg-[#3B82F6]/10 px-3 py-1.5 text-[10px] font-black uppercase tracking-[0.1em] text-[#93C5FD]">BI</span>
+                            <span class="rounded-full border border-[#3B82F6]/20 bg-[#3B82F6]/10 px-3 py-1.5 text-[10px] font-black uppercase tracking-widest text-[#93C5FD]">BI</span>
                         </div>
                     </div>
 
@@ -1558,19 +1528,33 @@ onBeforeUnmount(() => {
             <div class="mb-6 flex flex-col justify-between gap-4 lg:flex-row lg:items-end">
                 <div>
                     <p class="text-[10px] font-black uppercase tracking-[0.24em] text-(--brand)">
-                        Plataformas principales
+                        Ruta tecnológica principal
                     </p>
                     <h2 class="mt-2 max-w-4xl text-[28px] font-black leading-[1.08] tracking-tight text-(--text) sm:text-[34px]">
-                        Cada plataforma cumple una función específica dentro del proceso de transformación.
+                        La tecnología se incorpora en el mismo orden en que madura la empresa.
                     </h2>
                 </div>
 
                 <p class="max-w-xl text-sm leading-relaxed text-muted">
-                    Las aplicaciones mantienen su especialidad y su tenant, pero se relacionan con una misma empresa y comparten información mediante el ecosistema LAUDAAPI.
+                    Para el cliente, la ruta principal es simple: presencia digital, gestión comercial, operación, administración e inteligencia. Las plataformas especializadas aparecen cuando el roadmap las necesita.
                 </p>
             </div>
 
-            <div class="grid gap-5 md:grid-cols-2 xl:grid-cols-4">
+            <div class="mb-6 rounded-3xl border border-border bg-(--surface-soft) p-4 sm:p-5">
+                <div class="flex flex-wrap items-center gap-2 text-[10px] font-black uppercase tracking-widest text-(--soft)">
+                    <span class="rounded-full bg-[#EC4899]/10 px-3 py-1.5 text-[#EC4899]">Social</span>
+                    <ArrowRight class="h-3.5 w-3.5" />
+                    <span class="rounded-full bg-[#A855F7]/10 px-3 py-1.5 text-[#A855F7]">CRM</span>
+                    <ArrowRight class="h-3.5 w-3.5" />
+                    <span class="rounded-full bg-[#22C55E]/10 px-3 py-1.5 text-[#16A34A]">POS</span>
+                    <ArrowRight class="h-3.5 w-3.5" />
+                    <span class="rounded-full bg-[#8B5CF6]/10 px-3 py-1.5 text-[#7C3AED]">Administración</span>
+                    <ArrowRight class="h-3.5 w-3.5" />
+                    <span class="rounded-full bg-[#3B82F6]/10 px-3 py-1.5 text-[#2563EB]">BI / Inteligencia</span>
+                </div>
+            </div>
+
+            <div class="grid gap-5 md:grid-cols-2 xl:grid-cols-5">
                 <a v-for="solution in primarySolutions" :key="solution.name" :href="solution.href" class="lauda-card group rounded-3xl border p-5 transition-all hover:-translate-y-1 hover:shadow-xl">
                     <div class="mb-4 flex items-start gap-4">
                         <span class="grid h-11 w-11 shrink-0 place-items-center rounded-2xl" :style="{ background: solution.color + '1a' }">
@@ -1602,7 +1586,7 @@ onBeforeUnmount(() => {
                     </p>
 
                     <div class="mt-4 inline-flex items-center gap-2 text-sm font-black text-(--brand)">
-                        Conocer plataforma
+                        Ver detalle
                         <ArrowRight class="h-4 w-4 transition-transform group-hover:translate-x-1" />
                     </div>
                 </a>
@@ -1726,7 +1710,7 @@ onBeforeUnmount(() => {
                 <p class="text-[10px] font-black uppercase tracking-[0.18em] text-(--brand)">
                     De la operación a la decisión
                 </p>
-                <div class="mt-4 flex flex-wrap items-center gap-2 text-[11px] font-black uppercase tracking-[0.10em] text-(--soft)">
+                <div class="mt-4 flex flex-wrap items-center gap-2 text-[11px] font-black uppercase tracking-widest text-(--soft)">
                     <span class="rounded-full bg-[#EC4899]/10 px-3 py-1.5 text-[#EC4899]">Social</span>
                     <ArrowRight class="h-3.5 w-3.5" />
                     <span class="rounded-full bg-[#A855F7]/10 px-3 py-1.5 text-[#A855F7]">CRM</span>
@@ -1854,7 +1838,7 @@ onBeforeUnmount(() => {
                             RRHH, Proyectos, Eventos, Transporte, Grúas, Loans y Dealers se incorporan únicamente cuando el diagnóstico identifica una necesidad específica del negocio.
                         </p>
 
-                        <div class="mt-5 flex flex-wrap items-center gap-2 text-[10px] font-black uppercase tracking-[0.10em] text-(--soft)">
+                        <div class="mt-5 flex flex-wrap items-center gap-2 text-[10px] font-black uppercase tracking-widest text-(--soft)">
                             <span class="rounded-full border border-border bg-(--surface-soft) px-3 py-1.5">Necesidad</span>
                             <ArrowRight class="h-3.5 w-3.5" />
                             <span class="rounded-full border border-border bg-(--surface-soft) px-3 py-1.5">Proceso</span>
