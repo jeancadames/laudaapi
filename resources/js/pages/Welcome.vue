@@ -761,6 +761,7 @@ const footerLegalLinks = [
 const mobileMenuOpen = ref(false)
 const isDarkMode = ref(false)
 const showBackToTop = ref(false)
+const navCompact = ref(false)
 const activeSection = ref('lauda360')
 
 const hamburgerRef = ref(null)
@@ -815,7 +816,10 @@ function updateActiveSection() {
 }
 
 function handleScroll() {
-    showBackToTop.value = window.scrollY > 520
+    const scrollY = window.scrollY
+
+    navCompact.value = scrollY > 80
+    showBackToTop.value = scrollY > 520
     updateActiveSection()
 }
 
@@ -888,23 +892,23 @@ onBeforeUnmount(() => {
 
     <div :class="[ 'lauda-page min-h-screen antialiased', { 'lauda-page--dark': isDarkMode } ]">
         <!-- ===================== NAV ===================== -->
-        <nav class="lauda-nav sticky top-0 z-50 border-b backdrop-blur-xl">
-            <div class="mx-auto flex h-19 max-w-none items-center gap-3 px-4 sm:gap-6 sm:px-6 lg:gap-8 lg:px-8 2xl:px-10">
-                <Link href="/" class="flex items-center gap-2.5">
-                    <div class="grid h-11 w-11 place-items-center rounded-xl bg-(--brand) font-black text-white shadow-xl shadow-[#F5333C]/35">
-                        <BrandLogo class="h-6 w-6 text-white" />
+        <nav class="lauda-nav sticky top-0 z-50 border-b backdrop-blur-xl" :class="{ 'lauda-nav--compact': navCompact }">
+            <div class="lauda-nav-inner mx-auto flex h-19 max-w-none items-center gap-3 px-4 sm:gap-6 sm:px-6 lg:gap-8 lg:px-8 2xl:px-10">
+                <Link href="/" class="lauda-nav-brand flex items-center gap-2.5">
+                    <div class="lauda-brand-mark grid h-11 w-11 place-items-center rounded-xl bg-(--brand) font-black text-white shadow-xl shadow-[#F5333C]/35">
+                        <BrandLogo class="lauda-brand-icon h-6 w-6 text-white" />
                     </div>
 
                     <div class="leading-none">
-                        <div class="text-[20px] font-extrabold tracking-tight text-(--text)">LAUDA</div>
-                        <div class="mt-0.5 text-[9px] font-semibold tracking-[0.2em] text-(--brand)">
+                        <div class="lauda-brand-name text-[20px] font-extrabold tracking-tight text-(--text)">LAUDA</div>
+                        <div class="lauda-brand-tagline mt-0.5 text-[9px] font-semibold tracking-[0.2em] text-(--brand)">
                             API DIGITAL
                         </div>
                     </div>
                 </Link>
 
                 <div class="ml-auto hidden items-center gap-4 text-[14px] font-semibold text-muted xl:gap-6 xl:text-[15px] lg:flex">
-                    <a v-for="link in mainNavLinks" :key="link.href" :href="link.href" class="relative flex h-19 items-center whitespace-nowrap transition-colors hover:text-(--text)" :class="[
+                    <a v-for="link in mainNavLinks" :key="link.href" :href="link.href" class="lauda-nav-link relative flex h-19 items-center whitespace-nowrap transition-colors hover:text-(--text)" :class="[
                         link.primary ? 'font-black' : '',
                         activeSection === link.href.replace('#', '')
                             ? 'text-(--text) after:absolute after:bottom-0 after:left-0 after:h-0.5 after:w-full after:bg-(--brand)'
@@ -916,17 +920,17 @@ onBeforeUnmount(() => {
                     </a>
                 </div>
 
-                <button type="button" class="lauda-mode-toggle ml-auto grid h-11 w-11 shrink-0 place-items-center rounded-xl border transition lg:ml-0" :aria-label="isDarkMode ? 'Cambiar a modo claro' : 'Cambiar a modo oscuro'" :title="isDarkMode ? 'Modo claro' : 'Modo oscuro'" @click="togglePresentationMode">
+                <button type="button" class="lauda-mode-toggle lauda-nav-action ml-auto grid h-11 w-11 shrink-0 place-items-center rounded-xl border transition lg:ml-0" :aria-label="isDarkMode ? 'Cambiar a modo claro' : 'Cambiar a modo oscuro'" :title="isDarkMode ? 'Modo claro' : 'Modo oscuro'" @click="togglePresentationMode">
                     <component :is="isDarkMode ? Sun : Moon" class="h-4 w-4" />
                 </button>
 
-                <Button class="hidden gap-2 rounded-xl bg-[#0B0B12] px-6 py-6 text-white hover:bg-black lg:inline-flex" @click="goLogin">
+                <Button class="lauda-login-button hidden gap-2 rounded-xl bg-[#0B0B12] px-6 py-6 text-white hover:bg-black lg:inline-flex" @click="goLogin">
                     <User class="h-4 w-4" />
                     Iniciar sesión
                 </Button>
 
                 <!-- Hamburguesa (solo móvil / tablet) -->
-                <button ref="hamburgerRef" type="button" class="lauda-icon-btn ml-1 grid h-11 w-11 place-items-center rounded-xl border lg:hidden" aria-controls="mobile-menu" :aria-expanded="mobileMenuOpen" aria-label="Abrir menú de navegación" @click="openMobileMenu">
+                <button ref="hamburgerRef" type="button" class="lauda-icon-btn lauda-nav-action ml-1 grid h-11 w-11 place-items-center rounded-xl border lg:hidden" aria-controls="mobile-menu" :aria-expanded="mobileMenuOpen" aria-label="Abrir menú de navegación" @click="openMobileMenu">
                     <Menu class="h-5 w-5" />
                 </button>
             </div>
@@ -2188,6 +2192,100 @@ onBeforeUnmount(() => {
 .lauda-nav {
     border-color: var(--border);
     background: var(--nav-bg);
+    transition: background-color 0.22s ease, box-shadow 0.22s ease, border-color 0.22s ease;
+}
+
+.lauda-nav-inner,
+.lauda-brand-mark,
+.lauda-brand-icon,
+.lauda-brand-name,
+.lauda-brand-tagline,
+.lauda-nav-link,
+.lauda-nav-action,
+.lauda-login-button {
+    transition:
+        height 0.22s ease,
+        width 0.22s ease,
+        padding 0.22s ease,
+        font-size 0.22s ease,
+        gap 0.22s ease,
+        border-radius 0.22s ease,
+        box-shadow 0.22s ease,
+        opacity 0.22s ease,
+        transform 0.22s ease;
+}
+
+.lauda-nav--compact {
+    box-shadow: 0 10px 30px rgba(15, 23, 42, 0.08);
+}
+
+.lauda-page--dark .lauda-nav--compact {
+    box-shadow: 0 12px 34px rgba(0, 0, 0, 0.28);
+}
+
+.lauda-nav--compact .lauda-nav-inner {
+    height: 64px;
+}
+
+.lauda-nav--compact .lauda-brand-mark {
+    width: 36px;
+    height: 36px;
+    border-radius: 10px;
+    box-shadow: 0 10px 24px rgba(var(--brand-rgb), 0.22);
+}
+
+.lauda-nav--compact .lauda-brand-icon {
+    width: 20px;
+    height: 20px;
+}
+
+.lauda-nav--compact .lauda-brand-name {
+    font-size: 18px;
+}
+
+.lauda-nav--compact .lauda-brand-tagline {
+    margin-top: 1px;
+    font-size: 8px;
+}
+
+.lauda-nav--compact .lauda-nav-link {
+    height: 64px;
+    font-size: 14px;
+}
+
+.lauda-nav--compact .lauda-nav-action {
+    width: 40px;
+    height: 40px;
+    border-radius: 10px;
+}
+
+.lauda-nav--compact .lauda-login-button {
+    padding: 0.625rem 1.25rem;
+}
+
+@media (max-width: 1023px) {
+    .lauda-nav--compact .lauda-nav-inner {
+        height: 60px;
+    }
+
+    .lauda-nav--compact .lauda-brand-tagline {
+        display: none;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+
+    .lauda-nav,
+    .lauda-nav-inner,
+    .lauda-brand-mark,
+    .lauda-brand-icon,
+    .lauda-brand-name,
+    .lauda-brand-tagline,
+    .lauda-nav-link,
+    .lauda-nav-action,
+    .lauda-login-button {
+        transition: none;
+    }
 }
 
 
