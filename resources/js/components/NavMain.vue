@@ -1,108 +1,57 @@
 <script setup lang="ts">
-import { computed } from 'vue'
-import { Link } from '@inertiajs/vue3'
+import { Link } from '@inertiajs/vue3';
+
 import {
     SidebarGroup,
-    SidebarGroupLabel,
     SidebarMenu,
-    SidebarMenuButton,
     SidebarMenuItem,
-} from '@/components/ui/sidebar'
-import { useCurrentUrl } from '@/composables/useCurrentUrl'
-import { type NavItem } from '@/types'
+} from '@/components/ui/sidebar';
+import { useCurrentUrl } from '@/composables/useCurrentUrl';
+import { toUrl } from '@/lib/utils';
+import type { NavItem } from '@/types';
 
-const props = withDefaults(defineProps<{
-    items: NavItem[]
-    label?: string | null
-    size?: 'sm' | 'xs'
-}>(), {
-    label: 'Plataforma',
-    size: 'sm',
-})
+defineProps<{
+    items: NavItem[];
+}>();
 
-const { isCurrentUrl } = useCurrentUrl()
+const { isCurrentUrl } = useCurrentUrl();
 
-const textClass = computed(() =>
-    props.size === 'xs'
-        ? 'text-xs leading-4'
-        : 'text-sm'
-)
-function isExternalLaunch(item: NavItem): item is NavItem & { href: string } {
-    // ✅ regla práctica:
-    // cualquier servicio que pase por /erp/services/open/ lo abrimos
-    // con navegación completa del browser
-    return typeof item.href === 'string' && item.href.startsWith('/erp/services/open/')
+function itemClasses(active: boolean): string {
+    return [
+        'group flex w-full items-center gap-2.5 rounded-md px-2.5 py-1.5 text-[11.5px] font-semibold transition-all duration-150',
+        active
+            ? 'bg-[#F53003]/10 text-[#F53003] dark:bg-[#F53003]/15 dark:text-red-300'
+            : 'text-white/60 hover:bg-white/6 hover:text-white/90',
+    ].join(' ');
+}
+
+function iconClasses(active: boolean): string {
+    return [
+        'h-3.5 w-3.5 shrink-0 transition-colors duration-150',
+        active
+            ? 'text-[#F53003] dark:text-red-300'
+            : 'text-white/55 group-hover:text-white/90',
+    ].join(' ');
 }
 </script>
 
 <template>
     <SidebarGroup class="px-2 py-0">
-        <SidebarGroupLabel v-if="label">{{ label }}</SidebarGroupLabel>
-
-        <div v-else class="my-2 h-px bg-slate-200/70 dark:bg-slate-800/70" />
-
         <SidebarMenu>
             <SidebarMenuItem v-for="item in items" :key="item.title">
-                <SidebarMenuButton
-                    as-child
-                    :is-active="isCurrentUrl(item.href)"
-                    :tooltip="item.title"
-                    class="h-auto! items-start! py-2!"
+                <Link
+                    :href="toUrl(item.href)"
+                    :class="itemClasses(isCurrentUrl(toUrl(item.href)))"
                 >
-                    <!-- ✅ External launch / full page navigation -->
-                    <a
-                        v-if="isExternalLaunch(item)"
-                        :href="item.href"
-                        class="flex w-full min-w-0 items-start justify-between gap-2"
-                    >
-                        <component
-                            v-if="props.size !== 'xs'"
-                            :is="item.icon"
-                            class="mt-0.5 h-4 w-4 shrink-0"
-                        />
+                    <component
+                        :is="item.icon"
+                        :class="iconClasses(isCurrentUrl(toUrl(item.href)))"
+                    />
 
-                        <div
-                            class="min-w-0 flex-1 overflow-hidden whitespace-normal wrap-break-word line-clamp-2 leading-4"
-                            :class="textClass"
-                            :title="item.title"
-                        >
-                            {{ item.title }}
-                        </div>
-
-                        <component
-                            v-if="props.size === 'xs'"
-                            :is="item.icon"
-                            class="mt-0.5 h-4 w-4 shrink-0 opacity-80"
-                        />
-                    </a>
-                    
-                    <!-- ✅ Normal internal Inertia navigation -->
-                    <Link
-                        v-else
-                        :href="item.href"
-                        class="flex w-full min-w-0 items-start justify-between gap-2"
-                    >
-                        <component
-                            v-if="props.size !== 'xs'"
-                            :is="item.icon"
-                            class="mt-0.5 h-4 w-4 shrink-0"
-                        />
-
-                        <div
-                            class="min-w-0 flex-1 overflow-hidden whitespace-normal wrap-break-word line-clamp-2 leading-4"
-                            :class="textClass"
-                            :title="item.title"
-                        >
-                            {{ item.title }}
-                        </div>
-
-                        <component
-                            v-if="props.size === 'xs'"
-                            :is="item.icon"
-                            class="mt-0.5 h-4 w-4 shrink-0 opacity-80"
-                        />
-                    </Link>
-                </SidebarMenuButton>
+                    <span class="truncate group-data-[collapsible=icon]:hidden">
+                        {{ item.title }}
+                    </span>
+                </Link>
             </SidebarMenuItem>
         </SidebarMenu>
     </SidebarGroup>
