@@ -281,8 +281,6 @@ const primarySolutions = [
     {
         name: 'Social',
         href: 'https://social.laudaapi.com',
-        status: 'En desarrollo',
-        statusColor: brand.ecommerce,
         stage: 'Presencia y relación digital',
         desc: 'Identidad digital, contenido, campañas, inbox social, interacción, leads y analítica de canales.',
         role: 'Construye la presencia digital de la empresa y convierte conversaciones e interacciones en oportunidades identificables.',
@@ -293,8 +291,6 @@ const primarySolutions = [
     {
         name: 'CRM',
         href: 'https://crm.laudaapi.com',
-        status: 'En desarrollo avanzado',
-        statusColor: brand.ecf,
         stage: 'Gestión comercial digital',
         desc: 'Contactos, leads, clientes, oportunidades, actividades, pipeline y seguimiento comercial.',
         role: 'Organiza la relación comercial y convierte oportunidades digitales en procesos de venta gestionados.',
@@ -305,8 +301,6 @@ const primarySolutions = [
     {
         name: 'POS',
         href: 'https://pos.laudaapi.com',
-        status: 'En desarrollo avanzado',
-        statusColor: brand.ecf,
         stage: 'Operación digital',
         desc: 'Pedidos, ventas, servicios, caja, crédito, CxC, inventario, almacén, empaque, rutas y despacho.',
         role: 'Digitaliza la ejecución comercial y operativa para convertir oportunidades en transacciones y procesos controlados.',
@@ -317,8 +311,6 @@ const primarySolutions = [
     {
         name: 'BYS',
         href: 'https://bys.laudaapi.com',
-        status: 'En desarrollo',
-        statusColor: brand.bys,
         stage: 'Administración digital',
         desc: 'Compras, proveedores, abastecimiento, importaciones, recepción de mercancía y control documental.',
         role: 'Digitaliza el ciclo de compras y abastecimiento, conectando proveedores, documentos y obligaciones administrativas.',
@@ -329,8 +321,6 @@ const primarySolutions = [
     {
         name: 'e-CF',
         href: 'https://ecf.laudaapi.com',
-        status: 'Disponible',
-        statusColor: brand.pos,
         stage: 'Fiscalidad digital',
         desc: 'Motor fiscal para firmar, enviar, consultar estados y responder comprobantes electrónicos ante DGII.',
         role: 'Incorpora la facturación electrónica al flujo operativo sin separar la operación comercial del cumplimiento fiscal.',
@@ -341,8 +331,6 @@ const primarySolutions = [
     {
         name: 'Cumplimiento',
         href: 'https://cumplimiento.laudaapi.com',
-        status: 'Disponible',
-        statusColor: brand.pos,
         stage: 'Cumplimiento digital',
         desc: 'Control de obligaciones, documentos fiscales, vencimientos, soporte y trazabilidad.',
         role: 'Centraliza seguimiento y evidencia de cumplimiento para reducir tareas manuales y riesgos administrativos.',
@@ -353,8 +341,6 @@ const primarySolutions = [
     {
         name: 'Tesorería',
         href: 'https://tesoreria.laudaapi.com',
-        status: 'En desarrollo',
-        statusColor: brand.tesoreria,
         stage: 'Gestión financiera',
         desc: 'Pagos, bancos, caja, conciliación, transferencias, cheques y ejecución de pagos autorizados.',
         role: 'Conecta los movimientos de dinero con ventas, compras y obligaciones para mejorar el control financiero.',
@@ -365,8 +351,6 @@ const primarySolutions = [
     {
         name: 'Status',
         href: 'https://status.laudaapi.com',
-        status: 'Disponible',
-        statusColor: brand.pos,
         stage: 'Integración y continuidad',
         desc: 'Monitoreo de disponibilidad, DGII, endpoints, APIs, incidencias y salud general del ecosistema.',
         role: 'Aporta observabilidad y trazabilidad técnica para operar un ecosistema integrado con mayor continuidad.',
@@ -792,7 +776,7 @@ const mainNavLinks = [
     { label: 'Modalidades', href: '#modalidades' },
     { label: 'Ecosistema', href: '#ecosistema-detalle' },
     { label: 'Inteligencia', href: '#dashboard' },
-    { label: 'Contacto', href: '#contacto' },
+    { label: 'Diagnóstico', href: '#contacto' },
 ]
 
 const currentYear = new Date().getFullYear()
@@ -803,7 +787,7 @@ const footerQuickLinks = [
     { label: 'Modalidades', href: '#modalidades' },
     { label: 'Ecosistema', href: '#ecosistema-detalle' },
     { label: 'Inteligencia', href: '#dashboard' },
-    { label: 'Contacto', href: '#contacto' },
+    { label: 'Diagnóstico', href: '#contacto' },
 ]
 
 const footerLegalLinks = [
@@ -989,7 +973,7 @@ onBeforeUnmount(() => {
                         LAUDA Transformación Digital 360
                     </span>
 
-                    <h1 class="mt-6 text-[34px] font-extrabold leading-[1.02] tracking-[-0.04em] text-(--text) sm:text-[48px] lg:text-[56px]">
+                    <h1 class="mt-5 text-[34px] font-extrabold leading-[1.01] tracking-[-0.04em] text-(--text) sm:text-[46px] lg:text-[52px]">
                         Transformamos su empresa para competir
                         <span class="text-(--brand)">en un mundo digital.</span>
                     </h1>
@@ -1019,12 +1003,12 @@ onBeforeUnmount(() => {
 
                     <div class="mt-8 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
                         <Button class="w-full justify-center gap-2 rounded-xl bg-(--brand) px-6 py-6 text-white hover:bg-(--brand-hover) sm:w-auto" @click="scrollToId('contacto')">
-                            Iniciar diagnóstico digital
+                            Solicitar diagnóstico
                             <ArrowRight class="h-4 w-4" />
                         </Button>
 
-                        <Button variant="outline" class="lauda-outline-button w-full justify-center gap-2 rounded-xl px-6 py-6 sm:w-auto" @click="scrollToId('lauda360')">
-                            Ver cómo funciona
+                        <Button variant="outline" class="lauda-outline-button w-full justify-center gap-2 rounded-xl px-6 py-6 sm:w-auto" @click="scrollToId('roadmap')">
+                            Ver roadmap
                             <ArrowRight class="h-4 w-4" />
                         </Button>
                     </div>
@@ -1048,7 +1032,7 @@ onBeforeUnmount(() => {
 
                 <!-- Columna derecha: evolución de la empresa -->
                 <div class="lauda-hero__panel">
-                    <div class="flex flex-col gap-4 border-b border-white/8 pb-5 sm:flex-row sm:items-start sm:justify-between">
+                    <div class="flex flex-col gap-4 border-b border-white/[0.08] pb-5 sm:flex-row sm:items-start sm:justify-between">
                         <div>
                             <div class="flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.2em] text-[#F5333C]">
                                 <span class="h-2 w-2 rounded-full bg-[#F5333C]" />
@@ -1072,7 +1056,7 @@ onBeforeUnmount(() => {
                     <div class="mt-5 grid gap-3 sm:grid-cols-2">
                         <div class="rounded-2xl border border-white/[0.07] bg-[#111625] p-4">
                             <div class="flex items-center justify-between gap-3">
-                                <span class="grid h-10 w-10 place-items-center rounded-xl bg-white/6 text-[#A8B0C3]">
+                                <span class="grid h-10 w-10 place-items-center rounded-xl bg-white/[0.06] text-[#A8B0C3]">
                                     <Boxes class="h-5 w-5" />
                                 </span>
                                 <span class="text-[10px] font-black uppercase tracking-[0.12em] text-[#6F7890]">01</span>
@@ -1141,21 +1125,21 @@ onBeforeUnmount(() => {
                         </div>
 
                         <div class="mt-4 flex min-w-0 flex-wrap items-center gap-2">
-                            <span class="rounded-full border border-[#EC4899]/20 bg-[#EC4899]/10 px-3 py-1.5 text-[10px] font-black uppercase tracking-widest text-[#F472B6]">Social</span>
+                            <span class="rounded-full border border-[#EC4899]/20 bg-[#EC4899]/10 px-3 py-1.5 text-[10px] font-black uppercase tracking-[0.1em] text-[#F472B6]">Social</span>
                             <ArrowRight class="h-3.5 w-3.5 text-[#596277]" />
-                            <span class="rounded-full border border-[#A855F7]/20 bg-[#A855F7]/10 px-3 py-1.5 text-[10px] font-black uppercase tracking-widest text-[#C084FC]">CRM</span>
+                            <span class="rounded-full border border-[#A855F7]/20 bg-[#A855F7]/10 px-3 py-1.5 text-[10px] font-black uppercase tracking-[0.1em] text-[#C084FC]">CRM</span>
                             <ArrowRight class="h-3.5 w-3.5 text-[#596277]" />
-                            <span class="rounded-full border border-[#22C55E]/20 bg-[#22C55E]/10 px-3 py-1.5 text-[10px] font-black uppercase tracking-widest text-[#4ADE80]">POS</span>
+                            <span class="rounded-full border border-[#22C55E]/20 bg-[#22C55E]/10 px-3 py-1.5 text-[10px] font-black uppercase tracking-[0.1em] text-[#4ADE80]">POS</span>
                             <ArrowRight class="h-3.5 w-3.5 text-[#596277]" />
-                            <span class="rounded-full border border-[#F59E0B]/20 bg-[#F59E0B]/10 px-3 py-1.5 text-[10px] font-black uppercase tracking-widest text-[#FBBF24]">Administración</span>
+                            <span class="rounded-full border border-[#F59E0B]/20 bg-[#F59E0B]/10 px-3 py-1.5 text-[10px] font-black uppercase tracking-[0.1em] text-[#FBBF24]">Administración</span>
                             <ArrowRight class="h-3.5 w-3.5 text-[#596277]" />
-                            <span class="rounded-full border border-[#3B82F6]/20 bg-[#3B82F6]/10 px-3 py-1.5 text-[10px] font-black uppercase tracking-widest text-[#60A5FA]">Data</span>
+                            <span class="rounded-full border border-[#3B82F6]/20 bg-[#3B82F6]/10 px-3 py-1.5 text-[10px] font-black uppercase tracking-[0.1em] text-[#60A5FA]">Data</span>
                             <ArrowRight class="h-3.5 w-3.5 text-[#596277]" />
-                            <span class="rounded-full border border-[#3B82F6]/20 bg-[#3B82F6]/10 px-3 py-1.5 text-[10px] font-black uppercase tracking-widest text-[#93C5FD]">BI</span>
+                            <span class="rounded-full border border-[#3B82F6]/20 bg-[#3B82F6]/10 px-3 py-1.5 text-[10px] font-black uppercase tracking-[0.1em] text-[#93C5FD]">BI</span>
                         </div>
                     </div>
 
-                    <div class="mt-4 flex items-center gap-3 rounded-2xl border border-white/[0.07] bg-white/2.5 px-4 py-3">
+                    <div class="mt-4 flex items-center gap-3 rounded-2xl border border-white/[0.07] bg-white/[0.025] px-4 py-3">
                         <span class="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-[#F5333C]/12 text-[#F5333C]">
                             <ShieldCheck class="h-4 w-4" />
                         </span>
@@ -1169,13 +1153,13 @@ onBeforeUnmount(() => {
         </section>
 
         <!-- ===================== LAUDA 360 ===================== -->
-        <section id="lauda360" class="mx-auto max-w-360 scroll-mt-24 px-4 py-12 sm:px-6 sm:py-16 2xl:px-8">
-            <div class="mb-9 grid gap-6 lg:grid-cols-[minmax(0,0.95fr)_minmax(0,1.05fr)] lg:items-end">
+        <section id="lauda360" class="mx-auto max-w-360 scroll-mt-24 px-4 py-10 sm:px-6 sm:py-12 2xl:px-8">
+            <div class="mb-7 grid gap-5 lg:grid-cols-[minmax(0,0.95fr)_minmax(0,1.05fr)] lg:items-end">
                 <div>
                     <p class="text-[10px] font-black uppercase tracking-[0.24em] text-(--brand)">
                         Qué es LAUDA 360
                     </p>
-                    <h2 class="mt-2 max-w-3xl text-3xl font-black tracking-tight text-(--text) sm:text-4xl">
+                    <h2 class="mt-2 max-w-3xl text-[28px] font-black leading-[1.08] tracking-tight text-(--text) sm:text-[34px]">
                         Un servicio para transformar la empresa, no solo para digitalizar tareas.
                     </h2>
                 </div>
@@ -1187,9 +1171,9 @@ onBeforeUnmount(() => {
                 </p>
             </div>
 
-            <div class="grid gap-5 lg:grid-cols-[minmax(0,0.78fr)_minmax(0,1.22fr)]">
+            <div class="grid gap-4 lg:grid-cols-[minmax(0,0.78fr)_minmax(0,1.22fr)]">
                 <!-- Qué obtiene el cliente -->
-                <div class="lauda-card rounded-4xl border p-6 lg:p-7">
+                <div class="lauda-card rounded-3xl border p-5 lg:p-6">
                     <div class="flex items-start gap-4">
                         <span class="grid h-12 w-12 shrink-0 place-items-center rounded-2xl bg-(--brand)/10 text-(--brand)">
                             <Activity class="h-5 w-5" />
@@ -1268,7 +1252,7 @@ onBeforeUnmount(() => {
                                     0{{ index + 1 }}
                                 </span>
                             </div>
-                            <h3 class="mt-5 text-lg font-black text-(--text)">
+                            <h3 class="mt-4 text-lg font-black text-(--text)">
                                 {{ pillar.title }}
                             </h3>
                             <p class="mt-2 text-sm leading-relaxed text-muted">
@@ -1294,13 +1278,13 @@ onBeforeUnmount(() => {
         </section>
 
         <!-- ===================== ROADMAP ===================== -->
-        <section id="roadmap" class="mx-auto max-w-360 scroll-mt-24 px-4 py-10 sm:px-6 sm:py-14 2xl:px-8">
-            <div class="mb-8 flex flex-col justify-between gap-4 lg:flex-row lg:items-end">
+        <section id="roadmap" class="mx-auto max-w-360 scroll-mt-24 px-4 py-8 sm:px-6 sm:py-11 2xl:px-8">
+            <div class="mb-6 flex flex-col justify-between gap-4 lg:flex-row lg:items-end">
                 <div>
                     <p class="text-[10px] font-black uppercase tracking-[0.24em] text-(--brand)">
                         Roadmap de Transformación
                     </p>
-                    <h2 class="mt-2 max-w-4xl text-3xl font-black tracking-tight text-(--text) sm:text-4xl">
+                    <h2 class="mt-2 max-w-4xl text-[28px] font-black leading-[1.08] tracking-tight text-(--text) sm:text-[34px]">
                         De entender la empresa a convertirla en una organización conectada e inteligente.
                     </h2>
                 </div>
@@ -1349,7 +1333,7 @@ onBeforeUnmount(() => {
                         </span>
                     </div>
 
-                    <h3 class="mt-5 text-base font-black text-(--text)">
+                    <h3 class="mt-4 text-base font-black text-(--text)">
                         {{ stage.title }}
                     </h3>
 
@@ -1387,14 +1371,14 @@ onBeforeUnmount(() => {
         </section>
 
         <!-- ===================== MODALIDADES ===================== -->
-        <section id="modalidades" class="mx-auto max-w-360 scroll-mt-24 px-4 py-10 sm:px-6 sm:py-14 2xl:px-8">
-            <div class="rounded-4xl border border-border bg-(--surface) p-6 shadow-sm lg:p-8">
-                <div class="mb-8 flex flex-col justify-between gap-4 lg:flex-row lg:items-end">
+        <section id="modalidades" class="mx-auto max-w-360 scroll-mt-24 px-4 py-8 sm:px-6 sm:py-11 2xl:px-8">
+            <div class="rounded-3xl border border-border bg-(--surface) p-5 shadow-sm lg:p-6">
+                <div class="mb-6 flex flex-col justify-between gap-4 lg:flex-row lg:items-end">
                     <div class="max-w-4xl">
                         <p class="text-[10px] font-black uppercase tracking-[0.24em] text-(--brand)">
                             Modalidades de acompañamiento
                         </p>
-                        <h2 class="mt-2 text-3xl font-black tracking-tight text-(--text) sm:text-4xl">
+                        <h2 class="mt-2 text-[28px] font-black leading-[1.08] tracking-tight text-(--text) sm:text-[34px]">
                             Elija cuánto acompañamiento necesita, no qué tecnología comprar.
                         </h2>
                     </div>
@@ -1404,7 +1388,7 @@ onBeforeUnmount(() => {
                     </p>
                 </div>
 
-                <div class="grid gap-5 lg:grid-cols-3">
+                <div class="grid gap-4 lg:grid-cols-3">
                     <article v-for="option in serviceModels" :key="option.title" class="lauda-service-card relative flex h-full flex-col rounded-3xl border border-border bg-(--surface-soft) p-5 sm:p-6" :class="option.recommended && 'lauda-service-card--recommended'">
                         <div v-if="option.recommended" class="absolute -top-3 left-1/2 -translate-x-1/2 rounded-full bg-(--brand) px-3 py-1 text-[9px] font-black uppercase tracking-[0.14em] text-white shadow-lg shadow-[#F5333C]/20">
                             Recomendado
@@ -1488,13 +1472,13 @@ onBeforeUnmount(() => {
         </section>
 
         <!-- ===================== ECOSISTEMA LAUDAAPI ===================== -->
-        <section id="ecosistema-detalle" class="mx-auto max-w-360 scroll-mt-24 px-4 py-10 sm:px-6 sm:py-14 2xl:px-8">
-            <div class="mb-8 flex flex-col justify-between gap-4 lg:flex-row lg:items-end">
+        <section id="ecosistema-detalle" class="mx-auto max-w-360 scroll-mt-24 px-4 py-8 sm:px-6 sm:py-11 2xl:px-8">
+            <div class="mb-6 flex flex-col justify-between gap-4 lg:flex-row lg:items-end">
                 <div>
                     <p class="text-[10px] font-black uppercase tracking-[0.24em] text-(--brand)">
                         Infraestructura tecnológica de la transformación
                     </p>
-                    <h2 class="mt-2 max-w-4xl text-3xl font-black tracking-tight text-(--text) sm:text-4xl">
+                    <h2 class="mt-2 max-w-4xl text-[28px] font-black leading-[1.08] tracking-tight text-(--text) sm:text-[34px]">
                         LAUDAAPI acompaña cada etapa sin obligar a la empresa a operar como aplicaciones aisladas.
                     </h2>
                 </div>
@@ -1504,7 +1488,7 @@ onBeforeUnmount(() => {
                 </p>
             </div>
 
-            <div class="mb-6 rounded-4xl border border-border bg-(--surface) p-5 shadow-sm sm:p-6">
+            <div class="mb-5 rounded-3xl border border-border bg-(--surface) p-4 shadow-sm sm:p-5">
                 <div class="flex flex-wrap items-center gap-2 text-[10px] font-black uppercase tracking-[0.12em] text-(--soft)">
                     <span class="rounded-full bg-[#EC4899]/10 px-3 py-1.5 text-[#EC4899]">Social</span>
                     <ArrowRight class="h-3.5 w-3.5" />
@@ -1570,13 +1554,13 @@ onBeforeUnmount(() => {
         </section>
 
         <!-- ===================== CAPACIDADES DEL ECOSISTEMA ===================== -->
-        <section id="soluciones" class="mx-auto max-w-360 scroll-mt-24 px-4 py-10 sm:px-6 sm:py-14 2xl:px-8">
-            <div class="mb-8 flex flex-col justify-between gap-4 lg:flex-row lg:items-end">
+        <section id="soluciones" class="mx-auto max-w-360 scroll-mt-24 px-4 py-8 sm:px-6 sm:py-11 2xl:px-8">
+            <div class="mb-6 flex flex-col justify-between gap-4 lg:flex-row lg:items-end">
                 <div>
                     <p class="text-[10px] font-black uppercase tracking-[0.24em] text-(--brand)">
                         Plataformas principales
                     </p>
-                    <h2 class="mt-2 max-w-4xl text-3xl font-black tracking-tight text-(--text) sm:text-4xl">
+                    <h2 class="mt-2 max-w-4xl text-[28px] font-black leading-[1.08] tracking-tight text-(--text) sm:text-[34px]">
                         Cada plataforma cumple una función específica dentro del proceso de transformación.
                     </h2>
                 </div>
@@ -1588,13 +1572,9 @@ onBeforeUnmount(() => {
 
             <div class="grid gap-5 md:grid-cols-2 xl:grid-cols-4">
                 <a v-for="solution in primarySolutions" :key="solution.name" :href="solution.href" class="lauda-card group rounded-3xl border p-5 transition-all hover:-translate-y-1 hover:shadow-xl">
-                    <div class="mb-4 flex items-start justify-between gap-4">
+                    <div class="mb-4 flex items-start gap-4">
                         <span class="grid h-11 w-11 shrink-0 place-items-center rounded-2xl" :style="{ background: solution.color + '1a' }">
                             <component :is="solution.icon" class="h-5 w-5" :style="{ color: solution.color }" />
-                        </span>
-
-                        <span class="rounded-full px-2.5 py-1 text-[9px] font-black uppercase tracking-widest" :style="{ background: solution.statusColor + '1a', color: solution.statusColor }">
-                            {{ solution.status }}
                         </span>
                     </div>
 
@@ -1630,13 +1610,13 @@ onBeforeUnmount(() => {
         </section>
 
         <!-- ===================== EMPRESA CONECTADA / FLUJOS ===================== -->
-        <section id="flujos" class="mx-auto max-w-360 scroll-mt-24 px-4 py-10 sm:px-6 sm:py-14 2xl:px-8">
-            <div class="mb-8 flex flex-col justify-between gap-4 lg:flex-row lg:items-end">
+        <section id="flujos" class="mx-auto max-w-360 scroll-mt-24 px-4 py-8 sm:px-6 sm:py-11 2xl:px-8">
+            <div class="mb-6 flex flex-col justify-between gap-4 lg:flex-row lg:items-end">
                 <div class="max-w-4xl">
                     <p class="text-[10px] font-black uppercase tracking-[0.24em] text-(--brand)">
                         Empresa conectada
                     </p>
-                    <h2 class="mt-2 text-3xl font-black tracking-tight text-(--text) sm:text-4xl">
+                    <h2 class="mt-2 text-[28px] font-black leading-[1.08] tracking-tight text-(--text) sm:text-[34px]">
                         La transformación ocurre cuando los procesos dejan de trabajar aislados.
                     </h2>
                 </div>
@@ -1720,8 +1700,8 @@ onBeforeUnmount(() => {
         </section>
 
         <!-- ===================== INTELIGENCIA / BI ===================== -->
-        <section id="dashboard" class="mx-auto max-w-360 scroll-mt-24 px-4 py-10 sm:px-6 sm:py-14 2xl:px-8">
-            <div class="mb-8 flex flex-col justify-between gap-4 lg:flex-row lg:items-end">
+        <section id="dashboard" class="mx-auto max-w-360 scroll-mt-24 px-4 py-8 sm:px-6 sm:py-11 2xl:px-8">
+            <div class="mb-6 flex flex-col justify-between gap-4 lg:flex-row lg:items-end">
                 <div>
                     <div class="flex flex-wrap items-center gap-3">
                         <p class="text-[10px] font-black uppercase tracking-[0.24em] text-(--brand)">
@@ -1732,7 +1712,7 @@ onBeforeUnmount(() => {
                         </span>
                     </div>
 
-                    <h2 class="mt-2 max-w-4xl text-3xl font-black tracking-tight text-(--text) sm:text-4xl">
+                    <h2 class="mt-2 max-w-4xl text-[28px] font-black leading-[1.08] tracking-tight text-(--text) sm:text-[34px]">
                         Los datos dejan de ser reportes y se convierten en una herramienta para dirigir la empresa.
                     </h2>
                 </div>
@@ -1742,11 +1722,11 @@ onBeforeUnmount(() => {
                 </p>
             </div>
 
-            <div class="mb-6 rounded-4xl border border-border bg-(--surface) p-5 shadow-sm sm:p-6">
+            <div class="mb-5 rounded-3xl border border-border bg-(--surface) p-4 shadow-sm sm:p-5">
                 <p class="text-[10px] font-black uppercase tracking-[0.18em] text-(--brand)">
                     De la operación a la decisión
                 </p>
-                <div class="mt-4 flex flex-wrap items-center gap-2 text-[11px] font-black uppercase tracking-widest text-(--soft)">
+                <div class="mt-4 flex flex-wrap items-center gap-2 text-[11px] font-black uppercase tracking-[0.10em] text-(--soft)">
                     <span class="rounded-full bg-[#EC4899]/10 px-3 py-1.5 text-[#EC4899]">Social</span>
                     <ArrowRight class="h-3.5 w-3.5" />
                     <span class="rounded-full bg-[#A855F7]/10 px-3 py-1.5 text-[#A855F7]">CRM</span>
@@ -1780,8 +1760,8 @@ onBeforeUnmount(() => {
                 </div>
             </div>
 
-            <div class="lauda-card mt-6 overflow-hidden rounded-4xl border p-4 sm:p-6 lg:p-8">
-                <div class="rounded-4xl border border-white/8 bg-[#080B15] p-4 shadow-2xl shadow-black/20 sm:p-6">
+            <div class="lauda-card mt-5 overflow-hidden rounded-3xl border p-4 sm:p-5 lg:p-6">
+                <div class="rounded-3xl border border-white/8 bg-[#080B15] p-4 shadow-2xl shadow-black/20 sm:p-5">
                     <div class="flex flex-col gap-4 border-b border-white/8 pb-5 sm:flex-row sm:items-center sm:justify-between">
                         <div>
                             <div class="flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.2em] text-[#F5333C]">
@@ -1852,7 +1832,7 @@ onBeforeUnmount(() => {
                     </div>
 
                     <Button type="button" variant="outline" class="lauda-outline-button shrink-0 gap-2 rounded-xl px-5 py-5" @click="scrollToId('contacto')">
-                        Iniciar diagnóstico
+                        Solicitar diagnóstico
                         <ArrowRight class="h-4 w-4" />
                     </Button>
                 </div>
@@ -1860,21 +1840,21 @@ onBeforeUnmount(() => {
         </section>
 
         <!-- ===================== CAPACIDADES ESPECIALIZADAS ===================== -->
-        <section id="modulos" class="mx-auto max-w-360 scroll-mt-24 px-4 pb-14 sm:px-6 sm:pb-16 2xl:px-8">
-            <div class="rounded-4xl border border-border bg-(--surface) p-6 shadow-sm lg:p-8">
+        <section id="modulos" class="mx-auto max-w-360 scroll-mt-24 px-4 pb-10 pt-4 sm:px-6 sm:pb-12 sm:pt-5 2xl:px-8">
+            <div class="rounded-3xl border border-border bg-(--surface) p-5 shadow-sm lg:p-6">
                 <div class="grid gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.1fr)] lg:items-center">
                     <div>
                         <p class="text-[10px] font-black uppercase tracking-[0.24em] text-(--brand)">
                             Capacidades especializadas
                         </p>
-                        <h2 class="mt-2 text-3xl font-black tracking-tight text-(--text) sm:text-4xl">
+                        <h2 class="mt-2 text-[28px] font-black leading-[1.08] tracking-tight text-(--text) sm:text-[34px]">
                             El ecosistema puede crecer sin convertir la transformación en un catálogo de módulos.
                         </h2>
                         <p class="mt-4 max-w-2xl text-sm leading-relaxed text-muted">
                             RRHH, Proyectos, Eventos, Transporte, Grúas, Loans y Dealers se incorporan únicamente cuando el diagnóstico identifica una necesidad específica del negocio.
                         </p>
 
-                        <div class="mt-5 flex flex-wrap items-center gap-2 text-[10px] font-black uppercase tracking-widest text-(--soft)">
+                        <div class="mt-5 flex flex-wrap items-center gap-2 text-[10px] font-black uppercase tracking-[0.10em] text-(--soft)">
                             <span class="rounded-full border border-border bg-(--surface-soft) px-3 py-1.5">Necesidad</span>
                             <ArrowRight class="h-3.5 w-3.5" />
                             <span class="rounded-full border border-border bg-(--surface-soft) px-3 py-1.5">Proceso</span>
@@ -1910,14 +1890,14 @@ onBeforeUnmount(() => {
         </section>
 
         <!-- ===================== CONTACTO ===================== -->
-        <section id="contacto" class="mx-auto max-w-360 scroll-mt-24 px-4 pb-16 pt-6 sm:px-6 sm:pb-20 2xl:px-8">
+        <section id="contacto" class="mx-auto max-w-360 scroll-mt-24 px-4 pb-12 pt-5 sm:px-6 sm:pb-14 sm:pt-6 2xl:px-8">
             <div class="grid gap-6 lg:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)] lg:items-start">
-                <div class="lauda-card rounded-4xl border p-6 lg:p-8">
+                <div class="lauda-card rounded-3xl border p-5 lg:p-6">
                     <p class="text-[10px] font-black uppercase tracking-[0.24em] text-(--brand)">
                         Primer paso: Diagnóstico Digital 360
                     </p>
 
-                    <h2 class="mt-2 text-3xl font-black tracking-tight text-(--text) sm:text-4xl">
+                    <h2 class="mt-2 text-[28px] font-black leading-[1.08] tracking-tight text-(--text) sm:text-[34px]">
                         Antes de recomendar tecnología, necesitamos entender su empresa.
                     </h2>
 
@@ -1925,7 +1905,7 @@ onBeforeUnmount(() => {
                         Comparta información básica sobre su organización y sus principales retos. A partir de esta solicitud coordinamos una conversación inicial para determinar el alcance del diagnóstico, el nivel de acompañamiento adecuado y los próximos pasos.
                     </p>
 
-                    <div class="mt-6 grid gap-3">
+                    <div class="mt-5 grid gap-2.5">
                         <div class="rounded-2xl border border-border bg-(--surface-soft) p-4">
                             <div class="flex items-start gap-3">
                                 <span class="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-(--brand)/10 text-xs font-black text-(--brand)">1</span>
@@ -1965,7 +1945,7 @@ onBeforeUnmount(() => {
                     </div>
                 </div>
 
-                <form class="lauda-card rounded-4xl border p-6 lg:p-8" @submit.prevent="submitContact">
+                <form class="lauda-card rounded-3xl border p-5 lg:p-6" @submit.prevent="submitContact">
                     <div class="mb-6 flex flex-col gap-3 border-b border-border pb-5 sm:flex-row sm:items-start sm:justify-between">
                         <div>
                             <p class="text-lg font-black text-(--text)">Solicitar Diagnóstico Digital 360</p>
@@ -2077,7 +2057,7 @@ onBeforeUnmount(() => {
 
         <!-- ===================== FOOTER ===================== -->
         <footer class="lauda-footer border-t">
-            <div class="mx-auto grid max-w-360 gap-8 px-4 py-10 sm:px-6 lg:grid-cols-[minmax(0,1.2fr)_repeat(3,minmax(0,0.8fr))] 2xl:px-8">
+            <div class="mx-auto grid max-w-360 gap-7 px-4 py-8 sm:px-6 lg:grid-cols-[minmax(0,1.2fr)_repeat(3,minmax(0,0.8fr))] 2xl:px-8">
                 <div class="min-w-0">
                     <Link href="/" class="inline-flex items-center gap-2.5">
                         <div class="grid h-11 w-11 place-items-center rounded-xl bg-(--brand) font-black text-white shadow-xl shadow-[#F5333C]/25">
@@ -2231,12 +2211,12 @@ onBeforeUnmount(() => {
 .lauda-chip {
     border-color: var(--border);
     background: var(--surface);
-    box-shadow: 0 20px 60px rgba(15, 23, 42, 0.05);
+    box-shadow: 0 14px 38px rgba(15, 23, 42, 0.045);
 }
 
 .lauda-page--dark .lauda-card,
 .lauda-page--dark .lauda-chip {
-    box-shadow: 0 20px 70px rgba(0, 0, 0, 0.28);
+    box-shadow: 0 16px 46px rgba(0, 0, 0, 0.24);
 }
 
 /* -------------------------------------------------------------------------- */
@@ -2385,14 +2365,14 @@ select.lauda-input {
     width: 100%;
     max-width: 1440px;
     margin-inline: auto;
-    padding: 42px 16px 0;
+    padding: 34px 16px 0;
     box-sizing: border-box;
 }
 
 .lauda-hero__layout {
     display: grid;
     grid-template-columns: 1fr;
-    gap: 32px;
+    gap: 28px;
     align-items: center;
 }
 
@@ -2407,7 +2387,7 @@ select.lauda-input {
     grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
     gap: 12px;
     max-width: 620px;
-    margin-top: 36px;
+    margin-top: 24px;
 }
 
 .lauda-hero__panel {
@@ -2442,7 +2422,7 @@ select.lauda-input {
 @media (min-width: 1200px) {
     .lauda-hero__layout {
         grid-template-columns: minmax(460px, 560px) minmax(0, 760px);
-        gap: 48px;
+        gap: 40px;
         justify-content: space-between;
     }
 
@@ -2477,11 +2457,11 @@ select.lauda-input {
 
 @media (max-width: 639px) {
     .lauda-hero {
-        padding-top: 28px;
+        padding-top: 24px;
     }
 
     .lauda-hero__layout {
-        gap: 26px;
+        gap: 22px;
     }
 
     .lauda-hero__copy {
@@ -2495,7 +2475,7 @@ select.lauda-input {
     .lauda-hero__chips {
         grid-template-columns: 1fr;
         gap: 10px;
-        margin-top: 28px;
+        margin-top: 24px;
     }
 
     .lauda-hero__panel {
