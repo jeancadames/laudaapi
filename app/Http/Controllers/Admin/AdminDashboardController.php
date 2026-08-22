@@ -3,200 +3,208 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Models\ContactRequest;
+use App\Models\DiagnosisAccessRequest;
+use App\Models\DiagnosisAssessment;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
-
-use App\Models\ActivationRequest;
-use App\Models\ActivationRequestService;
-use App\Models\Company;
-use App\Models\ContactRequest;
-use App\Models\Invoice;
-use App\Models\Payment;
-use App\Models\Subscription;
+use Inertia\Response;
 
 class AdminDashboardController extends Controller
 {
-    private const DASHBOARD_CACHE_KEY = 'admin.dashboard.stats';
-    private const DASHBOARD_CACHE_TTL_SECONDS = 60;
-
-    // ✅ single-currency (hard)
-    private const CURRENCY = 'USD';
-
-    public function __invoke(Request $request)
+    public function __invoke(Request $request): Response
     {
         $user = $request->user();
+
         if (!$user || $user->role !== 'admin') {
             abort(403);
         }
 
-        $stats = Cache::remember(
-            self::DASHBOARD_CACHE_KEY,
-            now()->addSeconds(self::DASHBOARD_CACHE_TTL_SECONDS),
-            fn() => $this->getStats()
-        );
-
         return Inertia::render('Admin/Dashboard', [
-            'stats' => $stats,
+            'stats' => $this->getStats(),
+            'recentRequests' => $this->recentRequests(),
         ]);
     }
 
     protected function getStats(): array
     {
-        // =========================================================
-        // Contact Requests (1 query)
-        // =========================================================
-        $contactsAgg = ContactRequest::query()
-            ->selectRaw('COUNT(*) as total')
-            ->selectRaw('SUM(CASE WHEN read_at IS NULL THEN 1 ELSE 0 END) as unread')
-            ->selectRaw('SUM(CASE WHEN terms = 1 THEN 1 ELSE 0 END) as with_terms')
-            ->first();
+        $contactBase = $this->diagnosisContactsQuery();
 
-        $contacts = [
-            'total' => (int) ($contactsAgg?->total ?? 0),
-            'unread' => (int) ($contactsAgg?->unread ?? 0),
-            'with_terms' => (int) ($contactsAgg?->with_terms ?? 0),
-        ];
+        $requestsTotal = (clone $contactBase)->count();
 
-        // =========================================================
-        // Activations (groupBy status + activeTrials + services)
-        // =========================================================
-        $activationByStatus = ActivationRequest::query()
-            ->select('status', DB::raw('COUNT(*) as c'))
+        $pending = (clone $contactBase)
+            ->leftJoin(
+                'diagnosis_access_requests as dar',
+                'dar.contact_request_id',
+                '=',
+                'contact_requests.id'
+            )
+            ->where(function ($query): void {
+                $query
+                    ->whereNull('dar.id')
+                    ->orWhere('dar.status', DiagnosisAccessRequest::STATUS_PENDING);
+            })
+            ->count('contact_requests.id');
+
+        $workflowByStatus = DiagnosisAccessRequest::query()
+            ->select('status', DB::raw('COUNT(*) as aggregate'))
             ->groupBy('status')
-            ->pluck('c', 'status')
+            ->pluck('aggregate', 'status')
+            ->map(fn ($value): int => (int) $value)
             ->all();
 
-        $activeTrials = ActivationRequest::query()
-            ->whereNotNull('trial_starts_at')
-            ->whereNotNull('trial_ends_at')
-            ->where('trial_ends_at', '>=', now())
-            ->count();
-
-        $activations = [
-            'total' => (int) array_sum(array_map('intval', $activationByStatus)),
-            'pending' => (int) ($activationByStatus['pending'] ?? 0),
-            'contacted' => (int) ($activationByStatus['contacted'] ?? 0),
-            'activated' => (int) ($activationByStatus['activated'] ?? 0),
-            'trialing' => (int) ($activationByStatus['trialing'] ?? 0),
-            'active_trials' => (int) $activeTrials,
-            'services' => (int) ActivationRequestService::count(),
-        ];
-
-        // =========================================================
-        // Subscriptions (groupBy status)
-        // =========================================================
-        $subByStatus = Subscription::query()
-            ->select('status', DB::raw('COUNT(*) as c'))
+        $assessmentByStatus = DiagnosisAssessment::query()
+            ->select('status', DB::raw('COUNT(*) as aggregate'))
             ->groupBy('status')
-            ->pluck('c', 'status')
+            ->pluck('aggregate', 'status')
+            ->map(fn ($value): int => (int) $value)
             ->all();
 
-        // TODO: cuando tengas subscription_items, cambia services => count(items)
-        $subscriptions = [
-            'total' => (int) array_sum(array_map('intval', $subByStatus)),
-            'active' => (int) ($subByStatus['active'] ?? 0),
-            'trialing' => (int) ($subByStatus['trialing'] ?? 0),
-            'expired' => (int) ($subByStatus['expired'] ?? 0),
-            'services' => (int) Subscription::count(), // placeholder (igual a tu versión actual)
-        ];
-
-        // =========================================================
-        // Companies (aggregate + tax profile count)
-        // =========================================================
-        $companyAgg = Company::query()
-            ->selectRaw('COUNT(*) as total')
-            ->selectRaw('SUM(CASE WHEN active = 1 THEN 1 ELSE 0 END) as active')
-            ->first();
-
-        // ✅ robusto y eficiente (tu tabla ya tiene unique(company_id))
-        $companiesWithTaxProfile = (int) DB::table('company_tax_profiles')
-            ->distinct('company_id')
-            ->count('company_id');
-
-        $company = [
-            'total' => (int) ($companyAgg?->total ?? 0),
-            'active' => (int) ($companyAgg?->active ?? 0),
-            'tax_profile_count' => $companiesWithTaxProfile,
-        ];
-
-        // =========================================================
-        // Invoices (USD-only)
-        // =========================================================
-        $invoiceBase = Invoice::query()->where('currency', self::CURRENCY);
-
-        $totalInvoices = (clone $invoiceBase)->count();
-
-        $invoiceByStatus = (clone $invoiceBase)
-            ->select('status', DB::raw('COUNT(*) as c'))
-            ->groupBy('status')
-            ->pluck('c', 'status')
+        $modalities = DiagnosisAssessment::query()
+            ->whereNotNull('recommended_modality')
+            ->select('recommended_modality', DB::raw('COUNT(*) as aggregate'))
+            ->groupBy('recommended_modality')
+            ->pluck('aggregate', 'recommended_modality')
+            ->map(fn ($value): int => (int) $value)
             ->all();
 
-        $invoicedTotal = (float) (clone $invoiceBase)
-            ->where('status', '!=', 'void')
-            ->sum('total');
+        $underReview = (int) ($workflowByStatus[DiagnosisAccessRequest::STATUS_UNDER_REVIEW] ?? 0);
+        $moreInfo = (int) ($workflowByStatus[DiagnosisAccessRequest::STATUS_MORE_INFO_REQUIRED] ?? 0);
+        $approved = (int) ($workflowByStatus[DiagnosisAccessRequest::STATUS_APPROVED] ?? 0);
+        $invited = (int) ($workflowByStatus[DiagnosisAccessRequest::STATUS_INVITED] ?? 0);
+        $active = (int) ($workflowByStatus[DiagnosisAccessRequest::STATUS_ACTIVE] ?? 0);
+        $rejected = (int) ($workflowByStatus[DiagnosisAccessRequest::STATUS_REJECTED] ?? 0);
 
-        $amountPaidTotal = (float) (clone $invoiceBase)
-            ->where('status', '!=', 'void')
-            ->sum('amount_paid');
-
-        // ✅ AR (solo issued + overdue) — recomendado
-        $accountsReceivable = (float) (clone $invoiceBase)
-            ->whereIn('status', ['issued', 'overdue'])
-            ->selectRaw('COALESCE(SUM(total - amount_paid), 0) as s')
-            ->value('s');
-
-        // ✅ tu UI lo usa
-        $outstandingIssuedOverdue = $accountsReceivable;
-
-        // =========================================================
-        // Payments (USD-only, posted only)
-        // =========================================================
-        $paymentAgg = Payment::query()
-            ->where('currency', self::CURRENCY)
-            ->selectRaw('COUNT(*) as total')
-            ->selectRaw('SUM(CASE WHEN paid_at IS NOT NULL THEN 1 ELSE 0 END) as posted')
-            ->selectRaw('COALESCE(SUM(CASE WHEN paid_at IS NOT NULL THEN amount ELSE 0 END), 0) as total_paid')
-            ->first();
-
-        $payments = [
-            'total' => (int) ($paymentAgg?->total ?? 0),
-            'posted' => (int) ($paymentAgg?->posted ?? 0),
-            'total_paid' => (float) ($paymentAgg?->total_paid ?? 0),
-        ];
+        $draft = (int) ($assessmentByStatus['draft'] ?? 0);
+        $inProgress = (int) ($assessmentByStatus['in_progress'] ?? 0);
+        $submitted = (int) ($assessmentByStatus['submitted'] ?? 0);
+        $reviewed = (int) ($assessmentByStatus['reviewed'] ?? 0);
 
         return [
-            'contacts' => $contacts,
-            'activations' => $activations,
-            'subscriptions' => $subscriptions,
-            'company' => $company,
+            'requests' => [
+                'total' => (int) $requestsTotal,
+                'pending' => (int) $pending,
+                'under_review' => $underReview,
+                'more_info_required' => $moreInfo,
+                'rejected' => $rejected,
+                'review_queue' => (int) $pending + $underReview + $moreInfo,
+            ],
 
-            'billing' => [
-                'currency' => self::CURRENCY, // opcional, útil para UI
-                'invoices' => [
-                    'total' => (int) $totalInvoices,
-                    'by_status' => [
-                        'draft' => (int) ($invoiceByStatus['draft'] ?? 0),
-                        'issued' => (int) ($invoiceByStatus['issued'] ?? 0),
-                        'overdue' => (int) ($invoiceByStatus['overdue'] ?? 0),
-                        'paid' => (int) ($invoiceByStatus['paid'] ?? 0),
-                        'void' => (int) ($invoiceByStatus['void'] ?? 0),
-                    ],
-                    'total_invoiced' => $invoicedTotal,
-                    'total_amount_paid_on_invoices' => $amountPaidTotal,
+            'access' => [
+                'approved' => $approved,
+                'invited' => $invited,
+                'active' => $active,
+                'invitation_pipeline' => $approved + $invited,
+            ],
 
-                    // ✅ requerido por tu UI
-                    'outstanding_issued_overdue' => $outstandingIssuedOverdue,
-                ],
+            'assessments' => [
+                'draft' => $draft,
+                'in_progress' => $inProgress,
+                'submitted' => $submitted,
+                'reviewed' => $reviewed,
+                'completed' => $submitted + $reviewed,
+                'results_to_review' => $submitted,
+            ],
 
-                'payments' => $payments,
-
-                'balance' => [
-                    'accounts_receivable' => $accountsReceivable,
-                ],
+            'modalities' => [
+                'guided' => (int) ($modalities['guided'] ?? 0),
+                'assisted' => (int) ($modalities['assisted'] ?? 0),
+                'managed' => (int) ($modalities['managed'] ?? 0),
             ],
         ];
+    }
+
+    protected function recentRequests(): array
+    {
+        return DB::table('contact_requests as c')
+            ->leftJoin(
+                'diagnosis_access_requests as dar',
+                'dar.contact_request_id',
+                '=',
+                'c.id'
+            )
+            ->leftJoin(
+                'diagnosis_assessments as da',
+                'da.id',
+                '=',
+                'dar.diagnosis_assessment_id'
+            )
+            ->where(function ($query): void {
+                $query
+                    ->whereIn('c.topic', [
+                        'Solicitud de acceso al Diagnóstico LAUDA 360',
+                        'Solicitud de Diagnóstico Digital 360',
+                    ])
+                    ->orWhereIn('c.metadata->request_type', [
+                        'digital_diagnosis_access_request',
+                        'digital_transformation_diagnosis',
+                    ]);
+            })
+            ->orderByDesc('c.id')
+            ->limit(8)
+            ->get([
+                'c.id',
+                'c.name',
+                'c.company',
+                'c.email',
+                'c.created_at',
+                'dar.status as workflow_status',
+                'da.status as assessment_status',
+                'da.maturity_score',
+                'da.recommended_modality',
+                'da.recommended_modality_label',
+            ])
+            ->map(function ($row): array {
+                return [
+                    'id' => (int) $row->id,
+                    'name' => (string) ($row->name ?? ''),
+                    'company' => (string) ($row->company ?? ''),
+                    'email' => (string) ($row->email ?? ''),
+                    'status' => (string) (
+                        $row->workflow_status
+                        ?: DiagnosisAccessRequest::STATUS_PENDING
+                    ),
+                    'assessment_status' => $row->assessment_status
+                        ? (string) $row->assessment_status
+                        : null,
+                    'maturity_score' => $row->maturity_score !== null
+                        ? (float) $row->maturity_score
+                        : null,
+                    'recommended_modality' => $row->recommended_modality
+                        ? (string) $row->recommended_modality
+                        : null,
+                    'recommended_modality_label' => $row->recommended_modality_label
+                        ? (string) $row->recommended_modality_label
+                        : null,
+                    'created_at' => $row->created_at
+                        ? (string) $row->created_at
+                        : null,
+                    'href' => route(
+                        'admin.diagnosis_requests.show',
+                        ['contact' => $row->id],
+                        false
+                    ),
+                ];
+            })
+            ->values()
+            ->all();
+    }
+
+    protected function diagnosisContactsQuery(): Builder
+    {
+        return ContactRequest::query()
+            ->where(function ($query): void {
+                $query
+                    ->whereIn('topic', [
+                        'Solicitud de acceso al Diagnóstico LAUDA 360',
+                        'Solicitud de Diagnóstico Digital 360',
+                    ])
+                    ->orWhereIn('metadata->request_type', [
+                        'digital_diagnosis_access_request',
+                        'digital_transformation_diagnosis',
+                    ]);
+            });
     }
 }
