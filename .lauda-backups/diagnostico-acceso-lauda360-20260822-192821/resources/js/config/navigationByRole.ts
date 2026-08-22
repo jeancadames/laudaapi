@@ -13,7 +13,6 @@ export const navigationByRole = {
     main: [
       { title: 'Dashboard', href: '/dashboard', icon: 'LayoutGrid' },
       { title: 'Solicitudes Contacto', href: '/admin/contacts', icon: 'Contact' },
-      { title: 'Diagnósticos 360', href: '/admin/diagnosis-requests', icon: 'Contact' },
       { title: 'Solicitudes Activación', href: '/admin/requests', icon: 'ClipboardCheck' },
       { title: 'Suscripciones', href: '/admin/subscriptions', icon: 'PlugZap' },
       { title: 'Suscriptores', href: '/admin/subscribers', icon: 'PlugZap' },

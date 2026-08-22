@@ -9,15 +9,12 @@ class DiagnosisAssessmentPolicy
 {
     public function view(User $user, DiagnosisAssessment $assessment): bool
     {
-        return $user->isAdmin()
-            || (int) $assessment->user_id === (int) $user->id;
+        return (int) $assessment->user_id === (int) $user->id;
     }
 
     public function update(User $user, DiagnosisAssessment $assessment): bool
     {
-        return !$user->isAdmin()
-            && (int) $assessment->user_id === (int) $user->id
-            && $assessment->isEditable();
+        return $this->view($user, $assessment) && $assessment->isEditable();
     }
 
     public function submit(User $user, DiagnosisAssessment $assessment): bool
