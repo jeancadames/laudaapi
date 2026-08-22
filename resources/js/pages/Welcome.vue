@@ -71,35 +71,28 @@ const brand = {
 /*  Datos del ecosistema                                                       */
 /* -------------------------------------------------------------------------- */
 
-const chips = [
-    { icon: Activity, text: 'Diagnóstico y roadmap digital', color: brand.main },
-    { icon: Users, text: 'Personas y procesos organizados', color: brand.crm },
-    { icon: RefreshCw, text: 'Tecnología e integración', color: brand.pos },
-    { icon: TrendingUp, text: 'Datos para tomar decisiones', color: brand.bi },
-]
-
 const transformationPillars = [
     {
         title: 'Estrategia',
-        desc: 'Entendemos la situación actual, definimos prioridades y construimos un roadmap de transformación alineado con los objetivos del negocio.',
+        desc: 'Definimos prioridades y un roadmap alineado con los objetivos del negocio.',
         icon: Activity,
         color: brand.main,
     },
     {
         title: 'Personas y procesos',
-        desc: 'Organizamos responsabilidades, procesos y formas de trabajo para que la transformación sea adoptada por la empresa y no dependa solo de tecnología.',
+        desc: 'Organizamos responsabilidades y procesos para facilitar adopción y ejecución.',
         icon: Users,
         color: brand.crm,
     },
     {
         title: 'Tecnología e integración',
-        desc: 'Implementamos las capacidades necesarias y conectamos los procesos mediante LAUDAAPI y otras soluciones cuando el negocio lo requiera.',
+        desc: 'Implementamos e integramos las capacidades tecnológicas que el negocio necesita.',
         icon: RefreshCw,
         color: brand.pos,
     },
     {
         title: 'Datos e inteligencia',
-        desc: 'Consolidamos información, indicadores y analítica para convertir la operación diaria en decisiones empresariales más rápidas y confiables.',
+        desc: 'Convertimos la operación en indicadores y análisis para tomar mejores decisiones.',
         icon: TrendingUp,
         color: brand.bi,
     },
@@ -392,20 +385,18 @@ const serviceModels = [
     {
         title: 'LAUDA 360 Guiado',
         level: 'LAUDA orienta',
-        desc: 'Diseñamos el camino, transferimos la metodología y acompañamos a su equipo mientras la empresa ejecuta gran parte del roadmap con recursos internos.',
+        desc: 'Definimos el camino y acompañamos a su equipo mientras la empresa ejecuta el roadmap con recursos internos.',
         badge: 'Guiado',
-        idealFor: 'Empresas con personal interno capaz de ejecutar tareas, organizar información y coordinar la implementación.',
+        idealFor: 'Empresas con capacidad interna para ejecutar y coordinar la implementación.',
         laudaDoes: [
             'Diagnóstico y roadmap',
-            'Metodología y mejores prácticas',
-            'Capacitación y validación',
-            'Sesiones de seguimiento',
+            'Metodología y capacitación',
+            'Seguimiento y validación',
         ],
         clientDoes: [
             'Ejecuta las tareas internas',
-            'Prepara y depura información',
-            'Coordina a sus equipos',
-            'Implementa las acciones acordadas',
+            'Prepara información',
+            'Coordina sus equipos',
         ],
         icon: CheckCircle2,
         color: brand.pos,
@@ -414,20 +405,18 @@ const serviceModels = [
     {
         title: 'LAUDA 360 Asistido',
         level: 'Trabajamos juntos',
-        desc: 'LAUDA y su equipo ejecutan la transformación de forma conjunta, combinando el conocimiento interno del negocio con nuestra metodología y capacidad de implementación.',
+        desc: 'LAUDA y su equipo ejecutan juntos la transformación, combinando conocimiento del negocio y capacidad de implementación.',
         badge: 'Recomendado',
-        idealFor: 'Empresas con responsables internos, pero sin un equipo especializado que pueda conducir por sí solo toda la transformación digital.',
+        idealFor: 'Empresas con responsables internos, pero sin un equipo especializado de transformación digital.',
         laudaDoes: [
-            'Levantamiento y diseño de procesos',
-            'Configuración e implementación',
-            'Migración e integración',
+            'Diseño de procesos',
+            'Implementación e integración',
             'Capacitación y seguimiento',
         ],
         clientDoes: [
             'Aporta conocimiento del negocio',
-            'Designa responsables internos',
-            'Valida datos y decisiones',
-            'Participa activamente en la adopción',
+            'Designa responsables',
+            'Valida y participa en la adopción',
         ],
         icon: Users,
         color: brand.crm,
@@ -436,20 +425,18 @@ const serviceModels = [
     {
         title: 'LAUDA 360 Gestionado',
         level: 'LAUDA lidera',
-        desc: 'Asumimos la dirección integral del programa y actuamos como una oficina externa de transformación digital para coordinar y ejecutar el roadmap de principio a fin.',
+        desc: 'LAUDA dirige y coordina el programa completo como una oficina externa de transformación digital.',
         badge: 'Gestionado',
-        idealFor: 'Empresas que necesitan transformarse, pero no cuentan con la estructura, tiempo o experiencia interna para liderar el proceso.',
+        idealFor: 'Empresas sin la estructura, tiempo o experiencia interna para liderar el proceso.',
         laudaDoes: [
-            'Dirección integral del programa',
-            'Coordinación entre áreas',
-            'Ejecución técnica y funcional',
-            'Gestión del cambio y optimización',
+            'Dirección integral',
+            'Coordinación y ejecución',
+            'Gestión del cambio',
         ],
         clientDoes: [
-            'Designa un patrocinador interno',
-            'Facilita información y acceso',
-            'Toma decisiones estratégicas',
-            'Valida resultados e hitos',
+            'Designa un patrocinador',
+            'Facilita información',
+            'Valida decisiones e hitos',
         ],
         icon: ShieldCheck,
         color: brand.main,
@@ -462,8 +449,8 @@ const roadmapStages = [
         number: '01',
         phase: 'Entender',
         title: 'Diagnóstico y Madurez Digital',
-        desc: 'Conocer cómo opera hoy la empresa, qué tan preparada está para transformarse y dónde están las brechas de mayor impacto.',
-        result: 'Diagnóstico, prioridades y roadmap de transformación.',
+        desc: 'Evaluamos operación, madurez digital y brechas prioritarias.',
+        result: 'Diagnóstico y roadmap priorizado.',
         icon: Activity,
         color: brand.main,
     },
@@ -471,8 +458,8 @@ const roadmapStages = [
         number: '02',
         phase: 'Preparar',
         title: 'Fundamentos para Transformar',
-        desc: 'Organizar información, responsables, procesos esenciales y condiciones mínimas para que la transformación pueda ejecutarse con orden.',
-        result: 'Empresa preparada para iniciar la digitalización.',
+        desc: 'Organizamos información, responsables y procesos esenciales.',
+        result: 'Base preparada para digitalizar.',
         icon: ShieldCheck,
         color: brand.cumplimiento,
     },
@@ -480,8 +467,8 @@ const roadmapStages = [
         number: '03',
         phase: 'Digitalizar',
         title: 'Presencia y Relación Digital',
-        desc: 'Construir una presencia digital coherente y organizar los canales desde los cuales la empresa comunica, atiende y capta oportunidades.',
-        result: 'Canales digitales organizados y conectados con el negocio.',
+        desc: 'Organizamos presencia, canales e interacción digital.',
+        result: 'Canales digitales conectados al negocio.',
         icon: MessageCircle,
         color: brand.social,
     },
@@ -489,8 +476,8 @@ const roadmapStages = [
         number: '04',
         phase: 'Digitalizar',
         title: 'Gestión Comercial Digital',
-        desc: 'Convertir contactos e interacciones en un proceso comercial medible, con seguimiento, oportunidades, responsables y trazabilidad.',
-        result: 'Proceso comercial centralizado y controlable.',
+        desc: 'Centralizamos contactos, oportunidades y seguimiento comercial.',
+        result: 'Gestión comercial medible y trazable.',
         icon: Users,
         color: brand.crm,
     },
@@ -498,8 +485,8 @@ const roadmapStages = [
         number: '05',
         phase: 'Digitalizar',
         title: 'Operación Digital',
-        desc: 'Llevar los procesos principales del negocio a una operación digital estructurada: ventas, servicios, inventario, cobros, ecommerce o logística según corresponda.',
-        result: 'Operación diaria digitalizada y trazable.',
+        desc: 'Digitalizamos ventas, servicios, inventario, cobros y logística según el negocio.',
+        result: 'Operación digital y trazable.',
         icon: Store,
         color: brand.pos,
     },
@@ -507,8 +494,8 @@ const roadmapStages = [
         number: '06',
         phase: 'Digitalizar',
         title: 'Administración y Cumplimiento Digital',
-        desc: 'Digitalizar compras, proveedores, facturación electrónica, obligaciones y procesos administrativos que sostienen la operación.',
-        result: 'Backoffice organizado, conectado y con mayor control.',
+        desc: 'Digitalizamos compras, proveedores, fiscalidad y administración.',
+        result: 'Backoffice digital y controlado.',
         icon: Calculator,
         color: brand.bys,
     },
@@ -516,8 +503,8 @@ const roadmapStages = [
         number: '07',
         phase: 'Conectar',
         title: 'Empresa Conectada',
-        desc: 'Integrar las áreas digitalizadas para que la información fluya entre procesos y reducir duplicidad, tareas manuales y puntos de ruptura.',
-        result: 'Procesos de extremo a extremo integrados y automatizables.',
+        desc: 'Integramos áreas y datos para eliminar silos y reprocesos.',
+        result: 'Procesos conectados y automatizables.',
         icon: RefreshCw,
         color: brand.status,
     },
@@ -525,8 +512,8 @@ const roadmapStages = [
         number: '08',
         phase: 'Decidir',
         title: 'Empresa Inteligente',
-        desc: 'Consolidar información confiable en indicadores, dashboards y analítica para dirigir la empresa con una visión integral del negocio.',
-        result: 'Decisiones basadas en datos y mejora continua.',
+        desc: 'Consolidamos KPIs, dashboards y analítica para dirigir el negocio.',
+        result: 'Decisiones basadas en datos.',
         icon: TrendingUp,
         color: brand.bi,
     },
@@ -949,8 +936,8 @@ onBeforeUnmount(() => {
                     </h1>
 
                     <p class="mt-6 max-w-145 text-[17px] leading-relaxed text-muted">
-                        Evaluamos dónde está su empresa, diseñamos su hoja de ruta y la acompañamos en la
-                        digitalización e integración de sus procesos, personas, tecnología y datos.
+                        Diagnosticamos dónde está su empresa, definimos la ruta y la acompañamos hasta conectar
+                        procesos, tecnología y datos alrededor de objetivos de negocio.
                     </p>
 
                     <div class="mt-6 rounded-2xl border border-border bg-(--surface) p-4 shadow-sm">
@@ -964,8 +951,7 @@ onBeforeUnmount(() => {
                                     Un proceso, no una instalación de software
                                 </p>
                                 <p class="mt-1.5 text-sm leading-relaxed text-muted">
-                                    Diagnóstico, roadmap, implementación, integración, adopción y mejora continua,
-                                    con el ecosistema LAUDAAPI como plataforma tecnológica principal.
+                                    Diagnóstico, roadmap, implementación y adopción, con LAUDAAPI como ecosistema tecnológico.
                                 </p>
                             </div>
                         </div>
@@ -983,20 +969,10 @@ onBeforeUnmount(() => {
                         </Button>
                     </div>
 
-                    <p class="mt-4 text-xs font-semibold leading-relaxed text-(--soft)">
-                        Modalidades de acompañamiento: Guiado · Asistido · Gestionado
-                    </p>
-
-                    <div class="lauda-hero__chips">
-                        <div v-for="c in chips" :key="c.text" class="lauda-chip flex min-h-16.5 items-center gap-2.5 rounded-xl border px-3 py-3">
-                            <span class="grid h-8 w-8 shrink-0 place-items-center rounded-lg" :style="{ background: c.color + '1a' }">
-                                <component :is="c.icon" class="h-4 w-4" :style="{ color: c.color }" />
-                            </span>
-
-                            <span class="text-[12px] font-semibold leading-tight text-muted">
-                                {{ c.text }}
-                            </span>
-                        </div>
+                    <div class="mt-5 flex flex-wrap items-center gap-2 text-[10px] font-black uppercase tracking-widest text-(--soft)">
+                        <span class="rounded-full border border-border bg-(--surface) px-3 py-1.5">Guiado</span>
+                        <span class="rounded-full border border-(--brand)/20 bg-(--brand)/10 px-3 py-1.5 text-(--brand)">Asistido</span>
+                        <span class="rounded-full border border-border bg-(--surface) px-3 py-1.5">Gestionado</span>
                     </div>
                 </div>
 
@@ -1023,54 +999,54 @@ onBeforeUnmount(() => {
                         </span>
                     </div>
 
-                    <div class="mt-5 grid gap-3 sm:grid-cols-2">
-                        <div class="rounded-2xl border border-white/7 bg-[#111625] p-4">
+                    <div class="mt-4 grid gap-2.5 sm:grid-cols-2">
+                        <div class="rounded-2xl border border-white/7 bg-[#111625] p-3">
                             <div class="flex items-center justify-between gap-3">
                                 <span class="grid h-10 w-10 place-items-center rounded-xl bg-white/6 text-[#A8B0C3]">
                                     <Boxes class="h-5 w-5" />
                                 </span>
                                 <span class="text-[10px] font-black uppercase tracking-[0.12em] text-[#6F7890]">01</span>
                             </div>
-                            <p class="mt-4 text-sm font-black text-white">Empresa tradicional</p>
+                            <p class="mt-3 text-sm font-black text-white">Empresa tradicional</p>
                             <p class="mt-1.5 text-xs leading-relaxed text-[#9AA1B8]">
                                 Procesos manuales, información dispersa, Excel, WhatsApp y sistemas aislados.
                             </p>
                         </div>
 
-                        <div class="rounded-2xl border border-[#3B82F6]/20 bg-[#3B82F6]/8 p-4">
+                        <div class="rounded-2xl border border-[#3B82F6]/20 bg-[#3B82F6]/8 p-3">
                             <div class="flex items-center justify-between gap-3">
                                 <span class="grid h-10 w-10 place-items-center rounded-xl bg-[#3B82F6]/15 text-[#60A5FA]">
                                     <Zap class="h-5 w-5" />
                                 </span>
                                 <span class="text-[10px] font-black uppercase tracking-[0.12em] text-[#60A5FA]">02</span>
                             </div>
-                            <p class="mt-4 text-sm font-black text-white">Empresa digital</p>
+                            <p class="mt-3 text-sm font-black text-white">Empresa digital</p>
                             <p class="mt-1.5 text-xs leading-relaxed text-[#AAB4CA]">
                                 Canales, información y procesos prioritarios pasan a operar digitalmente.
                             </p>
                         </div>
 
-                        <div class="rounded-2xl border border-[#A855F7]/20 bg-[#A855F7]/8 p-4">
+                        <div class="rounded-2xl border border-[#A855F7]/20 bg-[#A855F7]/8 p-3">
                             <div class="flex items-center justify-between gap-3">
                                 <span class="grid h-10 w-10 place-items-center rounded-xl bg-[#A855F7]/15 text-[#C084FC]">
                                     <RefreshCw class="h-5 w-5" />
                                 </span>
                                 <span class="text-[10px] font-black uppercase tracking-[0.12em] text-[#C084FC]">03</span>
                             </div>
-                            <p class="mt-4 text-sm font-black text-white">Empresa conectada</p>
+                            <p class="mt-3 text-sm font-black text-white">Empresa conectada</p>
                             <p class="mt-1.5 text-xs leading-relaxed text-[#AAB4CA]">
                                 Comercial, operación y administración comparten información y flujos integrados.
                             </p>
                         </div>
 
-                        <div class="rounded-2xl border border-[#22C55E]/20 bg-[#22C55E]/8 p-4">
+                        <div class="rounded-2xl border border-[#22C55E]/20 bg-[#22C55E]/8 p-3">
                             <div class="flex items-center justify-between gap-3">
                                 <span class="grid h-10 w-10 place-items-center rounded-xl bg-[#22C55E]/15 text-[#4ADE80]">
                                     <TrendingUp class="h-5 w-5" />
                                 </span>
                                 <span class="text-[10px] font-black uppercase tracking-[0.12em] text-[#4ADE80]">04</span>
                             </div>
-                            <p class="mt-4 text-sm font-black text-white">Empresa inteligente</p>
+                            <p class="mt-3 text-sm font-black text-white">Empresa inteligente</p>
                             <p class="mt-1.5 text-xs leading-relaxed text-[#AAB4CA]">
                                 Data, BI, indicadores y automatización convierten la operación en mejores decisiones.
                             </p>
@@ -1109,35 +1085,25 @@ onBeforeUnmount(() => {
                         </div>
                     </div>
 
-                    <div class="mt-4 flex items-center gap-3 rounded-2xl border border-white/7 bg-white/2.5 px-4 py-3">
-                        <span class="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-[#F5333C]/12 text-[#F5333C]">
-                            <ShieldCheck class="h-4 w-4" />
-                        </span>
-                        <p class="text-xs leading-relaxed text-[#AAB4CA]">
-                            <span class="font-black text-white">LAUDAAPI no define la estrategia de transformación.</span>
-                            Es la plataforma tecnológica que permite ejecutarla, integrarla y medirla.
-                        </p>
-                    </div>
                 </div>
             </div>
         </section>
 
         <!-- ===================== LAUDA 360 ===================== -->
-        <section id="lauda360" class="mx-auto max-w-360 scroll-mt-24 px-4 py-10 sm:px-6 sm:py-12 2xl:px-8">
+        <section id="lauda360" class="mx-auto max-w-360 scroll-mt-24 px-4 py-8 sm:px-6 sm:py-10 2xl:px-8">
             <div class="mb-7 grid gap-5 lg:grid-cols-[minmax(0,0.95fr)_minmax(0,1.05fr)] lg:items-end">
                 <div>
                     <p class="text-[10px] font-black uppercase tracking-[0.24em] text-(--brand)">
                         Qué es LAUDA 360
                     </p>
                     <h2 class="mt-2 max-w-3xl text-[28px] font-black leading-[1.08] tracking-tight text-(--text) sm:text-[34px]">
-                        Un servicio para transformar la empresa, no solo para digitalizar tareas.
+                        Estrategia, procesos, tecnología y datos dentro de un mismo programa.
                     </h2>
                 </div>
 
                 <p class="max-w-2xl text-sm leading-relaxed text-muted lg:justify-self-end">
-                    LAUDA 360 combina diagnóstico, estrategia, acompañamiento e implementación.
-                    Partimos de la realidad de cada empresa, definimos prioridades y construimos una ruta progresiva para
-                    conectar personas, procesos, tecnología y datos alrededor de objetivos de negocio concretos.
+                    Partimos de la realidad de cada empresa, definimos prioridades y acompañamos la ejecución hasta que
+                    los cambios formen parte de la operación diaria.
                 </p>
             </div>
 
@@ -1153,38 +1119,38 @@ onBeforeUnmount(() => {
                                 Punto de partida
                             </p>
                             <h3 class="mt-1 text-xl font-black text-(--text)">
-                                Primero entendemos dónde está la empresa y qué necesita transformar.
+                                El diagnóstico define por dónde comenzar.
                             </h3>
                         </div>
                     </div>
 
-                    <div class="mt-6 space-y-3">
-                        <div class="flex gap-3 rounded-2xl border border-border bg-(--surface-soft) p-4">
+                    <div class="mt-5 space-y-2.5">
+                        <div class="flex gap-3 rounded-2xl border border-border bg-(--surface-soft) p-3">
                             <CheckCircle2 class="mt-0.5 h-4 w-4 shrink-0 text-[#22C55E]" />
                             <div>
                                 <p class="text-sm font-black text-(--text)">Diagnóstico claro</p>
                                 <p class="mt-1 text-xs leading-relaxed text-muted">
-                                    Identificamos nivel de madurez, brechas, riesgos y oportunidades de transformación.
+                                    Identificamos madurez, brechas y oportunidades prioritarias.
                                 </p>
                             </div>
                         </div>
 
-                        <div class="flex gap-3 rounded-2xl border border-border bg-(--surface-soft) p-4">
+                        <div class="flex gap-3 rounded-2xl border border-border bg-(--surface-soft) p-3">
                             <CheckCircle2 class="mt-0.5 h-4 w-4 shrink-0 text-[#22C55E]" />
                             <div>
                                 <p class="text-sm font-black text-(--text)">Roadmap por prioridades</p>
                                 <p class="mt-1 text-xs leading-relaxed text-muted">
-                                    Ordenamos objetivos y etapas según impacto, capacidad de la empresa y dependencias reales.
+                                    Ordenamos objetivos y etapas según impacto y capacidad real.
                                 </p>
                             </div>
                         </div>
 
-                        <div class="flex gap-3 rounded-2xl border border-border bg-(--surface-soft) p-4">
+                        <div class="flex gap-3 rounded-2xl border border-border bg-(--surface-soft) p-3">
                             <CheckCircle2 class="mt-0.5 h-4 w-4 shrink-0 text-[#22C55E]" />
                             <div>
                                 <p class="text-sm font-black text-(--text)">Acompañamiento hasta la adopción</p>
                                 <p class="mt-1 text-xs leading-relaxed text-muted">
-                                    No terminamos al configurar herramientas: acompañamos implementación, integración y uso real.
+                                    Acompañamos implementación, integración y adopción real.
                                 </p>
                             </div>
                         </div>
@@ -1225,7 +1191,7 @@ onBeforeUnmount(() => {
                             <h3 class="mt-4 text-lg font-black text-(--text)">
                                 {{ pillar.title }}
                             </h3>
-                            <p class="mt-2 text-sm leading-relaxed text-muted">
+                            <p class="mt-1.5 text-[13px] leading-relaxed text-muted">
                                 {{ pillar.desc }}
                             </p>
                         </div>
@@ -1255,17 +1221,16 @@ onBeforeUnmount(() => {
                         Roadmap de Transformación
                     </p>
                     <h2 class="mt-2 max-w-4xl text-[28px] font-black leading-[1.08] tracking-tight text-(--text) sm:text-[34px]">
-                        De entender la empresa a convertirla en una organización conectada e inteligente.
+                        Una ruta progresiva desde el diagnóstico hasta una empresa inteligente.
                     </h2>
                 </div>
 
                 <p class="max-w-xl text-sm leading-relaxed text-muted">
-                    La metodología es común, pero no todas las empresas comienzan en el mismo punto. El diagnóstico define
-                    qué debe priorizarse, cuánto acompañamiento se necesita y el ritmo adecuado para avanzar.
+                    El diagnóstico determina el punto de partida, las prioridades y el ritmo de implementación.
                 </p>
             </div>
 
-            <div class="mb-6 rounded-3xl border border-border bg-(--surface) p-4 shadow-sm sm:p-5">
+            <div class="mb-5 rounded-3xl border border-border bg-(--surface) p-4 shadow-sm">
                 <div class="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
                     <div class="rounded-2xl border border-border bg-(--surface-soft) p-4">
                         <p class="text-[10px] font-black uppercase tracking-[0.16em] text-(--brand)">01 · Entender</p>
@@ -1286,8 +1251,8 @@ onBeforeUnmount(() => {
                 </div>
             </div>
 
-            <div class="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-                <div v-for="stage in roadmapStages" :key="stage.number" class="lauda-card relative flex min-h-full flex-col overflow-hidden rounded-3xl border p-5">
+            <div class="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+                <div v-for="stage in roadmapStages" :key="stage.number" class="lauda-card relative flex min-h-full flex-col overflow-hidden rounded-2xl border p-4">
                     <div class="flex items-start justify-between gap-4">
                         <div>
                             <span class="text-3xl font-black tracking-[-0.04em]" :style="{ color: stage.color }">
@@ -1303,7 +1268,7 @@ onBeforeUnmount(() => {
                         </span>
                     </div>
 
-                    <h3 class="mt-4 text-base font-black text-(--text)">
+                    <h3 class="mt-3 text-base font-black text-(--text)">
                         {{ stage.title }}
                     </h3>
 
@@ -1311,7 +1276,7 @@ onBeforeUnmount(() => {
                         {{ stage.desc }}
                     </p>
 
-                    <div class="mt-auto pt-5">
+                    <div class="mt-auto pt-4">
                         <div class="rounded-2xl border border-border bg-(--surface-soft) p-3">
                             <p class="text-[9px] font-black uppercase tracking-[0.14em]" :style="{ color: stage.color }">
                                 Resultado esperado
@@ -1330,7 +1295,7 @@ onBeforeUnmount(() => {
                         LAUDAAPI entra cuando la transformación lo requiere.
                     </p>
                     <p class="mt-1 text-sm leading-relaxed text-muted">
-                        Social, CRM, POS, BYS, e-CF, Cumplimiento, integraciones, Data y BI se incorporan progresivamente como capacidades tecnológicas del roadmap, no como aplicaciones aisladas que la empresa debe elegir desde el inicio.
+                        Social, CRM, POS, administración, integraciones y BI se incorporan cuando el roadmap los necesita.
                     </p>
                 </div>
 
@@ -1349,17 +1314,17 @@ onBeforeUnmount(() => {
                             Modalidades de acompañamiento
                         </p>
                         <h2 class="mt-2 text-[28px] font-black leading-[1.08] tracking-tight text-(--text) sm:text-[34px]">
-                            Elija cuánto acompañamiento necesita, no qué tecnología comprar.
+                            El mismo roadmap, con tres niveles de acompañamiento.
                         </h2>
                     </div>
 
                     <p class="max-w-xl text-sm leading-relaxed text-muted">
-                        Las tres modalidades recorren la misma metodología LAUDA 360. Lo que cambia es la distribución del trabajo entre su empresa y nuestro equipo durante cada etapa de la transformación.
+                        Lo que cambia es cuánto ejecuta su equipo y cuánto asume LAUDA durante la transformación.
                     </p>
                 </div>
 
                 <div class="grid gap-4 lg:grid-cols-3">
-                    <article v-for="option in serviceModels" :key="option.title" class="lauda-service-card relative flex h-full flex-col rounded-3xl border border-border bg-(--surface-soft) p-5 sm:p-6" :class="option.recommended && 'lauda-service-card--recommended'">
+                    <article v-for="option in serviceModels" :key="option.title" class="lauda-service-card relative flex h-full flex-col rounded-3xl border border-border bg-(--surface-soft) p-5" :class="option.recommended && 'lauda-service-card--recommended'">
                         <div v-if="option.recommended" class="absolute -top-3 left-1/2 -translate-x-1/2 rounded-full bg-(--brand) px-3 py-1 text-[9px] font-black uppercase tracking-[0.14em] text-white shadow-lg shadow-[#F5333C]/20">
                             Recomendado
                         </div>
@@ -1374,7 +1339,7 @@ onBeforeUnmount(() => {
                             </span>
                         </div>
 
-                        <p class="mt-5 text-[10px] font-black uppercase tracking-[0.16em]" :style="{ color: option.color }">
+                        <p class="mt-4 text-[10px] font-black uppercase tracking-[0.16em]" :style="{ color: option.color }">
                             {{ option.level }}
                         </p>
 
@@ -1382,11 +1347,11 @@ onBeforeUnmount(() => {
                             {{ option.title }}
                         </h3>
 
-                        <p class="mt-3 text-sm leading-relaxed text-muted">
+                        <p class="mt-2 text-[13px] leading-relaxed text-muted">
                             {{ option.desc }}
                         </p>
 
-                        <div class="mt-5 rounded-2xl border border-border bg-(--surface-solid) p-4">
+                        <div class="mt-4 rounded-2xl border border-border bg-(--surface-solid) p-3">
                             <p class="text-[9px] font-black uppercase tracking-[0.14em] text-(--soft)">
                                 Ideal para
                             </p>
@@ -2191,15 +2156,13 @@ onBeforeUnmount(() => {
     background: var(--surface-solid) !important;
 }
 
-.lauda-card,
-.lauda-chip {
+.lauda-card {
     border-color: var(--border);
     background: var(--surface);
     box-shadow: 0 14px 38px rgba(15, 23, 42, 0.045);
 }
 
-.lauda-page--dark .lauda-card,
-.lauda-page--dark .lauda-chip {
+.lauda-page--dark .lauda-card {
     box-shadow: 0 16px 46px rgba(0, 0, 0, 0.24);
 }
 
@@ -2366,13 +2329,6 @@ select.lauda-input {
     min-width: 0;
 }
 
-.lauda-hero__chips {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
-    gap: 12px;
-    max-width: 620px;
-    margin-top: 24px;
-}
 
 .lauda-hero__panel {
     width: 100%;
@@ -2456,11 +2412,6 @@ select.lauda-input {
         font-size: 15.5px;
     }
 
-    .lauda-hero__chips {
-        grid-template-columns: 1fr;
-        gap: 10px;
-        margin-top: 24px;
-    }
 
     .lauda-hero__panel {
         padding: 12px;
