@@ -762,6 +762,7 @@ const mobileMenuOpen = ref(false)
 const isDarkMode = ref(false)
 const showBackToTop = ref(false)
 const navCompact = ref(false)
+const scrollProgress = ref(0)
 const activeSection = ref('lauda360')
 
 const hamburgerRef = ref(null)
@@ -785,7 +786,16 @@ function togglePresentationMode() {
 /* -------------------------------------------------------------------------- */
 
 function scrollToId(id) {
-    document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    const target = document.getElementById(id)
+    if (!target) return
+
+    const navOffset = window.innerWidth < 1024 ? 72 : 80
+    const top = target.getBoundingClientRect().top + window.scrollY - navOffset
+
+    window.scrollTo({
+        top: Math.max(0, top),
+        behavior: 'smooth',
+    })
 }
 
 function scrollToTop() {
@@ -817,9 +827,11 @@ function updateActiveSection() {
 
 function handleScroll() {
     const scrollY = window.scrollY
+    const scrollable = Math.max(1, document.documentElement.scrollHeight - window.innerHeight)
 
     navCompact.value = scrollY > 80
     showBackToTop.value = scrollY > 520
+    scrollProgress.value = Math.min(100, Math.max(0, (scrollY / scrollable) * 100))
     updateActiveSection()
 }
 
@@ -933,6 +945,10 @@ onBeforeUnmount(() => {
                 <button ref="hamburgerRef" type="button" class="lauda-icon-btn lauda-nav-action ml-1 grid h-11 w-11 place-items-center rounded-xl border lg:hidden" aria-controls="mobile-menu" :aria-expanded="mobileMenuOpen" aria-label="Abrir menú de navegación" @click="openMobileMenu">
                     <Menu class="h-5 w-5" />
                 </button>
+            </div>
+
+            <div class="lauda-scroll-progress" aria-hidden="true">
+                <div class="lauda-scroll-progress__bar" :style="{ width: scrollProgress + '%' }" />
             </div>
         </nav>
 
@@ -2197,6 +2213,24 @@ onBeforeUnmount(() => {
     transition: background-color 0.22s ease, box-shadow 0.22s ease, border-color 0.22s ease;
 }
 
+.lauda-scroll-progress {
+    position: absolute;
+    right: 0;
+    bottom: -1px;
+    left: 0;
+    height: 2px;
+    overflow: hidden;
+    background: transparent;
+    pointer-events: none;
+}
+
+.lauda-scroll-progress__bar {
+    height: 100%;
+    background: var(--brand);
+    box-shadow: 0 0 10px rgba(var(--brand-rgb), 0.25);
+    transition: width 0.08s linear;
+}
+
 .lauda-nav-inner,
 .lauda-brand-mark,
 .lauda-brand-icon,
@@ -2286,6 +2320,10 @@ onBeforeUnmount(() => {
     .lauda-nav-link,
     .lauda-nav-action,
     .lauda-login-button {
+        transition: none;
+    }
+
+    .lauda-scroll-progress__bar {
         transition: none;
     }
 }
