@@ -892,7 +892,7 @@ onBeforeUnmount(() => {
 
     <div :class="[ 'lauda-page min-h-screen antialiased', { 'lauda-page--dark': isDarkMode } ]">
         <!-- ===================== NAV ===================== -->
-        <nav class="lauda-nav sticky top-0 z-50 border-b backdrop-blur-xl" :class="{ 'lauda-nav--compact': navCompact }">
+        <nav class="lauda-nav fixed inset-x-0 top-0 z-50 border-b backdrop-blur-xl" :class="{ 'lauda-nav--compact': navCompact }">
             <div class="lauda-nav-inner mx-auto flex h-19 max-w-none items-center gap-3 px-4 sm:gap-6 sm:px-6 lg:gap-8 lg:px-8 2xl:px-10">
                 <Link href="/" class="lauda-nav-brand flex items-center gap-2.5">
                     <div class="lauda-brand-mark grid h-11 w-11 place-items-center rounded-xl bg-(--brand) font-black text-white shadow-xl shadow-[#F5333C]/35">
@@ -2163,6 +2163,7 @@ onBeforeUnmount(() => {
     --border: rgba(15, 23, 42, 0.08);
     --menu-bg: rgba(255, 255, 255, 0.96);
     min-height: 100vh;
+    padding-top: 76px;
     color: var(--text);
     background:
         radial-gradient(circle at 10% 8%, var(--page-glow-a), transparent 30%),
@@ -2190,6 +2191,7 @@ onBeforeUnmount(() => {
 }
 
 .lauda-nav {
+    width: 100%;
     border-color: var(--border);
     background: var(--nav-bg);
     transition: background-color 0.22s ease, box-shadow 0.22s ease, border-color 0.22s ease;
