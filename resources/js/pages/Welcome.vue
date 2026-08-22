@@ -1002,7 +1002,7 @@ onBeforeUnmount(() => {
 
                 <!-- Columna derecha: evolución de la empresa -->
                 <div class="lauda-hero__panel">
-                    <div class="flex flex-col gap-4 border-b border-white/[0.08] pb-5 sm:flex-row sm:items-start sm:justify-between">
+                    <div class="flex flex-col gap-4 border-b border-white/8 pb-5 sm:flex-row sm:items-start sm:justify-between">
                         <div>
                             <div class="flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.2em] text-[#F5333C]">
                                 <span class="h-2 w-2 rounded-full bg-[#F5333C]" />
@@ -1024,9 +1024,9 @@ onBeforeUnmount(() => {
                     </div>
 
                     <div class="mt-5 grid gap-3 sm:grid-cols-2">
-                        <div class="rounded-2xl border border-white/[0.07] bg-[#111625] p-4">
+                        <div class="rounded-2xl border border-white/7 bg-[#111625] p-4">
                             <div class="flex items-center justify-between gap-3">
-                                <span class="grid h-10 w-10 place-items-center rounded-xl bg-white/[0.06] text-[#A8B0C3]">
+                                <span class="grid h-10 w-10 place-items-center rounded-xl bg-white/6 text-[#A8B0C3]">
                                     <Boxes class="h-5 w-5" />
                                 </span>
                                 <span class="text-[10px] font-black uppercase tracking-[0.12em] text-[#6F7890]">01</span>
@@ -1077,7 +1077,7 @@ onBeforeUnmount(() => {
                         </div>
                     </div>
 
-                    <div class="mt-5 rounded-3xl border border-white/[0.07] bg-[#0D1120] p-4 sm:p-5">
+                    <div class="mt-5 rounded-3xl border border-white/7 bg-[#0D1120] p-4 sm:p-5">
                         <div class="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                             <div>
                                 <p class="text-[10px] font-black uppercase tracking-[0.18em] text-[#F5333C]">
@@ -1109,7 +1109,7 @@ onBeforeUnmount(() => {
                         </div>
                     </div>
 
-                    <div class="mt-4 flex items-center gap-3 rounded-2xl border border-white/[0.07] bg-white/[0.025] px-4 py-3">
+                    <div class="mt-4 flex items-center gap-3 rounded-2xl border border-white/7 bg-white/2.5 px-4 py-3">
                         <span class="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-[#F5333C]/12 text-[#F5333C]">
                             <ShieldCheck class="h-4 w-4" />
                         </span>
@@ -1767,13 +1767,13 @@ onBeforeUnmount(() => {
                     </div>
 
                     <div class="mt-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-                        <div v-for="metric in dashboardPreviewMetrics" :key="metric.label" class="rounded-2xl border border-white/[0.07] bg-[#111625] p-4">
+                        <div v-for="metric in dashboardPreviewMetrics" :key="metric.label" class="rounded-2xl border border-white/7 bg-[#111625] p-4">
                             <div class="flex items-start justify-between gap-3">
                                 <span class="grid h-10 w-10 shrink-0 place-items-center rounded-xl" :style="{ background: metric.color + '22' }">
                                     <component :is="metric.icon" class="h-5 w-5" :style="{ color: metric.color }" />
                                 </span>
 
-                                <span class="rounded-full border border-white/[0.07] px-2 py-1 text-[9px] font-black uppercase tracking-widest text-[#7A8298]">
+                                <span class="rounded-full border border-white/7 px-2 py-1 text-[9px] font-black uppercase tracking-widest text-[#7A8298]">
                                     Ejemplo
                                 </span>
                             </div>
@@ -1785,7 +1785,7 @@ onBeforeUnmount(() => {
                     </div>
 
                     <div class="mt-4 grid gap-4 lg:grid-cols-3">
-                        <div v-for="view in dashboardViews" :key="view.title" class="rounded-3xl border border-white/[0.07] bg-[#0D1120] p-5">
+                        <div v-for="view in dashboardViews" :key="view.title" class="rounded-3xl border border-white/7 bg-[#0D1120] p-5">
                             <div class="flex items-start gap-4">
                                 <span class="grid h-12 w-12 shrink-0 place-items-center rounded-2xl" :style="{ background: view.color + '22' }">
                                     <component :is="view.icon" class="h-5 w-5" :style="{ color: view.color }" />
