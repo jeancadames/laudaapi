@@ -7,19 +7,38 @@ use App\Mail\ContactConfirmationMail;
 use App\Mail\ContactInternalNotificationMail;
 use App\Models\ContactRequest;
 use App\Services\AuditService;
+use App\Services\Diagnosis\DiagnosisRequestEmailGuard;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
 
 class ContactRequestController extends Controller
 {
-    public function store(StoreContactRequest $request)
-    {
+    public function store(
+        StoreContactRequest $request,
+        DiagnosisRequestEmailGuard $emailGuard
+    ) {
+        $data = $request->validated();
+
+        if ($request->isDiagnosisRequest()) {
+            $emailError = $emailGuard->blockingMessage(
+                (string) ($data['email'] ?? '')
+            );
+
+            if ($emailError !== null) {
+                return response()->json([
+                    'success' => false,
+                    'message' => $emailError,
+                    'errors' => [
+                        'email' => [$emailError],
+                    ],
+                ], 422);
+            }
+        }
+
         try {
             /** @var ContactRequest $contact */
-            $contact = DB::transaction(function () use ($request) {
-                $data = $request->validated();
-
+            $contact = DB::transaction(function () use ($request, $data) {
                 // Asegura boolean real
                 $data['terms'] = $request->boolean('terms');
 

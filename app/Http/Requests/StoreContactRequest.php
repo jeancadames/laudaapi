@@ -49,7 +49,7 @@ class StoreContactRequest extends FormRequest
 
         return [
             'name' => ['required', 'string', 'min:2', 'max:255'],
-            'email' => ['required', 'email', 'max:255'],
+            'email' => ['required', 'email:rfc', 'max:254'],
 
             'phone' => [
                 Rule::requiredIf($isDiagnosis),
@@ -229,7 +229,7 @@ class StoreContactRequest extends FormRequest
         ]);
     }
 
-    private function isDiagnosisRequest(): bool
+    public function isDiagnosisRequest(): bool
     {
         return in_array(
             $this->input('metadata.request_type'),
