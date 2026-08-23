@@ -4,6 +4,7 @@ import { Head, Link, useForm } from '@inertiajs/vue3';
 import {
     ArrowLeft,
     CheckCircle2,
+    ChevronDown,
     Clock3,
     Mail,
     ShieldAlert,
@@ -199,23 +200,48 @@ function reject() {
     });
 }
 
-function publish() {
-    const priorities = publishForm.review_priorities
-        .split('\n')
-        .map((item) => item.trim())
-        .filter(Boolean);
+function reviewPayload() {
+    return {
+        review_summary: publishForm.review_summary,
+        final_modality: publishForm.final_modality,
+        review_priorities: publishForm.review_priorities
+            .split('\\n')
+            .map((item) => item.trim())
+            .filter(Boolean),
+    };
+}
 
-    publishForm.transform((data) => ({
-        review_summary: data.review_summary,
-        final_modality: data.final_modality,
-        review_priorities: priorities,
-    }));
+function saveReviewDraft() {
+    if (assessment.value?.status !== 'submitted') return;
+
+    publishForm.transform(() => reviewPayload());
+
+    publishForm.post(
+        `/admin/diagnosis-requests/${props.contact.id}/save-review`,
+        {
+            preserveScroll: true,
+        },
+    );
+}
+
+function publish() {
+    const action =
+        assessment.value?.status === 'reviewed'
+            ? 'actualizar y republicar'
+            : 'publicar';
+
+    const confirmed = window.confirm(
+        `¿Desea ${action} este resultado? El cliente podrá verlo y se enviará una notificación por correo.`,
+    );
+
+    if (!confirmed) return;
+
+    publishForm.transform(() => reviewPayload());
 
     publishForm.post(
         `/admin/diagnosis-requests/${props.contact.id}/publish-result`,
         {
             preserveScroll: true,
-            onFinish: () => publishForm.defaults(),
         },
     );
 }
@@ -638,46 +664,94 @@ function publish() {
                                     · {{ assessment.published_at }}
                                 </div>
 
-                                <Button
-                                    class="w-full bg-[#F53003] text-white hover:bg-[#D92A03]"
-                                    :disabled="publishForm.processing"
-                                    @click="publish"
+                                <div class="grid gap-2 sm:grid-cols-2">
+                                    <Button
+                                        v-if="assessment.status === 'submitted'"
+                                        variant="outline"
+                                        :disabled="publishForm.processing"
+                                        @click="saveReviewDraft"
+                                    >
+                                        Guardar borrador
+                                    </Button>
+
+                                    <Button
+                                        :class="[
+                                            'bg-[#F53003] text-white hover:bg-[#D92A03]',
+                                            assessment.status === 'reviewed'
+                                                ? 'sm:col-span-2'
+                                                : '',
+                                        ]"
+                                        :disabled="publishForm.processing"
+                                        @click="publish"
+                                    >
+                                        {{
+                                            assessment.status === 'reviewed'
+                                                ? 'Actualizar y republicar resultado'
+                                                : 'Publicar resultado al cliente'
+                                        }}
+                                    </Button>
+                                </div>
+
+                                <p
+                                    v-if="assessment.status === 'submitted'"
+                                    class="text-xs leading-5 text-muted-foreground"
                                 >
-                                    {{
-                                        assessment.status === 'reviewed'
-                                            ? 'Actualizar y republicar resultado'
-                                            : 'Publicar resultado al cliente'
-                                    }}
-                                </Button>
+                                    Guardar borrador no cambia el estado del
+                                    diagnóstico, no muestra el resultado al
+                                    cliente y no envía correos.
+                                </p>
                             </CardContent>
                         </Card>
 
                         <Card>
                             <CardHeader>
                                 <CardTitle>Detalle de respuestas</CardTitle>
+                                <p
+                                    class="text-xs leading-5 text-muted-foreground"
+                                >
+                                    Abra solo la dimensión que necesite revisar.
+                                    Los resultados permanecen visibles sin
+                                    cargar las 51 respuestas a la vez.
+                                </p>
                             </CardHeader>
-                            <CardContent class="space-y-5">
-                                <div
+                            <CardContent class="space-y-2">
+                                <details
                                     v-for="group in groups"
                                     :key="group.id"
-                                    class="rounded-2xl border p-4"
+                                    class="group overflow-hidden rounded-2xl border bg-background"
                                 >
-                                    <div
-                                        class="flex items-center justify-between gap-3"
+                                    <summary
+                                        class="flex cursor-pointer list-none items-center justify-between gap-3 p-4 transition-colors hover:bg-muted/40 [&::-webkit-details-marker]:hidden"
                                     >
-                                        <p class="font-black">
-                                            {{ group.title }}
-                                        </p>
-                                        <Badge variant="outline">
-                                            {{ group.score ?? '—' }}/100
-                                        </Badge>
-                                    </div>
+                                        <div class="min-w-0">
+                                            <p class="font-black">
+                                                {{ group.title }}
+                                            </p>
+                                            <p
+                                                class="mt-1 text-xs text-muted-foreground"
+                                            >
+                                                {{ group.questions.length }}
+                                                preguntas
+                                            </p>
+                                        </div>
 
-                                    <div class="mt-4 divide-y">
+                                        <div
+                                            class="flex shrink-0 items-center gap-2"
+                                        >
+                                            <Badge variant="outline">
+                                                {{ group.score ?? '—' }}/100
+                                            </Badge>
+                                            <ChevronDown
+                                                class="h-4 w-4 text-muted-foreground transition-transform group-open:rotate-180"
+                                            />
+                                        </div>
+                                    </summary>
+
+                                    <div class="border-t px-4">
                                         <div
                                             v-for="question in group.questions"
                                             :key="question.id"
-                                            class="py-3 first:pt-0 last:pb-0"
+                                            class="border-b py-4 last:border-b-0"
                                         >
                                             <p
                                                 class="text-sm leading-6 font-semibold"
@@ -723,7 +797,7 @@ function publish() {
                                             </p>
                                         </div>
                                     </div>
-                                </div>
+                                </details>
                             </CardContent>
                         </Card>
                     </template>

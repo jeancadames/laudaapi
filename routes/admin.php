@@ -157,6 +157,11 @@ Route::middleware(['auth', 'verified', 'role:admin'])
             [\App\Http\Controllers\Admin\AdminDiagnosisAccessRequestController::class, 'reject']
         )->name('diagnosis_requests.reject');
         \Illuminate\Support\Facades\Route::post(
+            '/diagnosis-requests/{contact}/save-review',
+            [\App\Http\Controllers\Admin\AdminDiagnosisAccessRequestController::class, 'saveReview']
+        )->name('diagnosis_requests.save_review');
+
+        \Illuminate\Support\Facades\Route::post(
             '/diagnosis-requests/{contact}/publish-result',
             [\App\Http\Controllers\Admin\AdminDiagnosisAccessRequestController::class, 'publishResult']
         )->name('diagnosis_requests.publish_result');

@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Diagnosis\PublishDiagnosisResultRequest;
+use App\Http\Requests\Diagnosis\SaveDiagnosisReviewRequest;
 use App\Mail\DiagnosisResultPublishedMail;
 use App\Models\ContactRequest;
 use App\Models\DiagnosisAccessRequest;
@@ -364,6 +365,40 @@ class AdminDiagnosisAccessRequestController extends Controller
         return back()->with(
             'success',
             'Solicitud de diagnóstico rechazada.'
+        );
+    }
+
+    public function saveReview(
+        SaveDiagnosisReviewRequest $request,
+        ContactRequest $contact,
+        DiagnosisAccessService $accessService,
+        DiagnosisResultPublisher $publisher
+    ): RedirectResponse {
+        if (!$accessService->isDiagnosisContact($contact)) {
+            abort(404);
+        }
+
+        $workflow = DiagnosisAccessRequest::query()
+            ->where('contact_request_id', $contact->id)
+            ->with('assessment')
+            ->firstOrFail();
+
+        if (!$workflow->assessment) {
+            abort(
+                422,
+                'La solicitud no tiene un diagnóstico vinculado.'
+            );
+        }
+
+        $publisher->saveDraft(
+            $workflow->assessment,
+            $request->user(),
+            $request->validated()
+        );
+
+        return back()->with(
+            'success',
+            'Borrador de revisión guardado.'
         );
     }
 

@@ -16,6 +16,69 @@ class DiagnosisResultPublisher
         'managed' => 'LAUDA 360 Gestionado',
     ];
 
+    public function saveDraft(
+        DiagnosisAssessment $assessment,
+        User $reviewer,
+        array $data
+    ): DiagnosisAssessment {
+        return DB::transaction(function () use (
+            $assessment,
+            $reviewer,
+            $data
+        ): DiagnosisAssessment {
+            $locked = DiagnosisAssessment::query()
+                ->whereKey($assessment->getKey())
+                ->lockForUpdate()
+                ->firstOrFail();
+
+            if ($locked->status !== 'submitted') {
+                throw ValidationException::withMessages([
+                    'assessment' => [
+                        'Solo puede guardarse como borrador un diagnóstico enviado y todavía no publicado.',
+                    ],
+                ]);
+            }
+
+            $modality = isset($data['final_modality'])
+                && $data['final_modality'] !== ''
+                ? (string) $data['final_modality']
+                : null;
+
+            $label = $modality !== null
+                ? self::labelForModality($modality)
+                : null;
+
+            if ($modality !== null && $label === null) {
+                throw ValidationException::withMessages([
+                    'final_modality' => [
+                        'La modalidad seleccionada no es válida.',
+                    ],
+                ]);
+            }
+
+            $locked->forceFill([
+                'reviewed_by_user_id' => $reviewer->id,
+                'review_summary' => isset($data['review_summary'])
+                    ? trim((string) $data['review_summary'])
+                    : null,
+                'review_priorities' => array_values(
+                    $data['review_priorities'] ?? []
+                ),
+                'final_modality' => $modality,
+                'final_modality_label' => $label,
+            ])->save();
+
+            AuditService::log('diagnosis_result_review_saved', $locked, [
+                'assessment_id' => $locked->id,
+                'reviewed_by_user_id' => $reviewer->id,
+                'automatic_modality' => $locked->recommended_modality,
+                'draft_modality' => $locked->final_modality,
+            ]);
+
+            return $locked->fresh(['user', 'reviewedBy']);
+        });
+    }
+
     public function publish(
         DiagnosisAssessment $assessment,
         User $reviewer,
