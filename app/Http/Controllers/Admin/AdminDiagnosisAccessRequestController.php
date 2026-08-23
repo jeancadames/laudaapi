@@ -3,13 +3,18 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Diagnosis\PublishDiagnosisResultRequest;
+use App\Mail\DiagnosisResultPublishedMail;
 use App\Models\ContactRequest;
 use App\Models\DiagnosisAccessRequest;
 use App\Services\AuditService;
 use App\Services\Diagnosis\DiagnosisAccessService;
+use App\Services\Diagnosis\DiagnosisResultPublisher;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Mail;
 use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -21,7 +26,10 @@ class AdminDiagnosisAccessRequestController extends Controller
         $search = trim((string) $request->get('search', ''));
         $status = (string) ($request->get('status', 'all') ?: 'all');
 
-        if ($status !== 'all' && !in_array($status, DiagnosisAccessRequest::STATUSES, true)) {
+        if (
+            $status !== 'all'
+            && !in_array($status, DiagnosisAccessRequest::STATUSES, true)
+        ) {
             $status = 'all';
         }
 
@@ -44,7 +52,13 @@ class AdminDiagnosisAccessRequestController extends Controller
             });
         }
 
-        $base->leftJoin('diagnosis_access_requests as dar', 'dar.contact_request_id', '=', 'contact_requests.id')
+        $base
+            ->leftJoin(
+                'diagnosis_access_requests as dar',
+                'dar.contact_request_id',
+                '=',
+                'contact_requests.id'
+            )
             ->select([
                 'contact_requests.*',
                 'dar.public_id as workflow_public_id',
@@ -58,7 +72,10 @@ class AdminDiagnosisAccessRequestController extends Controller
         if ($status === DiagnosisAccessRequest::STATUS_PENDING) {
             $base->where(function ($q): void {
                 $q->whereNull('dar.id')
-                    ->orWhere('dar.status', DiagnosisAccessRequest::STATUS_PENDING);
+                    ->orWhere(
+                        'dar.status',
+                        DiagnosisAccessRequest::STATUS_PENDING
+                    );
             });
         } elseif ($status !== 'all') {
             $base->where('dar.status', $status);
@@ -90,18 +107,26 @@ class AdminDiagnosisAccessRequestController extends Controller
                     'company_size' => $metadata['company_size'] ?? null,
                     'main_challenge' => $metadata['main_challenge'] ?? null,
                     'assistance_level' => $metadata['assistance_level'] ?? null,
-                    'status' => $contact->workflow_status ?: DiagnosisAccessRequest::STATUS_PENDING,
+                    'status' => $contact->workflow_status
+                        ?: DiagnosisAccessRequest::STATUS_PENDING,
                     'workflow_public_id' => $contact->workflow_public_id,
                     'user_id' => $contact->workflow_user_id,
                     'assessment_id' => $contact->workflow_assessment_id,
-                    'invitation_sent_at' => $contact->workflow_invitation_sent_at,
-                    'invitation_accepted_at' => $contact->workflow_invitation_accepted_at,
+                    'invitation_sent_at' => $contact
+                        ->workflow_invitation_sent_at,
+                    'invitation_accepted_at' => $contact
+                        ->workflow_invitation_accepted_at,
                     'created_at' => $contact->created_at?->toISOString(),
                 ];
             });
 
         $countsQuery = DB::table('contact_requests as c')
-            ->leftJoin('diagnosis_access_requests as dar', 'dar.contact_request_id', '=', 'c.id')
+            ->leftJoin(
+                'diagnosis_access_requests as dar',
+                'dar.contact_request_id',
+                '=',
+                'c.id'
+            )
             ->where(function ($q): void {
                 $q->whereIn('c.topic', [
                     'Solicitud de acceso al Diagnóstico LAUDA 360',
@@ -116,12 +141,20 @@ class AdminDiagnosisAccessRequestController extends Controller
             'all' => (clone $countsQuery)->count('c.id'),
             'pending' => (clone $countsQuery)
                 ->where(function ($q): void {
-                    $q->whereNull('dar.id')->orWhere('dar.status', DiagnosisAccessRequest::STATUS_PENDING);
+                    $q->whereNull('dar.id')->orWhere(
+                        'dar.status',
+                        DiagnosisAccessRequest::STATUS_PENDING
+                    );
                 })
                 ->count('c.id'),
         ];
 
-        foreach (array_diff(DiagnosisAccessRequest::STATUSES, [DiagnosisAccessRequest::STATUS_PENDING]) as $itemStatus) {
+        foreach (
+            array_diff(
+                DiagnosisAccessRequest::STATUSES,
+                [DiagnosisAccessRequest::STATUS_PENDING]
+            ) as $itemStatus
+        ) {
             $counts[$itemStatus] = (clone $countsQuery)
                 ->where('dar.status', $itemStatus)
                 ->count('c.id');
@@ -148,8 +181,13 @@ class AdminDiagnosisAccessRequestController extends Controller
 
         $workflow = DiagnosisAccessRequest::query()
             ->where('contact_request_id', $contact->id)
-            ->with(['user:id,name,email,role,must_change_password', 'assessment'])
+            ->with([
+                'user:id,name,email,role,must_change_password',
+                'assessment.reviewedBy:id,name,email',
+            ])
             ->first();
+
+        $assessment = $workflow?->assessment;
 
         return Inertia::render('Admin/DiagnosisRequests/Show', [
             'contact' => [
@@ -169,12 +207,50 @@ class AdminDiagnosisAccessRequestController extends Controller
                 'review_notes' => $workflow->review_notes,
                 'rejection_reason' => $workflow->rejection_reason,
                 'approved_at' => $workflow->approved_at?->toISOString(),
-                'invitation_sent_at' => $workflow->invitation_sent_at?->toISOString(),
-                'invitation_expires_at' => $workflow->invitation_expires_at?->toISOString(),
-                'invitation_accepted_at' => $workflow->invitation_accepted_at?->toISOString(),
+                'invitation_sent_at' => $workflow
+                    ->invitation_sent_at?->toISOString(),
+                'invitation_expires_at' => $workflow
+                    ->invitation_expires_at?->toISOString(),
+                'invitation_accepted_at' => $workflow
+                    ->invitation_accepted_at?->toISOString(),
                 'rejected_at' => $workflow->rejected_at?->toISOString(),
                 'user' => $workflow->user,
-                'assessment' => $workflow->assessment,
+                'assessment' => $assessment ? [
+                    'id' => $assessment->id,
+                    'organization_name' => $assessment->organization_name,
+                    'status' => $assessment->status,
+                    'current_step' => $assessment->current_step,
+                    'answers' => $assessment->answers ?? [],
+                    'notes' => $assessment->notes ?? [],
+                    'maturity_score' => $assessment->maturity_score,
+                    'capacity_score' => $assessment->capacity_score,
+                    'urgency_score' => $assessment->urgency_score,
+                    'dimension_scores' => $assessment->dimension_scores ?? [],
+                    'maturity_level' => $assessment->maturity_level,
+                    'urgency_level' => $assessment->urgency_level,
+                    'recommended_modality' => $assessment
+                        ->recommended_modality,
+                    'recommended_modality_label' => $assessment
+                        ->recommended_modality_label,
+                    'review_required' => (bool) $assessment->review_required,
+                    'review_summary' => $assessment->review_summary,
+                    'review_priorities' => $assessment
+                        ->review_priorities ?? [],
+                    'final_modality' => $assessment->final_modality,
+                    'final_modality_label' => $assessment
+                        ->final_modality_label,
+                    'submitted_at' => $assessment
+                        ->submitted_at?->toISOString(),
+                    'reviewed_at' => $assessment
+                        ->reviewed_at?->toISOString(),
+                    'published_at' => $assessment
+                        ->published_at?->toISOString(),
+                    'reviewed_by' => $assessment->reviewedBy ? [
+                        'id' => $assessment->reviewedBy->id,
+                        'name' => $assessment->reviewedBy->name,
+                        'email' => $assessment->reviewedBy->email,
+                    ] : null,
+                ] : null,
             ] : null,
             'statuses' => DiagnosisAccessRequest::STATUSES,
         ]);
@@ -201,7 +277,8 @@ class AdminDiagnosisAccessRequestController extends Controller
 
         $workflow->forceFill([
             'status' => $data['status'],
-            'review_notes' => $data['review_notes'] ?? $workflow->review_notes,
+            'review_notes' => $data['review_notes']
+                ?? $workflow->review_notes,
             'reviewed_by_user_id' => $request->user()->id,
         ])->save();
 
@@ -210,7 +287,10 @@ class AdminDiagnosisAccessRequestController extends Controller
             'reviewed_by_user_id' => $request->user()->id,
         ]);
 
-        return back()->with('success', 'Estado del diagnóstico actualizado.');
+        return back()->with(
+            'success',
+            'Estado del diagnóstico actualizado.'
+        );
     }
 
     public function approve(
@@ -220,7 +300,10 @@ class AdminDiagnosisAccessRequestController extends Controller
     ): RedirectResponse {
         $service->approve($contact, $request->user());
 
-        return back()->with('success', 'Solicitud aprobada e invitación de diagnóstico enviada.');
+        return back()->with(
+            'success',
+            'Solicitud aprobada e invitación de diagnóstico enviada.'
+        );
     }
 
     public function resend(
@@ -237,7 +320,10 @@ class AdminDiagnosisAccessRequestController extends Controller
             ->firstOrFail();
 
         if (!$workflow->canResendInvitation()) {
-            abort(422, 'La solicitud todavía no está preparada para reenviar la invitación.');
+            abort(
+                422,
+                'La solicitud todavía no está preparada para reenviar la invitación.'
+            );
         }
 
         $service->sendInvitation($workflow, $request->user());
@@ -257,7 +343,10 @@ class AdminDiagnosisAccessRequestController extends Controller
         $workflow = $service->workflowFor($contact);
 
         if ($workflow->status === DiagnosisAccessRequest::STATUS_ACTIVE) {
-            abort(422, 'No se puede rechazar un acceso que ya fue aceptado por el cliente.');
+            abort(
+                422,
+                'No se puede rechazar un acceso que ya fue aceptado por el cliente.'
+            );
         }
 
         $workflow->forceFill([
@@ -272,6 +361,66 @@ class AdminDiagnosisAccessRequestController extends Controller
             'reviewed_by_user_id' => $request->user()->id,
         ]);
 
-        return back()->with('success', 'Solicitud de diagnóstico rechazada.');
+        return back()->with(
+            'success',
+            'Solicitud de diagnóstico rechazada.'
+        );
+    }
+
+    public function publishResult(
+        PublishDiagnosisResultRequest $request,
+        ContactRequest $contact,
+        DiagnosisAccessService $accessService,
+        DiagnosisResultPublisher $publisher
+    ): RedirectResponse {
+        if (!$accessService->isDiagnosisContact($contact)) {
+            abort(404);
+        }
+
+        $workflow = DiagnosisAccessRequest::query()
+            ->where('contact_request_id', $contact->id)
+            ->with(['user', 'assessment'])
+            ->firstOrFail();
+
+        if (!$workflow->assessment || !$workflow->user) {
+            abort(
+                422,
+                'La solicitud no tiene diagnóstico y usuario vinculados.'
+            );
+        }
+
+        $assessment = $publisher->publish(
+            $workflow->assessment,
+            $request->user(),
+            $request->validated()
+        );
+
+        try {
+            Mail::to($workflow->user->email)->send(
+                new DiagnosisResultPublishedMail(
+                    $assessment,
+                    route('diagnosis.show', $assessment)
+                )
+            );
+        } catch (\Throwable $e) {
+            Log::warning(
+                'Resultado Diagnóstico 360 publicado, pero el correo falló.',
+                [
+                    'assessment_id' => $assessment->id,
+                    'user_id' => $workflow->user->id,
+                    'exception' => $e->getMessage(),
+                ]
+            );
+
+            return back()->with(
+                'warning',
+                'Resultado publicado. No se pudo enviar el correo de notificación.'
+            );
+        }
+
+        return back()->with(
+            'success',
+            'Resultado revisado, publicado y notificado al cliente.'
+        );
     }
 }

@@ -28,6 +28,12 @@ class DiagnosisAssessment extends Model
         'recommended_modality',
         'recommended_modality_label',
         'review_required',
+        'reviewed_by_user_id',
+        'review_summary',
+        'review_priorities',
+        'final_modality',
+        'final_modality_label',
+        'published_at',
         'started_at',
         'submitted_at',
         'reviewed_at',
@@ -40,6 +46,8 @@ class DiagnosisAssessment extends Model
             'notes' => 'array',
             'dimension_scores' => 'array',
             'review_required' => 'boolean',
+            'review_priorities' => 'array',
+            'published_at' => 'datetime',
             'started_at' => 'datetime',
             'submitted_at' => 'datetime',
             'reviewed_at' => 'datetime',
@@ -49,6 +57,11 @@ class DiagnosisAssessment extends Model
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);
+    }
+
+    public function reviewedBy(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'reviewed_by_user_id');
     }
 
     public function isEditable(): bool
