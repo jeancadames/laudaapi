@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue';
-import { Head, Link, useForm } from '@inertiajs/vue3';
+import { Head, Link, router, useForm } from '@inertiajs/vue3';
 import {
     ArrowLeft,
     CheckCircle2,
@@ -118,6 +118,30 @@ const publishForm = useForm({
         'assisted',
 });
 
+const reviewSubmitting = ref(false);
+
+type ReviewToastType = 'success' | 'warning' | 'error';
+
+const reviewToast = ref<{
+    type: ReviewToastType;
+    message: string;
+} | null>(null);
+
+let reviewToastTimer: ReturnType<typeof setTimeout> | null = null;
+
+function showReviewToast(type: ReviewToastType, message: string) {
+    reviewToast.value = { type, message };
+
+    if (reviewToastTimer) {
+        clearTimeout(reviewToastTimer);
+    }
+
+    reviewToastTimer = setTimeout(() => {
+        reviewToast.value = null;
+        reviewToastTimer = null;
+    }, 4500);
+}
+
 const canPublish = computed(() =>
     ['submitted', 'reviewed'].includes(assessment.value?.status ?? ''),
 );
@@ -202,26 +226,64 @@ function reject() {
 
 function reviewPayload() {
     return {
-        review_summary: publishForm.review_summary,
+        review_summary: publishForm.review_summary.trim(),
         final_modality: publishForm.final_modality,
         review_priorities: publishForm.review_priorities
-            .split('\\n')
+            .split(/\r?\n/)
             .map((item) => item.trim())
             .filter(Boolean),
     };
 }
 
+function submitReview(endpoint: 'save-review' | 'publish-result') {
+    publishForm.clearErrors();
+    reviewSubmitting.value = true;
+
+    router.post(
+        `/admin/diagnosis-requests/${props.contact.id}/${endpoint}`,
+        reviewPayload(),
+        {
+            preserveScroll: true,
+            preserveState: true,
+            onSuccess: (page) => {
+                const flash = (page.props.flash ?? {}) as {
+                    success?: string | null;
+                    warning?: string | null;
+                };
+
+                if (flash.warning) {
+                    showReviewToast('warning', flash.warning);
+                    return;
+                }
+
+                showReviewToast(
+                    'success',
+                    endpoint === 'publish-result'
+                        ? 'Resultado publicado al cliente.'
+                        : 'Borrador guardado correctamente.',
+                );
+            },
+            onError: (errors) => {
+                publishForm.setError(errors);
+
+                showReviewToast(
+                    'error',
+                    endpoint === 'publish-result'
+                        ? 'No se pudo publicar. Revise los campos de la revisión.'
+                        : 'No se pudo guardar el borrador. Revise los campos.',
+                );
+            },
+            onFinish: () => {
+                reviewSubmitting.value = false;
+            },
+        },
+    );
+}
+
 function saveReviewDraft() {
     if (assessment.value?.status !== 'submitted') return;
 
-    publishForm.transform(() => reviewPayload());
-
-    publishForm.post(
-        `/admin/diagnosis-requests/${props.contact.id}/save-review`,
-        {
-            preserveScroll: true,
-        },
-    );
+    submitReview('save-review');
 }
 
 function publish() {
@@ -236,19 +298,59 @@ function publish() {
 
     if (!confirmed) return;
 
-    publishForm.transform(() => reviewPayload());
-
-    publishForm.post(
-        `/admin/diagnosis-requests/${props.contact.id}/publish-result`,
-        {
-            preserveScroll: true,
-        },
-    );
+    submitReview('publish-result');
 }
 </script>
 
 <template>
     <Head title="Revisión Diagnóstico 360" />
+
+    <Transition
+        enter-active-class="transition duration-200 ease-out"
+        enter-from-class="translate-y-2 opacity-0"
+        enter-to-class="translate-y-0 opacity-100"
+        leave-active-class="transition duration-150 ease-in"
+        leave-from-class="translate-y-0 opacity-100"
+        leave-to-class="translate-y-2 opacity-0"
+    >
+        <div
+            v-if="reviewToast"
+            class="fixed top-4 right-4 z-[100] w-[calc(100%-2rem)] max-w-sm rounded-xl border px-4 py-3 shadow-lg sm:top-6 sm:right-6"
+            :class="{
+                'border-emerald-200 bg-emerald-50 text-emerald-950 dark:border-emerald-900 dark:bg-emerald-950 dark:text-emerald-100':
+                    reviewToast.type === 'success',
+                'border-amber-200 bg-amber-50 text-amber-950 dark:border-amber-900 dark:bg-amber-950 dark:text-amber-100':
+                    reviewToast.type === 'warning',
+                'border-red-200 bg-red-50 text-red-950 dark:border-red-900 dark:bg-red-950 dark:text-red-100':
+                    reviewToast.type === 'error',
+            }"
+            role="status"
+            aria-live="polite"
+        >
+            <div class="flex items-start gap-3">
+                <CheckCircle2
+                    v-if="reviewToast.type === 'success'"
+                    class="mt-0.5 h-5 w-5 shrink-0"
+                />
+                <ShieldAlert v-else class="mt-0.5 h-5 w-5 shrink-0" />
+
+                <div class="min-w-0 flex-1">
+                    <p class="text-sm font-bold">
+                        {{ reviewToast.message }}
+                    </p>
+                </div>
+
+                <button
+                    type="button"
+                    class="shrink-0 text-xs font-black opacity-60 transition hover:opacity-100"
+                    aria-label="Cerrar notificación"
+                    @click="reviewToast = null"
+                >
+                    ×
+                </button>
+            </div>
+        </div>
+    </Transition>
 
     <AppLayout :breadcrumbs="breadcrumbs">
         <div class="mx-auto w-full max-w-7xl space-y-5 p-4 md:p-6">
@@ -668,8 +770,12 @@ function publish() {
                                     <Button
                                         v-if="assessment.status === 'submitted'"
                                         variant="outline"
-                                        :disabled="publishForm.processing"
+                                        :disabled="
+                                            reviewSubmitting ||
+                                            publishForm.processing
+                                        "
                                         @click="saveReviewDraft"
+                                        type="button"
                                     >
                                         Guardar borrador
                                     </Button>
@@ -681,8 +787,12 @@ function publish() {
                                                 ? 'sm:col-span-2'
                                                 : '',
                                         ]"
-                                        :disabled="publishForm.processing"
+                                        :disabled="
+                                            reviewSubmitting ||
+                                            publishForm.processing
+                                        "
                                         @click="publish"
+                                        type="button"
                                     >
                                         {{
                                             assessment.status === 'reviewed'
