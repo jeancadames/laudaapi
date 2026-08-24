@@ -23,6 +23,8 @@ import { Textarea } from '@/components/ui/textarea';
 
 import DetailedRoadmapAdminCommercialCard from '@/components/diagnosis/DetailedRoadmapAdminCommercialCard.vue';
 
+import DetailedRoadmapTransformationCapabilities from '@/components/diagnosis/DetailedRoadmapTransformationCapabilities.vue';
+
 interface Initiative {
     id: string;
     dimension_label: string;
@@ -47,6 +49,7 @@ interface Roadmap {
     status: 'draft' | 'under_review' | 'published';
     roadmap: {
         executive_direction?: Record<string, any>;
+        transformation_capabilities?: Record<string, any>;
         phases?: Array<Record<string, any>>;
         initiatives?: Initiative[];
         governance?: Record<string, any>;
@@ -84,6 +87,8 @@ const props = defineProps<{
     roadmap: Roadmap | null;
     can_generate: boolean;
     commercial: Record<string, any> | null;
+    generation_readiness: Record<string, any>;
+    transformation_progress: Record<string, any> | null;
     endpoints: {
         back: string;
         generate: string;
@@ -104,6 +109,10 @@ const canEdit = computed(
     () =>
         props.roadmap !== null &&
         ['draft', 'under_review'].includes(props.roadmap.status),
+);
+
+const publicationReady = computed(
+    () => props.generation_readiness?.publication_ready === true,
 );
 
 function generate() {
@@ -139,7 +148,7 @@ function regenerate() {
 }
 
 function publish() {
-    if (!props.roadmap || !canEdit.value) return;
+    if (!props.roadmap || !canEdit.value || !publicationReady.value) return;
     if (!window.confirm('¿Publicar esta versión del Roadmap para el cliente?'))
         return;
     router.post(props.roadmap.endpoints.publish, {}, { preserveScroll: true });
@@ -188,6 +197,102 @@ function statusLabel(status: Roadmap['status']) {
                 </Button>
             </div>
 
+            <Card>
+                <CardHeader>
+                    <CardTitle>Estado del Roadmap</CardTitle>
+                    <CardDescription>
+                        Requisitos para generar y publicar para el cliente.
+                    </CardDescription>
+                </CardHeader>
+
+                <CardContent class="space-y-4">
+                    <div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
+                        <div
+                            v-for="(
+                                ok, key
+                            ) in generation_readiness.prerequisites"
+                            :key="key"
+                            class="rounded-xl border p-3"
+                        >
+                            <p
+                                class="text-xs font-bold text-muted-foreground uppercase"
+                            >
+                                {{
+                                    {
+                                        diagnosis_published:
+                                            'Diagnóstico publicado',
+                                        expanded_report_published:
+                                            'Informe publicado',
+                                        roadmap_requested: 'Roadmap solicitado',
+                                        roadmap_invoiced: 'Factura Roadmap',
+                                        roadmap_paid: 'Pago Roadmap',
+                                    }[key] || key
+                                }}
+                            </p>
+                            <p
+                                class="mt-1 font-bold"
+                                :class="
+                                    ok
+                                        ? 'text-primary'
+                                        : 'text-muted-foreground'
+                                "
+                            >
+                                {{ ok ? '✓ Cumplido' : 'Pendiente' }}
+                            </p>
+                        </div>
+                    </div>
+
+                    <div
+                        v-if="generation_readiness.existing_roadmap"
+                        class="rounded-xl border bg-muted/30 p-4"
+                    >
+                        <p class="font-bold">
+                            Roadmap V{{
+                                generation_readiness.existing_roadmap.version
+                            }}
+                            ya generado
+                        </p>
+                        <p class="mt-1 text-sm text-muted-foreground">
+                            Estado:
+                            {{
+                                generation_readiness.existing_roadmap
+                                    .status_label
+                            }}. No es necesario generar nuevamente esta versión.
+                        </p>
+                    </div>
+
+                    <div
+                        v-if="generation_readiness.publication_blockers?.length"
+                        class="rounded-xl border p-4"
+                    >
+                        <p class="font-bold">
+                            Publicar para cliente todavía no está disponible
+                        </p>
+                        <ul
+                            class="mt-2 space-y-1 text-sm text-muted-foreground"
+                        >
+                            <li
+                                v-for="item in generation_readiness.publication_blockers"
+                                :key="item"
+                            >
+                                • {{ item }}
+                            </li>
+                        </ul>
+                    </div>
+
+                    <div
+                        v-else-if="generation_readiness.publication_ready"
+                        class="rounded-xl border bg-muted/30 p-4"
+                    >
+                        <p class="font-bold">✓ Listo para publicar</p>
+                        <p class="mt-1 text-sm text-muted-foreground">
+                            Los requisitos comerciales y operativos están
+                            completos.
+                        </p>
+                    </div>
+                </CardContent>
+            </Card>
+
             <DetailedRoadmapAdminCommercialCard
                 :commercial="commercial"
                 :prepare-invoice-url="endpoints.prepare_invoice"
@@ -229,6 +334,10 @@ function statusLabel(status: Roadmap['status']) {
                         </p>
                     </CardContent>
                 </Card>
+
+                <DetailedRoadmapTransformationCapabilities
+                    :capabilities="content.transformation_capabilities ?? null"
+                />
 
                 <Card>
                     <CardHeader>

@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import TransformationProgressChecklist from '@/components/diagnosis/TransformationProgressChecklist.vue';
 import { computed, ref } from 'vue';
 import { Head, Link, router, useForm } from '@inertiajs/vue3';
 import {
@@ -105,6 +106,7 @@ const props = defineProps<{
     workflow: Workflow | null;
     statuses: string[];
     businessProfileOptions: BusinessProfileOptions;
+    transformation_progress: Record<string, any> | null;
 }>();
 
 const breadcrumbs: BreadcrumbItem[] = [
@@ -461,6 +463,11 @@ function publish() {
 
             <div class="grid gap-5 lg:grid-cols-[0.8fr_1.2fr]">
                 <div class="space-y-5">
+                    <TransformationProgressChecklist
+                        :progress="transformation_progress"
+                        :admin="true"
+                    />
+
                     <Card>
                         <CardHeader>
                             <CardTitle>Solicitud y acceso</CardTitle>

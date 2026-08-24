@@ -9,6 +9,7 @@ use App\Models\DiagnosisAccessRequest;
 use App\Models\DiagnosisAssessment;
 use App\Models\DiagnosisDetailedRoadmapOrder;
 use App\Services\Diagnosis\DiagnosisAccessService;
+use App\Services\Diagnosis\DiagnosisCommercialNotificationService;
 use App\Services\Diagnosis\DiagnosisDetailedRoadmapCommercialService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -20,7 +21,8 @@ class AdminDiagnosisDetailedRoadmapCommercialController extends Controller
         ContactRequest $contact,
         DiagnosisDetailedRoadmapOrder $order,
         DiagnosisAccessService $accessService,
-        DiagnosisDetailedRoadmapCommercialService $commercialService
+        DiagnosisDetailedRoadmapCommercialService $commercialService,
+        DiagnosisCommercialNotificationService $notificationService
     ): RedirectResponse {
         $assessment = $this->assessmentFor(
             $contact,
@@ -37,6 +39,17 @@ class AdminDiagnosisDetailedRoadmapCommercialController extends Controller
             $request->user()
         );
 
+        $freshOrder = $order->fresh();
+
+        if ($freshOrder) {
+            $notificationService->invoiceRequired(
+                $assessment,
+                'detailed_roadmap',
+                $invoice,
+                $freshOrder
+            );
+        }
+
         return back()->with(
             'success',
             "Factura {$invoice->number} preparada."
@@ -48,7 +61,8 @@ class AdminDiagnosisDetailedRoadmapCommercialController extends Controller
         ContactRequest $contact,
         DiagnosisDetailedRoadmapOrder $order,
         DiagnosisAccessService $accessService,
-        DiagnosisDetailedRoadmapCommercialService $commercialService
+        DiagnosisDetailedRoadmapCommercialService $commercialService,
+        DiagnosisCommercialNotificationService $notificationService
     ): RedirectResponse {
         $assessment = $this->assessmentFor(
             $contact,
@@ -66,6 +80,22 @@ class AdminDiagnosisDetailedRoadmapCommercialController extends Controller
             $request->validated('method'),
             $request->validated('reference')
         );
+
+        $freshOrder = $order->fresh([
+            'invoice',
+        ]);
+
+        if (
+            $freshOrder
+            && $freshOrder->invoice
+        ) {
+            $notificationService->paymentConfirmed(
+                $assessment,
+                'detailed_roadmap',
+                $freshOrder->invoice,
+                $freshOrder
+            );
+        }
 
         return back()->with(
             'success',

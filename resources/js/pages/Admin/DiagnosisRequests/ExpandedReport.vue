@@ -5,6 +5,7 @@ import {
     ArrowLeft,
     CheckCircle2,
     FileText,
+    LockKeyhole,
     RefreshCcw,
     Send,
     ShieldAlert,
@@ -86,6 +87,10 @@ const canEdit = computed(
         ['draft', 'under_review'].includes(props.report.status),
 );
 
+const canPublish = computed(
+    () => canEdit.value && props.commercial?.paid_access === true,
+);
+
 function generate() {
     router.post(props.endpoints.generate, {}, { preserveScroll: true });
 }
@@ -122,7 +127,7 @@ function regenerate() {
 function publish() {
     if (
         props.report &&
-        canEdit.value &&
+        canPublish.value &&
         window.confirm('¿Publicar esta versión para el cliente?')
     )
         router.post(
@@ -542,9 +547,16 @@ function statusLabel(status: Report['status']) {
                                 class="inline-flex items-center gap-2 font-semibold text-emerald-700 dark:text-emerald-300"
                                 ><CheckCircle2 class="size-4" />Versión
                                 publicada y bloqueada.</span
-                            ><span v-else
-                                >Revisa el contenido antes de publicar.</span
+                            ><span v-else-if="commercial?.paid_access">
+                                Revisa el contenido antes de publicar.
+                            </span>
+                            <span
+                                v-else
+                                class="inline-flex items-center gap-2 font-semibold"
                             >
+                                <LockKeyhole class="size-4" />
+                                Publicación bloqueada hasta pago confirmado.
+                            </span>
                         </div>
                         <div class="flex flex-wrap gap-2">
                             <Button
@@ -561,7 +573,10 @@ function statusLabel(status: Report['status']) {
                                 @click="markReview"
                                 >Marcar En revisión</Button
                             >
-                            <Button v-if="canEdit" @click="publish"
+                            <Button
+                                v-if="canEdit"
+                                :disabled="!canPublish"
+                                @click="publish"
                                 ><Send class="mr-2 size-4" />Publicar para
                                 cliente</Button
                             >

@@ -9,22 +9,62 @@ use App\Models\DiagnosisAccessRequest;
 use App\Models\DiagnosisAssessment;
 use App\Models\DiagnosisExpandedReportOrder;
 use App\Services\Diagnosis\DiagnosisAccessService;
+use App\Services\Diagnosis\DiagnosisCommercialNotificationService;
 use App\Services\Diagnosis\DiagnosisExpandedReportCommercialService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 
 class AdminDiagnosisExpandedReportCommercialController extends Controller
 {
-    public function prepareInvoice(Request $request, ContactRequest $contact, DiagnosisExpandedReportOrder $order, DiagnosisAccessService $accessService, DiagnosisExpandedReportCommercialService $commercialService): RedirectResponse
+    public function prepareInvoice(
+        Request $request,
+        ContactRequest $contact,
+        DiagnosisExpandedReportOrder $order,
+        DiagnosisAccessService $accessService,
+        DiagnosisExpandedReportCommercialService $commercialService,
+        DiagnosisCommercialNotificationService $notificationService
+    ): RedirectResponse
     {
-        $assessment = $this->assessmentFor($contact, $accessService);
-        $this->assertOrder($order, $assessment);
-        $invoice = $commercialService->prepareInvoice($order, $request->user());
+        $assessment = $this->assessmentFor(
+            $contact,
+            $accessService
+        );
 
-        return back()->with('success', "Factura {$invoice->number} preparada correctamente.");
+        $this->assertOrder(
+            $order,
+            $assessment
+        );
+
+        $invoice = $commercialService->prepareInvoice(
+            $order,
+            $request->user()
+        );
+
+        $freshOrder = $order->fresh();
+
+        if ($freshOrder) {
+            $notificationService->invoiceRequired(
+                $assessment,
+                'expanded_report',
+                $invoice,
+                $freshOrder
+            );
+        }
+
+        return back()->with(
+            'success',
+            "Factura {$invoice->number} preparada correctamente."
+        );
     }
 
-    public function recordPayment(RecordDiagnosisExpandedReportPaymentRequest $request, ContactRequest $contact, DiagnosisExpandedReportOrder $order, DiagnosisAccessService $accessService, DiagnosisExpandedReportCommercialService $commercialService): RedirectResponse
+    public function recordPayment(
+        RecordDiagnosisExpandedReportPaymentRequest $request,
+        ContactRequest $contact,
+        DiagnosisExpandedReportOrder $order,
+        DiagnosisAccessService $accessService,
+        DiagnosisExpandedReportCommercialService $commercialService,
+        DiagnosisCommercialNotificationService $notificationService
+    ): RedirectResponse
     {
         $assessment = $this->assessmentFor($contact, $accessService);
         $this->assertOrder($order, $assessment);
@@ -34,6 +74,22 @@ class AdminDiagnosisExpandedReportCommercialController extends Controller
             $request->string('method')->toString(),
             $request->filled('reference') ? $request->string('reference')->toString() : null
         );
+
+        $freshOrder = $order->fresh([
+            'invoice',
+        ]);
+
+        if (
+            $freshOrder
+            && $freshOrder->invoice
+        ) {
+            $notificationService->paymentConfirmed(
+                $assessment,
+                'expanded_report',
+                $freshOrder->invoice,
+                $freshOrder
+            );
+        }
 
         return back()->with('success', "Pago #{$payment->id} registrado. Acceso comercial habilitado.");
     }

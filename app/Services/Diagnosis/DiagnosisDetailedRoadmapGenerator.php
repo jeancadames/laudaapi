@@ -105,6 +105,10 @@ class DiagnosisDetailedRoadmapGenerator
                     ['code' => 'H3', 'label' => '91-180 días'],
                     ['code' => 'H4', 'label' => '181-365 días'],
                 ],
+                'transformation_capabilities' =>
+                    $this->transformationCapabilities(
+                        $assessment
+                    ),
                 'phases' => $this->phases($initiatives),
                 'initiatives' => $initiatives,
                 'governance' => [
@@ -144,9 +148,111 @@ class DiagnosisDetailedRoadmapGenerator
                 'scope_note' => [
                     'title' => 'Alcance del Roadmap Detallado',
                     'body' =>
-                        'El Roadmap define qué transformar, en qué secuencia, con qué responsables, dependencias, esfuerzo e indicadores. La ejecución técnica, parametrización, desarrollo, integración y gestión del cambio se cotizan y planifican por separado.',
+                        'El Roadmap define qué transformar, en qué secuencia, con qué responsables, dependencias, esfuerzo e indicadores. También identifica capacidades de Transformación Detallada como la Guía de Procesos y Procedimientos y, cuando corresponda, Branding e Identidad Digital. La ejecución técnica, elaboración e implantación de procedimientos, branding, parametrización, desarrollo, integración y gestión del cambio se cotizan y planifican por separado.',
                 ],
             ],
+        ];
+    }
+
+    private function transformationCapabilities(
+        DiagnosisAssessment $assessment
+    ): array {
+        $description = mb_strtolower(
+            trim(
+                (string)
+                    $assessment
+                        ->business_activity_description
+            )
+        );
+
+        $brandingSignals = [
+            'branding',
+            'marca',
+            'identidad',
+            'imagen corporativa',
+            'rebranding',
+        ];
+
+        $brandingRecommended = false;
+
+        foreach ($brandingSignals as $signal) {
+            if (
+                $description !== ''
+                && str_contains(
+                    $description,
+                    $signal
+                )
+            ) {
+                $brandingRecommended = true;
+
+                break;
+            }
+        }
+
+        return [
+            'title' =>
+                'Capacidades de Transformación Detallada',
+
+            'procedures_guide' => [
+                'title' =>
+                    'Guía de Procesos y Procedimientos LAUDA 360',
+                'type' =>
+                    'structural',
+                'recommended' =>
+                    true,
+                'purpose' =>
+                    'Documentar cómo debe operar la empresa después de la transformación, reduciendo dependencia de conocimiento informal y facilitando adopción, control y continuidad.',
+                'includes' => [
+                    'Objetivo y alcance del proceso.',
+                    'Responsables y participantes.',
+                    'Entradas, requisitos y precondiciones.',
+                    'Procedimiento paso a paso.',
+                    'Sistemas y herramientas utilizadas.',
+                    'Controles, autorizaciones y excepciones.',
+                    'Evidencias y documentos.',
+                    'Indicadores y resultado esperado.',
+                ],
+                'lifecycle' => [
+                    'Borrador',
+                    'Revisión',
+                    'Aprobado',
+                    'Vigente',
+                    'Sustituido',
+                ],
+                'commercial_note' =>
+                    'El Roadmap identifica y estructura esta capacidad. La elaboración detallada, validación e implantación de las guías se define y cotiza en la fase de ejecución de la transformación.',
+            ],
+
+            'branding_identity' => [
+                'title' =>
+                    'Branding e Identidad Digital',
+                'type' =>
+                    'optional',
+                'recommended' =>
+                    $brandingRecommended,
+                'requires_lauda_review' =>
+                    true,
+                'purpose' =>
+                    'Alinear posicionamiento, identidad y aplicación digital de la marca cuando la situación del cliente limite la experiencia, comunicación o adopción de nuevos canales.',
+                'includes' => [
+                    'Diagnóstico de marca y consistencia.',
+                    'Posicionamiento y propuesta de valor.',
+                    'Mensajes principales y personalidad.',
+                    'Refresh o rediseño de identidad cuando aplique.',
+                    'Paleta, tipografía y lineamientos de uso.',
+                    'Brand Kit Digital.',
+                    'Aplicación a web, ecommerce, redes y documentos.',
+                ],
+                'recommendation_basis' =>
+                    $brandingRecommended
+                    ? 'El cliente declaró una necesidad relacionada con marca o identidad en su contexto de negocio. LAUDA debe validarla antes de incluir ejecución.'
+                    : 'Capacidad opcional. Se activa cuando la revisión LAUDA confirma que la identidad o el posicionamiento limitan la transformación.',
+                'commercial_note' =>
+                    'Branding no modifica el scoring del diagnóstico. Su ejecución se cotiza como parte de la transformación cuando corresponda.',
+            ],
+
+            'score_note' =>
+                'Las capacidades de procedimientos y branding son contexto de ejecución y no modifican la puntuación del Diagnóstico LAUDA 360.',
         ];
     }
 

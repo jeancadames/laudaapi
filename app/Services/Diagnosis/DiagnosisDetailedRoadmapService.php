@@ -186,6 +186,8 @@ class DiagnosisDetailedRoadmapService
             'initiatives',
             'governance',
             'success_framework',
+            'transformation_capabilities.procedures_guide.title',
+            'transformation_capabilities.branding_identity.title',
             'scope_note.body',
         ] as $path) {
             $value = data_get($payload, $path);

@@ -204,7 +204,8 @@ class AdminDiagnosisExpandedReportController extends Controller
         DiagnosisExpandedReport $report,
         DiagnosisAccessService $accessService,
         DiagnosisExpandedReportService $reportService,
-        \App\Services\Diagnosis\DiagnosisExpandedReportCommercialService $commercialService
+        \App\Services\Diagnosis\DiagnosisExpandedReportCommercialService $commercialService,
+        \App\Services\Diagnosis\DiagnosisCommercialNotificationService $notificationService
     ): RedirectResponse {
         $assessment = $this->assessmentFor(
             $contact,
@@ -224,9 +225,19 @@ class AdminDiagnosisExpandedReportController extends Controller
             'El Informe Ampliado solo puede publicarse después de confirmar el pago.'
         );
 
-        $reportService->publish(
+        $published = $reportService->publish(
             $report,
             $request->user()
+        );
+
+        $notificationService->deliverablePublished(
+            $assessment,
+            'expanded_report',
+            (int) $published->version,
+            route(
+                'diagnosis.expanded_report.show',
+                $assessment
+            )
         );
 
         return back()->with(

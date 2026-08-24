@@ -13,6 +13,8 @@ import {
     CardTitle,
 } from '@/components/ui/card';
 
+import DetailedRoadmapTransformationCapabilities from '@/components/diagnosis/DetailedRoadmapTransformationCapabilities.vue';
+
 interface Initiative {
     id: string;
     dimension_label: string;
@@ -44,6 +46,7 @@ const props = defineProps<{
         version: number;
         content: {
             executive_direction?: Record<string, any>;
+            transformation_capabilities?: Record<string, any>;
             phases?: Array<Record<string, any>>;
             initiatives?: Initiative[];
             governance?: Record<string, any>;
@@ -110,6 +113,10 @@ function formatDate(value: string | null) {
                     </p>
                 </CardContent>
             </Card>
+
+            <DetailedRoadmapTransformationCapabilities
+                :capabilities="content.transformation_capabilities ?? null"
+            />
 
             <Card>
                 <CardHeader>

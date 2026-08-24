@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import TransformationProgressChecklist from '@/components/diagnosis/TransformationProgressChecklist.vue';
 import ExpandedReportCommercialCard from '@/components/diagnosis/ExpandedReportCommercialCard.vue';
 import { computed, reactive, ref } from 'vue';
 import { Head, Link, router } from '@inertiajs/vue3';
@@ -100,6 +101,7 @@ const props = defineProps<{
     } | null;
     endpoints: Endpoints;
     businessProfileOptions: BusinessProfileOptions;
+    transformation_progress: Record<string, any> | null;
 }>();
 
 const saveStatus = ref<'idle' | 'saving' | 'saved' | 'error'>('idle');
@@ -391,6 +393,10 @@ function submitDiagnosis(payload: {
         <main
             class="mx-auto w-full max-w-7xl px-4 py-6 sm:px-6 lg:px-8 lg:py-8"
         >
+            <TransformationProgressChecklist
+                :progress="transformation_progress"
+            />
+
             <Card v-if="isEditable" class="mb-6">
                 <CardContent class="space-y-5 p-5 sm:p-6">
                     <div>

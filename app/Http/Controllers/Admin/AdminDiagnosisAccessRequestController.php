@@ -11,6 +11,7 @@ use App\Models\DiagnosisAccessRequest;
 use App\Services\AuditService;
 use App\Services\Diagnosis\DiagnosisAccessService;
 use App\Services\Diagnosis\DiagnosisResultPublisher;
+use App\Services\Diagnosis\DiagnosisTransformationProgressService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -174,7 +175,8 @@ class AdminDiagnosisAccessRequestController extends Controller
 
     public function show(
         ContactRequest $contact,
-        DiagnosisAccessService $service
+        DiagnosisAccessService $service,
+        DiagnosisTransformationProgressService $progressService
     ): Response {
         if (!$service->isDiagnosisContact($contact)) {
             abort(404);
@@ -258,6 +260,13 @@ class AdminDiagnosisAccessRequestController extends Controller
                 'lauda360_business_profile',
                 []
             ),
+            'transformation_progress' =>
+                $assessment
+                    ? $progressService->forAssessment(
+                        $assessment,
+                        true
+                    )
+                    : null,
         ]);
     }
 

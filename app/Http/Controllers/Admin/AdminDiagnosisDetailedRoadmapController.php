@@ -10,8 +10,10 @@ use App\Models\DiagnosisAssessment;
 use App\Models\DiagnosisDetailedRoadmap;
 use App\Models\DiagnosisExpandedReport;
 use App\Services\Diagnosis\DiagnosisAccessService;
+use App\Services\Diagnosis\DiagnosisCommercialNotificationService;
 use App\Services\Diagnosis\DiagnosisDetailedRoadmapCommercialService;
 use App\Services\Diagnosis\DiagnosisDetailedRoadmapService;
+use App\Services\Diagnosis\DiagnosisTransformationProgressService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -22,7 +24,8 @@ class AdminDiagnosisDetailedRoadmapController extends Controller
     public function show(
         ContactRequest $contact,
         DiagnosisAccessService $accessService,
-        DiagnosisDetailedRoadmapCommercialService $commercialService
+        DiagnosisDetailedRoadmapCommercialService $commercialService,
+        DiagnosisTransformationProgressService $progressService
     ): Response {
         $assessment = $this->assessmentFor($contact, $accessService);
 
@@ -46,6 +49,11 @@ class AdminDiagnosisDetailedRoadmapController extends Controller
         $commercial = $commercialService->state(
             $assessment
         );
+
+        $readiness =
+            $progressService->roadmapReadiness(
+                $assessment
+            );
 
         return Inertia::render(
             'Admin/DiagnosisRequests/DetailedRoadmap',
@@ -74,9 +82,14 @@ class AdminDiagnosisDetailedRoadmapController extends Controller
                     ? $this->serializeRoadmap($roadmap, $contact)
                     : null,
                 'can_generate' =>
-                    $assessment->status === 'reviewed'
-                    && $assessment->published_at !== null
-                    && $sourceReport !== null,
+                    $readiness['generation_ready'],
+                'generation_readiness' =>
+                    $readiness,
+                'transformation_progress' =>
+                    $progressService->forAssessment(
+                        $assessment,
+                        true
+                    ),
                 'commercial' => $commercial,
                 'endpoints' => [
                     'back' => route(
@@ -193,7 +206,8 @@ class AdminDiagnosisDetailedRoadmapController extends Controller
         DiagnosisDetailedRoadmap $roadmap,
         DiagnosisAccessService $accessService,
         DiagnosisDetailedRoadmapService $service,
-        DiagnosisDetailedRoadmapCommercialService $commercialService
+        DiagnosisDetailedRoadmapCommercialService $commercialService,
+        DiagnosisCommercialNotificationService $notificationService
     ): RedirectResponse {
         $assessment = $this->assessmentFor($contact, $accessService);
         $this->assertRoadmap($roadmap, $assessment);
@@ -206,9 +220,19 @@ class AdminDiagnosisDetailedRoadmapController extends Controller
             'El Roadmap Detallado solo puede publicarse después de confirmar el pago.'
         );
 
-        $service->publish(
+        $published = $service->publish(
             $roadmap,
             $request->user()
+        );
+
+        $notificationService->deliverablePublished(
+            $assessment,
+            'detailed_roadmap',
+            (int) $published->version,
+            route(
+                'diagnosis.detailed_roadmap.show',
+                $assessment
+            )
         );
 
         return back()->with(

@@ -8,6 +8,7 @@ use App\Http\Requests\Diagnosis\UpdateDiagnosisAssessmentRequest;
 use App\Models\DiagnosisAssessment;
 use App\Services\Diagnosis\DiagnosisBusinessProfileService;
 use App\Services\Diagnosis\DiagnosisExecutiveSummaryGenerator;
+use App\Services\Diagnosis\DiagnosisTransformationProgressService;
 use App\Services\Diagnosis\Lauda360ScoringService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\DB;
@@ -19,7 +20,8 @@ class DigitalDiagnosisController extends Controller
 {
     public function show(
         DiagnosisAssessment $assessment,
-        DiagnosisBusinessProfileService $businessProfile
+        DiagnosisBusinessProfileService $businessProfile,
+        DiagnosisTransformationProgressService $progressService
     ): Response {
         Gate::authorize('view', $assessment);
 
@@ -70,6 +72,11 @@ class DigitalDiagnosisController extends Controller
             ],
             'businessProfileOptions' =>
                 $businessProfile->options(),
+            'transformation_progress' =>
+                $progressService->forAssessment(
+                    $assessment,
+                    false
+                ),
             'result' => $published ? [
                 'maturity_score' =>
                     $assessment->maturity_score,
