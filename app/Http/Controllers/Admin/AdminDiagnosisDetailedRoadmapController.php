@@ -196,7 +196,7 @@ class AdminDiagnosisDetailedRoadmapController extends Controller
 
         return back()->with(
             'success',
-            'Borrador regenerado desde el último Informe Ampliado publicado.'
+            'Roadmap editable regenerado desde el último Informe Ampliado publicado.'
         );
     }
 

@@ -133,10 +133,10 @@ function markReview() {
 }
 
 function regenerate() {
-    if (!props.roadmap || props.roadmap.status !== 'draft') return;
+    if (!props.roadmap || !canEdit.value) return;
     if (
         !window.confirm(
-            '¿Regenerar desde el último Informe Ampliado publicado?',
+            '¿Regenerar esta versión editable desde el último Informe Ampliado publicado? Se actualizará el contenido, pero se conservarán la versión, el estado comercial y las notas internas.',
         )
     )
         return;
@@ -493,12 +493,12 @@ function statusLabel(status: Roadmap['status']) {
 
                 <div class="flex flex-wrap gap-3 rounded-2xl border p-4">
                     <Button
-                        v-if="roadmap.status === 'draft'"
+                        v-if="canEdit"
                         variant="outline"
                         @click="regenerate"
                     >
                         <RefreshCcw class="mr-2 size-4" />
-                        Regenerar borrador
+                        Regenerar versión editable
                     </Button>
 
                     <Button

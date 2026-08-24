@@ -72,10 +72,17 @@ class DiagnosisDetailedRoadmapService
         DiagnosisDetailedRoadmap $roadmap,
         User $actor
     ): DiagnosisDetailedRoadmap {
-        if ($roadmap->status !== DiagnosisDetailedRoadmap::STATUS_DRAFT) {
+        if (! in_array(
+            $roadmap->status,
+            [
+                DiagnosisDetailedRoadmap::STATUS_DRAFT,
+                DiagnosisDetailedRoadmap::STATUS_UNDER_REVIEW,
+            ],
+            true
+        )) {
             throw ValidationException::withMessages([
                 'roadmap' => [
-                    'Solo una versión en borrador puede regenerarse.',
+                    'Solo una versión editable puede regenerarse.',
                 ],
             ]);
         }
@@ -105,6 +112,23 @@ class DiagnosisDetailedRoadmapService
             'source_snapshot' => $generated['source_snapshot'],
             'roadmap' => $generated['roadmap'],
         ])->save();
+
+        AuditService::log(
+            'diagnosis_detailed_roadmap_regenerated',
+            $roadmap,
+            [
+                'assessment_id' =>
+                    $roadmap->diagnosis_assessment_id,
+                'version' =>
+                    $roadmap->version,
+                'status' =>
+                    $roadmap->status,
+                'source_expanded_report_id' =>
+                    $sourceReport->id,
+                'actor_user_id' =>
+                    $actor->id,
+            ]
+        );
 
         return $roadmap->fresh();
     }
