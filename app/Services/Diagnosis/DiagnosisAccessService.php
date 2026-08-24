@@ -162,7 +162,9 @@ class DiagnosisAccessService
             ]);
         }
 
-        $expiresAt = now()->addHours(72);
+        $expiresAt = now()->addHours(
+            $this->invitationTtlHours()
+        );
 
         $invitationUrl = URL::temporarySignedRoute(
             'diagnosis.invitation.accept',
@@ -178,7 +180,9 @@ class DiagnosisAccessService
         $meta['last_invitation_sent_by_user_id'] = $actor->id;
 
         $workflow->forceFill([
-            'status' => DiagnosisAccessRequest::STATUS_INVITED,
+            'status' => $this->invitationStatusAfterSend(
+                $workflow
+            ),
             'invitation_sent_at' => now(),
             'invitation_expires_at' => $expiresAt,
             'meta' => $meta,
@@ -193,4 +197,28 @@ class DiagnosisAccessService
 
         return $workflow->fresh(['contactRequest', 'user', 'assessment']);
     }
+
+    public function invitationTtlHours(): int
+    {
+        $hours = (int) config(
+            'lauda360_access.invitation_ttl_hours',
+            72
+        );
+
+        return max(1, min(168, $hours));
+    }
+
+    public function invitationStatusAfterSend(
+        DiagnosisAccessRequest $workflow
+    ): string {
+        if (
+            $workflow->status === DiagnosisAccessRequest::STATUS_ACTIVE
+            || $workflow->invitation_accepted_at !== null
+        ) {
+            return DiagnosisAccessRequest::STATUS_ACTIVE;
+        }
+
+        return DiagnosisAccessRequest::STATUS_INVITED;
+    }
+
 }

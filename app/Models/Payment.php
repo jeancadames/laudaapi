@@ -10,6 +10,7 @@ use Illuminate\Support\Facades\DB;
 class Payment extends Model
 {
     protected $fillable = [
+        'company_id',
         'invoice_id',
         'method',
         'currency',

@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue';
+import ExpandedReportCommercialCard from '@/components/diagnosis/ExpandedReportCommercialCard.vue';
+import { computed, reactive, ref } from 'vue';
 import { Head, Link, router } from '@inertiajs/vue3';
 import {
     ArrowLeft,
@@ -21,6 +22,16 @@ interface Assessment {
     current_step: number;
     answers: Record<string, number>;
     notes: Record<string, string>;
+    business_activity_type: string | null;
+    business_sector: string | null;
+    business_sector_other: string | null;
+    customer_market: string | null;
+    sales_channels: string[];
+    sales_channel_other: string | null;
+    logistics_operation_types: string[];
+    logistics_operation_other: string | null;
+    business_activity_description: string | null;
+    business_profile_completed_at?: string | null;
     started_at?: string | null;
     submitted_at?: string | null;
     reviewed_at?: string | null;
@@ -46,7 +57,17 @@ interface Organization {
     name: string;
 }
 
+interface BusinessProfileOptions {
+    activity_types: Record<string, string>;
+    sectors: Record<string, string>;
+    customer_markets: Record<string, string>;
+    sales_channels: Record<string, string>;
+    logistics_operation_types: Record<string, string>;
+}
+
 interface Endpoints {
+    request_expanded_report: string;
+
     update: string;
     submit: string;
     back: string;
@@ -56,15 +77,159 @@ const props = defineProps<{
     assessment: Assessment;
     organization: Organization;
     result: Result | null;
+    expanded_report: {
+        id: number;
+        version: number;
+        published_at: string | null;
+    } | null;
+    expanded_report_commercial: {
+        id: number;
+        status: 'requested' | 'invoiced' | 'paid' | 'cancelled';
+        currency: string;
+        subtotal: string;
+        tax_rate: string;
+        tax_amount: string;
+        total: string;
+        paid_access: boolean;
+        invoice: {
+            id: number;
+            number: string;
+            status: string;
+            total: string;
+        } | null;
+    } | null;
     endpoints: Endpoints;
+    businessProfileOptions: BusinessProfileOptions;
 }>();
 
 const saveStatus = ref<'idle' | 'saving' | 'saved' | 'error'>('idle');
 const submitError = ref<string | null>(null);
 
+const profileError = ref<string | null>(null);
+const profileSaving = ref(false);
+const profileSaved = ref(
+    Boolean(props.assessment.business_profile_completed_at),
+);
+
+const businessProfile = reactive({
+    business_activity_type: props.assessment.business_activity_type ?? '',
+    business_sector: props.assessment.business_sector ?? '',
+    business_sector_other: props.assessment.business_sector_other ?? '',
+    customer_market: props.assessment.customer_market ?? '',
+    sales_channels: [...(props.assessment.sales_channels ?? [])],
+    sales_channel_other: props.assessment.sales_channel_other ?? '',
+    logistics_operation_types: [
+        ...(props.assessment.logistics_operation_types ?? []),
+    ],
+    logistics_operation_other: props.assessment.logistics_operation_other ?? '',
+    business_activity_description:
+        props.assessment.business_activity_description ?? '',
+});
+
+const profileComplete = computed(() => {
+    if (
+        !businessProfile.business_activity_type ||
+        !businessProfile.business_sector ||
+        !businessProfile.customer_market ||
+        businessProfile.sales_channels.length === 0 ||
+        businessProfile.business_activity_description.trim().length < 20
+    ) {
+        return false;
+    }
+
+    if (
+        businessProfile.business_sector === 'other' &&
+        !businessProfile.business_sector_other.trim()
+    ) {
+        return false;
+    }
+
+    if (
+        businessProfile.sales_channels.includes('other') &&
+        !businessProfile.sales_channel_other.trim()
+    ) {
+        return false;
+    }
+
+    if (businessProfile.business_sector === 'logistics') {
+        if (businessProfile.logistics_operation_types.length === 0) {
+            return false;
+        }
+
+        if (
+            businessProfile.logistics_operation_types.includes('other') &&
+            !businessProfile.logistics_operation_other.trim()
+        ) {
+            return false;
+        }
+    }
+
+    return true;
+});
+
+function businessProfilePayload() {
+    return {
+        business_activity_type: businessProfile.business_activity_type,
+        business_sector: businessProfile.business_sector,
+        business_sector_other: businessProfile.business_sector_other,
+        customer_market: businessProfile.customer_market,
+        sales_channels: businessProfile.sales_channels,
+        sales_channel_other: businessProfile.sales_channel_other,
+        logistics_operation_types:
+            businessProfile.business_sector === 'logistics'
+                ? businessProfile.logistics_operation_types
+                : [],
+        logistics_operation_other:
+            businessProfile.business_sector === 'logistics'
+                ? businessProfile.logistics_operation_other
+                : '',
+        business_activity_description:
+            businessProfile.business_activity_description,
+    };
+}
+
 const isEditable = computed(() =>
     ['draft', 'in_progress'].includes(props.assessment.status),
 );
+
+function saveBusinessProfile() {
+    if (!isEditable.value) return;
+
+    if (!profileComplete.value) {
+        profileError.value =
+            'Complete los campos obligatorios del perfil comercial.';
+        return;
+    }
+
+    profileError.value = null;
+    profileSaving.value = true;
+
+    router.patch(
+        props.endpoints.update,
+        {
+            answers: props.assessment.answers ?? {},
+            notes: props.assessment.notes ?? {},
+            current_step: props.assessment.current_step ?? 1,
+            ...businessProfilePayload(),
+        },
+        {
+            preserveScroll: true,
+            preserveState: true,
+            onSuccess: () => {
+                profileSaved.value = true;
+                saveStatus.value = 'saved';
+            },
+            onError: () => {
+                profileError.value =
+                    'No se pudo guardar el perfil comercial. Revise los campos.';
+            },
+            onFinish: () => {
+                profileSaving.value = false;
+            },
+        },
+    );
+}
+
 const isSubmitted = computed(() => props.assessment.status === 'submitted');
 const isReviewed = computed(
     () => props.assessment.status === 'reviewed' && props.result !== null,
@@ -107,6 +272,7 @@ function saveDiagnosis(payload: {
             answers: payload.answers,
             notes: payload.notes,
             current_step: payload.step,
+            ...businessProfilePayload(),
         },
         {
             preserveScroll: true,
@@ -137,6 +303,7 @@ function submitDiagnosis(payload: {
         {
             answers: payload.answers,
             notes: payload.notes,
+            ...businessProfilePayload(),
         },
         {
             preserveScroll: true,
@@ -224,6 +391,254 @@ function submitDiagnosis(payload: {
         <main
             class="mx-auto w-full max-w-7xl px-4 py-6 sm:px-6 lg:px-8 lg:py-8"
         >
+            <Card v-if="isEditable" class="mb-6">
+                <CardContent class="space-y-5 p-5 sm:p-6">
+                    <div>
+                        <p
+                            class="text-xs font-black tracking-widest text-primary uppercase"
+                        >
+                            Perfil comercial
+                        </p>
+
+                        <h2 class="mt-1 text-lg font-black">
+                            Contexto de la empresa
+                        </h2>
+
+                        <p
+                            class="mt-1 max-w-3xl text-sm leading-6 text-muted-foreground"
+                        >
+                            Esta información no modifica la puntuación. LAUDA la
+                            utiliza para interpretar el diagnóstico según el
+                            modelo real del negocio.
+                        </p>
+                    </div>
+
+                    <div class="grid gap-4 md:grid-cols-2">
+                        <label class="space-y-1.5 text-sm font-semibold">
+                            <span> Actividad comercial principal * </span>
+
+                            <select
+                                v-model="businessProfile.business_activity_type"
+                                class="w-full rounded-lg border bg-background px-3 py-2 text-sm"
+                            >
+                                <option value="">Seleccione</option>
+
+                                <option
+                                    v-for="(
+                                        label, value
+                                    ) in businessProfileOptions.activity_types"
+                                    :key="value"
+                                    :value="value"
+                                >
+                                    {{ label }}
+                                </option>
+                            </select>
+                        </label>
+
+                        <label class="space-y-1.5 text-sm font-semibold">
+                            <span>Sector *</span>
+
+                            <select
+                                v-model="businessProfile.business_sector"
+                                class="w-full rounded-lg border bg-background px-3 py-2 text-sm"
+                            >
+                                <option value="">Seleccione</option>
+
+                                <option
+                                    v-for="(
+                                        label, value
+                                    ) in businessProfileOptions.sectors"
+                                    :key="value"
+                                    :value="value"
+                                >
+                                    {{ label }}
+                                </option>
+                            </select>
+                        </label>
+
+                        <label
+                            v-if="businessProfile.business_sector === 'other'"
+                            class="space-y-1.5 text-sm font-semibold md:col-span-2"
+                        >
+                            <span>Indique el sector *</span>
+
+                            <input
+                                v-model="businessProfile.business_sector_other"
+                                maxlength="120"
+                                class="w-full rounded-lg border bg-background px-3 py-2 text-sm"
+                            />
+                        </label>
+
+                        <label class="space-y-1.5 text-sm font-semibold">
+                            <span>Mercado principal *</span>
+
+                            <select
+                                v-model="businessProfile.customer_market"
+                                class="w-full rounded-lg border bg-background px-3 py-2 text-sm"
+                            >
+                                <option value="">Seleccione</option>
+
+                                <option
+                                    v-for="(
+                                        label, value
+                                    ) in businessProfileOptions.customer_markets"
+                                    :key="value"
+                                    :value="value"
+                                >
+                                    {{ label }}
+                                </option>
+                            </select>
+                        </label>
+                    </div>
+
+                    <div class="space-y-2">
+                        <p class="text-sm font-semibold">
+                            Canales comerciales *
+                        </p>
+
+                        <div class="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
+                            <label
+                                v-for="(
+                                    label, value
+                                ) in businessProfileOptions.sales_channels"
+                                :key="value"
+                                class="flex items-center gap-2 rounded-lg border p-3 text-sm"
+                            >
+                                <input
+                                    v-model="businessProfile.sales_channels"
+                                    type="checkbox"
+                                    :value="value"
+                                />
+
+                                <span>{{ label }}</span>
+                            </label>
+                        </div>
+                    </div>
+
+                    <label
+                        v-if="businessProfile.sales_channels.includes('other')"
+                        class="block space-y-1.5 text-sm font-semibold"
+                    >
+                        <span>Otro canal comercial *</span>
+
+                        <input
+                            v-model="businessProfile.sales_channel_other"
+                            maxlength="120"
+                            class="w-full rounded-lg border bg-background px-3 py-2 text-sm"
+                        />
+                    </label>
+
+                    <div
+                        v-if="businessProfile.business_sector === 'logistics'"
+                        class="space-y-3 rounded-xl border bg-muted/20 p-4"
+                    >
+                        <div>
+                            <p class="text-sm font-bold">
+                                Tipo de operación logística *
+                            </p>
+
+                            <p class="mt-1 text-xs text-muted-foreground">
+                                Seleccione todas las operaciones que realiza
+                                actualmente la empresa.
+                            </p>
+                        </div>
+
+                        <div class="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+                            <label
+                                v-for="(
+                                    label, value
+                                ) in businessProfileOptions.logistics_operation_types"
+                                :key="value"
+                                class="flex items-center gap-2 rounded-lg border bg-background p-3 text-sm"
+                            >
+                                <input
+                                    v-model="
+                                        businessProfile.logistics_operation_types
+                                    "
+                                    type="checkbox"
+                                    :value="value"
+                                />
+
+                                <span>{{ label }}</span>
+                            </label>
+                        </div>
+
+                        <label
+                            v-if="
+                                businessProfile.logistics_operation_types.includes(
+                                    'other',
+                                )
+                            "
+                            class="block space-y-1.5 text-sm font-semibold"
+                        >
+                            <span> Otra operación logística * </span>
+
+                            <input
+                                v-model="
+                                    businessProfile.logistics_operation_other
+                                "
+                                maxlength="120"
+                                class="w-full rounded-lg border bg-background px-3 py-2 text-sm"
+                            />
+                        </label>
+                    </div>
+
+                    <label class="block space-y-1.5 text-sm font-semibold">
+                        <span>
+                            Describa brevemente la actividad principal *
+                        </span>
+
+                        <textarea
+                            v-model="
+                                businessProfile.business_activity_description
+                            "
+                            rows="4"
+                            maxlength="2000"
+                            placeholder="Ej.: Venta, instalación y mantenimiento de equipos para empresas y clientes finales."
+                            class="w-full rounded-lg border bg-background px-3 py-2 text-sm leading-6"
+                        />
+
+                        <span
+                            class="block text-xs font-normal text-muted-foreground"
+                        >
+                            Mínimo 20 caracteres. Este contexto se utilizará
+                            posteriormente en la conclusión y el Informe
+                            Ampliado.
+                        </span>
+                    </label>
+
+                    <p
+                        v-if="profileError"
+                        class="rounded-lg border border-destructive/30 bg-destructive/5 p-3 text-sm font-semibold text-destructive"
+                    >
+                        {{ profileError }}
+                    </p>
+
+                    <div
+                        class="flex flex-col gap-3 border-t pt-4 sm:flex-row sm:items-center sm:justify-between"
+                    >
+                        <p class="text-xs text-muted-foreground">
+                            Guarde este perfil para habilitar las 51 preguntas
+                            evaluativas.
+                        </p>
+
+                        <Button
+                            type="button"
+                            :disabled="profileSaving || !profileComplete"
+                            @click="saveBusinessProfile"
+                        >
+                            {{
+                                profileSaving
+                                    ? 'Guardando…'
+                                    : profileSaved
+                                      ? 'Actualizar perfil'
+                                      : 'Guardar perfil y continuar'
+                            }}
+                        </Button>
+                    </div>
+                </CardContent>
+            </Card>
+
             <template v-if="isSubmitted">
                 <Card class="border-primary/20 bg-primary/5">
                     <CardContent class="p-6 sm:p-8">
@@ -441,6 +856,32 @@ function submitDiagnosis(payload: {
                             Detallado convierte esas conclusiones en
                             iniciativas, prioridades, responsables y secuencia
                             de ejecución.
+
+                            <div
+                                v-if="
+                                    expanded_report &&
+                                    expanded_report_commercial?.paid_access
+                                "
+                                class="mt-4"
+                            >
+                                <Button as-child>
+                                    <Link
+                                        :href="`/diagnostico/${assessment.id}/informe-ampliado`"
+                                    >
+                                        Ver Informe Ampliado
+                                    </Link>
+                                </Button>
+                            </div>
+
+                            <ExpandedReportCommercialCard
+                                v-if="
+                                    !expanded_report_commercial?.paid_access ||
+                                    !expanded_report
+                                "
+                                :commercial="expanded_report_commercial"
+                                :request-url="endpoints.request_expanded_report"
+                                :report-available="Boolean(expanded_report)"
+                            />
                         </CardContent>
                     </Card>
                 </div>
@@ -456,7 +897,16 @@ function submitDiagnosis(payload: {
                     </CardContent>
                 </Card>
 
+                <div
+                    v-if="!profileSaved"
+                    class="mb-4 rounded-xl border border-amber-300/50 bg-amber-50 p-4 text-sm text-amber-950 dark:border-amber-900 dark:bg-amber-950/30 dark:text-amber-100"
+                >
+                    Complete y guarde el Perfil comercial para habilitar las 51
+                    preguntas del Diagnóstico LAUDA 360.
+                </div>
+
                 <DigitalDiagnosisWizard
+                    v-if="profileSaved"
                     :initial-answers="assessment.answers ?? {}"
                     :initial-notes="assessment.notes ?? {}"
                     :initial-step="assessment.current_step ?? 1"

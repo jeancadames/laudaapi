@@ -16,8 +16,40 @@ use Inertia\Response;
 
 class DiagnosisInvitationController extends Controller
 {
-    public function accept(Request $request, DiagnosisAccessRequest $access): RedirectResponse
-    {
+    public function accept(
+        Request $request,
+        DiagnosisAccessRequest $access
+    ): Response|RedirectResponse {
+        if (!$request->hasValidSignature()) {
+            $url = app('url');
+
+            $hasCorrectSignature =
+                $url->hasCorrectSignature($request);
+
+            $isExpired =
+                $hasCorrectSignature
+                && !$url->signatureHasNotExpired($request);
+
+            return Inertia::render(
+                'Diagnosis/InvitationExpired',
+                [
+                    'reason' => $isExpired
+                        ? 'expired'
+                        : 'invalid',
+                    'activated' => (
+                        $isExpired
+                        && (
+                            $access->status
+                                === DiagnosisAccessRequest::STATUS_ACTIVE
+                            || $access->invitation_accepted_at !== null
+                        )
+                    ),
+                    'login_url' => route('login'),
+                    'home_url' => url('/'),
+                ]
+            );
+        }
+
         $access->loadMissing(['user', 'assessment']);
 
         if (!$access->user || !$access->assessment) {

@@ -166,5 +166,88 @@ Route::middleware(['auth', 'verified', 'role:admin'])
             [\App\Http\Controllers\Admin\AdminDiagnosisAccessRequestController::class, 'publishResult']
         )->name('diagnosis_requests.publish_result');
 
+
+        \Illuminate\Support\Facades\Route::get(
+            '/diagnosis-requests/{contact}/expanded-report',
+            [\App\Http\Controllers\Admin\AdminDiagnosisExpandedReportController::class, 'show']
+        )->name('diagnosis_requests.expanded_report.show');
+
+        \Illuminate\Support\Facades\Route::post(
+            '/diagnosis-requests/{contact}/expanded-report/generate',
+            [\App\Http\Controllers\Admin\AdminDiagnosisExpandedReportController::class, 'generate']
+        )->name('diagnosis_requests.expanded_report.generate');
+
+        \Illuminate\Support\Facades\Route::patch(
+            '/diagnosis-requests/{contact}/expanded-report/{report}/review-notes',
+            [\App\Http\Controllers\Admin\AdminDiagnosisExpandedReportController::class, 'saveReview']
+        )->name('diagnosis_requests.expanded_report.save_review');
+
+        \Illuminate\Support\Facades\Route::post(
+            '/diagnosis-requests/{contact}/expanded-report/{report}/review',
+            [\App\Http\Controllers\Admin\AdminDiagnosisExpandedReportController::class, 'review']
+        )->name('diagnosis_requests.expanded_report.review');
+
+        \Illuminate\Support\Facades\Route::post(
+            '/diagnosis-requests/{contact}/expanded-report/{report}/regenerate',
+            [\App\Http\Controllers\Admin\AdminDiagnosisExpandedReportController::class, 'regenerate']
+        )->name('diagnosis_requests.expanded_report.regenerate');
+
+        \Illuminate\Support\Facades\Route::post(
+            '/diagnosis-requests/{contact}/expanded-report/{report}/publish',
+            [\App\Http\Controllers\Admin\AdminDiagnosisExpandedReportController::class, 'publish']
+        )->name('diagnosis_requests.expanded_report.publish');
+
+        \Illuminate\Support\Facades\Route::post(
+            '/diagnosis-requests/{contact}/expanded-report/order/{order}/prepare-invoice',
+            [\App\Http\Controllers\Admin\AdminDiagnosisExpandedReportCommercialController::class, 'prepareInvoice']
+        )->name('diagnosis_requests.expanded_report.prepare_invoice');
+
+        \Illuminate\Support\Facades\Route::post(
+            '/diagnosis-requests/{contact}/expanded-report/order/{order}/record-payment',
+            [\App\Http\Controllers\Admin\AdminDiagnosisExpandedReportCommercialController::class, 'recordPayment']
+        )->name('diagnosis_requests.expanded_report.record_payment');
+
+
+        \Illuminate\Support\Facades\Route::get(
+            '/diagnosis-requests/{contact}/detailed-roadmap',
+            [\App\Http\Controllers\Admin\AdminDiagnosisDetailedRoadmapController::class, 'show']
+        )->name('diagnosis_requests.detailed_roadmap.show');
+
+        \Illuminate\Support\Facades\Route::post(
+            '/diagnosis-requests/{contact}/detailed-roadmap/generate',
+            [\App\Http\Controllers\Admin\AdminDiagnosisDetailedRoadmapController::class, 'generate']
+        )->name('diagnosis_requests.detailed_roadmap.generate');
+
+        \Illuminate\Support\Facades\Route::patch(
+            '/diagnosis-requests/{contact}/detailed-roadmap/{roadmap}/review-notes',
+            [\App\Http\Controllers\Admin\AdminDiagnosisDetailedRoadmapController::class, 'saveReview']
+        )->name('diagnosis_requests.detailed_roadmap.save_review');
+
+        \Illuminate\Support\Facades\Route::post(
+            '/diagnosis-requests/{contact}/detailed-roadmap/{roadmap}/review',
+            [\App\Http\Controllers\Admin\AdminDiagnosisDetailedRoadmapController::class, 'review']
+        )->name('diagnosis_requests.detailed_roadmap.review');
+
+        \Illuminate\Support\Facades\Route::post(
+            '/diagnosis-requests/{contact}/detailed-roadmap/{roadmap}/regenerate',
+            [\App\Http\Controllers\Admin\AdminDiagnosisDetailedRoadmapController::class, 'regenerate']
+        )->name('diagnosis_requests.detailed_roadmap.regenerate');
+
+        \Illuminate\Support\Facades\Route::post(
+            '/diagnosis-requests/{contact}/detailed-roadmap/{roadmap}/publish',
+            [\App\Http\Controllers\Admin\AdminDiagnosisDetailedRoadmapController::class, 'publish']
+        )->name('diagnosis_requests.detailed_roadmap.publish');
+
+
+        \Illuminate\Support\Facades\Route::post(
+            '/diagnosis-requests/{contact}/detailed-roadmap/order/{order}/prepare-invoice',
+            [\App\Http\Controllers\Admin\AdminDiagnosisDetailedRoadmapCommercialController::class, 'prepareInvoice']
+        )->name('diagnosis_requests.detailed_roadmap.prepare_invoice');
+
+        \Illuminate\Support\Facades\Route::post(
+            '/diagnosis-requests/{contact}/detailed-roadmap/order/{order}/record-payment',
+            [\App\Http\Controllers\Admin\AdminDiagnosisDetailedRoadmapCommercialController::class, 'recordPayment']
+        )->name('diagnosis_requests.detailed_roadmap.record_payment');
+
     });
 // END LAUDA360 DIAGNOSIS ADMIN ROUTES

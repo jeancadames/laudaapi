@@ -39,7 +39,12 @@
                         </p>
 
                         <p style="font-size:13px;color:#767985;">
-                            Por seguridad, este enlace vence en 72 horas. Si vence, LAUDA puede enviarte uno nuevo.
+                            Este enlace de activación estará disponible durante <strong>72 horas</strong>.
+                            Una vez activada tu cuenta podrás volver a ingresar desde <strong>Iniciar sesión</strong>.
+                        </p>
+
+                        <p style="font-size:13px;color:#767985;">
+                            Si el enlace expira antes de activarlo, LAUDA puede enviarte una nueva invitación con 72 horas de vigencia.
                         </p>
 
                         <p style="font-size:13px;color:#767985;">

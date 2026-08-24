@@ -24,6 +24,17 @@ import {
 type Assessment = {
     id: number;
     organization_name: string;
+
+    business_activity_type: string | null;
+    business_sector: string | null;
+    business_sector_other: string | null;
+    customer_market: string | null;
+    sales_channels: string[];
+    sales_channel_other: string | null;
+    logistics_operation_types: string[];
+    logistics_operation_other: string | null;
+    business_activity_description: string | null;
+    business_profile_completed_at: string | null;
     status: string;
     current_step: number;
     answers: Record<string, number>;
@@ -49,6 +60,14 @@ type Assessment = {
         name: string;
         email: string;
     } | null;
+};
+
+type BusinessProfileOptions = {
+    activity_types: Record<string, string>;
+    sectors: Record<string, string>;
+    customer_markets: Record<string, string>;
+    sales_channels: Record<string, string>;
+    logistics_operation_types: Record<string, string>;
 };
 
 type Workflow = {
@@ -85,6 +104,7 @@ const props = defineProps<{
     };
     workflow: Workflow | null;
     statuses: string[];
+    businessProfileOptions: BusinessProfileOptions;
 }>();
 
 const breadcrumbs: BreadcrumbItem[] = [
@@ -97,6 +117,34 @@ const breadcrumbs: BreadcrumbItem[] = [
 ];
 
 const assessment = computed(() => props.workflow?.assessment ?? null);
+
+const invitationExpired = computed(() => {
+    if (
+        !props.workflow?.invitation_expires_at ||
+        props.workflow.invitation_accepted_at
+    ) {
+        return false;
+    }
+
+    const expiresAt = Date.parse(props.workflow.invitation_expires_at);
+
+    return Number.isFinite(expiresAt) && expiresAt <= Date.now();
+});
+
+function formatInvitationDate(value: string | null): string {
+    if (!value) return '—';
+
+    const date = new Date(value);
+
+    if (Number.isNaN(date.getTime())) {
+        return value;
+    }
+
+    return new Intl.DateTimeFormat('es-DO', {
+        dateStyle: 'medium',
+        timeStyle: 'short',
+    }).format(date);
+}
 
 const statusForm = useForm({
     status: props.workflow?.status ?? 'pending',
@@ -187,6 +235,24 @@ function statusLabel(status: string): string {
             rejected: 'Rechazada',
         }[status] ?? status
     );
+}
+
+function businessProfileLabel(
+    group: keyof BusinessProfileOptions,
+    value: string | null,
+): string {
+    if (!value) return '—';
+
+    return props.businessProfileOptions[group]?.[value] ?? value;
+}
+
+function businessProfileLabels(
+    group: keyof BusinessProfileOptions,
+    values: string[] | null | undefined,
+): string {
+    if (!values?.length) return '—';
+
+    return values.map((value) => businessProfileLabel(group, value)).join(', ');
 }
 
 function assessmentStatusLabel(status: string): string {
@@ -490,6 +556,80 @@ function publish() {
                                 </Button>
                             </template>
 
+                            <div
+                                v-if="workflow?.invitation_sent_at"
+                                class="space-y-2 rounded-xl border bg-muted/20 p-3 text-xs"
+                            >
+                                <div
+                                    class="flex flex-wrap items-center justify-between gap-2"
+                                >
+                                    <span class="font-bold"
+                                        >Invitación privada</span
+                                    >
+
+                                    <Badge
+                                        v-if="workflow.invitation_accepted_at"
+                                        class="bg-emerald-600 text-white"
+                                    >
+                                        Cuenta activada
+                                    </Badge>
+
+                                    <Badge
+                                        v-else-if="invitationExpired"
+                                        variant="destructive"
+                                    >
+                                        Enlace expirado
+                                    </Badge>
+
+                                    <Badge v-else variant="outline">
+                                        Vigente · 72h
+                                    </Badge>
+                                </div>
+
+                                <p class="text-muted-foreground">
+                                    Enviada:
+                                    {{
+                                        formatInvitationDate(
+                                            workflow.invitation_sent_at,
+                                        )
+                                    }}
+                                </p>
+
+                                <p
+                                    v-if="workflow.invitation_expires_at"
+                                    class="text-muted-foreground"
+                                >
+                                    Vencimiento del enlace:
+                                    {{
+                                        formatInvitationDate(
+                                            workflow.invitation_expires_at,
+                                        )
+                                    }}
+                                </p>
+
+                                <p
+                                    v-if="workflow.invitation_accepted_at"
+                                    class="font-semibold text-emerald-700 dark:text-emerald-300"
+                                >
+                                    La cuenta ya está activa. El vencimiento del
+                                    enlace no limita el acceso por Iniciar
+                                    sesión.
+                                </p>
+
+                                <p
+                                    v-else-if="invitationExpired"
+                                    class="font-semibold text-destructive"
+                                >
+                                    Reenvíe la invitación para generar un nuevo
+                                    enlace con 72 horas de vigencia.
+                                </p>
+
+                                <p v-else class="text-muted-foreground">
+                                    Este enlace solo se necesita para activar el
+                                    acceso inicial.
+                                </p>
+                            </div>
+
                             <Button
                                 v-if="
                                     workflow &&
@@ -660,11 +800,196 @@ function publish() {
                             </CardContent>
                         </Card>
 
+                        <Card
+                            v-if="
+                                assessment &&
+                                (assessment.business_profile_completed_at ||
+                                    assessment.business_activity_type)
+                            "
+                        >
+                            <CardHeader>
+                                <CardTitle> Perfil comercial </CardTitle>
+                                <p
+                                    class="text-xs leading-5 text-muted-foreground"
+                                >
+                                    Contexto declarado por el cliente. No forma
+                                    parte de la puntuación del diagnóstico.
+                                </p>
+                            </CardHeader>
+
+                            <CardContent class="space-y-4">
+                                <div
+                                    class="grid gap-3 sm:grid-cols-2 lg:grid-cols-3"
+                                >
+                                    <div class="rounded-xl border p-3">
+                                        <p
+                                            class="text-[10px] font-black tracking-widest text-muted-foreground uppercase"
+                                        >
+                                            Actividad
+                                        </p>
+                                        <p class="mt-1 text-sm font-bold">
+                                            {{
+                                                businessProfileLabel(
+                                                    'activity_types',
+                                                    assessment.business_activity_type,
+                                                )
+                                            }}
+                                        </p>
+                                    </div>
+
+                                    <div class="rounded-xl border p-3">
+                                        <p
+                                            class="text-[10px] font-black tracking-widest text-muted-foreground uppercase"
+                                        >
+                                            Sector
+                                        </p>
+                                        <p class="mt-1 text-sm font-bold">
+                                            {{
+                                                assessment.business_sector ===
+                                                'other'
+                                                    ? assessment.business_sector_other ||
+                                                      'Otro'
+                                                    : businessProfileLabel(
+                                                          'sectors',
+                                                          assessment.business_sector,
+                                                      )
+                                            }}
+                                        </p>
+                                    </div>
+
+                                    <div class="rounded-xl border p-3">
+                                        <p
+                                            class="text-[10px] font-black tracking-widest text-muted-foreground uppercase"
+                                        >
+                                            Mercado
+                                        </p>
+                                        <p class="mt-1 text-sm font-bold">
+                                            {{
+                                                businessProfileLabel(
+                                                    'customer_markets',
+                                                    assessment.customer_market,
+                                                )
+                                            }}
+                                        </p>
+                                    </div>
+                                </div>
+
+                                <div>
+                                    <p
+                                        class="text-xs font-black tracking-widest text-muted-foreground uppercase"
+                                    >
+                                        Canales comerciales
+                                    </p>
+
+                                    <p class="mt-1 text-sm leading-6">
+                                        {{
+                                            businessProfileLabels(
+                                                'sales_channels',
+                                                assessment.sales_channels,
+                                            )
+                                        }}
+
+                                        <span
+                                            v-if="
+                                                assessment.sales_channels?.includes(
+                                                    'other',
+                                                ) &&
+                                                assessment.sales_channel_other
+                                            "
+                                        >
+                                            ·
+                                            {{ assessment.sales_channel_other }}
+                                        </span>
+                                    </p>
+                                </div>
+
+                                <div
+                                    v-if="
+                                        assessment.business_sector ===
+                                        'logistics'
+                                    "
+                                    class="rounded-xl border bg-muted/20 p-3"
+                                >
+                                    <p
+                                        class="text-xs font-black tracking-widest text-muted-foreground uppercase"
+                                    >
+                                        Operación logística
+                                    </p>
+
+                                    <p class="mt-1 text-sm leading-6">
+                                        {{
+                                            businessProfileLabels(
+                                                'logistics_operation_types',
+                                                assessment.logistics_operation_types,
+                                            )
+                                        }}
+
+                                        <span
+                                            v-if="
+                                                assessment.logistics_operation_types?.includes(
+                                                    'other',
+                                                ) &&
+                                                assessment.logistics_operation_other
+                                            "
+                                        >
+                                            ·
+                                            {{
+                                                assessment.logistics_operation_other
+                                            }}
+                                        </span>
+                                    </p>
+                                </div>
+
+                                <div>
+                                    <p
+                                        class="text-xs font-black tracking-widest text-muted-foreground uppercase"
+                                    >
+                                        Actividad principal
+                                    </p>
+
+                                    <p
+                                        class="mt-1 text-sm leading-6 whitespace-pre-line"
+                                    >
+                                        {{
+                                            assessment.business_activity_description ||
+                                            '—'
+                                        }}
+                                    </p>
+                                </div>
+                            </CardContent>
+                        </Card>
+
                         <Card v-if="canPublish">
                             <CardHeader>
                                 <div
                                     class="flex flex-wrap items-center justify-between gap-2"
                                 >
+                                    <Card
+                                        v-if="
+                                            assessment?.status === 'reviewed' &&
+                                            assessment?.published_at
+                                        "
+                                    >
+                                        <CardHeader>
+                                            <CardTitle>
+                                                Informe Ampliado LAUDA 360
+                                            </CardTitle>
+                                            <CardDescription>
+                                                Entregable posterior al
+                                                diagnóstico gratuito.
+                                            </CardDescription>
+                                        </CardHeader>
+                                        <CardContent>
+                                            <Button as-child>
+                                                <Link
+                                                    :href="`/admin/diagnosis-requests/${contact.id}/expanded-report`"
+                                                >
+                                                    Gestionar Informe Ampliado
+                                                </Link>
+                                            </Button>
+                                        </CardContent>
+                                    </Card>
+
                                     <CardTitle>
                                         Revisión LAUDA y publicación
                                     </CardTitle>

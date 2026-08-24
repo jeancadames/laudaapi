@@ -88,6 +88,29 @@ require __DIR__ . '/settings.php';
 
         \Illuminate\Support\Facades\Route::post('/{assessment}/submit', [\App\Http\Controllers\Diagnosis\DigitalDiagnosisController::class, 'submit'])
             ->name('submit');
+
+        \Illuminate\Support\Facades\Route::post(
+            '/{assessment}/informe-ampliado/solicitar',
+            [\App\Http\Controllers\Diagnosis\DiagnosisExpandedReportCommercialController::class, 'requestPurchase']
+        )->name('expanded_report.request');
+
+        \Illuminate\Support\Facades\Route::get(
+            '/{assessment}/informe-ampliado',
+            [\App\Http\Controllers\Diagnosis\DiagnosisExpandedReportController::class, 'show']
+        )->name('expanded_report.show');
+
+
+        \Illuminate\Support\Facades\Route::get(
+            '/{assessment}/roadmap-detallado',
+            [\App\Http\Controllers\Diagnosis\DiagnosisDetailedRoadmapController::class, 'show']
+        )->name('detailed_roadmap.show');
+
+
+        \Illuminate\Support\Facades\Route::post(
+            '/{assessment}/roadmap-detallado/solicitar',
+            [\App\Http\Controllers\Diagnosis\DiagnosisDetailedRoadmapCommercialController::class, 'requestPurchase']
+        )->name('detailed_roadmap.request');
+
     });
 // END LAUDA360 DIAGNOSIS ROUTES
 
@@ -96,7 +119,6 @@ require __DIR__ . '/settings.php';
     '/diagnostico-invitacion/{access}',
     [\App\Http\Controllers\Diagnosis\DiagnosisInvitationController::class, 'accept']
 )
-    ->middleware('signed')
     ->name('diagnosis.invitation.accept');
 
 \Illuminate\Support\Facades\Route::middleware(['auth', 'verified'])

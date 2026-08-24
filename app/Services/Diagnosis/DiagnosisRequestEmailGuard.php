@@ -83,7 +83,7 @@ class DiagnosisRequestEmailGuard
 
             DiagnosisAccessRequest::STATUS_APPROVED,
             DiagnosisAccessRequest::STATUS_INVITED
-                => 'Este correo ya tiene una solicitud de Diagnóstico LAUDA 360 aprobada o invitada. Revise su correo para continuar.',
+                => 'Este correo ya tiene una solicitud de Diagnóstico LAUDA 360 aprobada o invitada. Revise su correo para continuar. Si el enlace expiró, LAUDA puede reenviar una nueva invitación válida por 72 horas.',
 
             DiagnosisAccessRequest::STATUS_ACTIVE
                 => 'Este correo ya tiene acceso al Diagnóstico LAUDA 360. Utilice Iniciar sesión o el enlace de acceso recibido para continuar.',

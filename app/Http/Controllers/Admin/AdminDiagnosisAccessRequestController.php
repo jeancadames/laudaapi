@@ -254,6 +254,10 @@ class AdminDiagnosisAccessRequestController extends Controller
                 ] : null,
             ] : null,
             'statuses' => DiagnosisAccessRequest::STATUSES,
+            'businessProfileOptions' => config(
+                'lauda360_business_profile',
+                []
+            ),
         ]);
     }
 
