@@ -46,7 +46,7 @@ class ServiceSeeder extends Seeder
 
                     'billable'          => true,
                     'billing_model'     => 'flat',
-                    'currency'          => 'USD',
+                    'currency'          => 'DOP',
                     'monthly_price'     => null,
                     'yearly_price'      => null,
 
@@ -66,12 +66,33 @@ class ServiceSeeder extends Seeder
 
                 $payload = array_merge($defaults, $data);
 
-                DB::table('services')->updateOrInsert(
-                    ['slug' => $slug],
-                    $payload
-                );
+                $existing = DB::table('services')
+                    ->where('slug', $slug)
+                    ->first();
 
-                return (int) DB::table('services')->where('slug', $slug)->value('id');
+                if ($existing) {
+                    // Pricing comercial se configura fuera del catálogo técnico.
+                    // Un re-seed nunca debe borrar o sustituir decisiones comerciales.
+                    $payload['currency'] =
+                        $existing->currency;
+                    $payload['monthly_price'] =
+                        $existing->monthly_price;
+                    $payload['yearly_price'] =
+                        $existing->yearly_price;
+
+                    unset($payload['created_at']);
+
+                    DB::table('services')
+                        ->where('slug', $slug)
+                        ->update($payload);
+                } else {
+                    DB::table('services')
+                        ->insert($payload);
+                }
+
+                return (int) DB::table('services')
+                    ->where('slug', $slug)
+                    ->value('id');
             };
 
             /*
@@ -172,6 +193,53 @@ class ServiceSeeder extends Seeder
                     'sort_order'        => $child['sort_order'],
                 ]);
             }
+
+            /*
+            |--------------------------------------------------------------------------
+            | TRANSFORMACIÓN 360: Presencia Digital
+            |--------------------------------------------------------------------------
+            */
+            $upsert([
+                'title'             => 'Presencia Digital',
+                'short_description' => 'Presencia digital operativa, consistente y medible.',
+                'description'       => 'Servicio recurrente posterior al Go-Live para sostener la presencia digital habilitada durante la transformación.',
+                'slug'              => 'digital-presence',
+                'service_key'       => 'digital_presence',
+
+                // No es una app lanzable; representa una capacidad/servicio gestionado.
+                'href'              => null,
+                'launch_mode'       => 'internal',
+                'integration_mode'  => 'none',
+                'is_standalone'     => false,
+
+                'icon'              => 'globe',
+                'badge'             => 'LAUDA 360',
+                'category'          => 'transformation',
+
+                'type'              => 'addon',
+                'billable'          => true,
+                'billing_model'     => 'flat',
+                'currency'          => 'DOP',
+                'monthly_price'     => null,
+                'yearly_price'      => null,
+
+                'sort_order'        => 8,
+                'config'            => json_encode([
+                    'managed_service' => true,
+                    'launchable' => false,
+                    'scope' => [
+                        'presencia digital operativa',
+                        'consistencia de canales',
+                        'medición y continuidad',
+                    ],
+                    'excludes' => [
+                        'community management recurrente',
+                        'creación recurrente de contenido',
+                        'diseño recurrente de piezas',
+                        'gestión de campañas y compra de medios',
+                    ],
+                ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES),
+            ]);
 
             /*
             |--------------------------------------------------------------------------

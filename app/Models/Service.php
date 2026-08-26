@@ -75,6 +75,38 @@ class Service extends Model
         return $this->hasMany(SubscriptionItem::class, 'service_id');
     }
 
+    public function bundleItems(): HasMany
+    {
+        return $this->hasMany(
+            ServiceBundleItem::class,
+            'bundle_service_id'
+        );
+    }
+
+    public function includedInBundles(): HasMany
+    {
+        return $this->hasMany(
+            ServiceBundleItem::class,
+            'included_service_id'
+        );
+    }
+
+    public function bundleDiscountRules(): HasMany
+    {
+        return $this->hasMany(
+            ServiceBundleDiscountRule::class,
+            'bundle_service_id'
+        );
+    }
+
+    public function pricingTiers(): HasMany
+    {
+        return $this->hasMany(
+            ServicePricingTier::class,
+            'service_id'
+        );
+    }
+
     public function scopeActive($query)
     {
         return $query->where('active', true);

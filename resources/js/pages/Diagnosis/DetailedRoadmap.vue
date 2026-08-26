@@ -55,6 +55,7 @@ const props = defineProps<{
         published_at: string | null;
     };
     expanded_report_url: string;
+    implementation_plan_url: string | null;
     diagnosis_url: string;
 }>();
 
@@ -290,6 +291,11 @@ function formatDate(value: string | null) {
                     <Link :href="expanded_report_url">
                         <ArrowLeft class="mr-2 size-4" />
                         Volver al Informe Ampliado
+                    </Link>
+                </Button>
+                <Button v-if="implementation_plan_url" as-child>
+                    <Link :href="implementation_plan_url">
+                        Ver Plan de Implementación
                     </Link>
                 </Button>
                 <Button as-child variant="ghost">

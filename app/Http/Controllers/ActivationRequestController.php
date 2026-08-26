@@ -149,8 +149,12 @@ class ActivationRequestController extends Controller
         $nextLabel = '';
 
         if ($status === ActivationRequest::STATUS_ACCEPTED) {
-            $nextUrl = '/subscriber/activation';
-            $nextLabel = 'Ir a iniciar trial';
+            /*
+             * PASO 9C-C
+             * Compatibility request: accepted ya no inicia un trial.
+             */
+            $nextUrl = '';
+            $nextLabel = '';
         }
 
         if ($status === ActivationRequest::STATUS_TRIALING || $status === ActivationRequest::STATUS_CONVERTED) {
@@ -255,7 +259,7 @@ class ActivationRequestController extends Controller
             : 'Solicitud recibida. Revisa tu correo para confirmar la activación.';
 
         if ($status === ActivationRequest::STATUS_ACCEPTED) {
-            $message = 'Tu correo ya está confirmado. Ahora puedes iniciar tu trial desde el panel.';
+            $message = 'Tu correo ya está confirmado. Esta solicitud histórica no inicia una suscripción. Para nuevas activaciones utiliza el flujo LAUDA 360.';
         } elseif ($status === ActivationRequest::STATUS_TRIALING) {
             $message = 'Tu trial ya está activo. Puedes entrar al dashboard.';
         } elseif ($status === ActivationRequest::STATUS_CONVERTED) {

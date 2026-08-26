@@ -20,7 +20,7 @@ class SubscriberEntitlements
 
     /**
      * Servicios ERP por entitlements (SOLO para /erp):
-     * incluye active|trialing|pending (Opción B).
+     * incluye únicamente active|trialing como acceso real.
      */
     public function erpServicesForSubscriber(int $subscriberId): Collection
     {
@@ -38,7 +38,7 @@ class SubscriberEntitlements
             ->select('services.*', 'subscription_items.status as item_status')
             ->join('subscription_items', 'subscription_items.service_id', '=', 'services.id')
             ->where('subscription_items.subscription_id', $subscriptionId)
-            ->whereIn('subscription_items.status', ['active', 'trialing', 'pending'])
+            ->whereIn('subscription_items.status', ServiceEntitlementPolicy::ITEM_STATUSES)
             ->where('services.active', true)
             ->orderBy('services.sort_order')
             ->get();
@@ -182,7 +182,7 @@ class SubscriberEntitlements
         $enabled = Service::query()
             ->join('subscription_items', 'subscription_items.service_id', '=', 'services.id')
             ->where('subscription_items.subscription_id', $subscriptionId)
-            ->whereIn('subscription_items.status', ['active', 'trialing', 'pending'])
+            ->whereIn('subscription_items.status', ServiceEntitlementPolicy::ITEM_STATUSES)
             ->where('services.active', true)
             ->whereIn('services.slug', [
                 'api-facturacion-electronica',
@@ -198,7 +198,7 @@ class SubscriberEntitlements
      * - enabled
      * - enabled_by (prioridad: api-facturacion-electronica > certificacion-emisor-electronico)
      * - enabled_services (slugs encontrados)
-     * - enabled_by_item_status (active|trialing|pending)
+     * - enabled_by_item_status (active|trialing)
      */
     public function dgiiCapabilitiesDetails(int $subscriberId): array
     {
@@ -224,7 +224,7 @@ class SubscriberEntitlements
             ])
             ->join('subscription_items', 'subscription_items.service_id', '=', 'services.id')
             ->where('subscription_items.subscription_id', $subscriptionId)
-            ->whereIn('subscription_items.status', ['active', 'trialing', 'pending'])
+            ->whereIn('subscription_items.status', ServiceEntitlementPolicy::ITEM_STATUSES)
             ->where('services.active', true)
             ->whereIn('services.slug', [
                 'api-facturacion-electronica',
@@ -279,7 +279,7 @@ class SubscriberEntitlements
 
         $id = Subscription::query()
             ->where('subscriber_id', $subscriberId)
-            ->whereIn('status', ['active', 'trialing'])
+            ->whereIn('status', ServiceEntitlementPolicy::SUBSCRIPTION_STATUSES)
             ->orderByRaw("FIELD(status,'active','trialing')")
             ->orderByDesc('id')
             ->value('id');
@@ -291,7 +291,7 @@ class SubscriberEntitlements
 
     private function badgeFromItemStatus(string $st): ?string
     {
-        return $st === 'trialing' ? 'TRIAL' : ($st === 'pending' ? 'PAGO' : null);
+        return $st === 'trialing' ? 'TRIAL' : null;
     }
 
     private function dedupeItems(array $items): array

@@ -26,7 +26,54 @@ import SelectContent from '@/components/ui/select/SelectContent.vue'
 import SelectGroup from '@/components/ui/select/SelectGroup.vue'
 import SelectItem from '@/components/ui/select/SelectItem.vue'
 
-type BillingModel = 'flat' | 'seat_block' | 'usage'
+type BillingModel = 'flat' | 'per_user' | 'seat_block' | 'usage'
+type BillingCycle = 'monthly' | 'yearly'
+
+type PricingTier = {
+    id?: number
+    billing_cycle: BillingCycle
+    min_quantity: number
+    max_quantity: number | null
+    price: string | number
+    currency: string
+    active: boolean
+    sort_order: number
+}
+
+type BundleCandidate = {
+    id: number
+    title: string
+    service_key: string | null
+    parent_id: number | null
+    currency: string
+    billable: boolean
+    active: boolean
+}
+
+type BundleItemDraft = {
+    id?: number | null
+    service_id: number | string
+    required: boolean
+    sort_order: number
+}
+
+type BundleRuleDraft = {
+    id?: number | null
+    code: string
+    name: string
+    discount_type: 'percentage' | 'fixed_amount'
+    discount_value: string | number
+    currency: string | null
+    priority: number
+    active: boolean
+}
+
+type BundleConfig = {
+    enabled: boolean
+    items: BundleItemDraft[]
+    rules: BundleRuleDraft[]
+}
+
 type StatusFilter = 'all' | 'active' | 'inactive'
 
 const DEFAULT_PARENT = 'api-facturacion-electronica'
@@ -55,6 +102,8 @@ type ServiceRow = {
     overage_unit_price: string | number
 
     block_size: number | null
+    pricing_tiers: PricingTier[]
+    bundle: BundleConfig
     sort_order: number
 }
 
@@ -71,6 +120,7 @@ const props = defineProps<{
         sort_order: number
     }
     children: any[]
+    bundle_candidates: BundleCandidate[]
 }>()
 
 const breadcrumbs: BreadcrumbItem[] = [
@@ -105,6 +155,7 @@ const currentStatus = computed(() => statusOptions.value.find(o => o.value === s
 const billingOptions = computed(() => ([
     { value: 'all' as const, label: 'Facturación: todos' },
     { value: 'flat' as const, label: 'flat' },
+    { value: 'per_user' as const, label: 'per_user' },
     { value: 'seat_block' as const, label: 'seat_block' },
     { value: 'usage' as const, label: 'usage' },
 ]))
@@ -136,6 +187,38 @@ function normalizeRow(c: any): ServiceRow {
         overage_unit_price: c.overage_unit_price ?? '',
 
         block_size: c.block_size ?? null,
+        pricing_tiers: (c.pricing_tiers ?? []).map((tier: any) => ({
+            id: tier.id,
+            billing_cycle: tier.billing_cycle,
+            min_quantity: Number(tier.min_quantity ?? 1),
+            max_quantity:
+                tier.max_quantity === null || tier.max_quantity === undefined
+                    ? null
+                    : Number(tier.max_quantity),
+            price: tier.price ?? '',
+            currency: String(tier.currency ?? c.currency ?? 'DOP').toUpperCase(),
+            active: tier.active ?? true,
+            sort_order: Number(tier.sort_order ?? 0),
+        })),
+        bundle: {
+            enabled: Boolean(c.bundle?.enabled ?? false),
+            items: (c.bundle?.items ?? []).map((item: any, index: number) => ({
+                id: item.id ?? null,
+                service_id: Number(item.service_id),
+                required: Boolean(item.required ?? false),
+                sort_order: Number(item.sort_order ?? index),
+            })),
+            rules: (c.bundle?.rules ?? []).map((rule: any) => ({
+                id: rule.id ?? null,
+                code: String(rule.code ?? ''),
+                name: String(rule.name ?? ''),
+                discount_type: (rule.discount_type ?? 'percentage') as BundleRuleDraft['discount_type'],
+                discount_value: rule.discount_value ?? 0,
+                currency: rule.currency ?? null,
+                priority: Number(rule.priority ?? 0),
+                active: Boolean(rule.active ?? false),
+            })),
+        },
         sort_order: c.sort_order ?? 0,
     }
 }
@@ -191,6 +274,29 @@ function snapshotRow(row: ServiceRow): ServiceRow {
         overage_unit_price: row.overage_unit_price,
 
         block_size: row.block_size,
+        pricing_tiers: row.pricing_tiers.map((tier) => ({
+            ...tier,
+        bundle: {
+            enabled: Boolean(row.bundle.enabled),
+            items: row.bundle.items.map((item) => ({
+                id: item.id ?? null,
+                service_id: item.service_id,
+                required: Boolean(item.required),
+                sort_order: Number(item.sort_order ?? 0),
+            })),
+            rules: row.bundle.rules.map((rule) => ({
+                id: rule.id ?? null,
+                code: String(rule.code ?? ''),
+                name: String(rule.name ?? ''),
+                discount_type: rule.discount_type,
+                discount_value: rule.discount_value,
+                currency: rule.currency ?? null,
+                priority: Number(rule.priority ?? 0),
+                active: Boolean(rule.active),
+            })),
+        },
+
+        })),
         sort_order: row.sort_order,
     }
 }
@@ -244,6 +350,143 @@ const headerSubtitle = computed(() => {
 })
 
 // Actions
+function addPricingTier(
+    row: ServiceRow,
+    billingCycle: BillingCycle,
+) {
+    const sameCycle = row.pricing_tiers.filter(
+        (tier) => tier.billing_cycle === billingCycle,
+    )
+
+    const previousMax = sameCycle.reduce<number>(
+        (max, tier) => {
+            if (tier.max_quantity === null) return max
+            return Math.max(max, Number(tier.max_quantity))
+        },
+        0,
+    )
+
+    row.pricing_tiers.push({
+        billing_cycle: billingCycle,
+        min_quantity: previousMax > 0 ? previousMax + 1 : 1,
+        max_quantity: null,
+        price: '',
+        currency: 'DOP',
+        active: true,
+        sort_order: sameCycle.length,
+    })
+}
+
+function removePricingTier(
+    row: ServiceRow,
+    index: number,
+) {
+    row.pricing_tiers.splice(index, 1)
+}
+
+function availableBundleCandidates(
+    row: ServiceRow,
+    itemIndex: number,
+): BundleCandidate[] {
+    const currentId = Number(row.bundle.items[itemIndex]?.service_id ?? 0)
+    const used = new Set(
+        row.bundle.items
+            .map((item) => Number(item.service_id))
+            .filter((id) => id > 0 && id !== currentId),
+    )
+
+    return (props.bundle_candidates ?? []).filter((candidate) =>
+        candidate.id !== row.id
+        && !used.has(candidate.id)
+    )
+}
+
+function toggleBundleEnabled(row: ServiceRow) {
+    row.bundle.enabled = !row.bundle.enabled
+
+    if (!row.bundle.enabled) {
+        row.bundle.rules.forEach((rule) => {
+            rule.active = false
+        })
+    }
+}
+
+function addBundleItem(row: ServiceRow) {
+    const used = new Set(
+        row.bundle.items.map((item) => Number(item.service_id)),
+    )
+
+    const candidate = (props.bundle_candidates ?? []).find((service) =>
+        service.id !== row.id
+        && !used.has(service.id)
+    )
+
+    if (!candidate) return
+
+    row.bundle.enabled = true
+    row.bundle.items.push({
+        id: null,
+        service_id: candidate.id,
+        required: true,
+        sort_order: row.bundle.items.length,
+    })
+}
+
+function removeBundleItem(row: ServiceRow, index: number) {
+    row.bundle.items.splice(index, 1)
+    row.bundle.items.forEach((item, itemIndex) => {
+        item.sort_order = itemIndex
+    })
+}
+
+function addBundleRule(row: ServiceRow) {
+    row.bundle.enabled = true
+    row.bundle.rules.push({
+        id: null,
+        code: `BUNDLE-${row.id}-${row.bundle.rules.length + 1}`,
+        name: `${row.title} bundle`,
+        discount_type: 'percentage',
+        discount_value: 10,
+        currency: null,
+        priority: 0,
+        active: false,
+    })
+}
+
+function removeBundleRule(row: ServiceRow, index: number) {
+    row.bundle.rules.splice(index, 1)
+}
+
+function normalizeBundleRuleCurrency(
+    row: ServiceRow,
+    rule: BundleRuleDraft,
+) {
+    if (rule.discount_type === 'percentage') {
+        rule.currency = null
+        return
+    }
+
+    if (!rule.currency) {
+        rule.currency = row.currency || 'DOP'
+    }
+}
+
+function bundleSummary(row: ServiceRow): string {
+    if (!row.bundle.enabled) {
+        return 'No configurado'
+    }
+
+    const required = row.bundle.items.filter(
+        (item) => item.required,
+    ).length
+
+    const activeRules = row.bundle.rules.filter(
+        (rule) => rule.active,
+    ).length
+
+    return `${row.bundle.items.length} componentes · ${required} required · ${activeRules} reglas activas`
+}
+
 function toggleActive(row: ServiceRow) {
     busyIds.add(row.id)
     delete rowErrors[ row.id ]
@@ -288,10 +531,24 @@ function saveRow(row: ServiceRow) {
     }
 
     if (row.billing_model === 'seat_block') {
-        payload.block_size = row.block_size ?? 5
-        payload.unit_name = 'users'
+        payload.monthly_price = null
+        payload.yearly_price = null
+        payload.block_size = null
+        payload.unit_name = 'usuario'
         payload.included_units = null
         payload.overage_unit_price = null
+        payload.pricing_tiers = row.pricing_tiers.map((tier) => ({
+            billing_cycle: tier.billing_cycle,
+            min_quantity: Number(tier.min_quantity),
+            max_quantity:
+                tier.max_quantity === null || String(tier.max_quantity).trim() === ''
+                    ? null
+                    : Number(tier.max_quantity),
+            price: toNullableNumber(tier.price),
+            currency: String(tier.currency || 'DOP').toUpperCase(),
+            active: !!tier.active,
+            sort_order: Number(tier.sort_order ?? 0),
+        }))
     } else if (row.billing_model === 'usage') {
         payload.unit_name = (row.unit_name || 'units').trim()
         payload.included_units = toIntOrDefault(row.included_units, 0)
@@ -304,9 +561,43 @@ function saveRow(row: ServiceRow) {
         payload.overage_unit_price = null
     }
 
+    const bundlePayload = {
+        enabled: Boolean(row.bundle.enabled),
+        items: row.bundle.enabled
+            ? row.bundle.items.map((item, index) => ({
+                service_id: Number(item.service_id),
+                required: Boolean(item.required),
+                sort_order: index,
+            }))
+            : [],
+        rules: row.bundle.enabled
+            ? row.bundle.rules.map((rule) => ({
+                id: rule.id ?? null,
+                code: String(rule.code || '').trim().toUpperCase(),
+                name: String(rule.name || '').trim(),
+                discount_type: rule.discount_type,
+                discount_value:
+                    toNullableNumber(rule.discount_value) ?? 0,
+                currency:
+                    rule.discount_type === 'fixed_amount'
+                        ? String(
+                            rule.currency
+                            || row.currency
+                            || 'DOP',
+                        ).toUpperCase()
+                        : null,
+                priority: toIntOrDefault(
+                    rule.priority,
+                    0,
+                ),
+                active: Boolean(rule.active),
+            }))
+            : [],
+    }
+
     router.patch(
         services.update({ service: row.id }).url,
-        payload,
+        { ...payload, bundle: bundlePayload },
         {
             preserveScroll: true,
             preserveState: true,
@@ -489,6 +780,7 @@ function createChild() {
                             <SelectContent>
                                 <SelectGroup>
                                     <SelectItem value="flat">Flat</SelectItem>
+                                    <SelectItem value="per_user">Por usuario</SelectItem>
                                     <SelectItem value="seat_block">Seat Block</SelectItem>
                                     <SelectItem value="usage">Usage</SelectItem>
                                 </SelectGroup>
@@ -575,6 +867,7 @@ function createChild() {
                                 <SelectContent>
                                     <SelectGroup>
                                         <SelectItem value="flat">Flat</SelectItem>
+                                    <SelectItem value="per_user">Por usuario</SelectItem>
                                         <SelectItem value="seat_block">Seat Block</SelectItem>
                                         <SelectItem value="usage">Usage</SelectItem>
                                     </SelectGroup>
@@ -588,9 +881,132 @@ function createChild() {
                                 <Input v-model.number="row.sort_order" />
                             </div>
 
-                            <div v-if="row.billing_model === 'seat_block'">
-                                <div class="text-xs text-muted-foreground">Bloque</div>
-                                <Input :model-value="row.block_size ?? 5" disabled />
+                            <div v-if="row.billing_model === 'seat_block'" class="col-span-2">
+                                <div class="flex flex-wrap items-center justify-between gap-2">
+                                    <div>
+                                        <div class="text-xs font-semibold">
+                                            Rangos de usuarios
+                                        </div>
+                                        <div class="text-xs text-muted-foreground">
+                                            El precio sale del tier del ciclo y cantidad actual.
+                                        </div>
+                                    </div>
+
+                                    <div class="flex gap-2">
+                                        <Button
+                                            type="button"
+                                            size="sm"
+                                            variant="outline"
+                                            @click="addPricingTier(row, 'monthly')"
+                                        >
+                                            + Mensual
+                                        </Button>
+
+                                        <Button
+                                            type="button"
+                                            size="sm"
+                                            variant="outline"
+                                            @click="addPricingTier(row, 'yearly')"
+                                        >
+                                            + Anual
+                                        </Button>
+                                    </div>
+                                </div>
+
+                                <div
+                                    v-if="row.pricing_tiers.length"
+                                    class="mt-3 space-y-2"
+                                >
+                                    <div
+                                        v-for="(tier, tierIndex) in row.pricing_tiers"
+                                        :key="`${row.id}-${tier.billing_cycle}-${tierIndex}`"
+                                        class="rounded-lg border p-3"
+                                    >
+                                        <div class="grid gap-2 sm:grid-cols-6">
+                                            <div>
+                                                <div class="text-xs text-muted-foreground">
+                                                    Ciclo
+                                                </div>
+                                                <Select v-model="tier.billing_cycle">
+                                                    <SelectTrigger class="mt-1 w-full">
+                                                        <SelectValue />
+                                                    </SelectTrigger>
+                                                    <SelectContent>
+                                                        <SelectGroup>
+                                                            <SelectItem value="monthly">
+                                                                Mensual
+                                                            </SelectItem>
+                                                            <SelectItem value="yearly">
+                                                                Anual
+                                                            </SelectItem>
+                                                        </SelectGroup>
+                                                    </SelectContent>
+                                                </Select>
+                                            </div>
+
+                                            <div>
+                                                <div class="text-xs text-muted-foreground">
+                                                    Desde
+                                                </div>
+                                                <Input v-model.number="tier.min_quantity" type="number" min="1" />
+                                            </div>
+
+                                            <div>
+                                                <div class="text-xs text-muted-foreground">
+                                                    Hasta
+                                                </div>
+                                                <Input
+                                                    v-model.number="tier.max_quantity"
+                                                    type="number"
+                                                    min="1"
+                                                    placeholder="Sin límite"
+                                                />
+                                            </div>
+
+                                            <div>
+                                                <div class="text-xs text-muted-foreground">
+                                                    Precio
+                                                </div>
+                                                <Input v-model="tier.price" placeholder="0.00" />
+                                            </div>
+
+                                            <div>
+                                                <div class="text-xs text-muted-foreground">
+                                                    Moneda
+                                                </div>
+                                                <Input v-model="tier.currency" maxlength="3" />
+                                            </div>
+
+                                            <div class="flex items-end gap-2">
+                                                <Button
+                                                    type="button"
+                                                    size="sm"
+                                                    :variant="tier.active ? 'default' : 'outline'"
+                                                    @click="tier.active = !tier.active"
+                                                >
+                                                    {{ tier.active ? 'Activo' : 'Inactivo' }}
+                                                </Button>
+
+                                                <Button
+                                                    type="button"
+                                                    size="sm"
+                                                    variant="outline"
+                                                    @click="removePricingTier(row, tierIndex)"
+                                                >
+                                                    Quitar
+                                                </Button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div
+                                    v-else
+                                    class="mt-3 rounded-lg border border-dashed p-3 text-xs text-muted-foreground"
+                                >
+                                    Sin tiers. Un Service seat_block no podrá activarse
+                                    hasta tener un rango válido para la cantidad actual.
+                                </div>
                             </div>
 
                             <div v-else-if="row.billing_model === 'usage'">
@@ -613,6 +1029,149 @@ function createChild() {
                         <p v-if="rowErrors[ row.id ]" class="text-xs text-red-600">
                             {{ rowErrors[ row.id ] }}
                         </p>
+
+                        <div class="col-span-2 rounded-lg border p-4 space-y-4">
+                            <div class="flex items-center justify-between gap-3">
+                                <div>
+                                    <div class="font-medium">Bundle comercial</div>
+                                    <div class="text-xs text-muted-foreground">
+                                        { bundleSummary(row) }
+                                    </div>
+                                </div>
+
+                                <Button
+                                    size="sm"
+                                    :variant="row.bundle.enabled ? 'default' : 'outline'"
+                                    type="button"
+                                    @click="toggleBundleEnabled(row)"
+                                >
+                                    { row.bundle.enabled ? 'Bundle habilitado' : 'Configurar como bundle' }
+                                </Button>
+                            </div>
+
+                            <template v-if="row.bundle.enabled">
+                                <div class="space-y-2">
+                                    <div class="flex items-center justify-between">
+                                        <div>
+                                            <div class="text-sm font-medium">Componentes</div>
+                                            <div class="text-xs text-muted-foreground">
+                                                Una regla activa requiere al menos 2 componentes required.
+                                            </div>
+                                        </div>
+                                        <Button size="sm" variant="outline" type="button" @click="addBundleItem(row)">
+                                            + Componente
+                                        </Button>
+                                    </div>
+
+                                    <div
+                                        v-for="(item, itemIndex) in row.bundle.items"
+                                        :key="`bundle-item-${row.id}-${itemIndex}`"
+                                        class="grid grid-cols-12 gap-2 items-center"
+                                    >
+                                        <div class="col-span-7">
+                                            <Select v-model="item.service_id">
+                                                <SelectTrigger><SelectValue placeholder="Service" /></SelectTrigger>
+                                                <SelectContent>
+                                                    <SelectItem
+                                                        v-for="candidate in availableBundleCandidates(row, itemIndex)"
+                                                        :key="candidate.id"
+                                                        :value="candidate.id"
+                                                    >
+                                                        { candidate.title } · { candidate.currency }
+                                                        { candidate.active ? '' : '· inactivo' }
+                                                    </SelectItem>
+                                                </SelectContent>
+                                            </Select>
+                                        </div>
+                                        <div class="col-span-3">
+                                            <Button
+                                                size="sm"
+                                                :variant="item.required ? 'default' : 'outline'"
+                                                type="button"
+                                                class="w-full"
+                                                @click="item.required = !item.required"
+                                            >
+                                                { item.required ? 'Required' : 'Opcional' }
+                                            </Button>
+                                        </div>
+                                        <div class="col-span-2">
+                                            <Button size="sm" variant="ghost" type="button" class="w-full" @click="removeBundleItem(row, itemIndex)">
+                                                Quitar
+                                            </Button>
+                                        </div>
+                                    </div>
+
+                                    <div v-if="!row.bundle.items.length" class="text-xs text-muted-foreground">
+                                        Sin componentes configurados.
+                                    </div>
+                                </div>
+
+                                <div class="border-t pt-4 space-y-3">
+                                    <div class="flex items-center justify-between">
+                                        <div>
+                                            <div class="text-sm font-medium">Reglas comerciales</div>
+                                            <div class="text-xs text-muted-foreground">
+                                                El motor aplica una sola regla ganadora; no hay stacking.
+                                            </div>
+                                        </div>
+                                        <Button size="sm" variant="outline" type="button" @click="addBundleRule(row)">
+                                            + Regla
+                                        </Button>
+                                    </div>
+
+                                    <div
+                                        v-for="(rule, ruleIndex) in row.bundle.rules"
+                                        :key="`bundle-rule-${row.id}-${rule.id ?? ruleIndex}`"
+                                        class="rounded-md border p-3 space-y-3"
+                                    >
+                                        <div class="grid grid-cols-2 gap-2">
+                                            <Input v-model="rule.code" placeholder="BUNDLE-CRM-DIGITAL" />
+                                            <Input v-model="rule.name" placeholder="Nombre comercial" />
+                                        </div>
+
+                                        <div class="grid grid-cols-5 gap-2">
+                                            <Select
+                                                v-model="rule.discount_type"
+                                                @update:model-value="normalizeBundleRuleCurrency(row, rule)"
+                                            >
+                                                <SelectTrigger><SelectValue /></SelectTrigger>
+                                                <SelectContent>
+                                                    <SelectItem value="percentage">Porcentaje</SelectItem>
+                                                    <SelectItem value="fixed_amount">Monto fijo</SelectItem>
+                                                </SelectContent>
+                                            </Select>
+
+                                            <Input v-model="rule.discount_value" type="number" min="0" step="0.01" placeholder="10" />
+                                            <Input
+                                                v-model="rule.currency"
+                                                maxlength="3"
+                                                :disabled="rule.discount_type === 'percentage'"
+                                                :placeholder="rule.discount_type === 'percentage' ? 'N/A' : row.currency"
+                                            />
+                                            <Input v-model="rule.priority" type="number" step="1" placeholder="0" />
+                                            <Button
+                                                size="sm"
+                                                :variant="rule.active ? 'default' : 'outline'"
+                                                type="button"
+                                                @click="rule.active = !rule.active"
+                                            >
+                                                { rule.active ? 'Activa' : 'Inactiva' }
+                                            </Button>
+                                        </div>
+
+                                        <div class="flex justify-end">
+                                            <Button size="sm" variant="ghost" type="button" @click="removeBundleRule(row, ruleIndex)">
+                                                Quitar regla
+                                            </Button>
+                                        </div>
+                                    </div>
+
+                                    <div v-if="!row.bundle.rules.length" class="text-xs text-muted-foreground">
+                                        Sin reglas. Puede guardar la composición como borrador.
+                                    </div>
+                                </div>
+                            </template>
+                        </div>
 
                         <div class="pt-2 flex justify-end gap-2">
                             <Button size="sm" variant="outline" :disabled="busyIds.has(row.id)" @click="toggleActive(row)">

@@ -9,340 +9,587 @@ use App\Models\Service;
 use App\Models\Subscription;
 use App\Models\SubscriptionItem;
 use App\Services\AuditService;
-use App\Services\Provisioning\LaudaOneProvisioner;
+use App\Services\Billing\ServicePricingEngine;
+use App\Services\Entitlements\ServiceEntitlementPolicy;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
-
+use Illuminate\Validation\ValidationException;
 
 class SubscriberServiceActivationController extends Controller
 {
-    public function activate(Request $request, LaudaOneProvisioner $laudaOneProvisioner)
+    public function activate(Request $request)
     {
         $user = $request->user();
-        if (!$user) abort(403);
+
+        if (! $user) {
+            abort(403);
+        }
 
         $data = $request->validate([
-            'service_id' => ['required', 'integer', 'exists:services,id'],
-            'mode' => ['required', 'in:trial,billed'], // explícito
+            'service_id' => [
+                'required',
+                'integer',
+                'exists:services,id',
+            ],
+            /*
+             * Se conserva "trial" temporalmente en validation para que
+             * clientes/UI legacy reciban una respuesta controlada en vez
+             * de un 422. El branch trial queda bloqueado inmediatamente.
+             */
+            'mode' => [
+                'required',
+                'in:trial,billed',
+            ],
         ]);
 
         $serviceId = (int) $data['service_id'];
         $mode = (string) $data['mode'];
 
-        $company = $this->resolveCompany($user);
-        if (!$company || !$company->subscriber_id) {
-            AuditService::log('service_activation_denied', null, [
-                'reason' => 'no_company_or_subscriber',
-                'user_id' => $user->id,
-                'service_id' => $serviceId,
-            ], ['user_id' => $user->id]);
+        /*
+         * PASO 9C-B
+         *
+         * El trial directo ya no es una vía de activación real.
+         * No resolver Company, Subscription, Service request ni ejecutar
+         * ningún mutation/provisioning antes de bloquearlo.
+         */
+        if ($mode === 'trial') {
+            AuditService::log(
+                'legacy_service_trial_activation_blocked_t360',
+                null,
+                [
+                    'user_id' =>
+                        (int) $user->id,
+                    'service_id' =>
+                        $serviceId,
+                    'reason' =>
+                        'service_activation_requires_lauda360_golive',
+                    'hardening_step' =>
+                        '9C-B',
+                ],
+                [
+                    'user_id' =>
+                        (int) $user->id,
+                ]
+            );
 
-            return back()->with('error', 'No tienes compañía/suscriptor asignado.');
+            return back()->with(
+                'error',
+                'La activación trial directa ya no está disponible. '
+                .'La activación real del servicio ocurre después '
+                .'del Go-Live correspondiente en LAUDA 360.'
+            );
         }
 
+        $company = $this->resolveCompany(
+            $user
+        );
+
+        if (
+            ! $company
+            || ! $company->subscriber_id
+        ) {
+            AuditService::log(
+                'service_activation_denied',
+                null,
+                [
+                    'reason' =>
+                        'no_company_or_subscriber',
+                    'user_id' =>
+                        (int) $user->id,
+                    'service_id' =>
+                        $serviceId,
+                ],
+                [
+                    'user_id' =>
+                        (int) $user->id,
+                ]
+            );
+
+            return back()->with(
+                'error',
+                'No tienes compañía/suscriptor asignado.'
+            );
+        }
+
+        /*
+         * Solo una Subscription legacy ya existente y elegible puede
+         * registrar intención billed. Esta ruta NO crea Subscription.
+         */
         $subscription = Subscription::query()
-            ->where('subscriber_id', $company->subscriber_id)
+            ->where(
+                'subscriber_id',
+                $company->subscriber_id
+            )
+            ->whereIn(
+                'status',
+                ServiceEntitlementPolicy::SUBSCRIPTION_STATUSES
+            )
+            ->orderByRaw(
+                "FIELD(status,'active','trialing')"
+            )
             ->latest('id')
             ->first();
 
-        if (!$subscription) {
-            AuditService::log('service_activation_denied', null, [
-                'reason' => 'no_subscription',
-                'user_id' => $user->id,
-                'subscriber_id' => $company->subscriber_id,
-                'service_id' => $serviceId,
-            ], ['user_id' => $user->id]);
+        if (! $subscription) {
+            AuditService::log(
+                'service_activation_denied',
+                null,
+                [
+                    'reason' =>
+                        'no_eligible_existing_subscription',
+                    'user_id' =>
+                        (int) $user->id,
+                    'subscriber_id' =>
+                        (int) $company->subscriber_id,
+                    'service_id' =>
+                        $serviceId,
+                    'hardening_step' =>
+                        '9C-B',
+                ],
+                [
+                    'user_id' =>
+                        (int) $user->id,
+                ]
+            );
 
-            return back()->with('error', 'No tienes suscripción para activar servicios.');
+            return back()->with(
+                'error',
+                'No existe una suscripción elegible. '
+                .'Las nuevas suscripciones se activan '
+                .'desde LAUDA 360 después del Go-Live.'
+            );
         }
 
-        // Activación válida (accepted/trialing/converted)
         $activation = ActivationRequest::query()
-            ->where('user_id', $user->id)
-            ->whereIn('status', ActivationRequest::ACCESS_ALLOWED_STATUSES ?? [
-                ActivationRequest::STATUS_ACCEPTED,
-                ActivationRequest::STATUS_TRIALING,
-                ActivationRequest::STATUS_CONVERTED,
-            ])
+            ->where(
+                'user_id',
+                $user->id
+            )
+            ->whereIn(
+                'status',
+                ActivationRequest::ACCESS_ALLOWED_STATUSES
+            )
             ->latest('id')
             ->first();
 
-        if (!$activation) {
-            AuditService::log('service_activation_denied', null, [
-                'reason' => 'no_activation_request',
-                'user_id' => $user->id,
-                'service_id' => $serviceId,
-            ], ['user_id' => $user->id]);
+        if (! $activation) {
+            AuditService::log(
+                'service_activation_denied',
+                null,
+                [
+                    'reason' =>
+                        'no_activation_request',
+                    'user_id' =>
+                        (int) $user->id,
+                    'service_id' =>
+                        $serviceId,
+                ],
+                [
+                    'user_id' =>
+                        (int) $user->id,
+                ]
+            );
 
-            return back()->with('error', 'No tienes una solicitud de activación válida.');
+            return back()->with(
+                'error',
+                'No tienes una solicitud de activación válida.'
+            );
         }
 
-        $service = Service::query()->findOrFail($serviceId);
+        $service = Service::query()
+            ->findOrFail(
+                $serviceId
+            );
 
-        if (!(bool) $service->active) {
-            AuditService::log('service_activation_denied', $service, [
-                'reason' => 'service_inactive',
-                'user_id' => $user->id,
-                'activation_request_id' => $activation->id,
-                'subscription_id' => $subscription->id,
-            ], ['user_id' => $user->id]);
+        if (! (bool) $service->active) {
+            AuditService::log(
+                'service_activation_denied',
+                $service,
+                [
+                    'reason' =>
+                        'service_inactive',
+                    'user_id' =>
+                        (int) $user->id,
+                    'activation_request_id' =>
+                        (int) $activation->id,
+                    'subscription_id' =>
+                        (int) $subscription->id,
+                ],
+                [
+                    'user_id' =>
+                        (int) $user->id,
+                ]
+            );
 
-            return back()->with('error', 'Este servicio no está disponible.');
+            return back()->with(
+                'error',
+                'Este servicio no está disponible.'
+            );
         }
 
-        // Debe existir solicitud (activation_request_service)
-        $reqRow = DB::table('activation_request_service')
-            ->where('activation_request_id', $activation->id)
-            ->where('service_id', $serviceId)
+        $requestRow = DB::table(
+            'activation_request_service'
+        )
+            ->where(
+                'activation_request_id',
+                $activation->id
+            )
+            ->where(
+                'service_id',
+                $serviceId
+            )
             ->first();
 
-        if (!$reqRow) {
-            AuditService::log('service_activation_denied', $service, [
-                'reason' => 'no_service_request_row',
-                'user_id' => $user->id,
-                'activation_request_id' => $activation->id,
-                'subscription_id' => $subscription->id,
-            ], ['user_id' => $user->id]);
+        if (! $requestRow) {
+            AuditService::log(
+                'service_activation_denied',
+                $service,
+                [
+                    'reason' =>
+                        'no_service_request_row',
+                    'user_id' =>
+                        (int) $user->id,
+                    'activation_request_id' =>
+                        (int) $activation->id,
+                    'subscription_id' =>
+                        (int) $subscription->id,
+                ],
+                [
+                    'user_id' =>
+                        (int) $user->id,
+                ]
+            );
 
-            return back()->with('error', 'Debes solicitar el servicio antes de activarlo.');
+            return back()->with(
+                'error',
+                'Debes solicitar el servicio antes de continuar.'
+            );
         }
 
-        $reqStatus = strtolower((string) ($reqRow->status ?? ''));
-        if (!in_array($reqStatus, ['pending', 'pending_payment'], true)) {
-            return back()->with('error', "La solicitud no está en estado activable (status: {$reqStatus}).");
+        $requestStatus = strtolower(
+            (string) ($requestRow->status ?? '')
+        );
+
+        if (
+            ! in_array(
+                $requestStatus,
+                [
+                    'pending',
+                    'pending_payment',
+                ],
+                true
+            )
+        ) {
+            return back()->with(
+                'error',
+                "La solicitud no está en estado procesable "
+                ."(status: {$requestStatus})."
+            );
         }
 
-        // Si ya existe item activo/trialing
+        /*
+         * Si el servicio ya está realmente activo, preservar compatibilidad
+         * y cerrar la solicitud colgada sin crear/reactivar ningún item.
+         */
         $alreadyActive = SubscriptionItem::query()
-            ->where('subscription_id', $subscription->id)
-            ->where('service_id', $serviceId)
-            ->whereIn('status', ['trialing', 'active'])
+            ->where(
+                'subscription_id',
+                $subscription->id
+            )
+            ->where(
+                'service_id',
+                $serviceId
+            )
+            ->whereIn(
+                'status',
+                ServiceEntitlementPolicy::ITEM_STATUSES
+            )
             ->exists();
 
         if ($alreadyActive) {
-            // auto-fix solicitud si quedó colgada
-            DB::table('activation_request_service')
-                ->where('id', $reqRow->id)
-                ->update(['status' => 'active', 'updated_at' => now()]);
+            DB::table(
+                'activation_request_service'
+            )
+                ->where(
+                    'id',
+                    $requestRow->id
+                )
+                ->update([
+                    'status' =>
+                        'active',
+                    'updated_at' =>
+                        now(),
+                ]);
 
-            AuditService::log('service_activation_denied_already_active', $service, [
-                'reason' => 'already_active',
-                'user_id' => $user->id,
-                'activation_request_id' => $activation->id,
-                'subscription_id' => $subscription->id,
-            ], ['user_id' => $user->id]);
+            AuditService::log(
+                'service_activation_denied_already_active',
+                $service,
+                [
+                    'reason' =>
+                        'already_active',
+                    'user_id' =>
+                        (int) $user->id,
+                    'activation_request_id' =>
+                        (int) $activation->id,
+                    'subscription_id' =>
+                        (int) $subscription->id,
+                    'hardening_step' =>
+                        '9C-B',
+                ],
+                [
+                    'user_id' =>
+                        (int) $user->id,
+                ]
+            );
 
-            return back()->with('error', 'Este servicio ya está activo.');
-        }
-
-        // ✅ Regla: Trial solo si el subscriber está realmente en trial vigente
-        if ($mode === 'trial') {
-            $trialOk = ($subscription->status === 'trialing')
-                && ($subscription->trial_ends_at === null || $subscription->trial_ends_at >= now());
-
-            if (!$trialOk) {
-                return back()->with('error', 'Tu trial no está vigente. Debes activar con pago.');
-            }
+            return back()->with(
+                'error',
+                'Este servicio ya está activo.'
+            );
         }
 
         try {
-            
-            $laudaOneChannel = $this->laudaOneChannel($service);
+            /*
+             * Aun siendo request-only, conservar pricing/currency guards
+             * para que el snapshot comercial sea válido.
+             */
+            $this->resolveCommercialCurrency(
+                $service,
+                $subscription
+            );
 
-            DB::transaction(function () use ($mode, $service, $activation, $subscription, $company, $user, $reqRow, $laudaOneProvisioner, $laudaOneChannel) {
-
-            if ($mode === 'trial') {
-                $item = SubscriptionItem::create($this->buildTrialItem($service, $subscription));
-
-                $laudaOneChannel = $this->laudaOneChannel($service);
-
-                if ($laudaOneChannel !== null) {
-                    $laudaOneProvisioner->provision($company, $user, $laudaOneChannel);
-                }
-
-                DB::table('activation_request_service')
-                    ->where('id', $reqRow->id)
+            DB::transaction(function () use (
+                $service,
+                $activation,
+                $subscription,
+                $company,
+                $user,
+                $requestRow
+            ) {
+                DB::table(
+                    'activation_request_service'
+                )
+                    ->where(
+                        'id',
+                        $requestRow->id
+                    )
                     ->update([
-                        'status' => 'active',
-                        'meta' => json_encode([
-                            'activation_mode' => 'trial',
-                            'subscription_id' => $subscription->id,
-                            'subscription_item_id' => $item->id,
-                            'activated_at' => now()->toISOString(),
-                        ]),
-                        'updated_at' => now(),
+                        'status' =>
+                            'pending_payment',
+                        'meta' =>
+                            json_encode([
+                                'activation_mode' =>
+                                    'billed',
+                                'payment_required' =>
+                                    true,
+                                'requested_at' =>
+                                    now()->toISOString(),
+                                'billing_cycle' =>
+                                    $subscription->billing_cycle,
+                                'price_snapshot' =>
+                                    $this->buildPriceSnapshot(
+                                        $service,
+                                        $subscription
+                                    ),
+                                'hardening_step' =>
+                                    '9C-B',
+                                'entitlement_granted' =>
+                                    false,
+                            ]),
+                        'updated_at' =>
+                            now(),
                     ]);
 
-                AuditService::log('service_activated_trial', $service, [
-                    'user_id' => $user->id,
-                    'activation_request_id' => $activation->id,
-                    'subscriber_id' => $company->subscriber_id,
-                    'company_id' => $company->id,
-                    'subscription_id' => $subscription->id,
-                    'subscription_item_id' => $item->id,
-                    'service_id' => $service->id,
-                    'service_slug' => $service->slug,
-                    'service_title' => $service->title,
-                    'billing_model' => $service->billing_model,
-                    'billable' => (bool) $service->billable,
-                ], ['user_id' => $user->id]);
-
-                return;
-            }
-
-                // billed: por ahora solo marcamos pending_payment (checkout luego)
-                DB::table('activation_request_service')
-                    ->where('id', $reqRow->id)
-                    ->update([
-                        'status' => 'pending_payment',
-                        'meta' => json_encode([
-                            'activation_mode' => 'billed',
-                            'payment_required' => true,
-                            'requested_at' => now()->toISOString(),
-                            'billing_cycle' => $subscription->billing_cycle,
-                            'price_snapshot' => $this->buildPriceSnapshot($service, $subscription),
-                        ]),
-                        'updated_at' => now(),
-                    ]);
-
-                AuditService::log('service_activation_pending_payment', $service, [
-                    'user_id' => $user->id,
-                    'activation_request_id' => $activation->id,
-                    'subscriber_id' => $company->subscriber_id,
-                    'company_id' => $company->id,
-                    'subscription_id' => $subscription->id,
-                    'service_id' => $service->id,
-                    'service_slug' => $service->slug,
-                    'service_title' => $service->title,
-                    'billing_model' => $service->billing_model,
-                    'billable' => (bool) $service->billable,
-                ], ['user_id' => $user->id]);
+                AuditService::log(
+                    'service_activation_pending_payment',
+                    $service,
+                    [
+                        'user_id' =>
+                            (int) $user->id,
+                        'activation_request_id' =>
+                            (int) $activation->id,
+                        'subscriber_id' =>
+                            (int) $company->subscriber_id,
+                        'company_id' =>
+                            (int) $company->id,
+                        'subscription_id' =>
+                            (int) $subscription->id,
+                        'service_id' =>
+                            (int) $service->id,
+                        'service_slug' =>
+                            (string) $service->slug,
+                        'service_title' =>
+                            (string) $service->title,
+                        'billing_model' =>
+                            (string) $service->billing_model,
+                        'billable' =>
+                            (bool) $service->billable,
+                        'hardening_step' =>
+                            '9C-B',
+                        'entitlement_granted' =>
+                            false,
+                    ],
+                    [
+                        'user_id' =>
+                            (int) $user->id,
+                    ]
+                );
             });
         } catch (\Throwable $e) {
-            AuditService::log('service_activation_failed', $service ?? null, [
-                'user_id' => $user->id,
-                'activation_request_id' => $activation?->id,
-                'subscription_id' => $subscription?->id,
-                'service_id' => $serviceId,
-                'mode' => $mode,
-                'error' => $e->getMessage(),
-            ], ['user_id' => $user->id]);
+            AuditService::log(
+                'service_activation_failed',
+                $service ?? null,
+                [
+                    'user_id' =>
+                        (int) $user->id,
+                    'activation_request_id' =>
+                        $activation?->id,
+                    'subscription_id' =>
+                        $subscription?->id,
+                    'service_id' =>
+                        $serviceId,
+                    'mode' =>
+                        $mode,
+                    'error' =>
+                        $e->getMessage(),
+                    'hardening_step' =>
+                        '9C-B',
+                ],
+                [
+                    'user_id' =>
+                        (int) $user->id,
+                ]
+            );
 
-            report($e);
-            return back()->with('error', 'Falló la activación: ' . $e->getMessage());
+            report(
+                $e
+            );
+
+            return back()->with(
+                'error',
+                'Falló la solicitud comercial: '
+                .$e->getMessage()
+            );
         }
 
         return back()->with(
             'success',
-            $mode === 'trial'
-                ? 'Servicio activado (trial). Ya aparece en Servicios activos.'
-                : 'Solicitud marcada como pendiente de pago. Completa el pago para activarlo.'
+            'Solicitud marcada como pendiente de pago. '
+            .'Esto no activa ni habilita el servicio.'
         );
     }
 
-    private function isLaudaOneService(Service $service): bool
-    {
-        return $this->laudaOneChannel($service) !== null;
+    private function buildPriceSnapshot(
+        Service $service,
+        Subscription $subscription
+    ): array {
+        $quote = app(
+            ServicePricingEngine::class
+        )->quote(
+            $service,
+            $subscription
+        );
+
+        $quote['amount_due_now'] =
+            $quote['billing_model']
+                === ServicePricingEngine::MODEL_USAGE
+                    ? 0
+                    : $quote['amount'];
+
+        return $quote;
     }
 
-    private function laudaOneChannel(Service $service): ?string
-    {
-        $slug = strtolower((string) $service->slug);
-        $key = strtolower((string) $service->service_key);
+    private function resolveCommercialCurrency(
+        Service $service,
+        Subscription $subscription
+    ): string {
+        $serviceCurrency = strtoupper(
+            trim(
+                (string) ($service->currency ?? '')
+            )
+        );
 
-        if (
-            $slug === 'laudaone-ecommerce-b2c'
-            || $key === 'laudaone_b2c'
-        ) {
-            return 'b2c';
+        $subscriptionCurrency = strtoupper(
+            trim(
+                (string) ($subscription->currency ?? 'DOP')
+            )
+        );
+
+        $serviceCurrency = $serviceCurrency !== ''
+            ? $serviceCurrency
+            : $subscriptionCurrency;
+
+        $subscriptionCurrency =
+            $subscriptionCurrency !== ''
+                ? $subscriptionCurrency
+                : 'DOP';
+
+        foreach ([
+            'service' =>
+                $serviceCurrency,
+            'subscription' =>
+                $subscriptionCurrency,
+        ] as $field => $currency) {
+            if (
+                ! preg_match(
+                    '/^[A-Z]{3}$/',
+                    $currency
+                )
+            ) {
+                throw ValidationException::withMessages([
+                    'currency' =>
+                        "La moneda {$field} debe usar "
+                        ."un código ISO de tres letras.",
+                ]);
+            }
         }
 
         if (
-            $slug === 'laudaone-ecommerce-b2b'
-            || $key === 'laudaone_b2b'
+            $serviceCurrency
+            !== $subscriptionCurrency
         ) {
-            return 'b2b';
+            throw ValidationException::withMessages([
+                'currency' =>
+                    'La moneda del Service debe coincidir '
+                    .'con la moneda de la Subscription. '
+                    .'No se permite conversión FX implícita.',
+            ]);
         }
 
-        return null;
+        return $serviceCurrency;
     }
 
-    private function buildTrialItem(Service $service, Subscription $subscription): array
-    {
-        return [
-            'subscription_id' => $subscription->id,
-            'service_id' => $service->id,
-            'status' => 'trialing',
-
-            'billing_model' => $service->billing_model ?? 'flat',
-            'quantity' => 1,
-
-            'unit_price' => 0,
-            'amount' => 0,
-            'currency' => $service->currency ?: ($subscription->currency ?? 'USD'),
-
-            'block_size' => $service->block_size,
-            'unit_name' => $service->unit_name,
-            'included_units' => $service->included_units,
-            'overage_unit_price' => $service->overage_unit_price,
-
-            'meta' => [
-                'activation_mode' => 'trial',
-                'activated_at' => now()->toISOString(),
-            ],
-        ];
-    }
-
-    /**
-     * Snapshot para cobrar después (billed).
-     * - flat/seat_block: usa monthly_price/yearly_price según billing_cycle del subscription
-     * - usage: deja unit_price=0, pero guarda overage_unit_price y unidades
-     */
-    private function buildPriceSnapshot(Service $service, Subscription $subscription): array
-    {
-        $cycle = strtolower((string) ($subscription->billing_cycle ?? 'monthly'));
-        $model = strtolower((string) ($service->billing_model ?? 'flat'));
-
-        $price = $cycle === 'yearly'
-            ? (float) ($service->yearly_price ?? 0)
-            : (float) ($service->monthly_price ?? 0);
-
-        if ($model === 'usage') {
-            return [
-                'billing_model' => 'usage',
-                'currency' => $service->currency ?: ($subscription->currency ?? 'USD'),
-                'included_units' => (int) ($service->included_units ?? 0),
-                'unit_name' => $service->unit_name,
-                'overage_unit_price' => (float) ($service->overage_unit_price ?? 0),
-                'cycle' => $cycle,
-                'amount_due_now' => 0,
-            ];
-        }
-
-        // flat / seat_block: price representa el “precio base” del ciclo
-        return [
-            'billing_model' => $model,
-            'currency' => $service->currency ?: ($subscription->currency ?? 'USD'),
-            'cycle' => $cycle,
-            'unit_price' => $price,
-            'quantity' => 1,
-            'amount_due_now' => $price,
-            'block_size' => $service->block_size,
-        ];
-    }
-
-    private function resolveCompany($user): ?Company
-    {
+    private function resolveCompany(
+        $user
+    ): ?Company {
         $company = null;
 
-        if (!empty($user->company_id)) {
-            $company = Company::query()->find($user->company_id);
+        if (! empty($user->company_id)) {
+            $company = Company::query()
+                ->find(
+                    $user->company_id
+                );
         }
-        if (!$company) {
-            $company = Company::query()->where('owner_user_id', $user->id)->first();
+
+        if (! $company) {
+            $company = Company::query()
+                ->where(
+                    'owner_user_id',
+                    $user->id
+                )
+                ->first();
         }
-        if (!$company && !empty($user->subscriber_id)) {
-            $company = Company::query()->where('subscriber_id', $user->subscriber_id)->first();
+
+        if (
+            ! $company
+            && ! empty($user->subscriber_id)
+        ) {
+            $company = Company::query()
+                ->where(
+                    'subscriber_id',
+                    $user->subscriber_id
+                )
+                ->first();
         }
 
         return $company;

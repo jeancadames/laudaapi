@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Diagnosis;
 use App\Http\Controllers\Controller;
 use App\Models\DiagnosisAssessment;
 use App\Models\DiagnosisDetailedRoadmap;
+use App\Models\TransformationImplementationPlan;
 use App\Services\Diagnosis\DiagnosisDetailedRoadmapCommercialService;
 use Illuminate\Support\Facades\Gate;
 use Inertia\Inertia;
@@ -34,6 +35,18 @@ class DiagnosisDetailedRoadmapController extends Controller
             ->orderByDesc('version')
             ->firstOrFail();
 
+        $implementationPlan = TransformationImplementationPlan::query()
+            ->where('diagnosis_assessment_id', $assessment->id)
+            ->whereIn('status', [
+                TransformationImplementationPlan::STATUS_PRESENTED,
+                TransformationImplementationPlan::STATUS_ACCEPTED,
+                TransformationImplementationPlan::STATUS_ACTIVE,
+                TransformationImplementationPlan::STATUS_COMPLETED,
+            ])
+            ->whereNotNull('presented_at')
+            ->orderByDesc('version')
+            ->first();
+
         return Inertia::render(
             'Diagnosis/DetailedRoadmap',
             [
@@ -60,6 +73,12 @@ class DiagnosisDetailedRoadmapController extends Controller
                     'diagnosis.expanded_report.show',
                     $assessment
                 ),
+                'implementation_plan_url' => $implementationPlan
+                    ? route(
+                        'diagnosis.implementation_plan.show',
+                        $assessment
+                    )
+                    : null,
                 'diagnosis_url' => route(
                     'diagnosis.show',
                     $assessment

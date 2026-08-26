@@ -4,9 +4,9 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use App\Models\Invoice;
+use App\Services\Billing\InvoiceReconciliationService;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Support\Facades\Cache;
-use Illuminate\Support\Facades\DB;
 
 class InvoiceItem extends Model
 {
@@ -41,52 +41,61 @@ class InvoiceItem extends Model
 
     protected static function booted(): void
     {
-        static::saved(function (InvoiceItem $item) {
+        static::saved(function (InvoiceItem $item): void {
             Cache::forget('admin.dashboard.stats');
-            self::recalcInvoiceTotals($item->invoice_id);
+
+            self::reconcileInvoiceReferences(
+                $item
+            );
         });
 
-        static::deleted(function (InvoiceItem $item) {
+        static::deleted(function (InvoiceItem $item): void {
             Cache::forget('admin.dashboard.stats');
-            self::recalcInvoiceTotals($item->invoice_id);
+
+            if ($item->invoice_id) {
+                app(
+                    InvoiceReconciliationService::class
+                )->recalculateFromItems(
+                    (int) $item->invoice_id
+                );
+            }
         });
     }
 
-    /**
-     * Recalcula totales del invoice basado en sus items.
-     * - No toca status.
-     * - Respeta void (no recalcula totales si está void).
-     * - Usa saveQuietly para evitar loops.
-     */
-    private static function recalcInvoiceTotals(?int $invoiceId): void
-    {
-        if (!$invoiceId) return;
+    private static function reconcileInvoiceReferences(
+        InvoiceItem $item
+    ): void {
+        $currentInvoiceId =
+            (int) ($item->invoice_id ?? 0);
 
-        $row = DB::table('invoice_items')
-            ->where('invoice_id', $invoiceId)
-            ->selectRaw('
-                COALESCE(SUM(line_subtotal),0) as subtotal,
-                COALESCE(SUM(discount_amount),0) as discount_total,
-                COALESCE(SUM(tax_amount),0) as tax_total,
-                COALESCE(SUM(line_total),0) as total
-            ')
-            ->first();
+        $originalInvoiceId =
+            (int) (
+                $item->getOriginal('invoice_id')
+                ?? 0
+            );
 
-        $invoice = Invoice::query()->find($invoiceId);
-        if (!$invoice) return;
+        $invoiceIds = array_values(
+            array_unique(
+                array_filter([
+                    $originalInvoiceId,
+                    $currentInvoiceId,
+                ])
+            )
+        );
 
-        // Si está void, no tocar (pero podrías sincronizar si quieres)
-        if ($invoice->status === 'void') return;
+        /*
+         * PASO 9E-C:
+         * Si se tocan dos invoices, adquirir locks en orden global.
+         */
+        sort($invoiceIds, SORT_NUMERIC);
 
-        $invoice->forceFill([
-            'subtotal' => (float) $row->subtotal,
-            'discount_total' => (float) $row->discount_total,
-            'tax_total' => (float) $row->tax_total,
-            'total' => (float) $row->total,
-        ])->saveQuietly();
-
-        // stats puede depender de total/balance, por eso invalidamos de nuevo (barato)
-        Cache::forget('admin.dashboard.stats');
+        foreach ($invoiceIds as $invoiceId) {
+            app(
+                InvoiceReconciliationService::class
+            )->recalculateFromItems(
+                (int) $invoiceId
+            );
+        }
     }
 
     public function invoice(): BelongsTo

@@ -5,6 +5,7 @@ namespace App\Http\Middleware;
 use App\Models\Company;
 use Closure;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
 use Symfony\Component\HttpFoundation\Response;
 
@@ -15,10 +16,21 @@ class ResolveCompanyFromHost
         $host = strtolower($request->getHost());
         $base = strtolower((string) config('app.base_domain', 'laudaapi.com'));
 
-        // 1) Custom domain exacto
-        $company = Company::query()
-            ->whereRaw('LOWER(domain) = ?', [$host])
-            ->first();
+        /*
+         * 1) Custom domain exacto.
+         *
+         * La columna `companies.domain` no existe en todos los
+         * despliegues históricos de LAUDAAPI. No ejecutar una query
+         * contra una columna ausente: en ese caso se continúa con
+         * ws_subdomain/slug.
+         */
+        $company = null;
+
+        if (Schema::hasColumn('companies', 'domain')) {
+            $company = Company::query()
+                ->whereRaw('LOWER(domain) = ?', [$host])
+                ->first();
+        }
 
         // 2) Wildcard subdomain
         if (! $company) {

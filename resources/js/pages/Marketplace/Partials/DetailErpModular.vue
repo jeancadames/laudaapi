@@ -71,7 +71,7 @@ defineProps<{
            bg-blue-600 px-5 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-blue-700
            focus:outline-none focus:ring-2 focus:ring-blue-600 focus:ring-offset-2
            focus:ring-offset-slate-50 dark:focus:ring-offset-slate-950">
-                            Activar prueba gratis 30 días
+                            Solicitar Diagnóstico LAUDA 360
                         </Button>
 
                         <p class="mt-3 text-center text-xs text-slate-500 dark:text-slate-400">

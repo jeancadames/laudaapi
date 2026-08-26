@@ -249,5 +249,98 @@ Route::middleware(['auth', 'verified', 'role:admin'])
             [\App\Http\Controllers\Admin\AdminDiagnosisDetailedRoadmapCommercialController::class, 'recordPayment']
         )->name('diagnosis_requests.detailed_roadmap.record_payment');
 
+
+        \Illuminate\Support\Facades\Route::get(
+            '/diagnosis-requests/{contact}/implementation-plan',
+            [\App\Http\Controllers\Admin\AdminTransformationImplementationPlanController::class, 'show']
+        )->name('diagnosis_requests.implementation_plan.show');
+
+        \Illuminate\Support\Facades\Route::post(
+            '/diagnosis-requests/{contact}/implementation-plan',
+            [\App\Http\Controllers\Admin\AdminTransformationImplementationPlanController::class, 'create']
+        )->name('diagnosis_requests.implementation_plan.create');
+
+
+        \Illuminate\Support\Facades\Route::post(
+            '/diagnosis-requests/{contact}/implementation-plan/phases',
+            [\App\Http\Controllers\Admin\AdminTransformationImplementationPlanController::class, 'storePhase']
+        )->name('diagnosis_requests.implementation_plan.phase.store');
+
+        \Illuminate\Support\Facades\Route::post(
+            '/diagnosis-requests/{contact}/implementation-plan/modality',
+            [\App\Http\Controllers\Admin\AdminTransformationImplementationPlanController::class, 'selectModality']
+        )->name('diagnosis_requests.implementation_plan.modality.select');
+
+        \Illuminate\Support\Facades\Route::post(
+            '/diagnosis-requests/{contact}/implementation-plan/phases/{phase}/estimate',
+            [\App\Http\Controllers\Admin\AdminTransformationImplementationPlanController::class, 'upsertEstimate']
+        )->name('diagnosis_requests.implementation_plan.estimate.upsert');
+
+        \Illuminate\Support\Facades\Route::post(
+            '/diagnosis-requests/{contact}/implementation-plan/phases/{phase}/milestones',
+            [\App\Http\Controllers\Admin\AdminTransformationImplementationPlanController::class, 'upsertMilestone']
+        )->name('diagnosis_requests.implementation_plan.milestone.upsert');
+
+        \Illuminate\Support\Facades\Route::post(
+            '/diagnosis-requests/{contact}/implementation-plan/present',
+            [\App\Http\Controllers\Admin\AdminTransformationImplementationPlanController::class, 'present']
+        )->name('diagnosis_requests.implementation_plan.present');
+
+        \Illuminate\Support\Facades\Route::post(
+            '/diagnosis-requests/{contact}/implementation-plan/accept',
+            [\App\Http\Controllers\Admin\AdminTransformationImplementationPlanController::class, 'accept']
+        )->name('diagnosis_requests.implementation_plan.accept');
+
+
+        \Illuminate\Support\Facades\Route::get(
+            '/diagnosis-requests/{contact}/implementation-plan/execution',
+            [\App\Http\Controllers\Admin\AdminTransformationImplementationExecutionController::class, 'show']
+        )->name('diagnosis_requests.implementation_execution.show');
+
+        \Illuminate\Support\Facades\Route::post(
+            '/diagnosis-requests/{contact}/implementation-plan/execution/phases/{phase}/initialize',
+            [\App\Http\Controllers\Admin\AdminTransformationImplementationExecutionController::class, 'initializePhase']
+        )->name('diagnosis_requests.implementation_execution.phase.initialize');
+
+        \Illuminate\Support\Facades\Route::post(
+            '/diagnosis-requests/{contact}/implementation-plan/execution/capabilities/{capability}/start',
+            [\App\Http\Controllers\Admin\AdminTransformationImplementationExecutionController::class, 'startCapability']
+        )->name('diagnosis_requests.implementation_execution.capability.start');
+
+        \Illuminate\Support\Facades\Route::post(
+            '/diagnosis-requests/{contact}/implementation-plan/execution/capabilities/{capability}/progress',
+            [\App\Http\Controllers\Admin\AdminTransformationImplementationExecutionController::class, 'updateProgress']
+        )->name('diagnosis_requests.implementation_execution.capability.progress');
+
+        \Illuminate\Support\Facades\Route::post(
+            '/diagnosis-requests/{contact}/implementation-plan/execution/capabilities/{capability}/complete',
+            [\App\Http\Controllers\Admin\AdminTransformationImplementationExecutionController::class, 'completeCapability']
+        )->name('diagnosis_requests.implementation_execution.capability.complete');
+
+        \Illuminate\Support\Facades\Route::post(
+            '/diagnosis-requests/{contact}/implementation-plan/execution/capabilities/{capability}/go-live',
+            [\App\Http\Controllers\Admin\AdminTransformationImplementationExecutionController::class, 'createGoLive']
+        )->name('diagnosis_requests.implementation_execution.go_live.create');
+
+        \Illuminate\Support\Facades\Route::post(
+            '/diagnosis-requests/{contact}/implementation-plan/execution/go-lives/{goLive}/ready',
+            [\App\Http\Controllers\Admin\AdminTransformationImplementationExecutionController::class, 'markGoLiveReady']
+        )->name('diagnosis_requests.implementation_execution.go_live.ready');
+
+        \Illuminate\Support\Facades\Route::post(
+            '/diagnosis-requests/{contact}/implementation-plan/execution/go-lives/{goLive}/live',
+            [\App\Http\Controllers\Admin\AdminTransformationImplementationExecutionController::class, 'goLive']
+        )->name('diagnosis_requests.implementation_execution.go_live.live');
+
+        \Illuminate\Support\Facades\Route::post(
+            '/diagnosis-requests/{contact}/implementation-plan/execution/go-lives/{goLive}/subscription',
+            [\App\Http\Controllers\Admin\AdminTransformationImplementationExecutionController::class, 'activateSubscription']
+        )->name('diagnosis_requests.implementation_execution.subscription.activate');
+
+        \Illuminate\Support\Facades\Route::post(
+            '/diagnosis-requests/{contact}/implementation-plan/execution/go-lives/{goLive}/service',
+            [\App\Http\Controllers\Admin\AdminTransformationImplementationExecutionController::class, 'activateService']
+        )->name('diagnosis_requests.implementation_execution.service.activate');
+
     });
 // END LAUDA360 DIAGNOSIS ADMIN ROUTES

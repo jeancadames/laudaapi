@@ -4,6 +4,9 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\Service;
+use App\Services\Billing\ServicePricingTierService;
+use App\Services\Billing\ServiceBundleConfigurationService;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
 use Inertia\Inertia;
@@ -50,6 +53,88 @@ class AdminServiceController extends Controller
                 'sort_order',
             ]);
 
+        $children->load([
+            'pricingTiers' => fn ($query) =>
+                $query
+                    ->orderBy('billing_cycle')
+                    ->orderBy('min_quantity')
+                    ->orderBy('sort_order'),
+                    'bundleItems.includedService:id,title,service_key,parent_id,currency,active',
+            'bundleDiscountRules' => fn ($query) =>
+                $query
+                    ->orderByDesc('priority')
+                    ->orderBy('id'),
+]);
+
+
+        $childrenPayload = $children->map(
+            function (Service $service): array {
+                $row = $service->toArray();
+
+                unset(
+                    $row['bundle_items'],
+                    $row['bundle_discount_rules']
+                );
+
+                $row['bundle'] = [
+                    'enabled' => $service->bundleItems->isNotEmpty(),
+                    'items' => $service->bundleItems
+                        ->map(
+                            fn ($item) => [
+                                'id' => $item->id,
+                                'service_id' => $item->included_service_id,
+                                'required' => (bool) $item->required,
+                                'sort_order' => (int) $item->sort_order,
+                            ]
+                        )
+                        ->values()
+                        ->all(),
+                    'rules' => $service->bundleDiscountRules
+                        ->map(
+                            fn ($rule) => [
+                                'id' => $rule->id,
+                                'code' => $rule->code,
+                                'name' => $rule->name,
+                                'discount_type' => $rule->discount_type,
+                                'discount_value' => (float) $rule->discount_value,
+                                'currency' => $rule->currency,
+                                'priority' => (int) $rule->priority,
+                                'active' => (bool) $rule->active,
+                            ]
+                        )
+                        ->values()
+                        ->all(),
+                ];
+
+                return $row;
+            }
+        );
+
+        $bundleCandidates = Service::query()
+            ->orderBy('sort_order')
+            ->orderBy('id')
+            ->get([
+                'id',
+                'title',
+                'service_key',
+                'parent_id',
+                'currency',
+                'billable',
+                'active',
+            ])
+            ->map(
+                fn (Service $service) => [
+                    'id' => $service->id,
+                    'title' => $service->title,
+                    'service_key' => $service->service_key,
+                    'parent_id' => $service->parent_id,
+                    'currency' => $service->currency,
+                    'billable' => (bool) $service->billable,
+                    'active' => (bool) $service->active,
+                ]
+            )
+            ->values();
+
         return Inertia::render('Admin/Services/Index', [
             'parent' => [
                 'id'            => $parent->id,
@@ -62,7 +147,9 @@ class AdminServiceController extends Controller
                 'billing_model' => $parent->billing_model,
                 'sort_order'    => (int) $parent->sort_order,
             ],
-            'children' => $children,
+            'children' => $childrenPayload,
+            'bundle_candidates' => $bundleCandidates,
+
         ]);
     }
 
@@ -78,13 +165,37 @@ class AdminServiceController extends Controller
 
         $data = $this->validateChildPayload($request, isCreate: true);
 
+        $tiers = $data['pricing_tiers'] ?? [];
+        unset($data['pricing_tiers']);
+
+        $bundle = $data['bundle'] ?? null;
+        unset($data['bundle']);
+
         // parent fijo
         $data['parent_id'] = $parent->id;
 
         // Normalización de payload según billing_model
+        // per_user usa monthly_price/yearly_price como precio por usuario.
+        // seat_block usa service_pricing_tiers para precio.
         $data = $this->normalizeBillingFields($data);
 
-        Service::create($data);
+        DB::transaction(function () use ($data, $tiers, $bundle) {
+            $service = Service::create($data);
+
+            app(ServicePricingTierService::class)
+                ->sync(
+                    $service,
+                    $tiers
+                );
+
+            if (is_array($bundle)) {
+                app(ServiceBundleConfigurationService::class)
+                    ->sync(
+                        $service->fresh(),
+                        $bundle
+                    );
+            }
+        });
 
         return back()->with('success', 'Opción creada correctamente.');
     }
@@ -102,12 +213,38 @@ class AdminServiceController extends Controller
 
         $data = $this->validateChildPayload($request, isCreate: false);
 
+        $tiers = $data['pricing_tiers'] ?? [];
+        unset($data['pricing_tiers']);
+
+        $bundle = $data['bundle'] ?? null;
+        unset($data['bundle']);
+
         // No permitimos cambiar slug en update
         unset($data['slug']);
 
         $data = $this->normalizeBillingFields($data);
 
-        $service->update($data);
+        DB::transaction(function () use (
+            $service,
+            $data,
+            $tiers,
+            $bundle) {
+            $service->update($data);
+
+            app(ServicePricingTierService::class)
+                ->sync(
+                    $service->fresh(),
+                    $tiers
+                );
+
+            if (is_array($bundle)) {
+                app(ServiceBundleConfigurationService::class)
+                    ->sync(
+                        $service->fresh(),
+                        $bundle
+                    );
+            }
+        });
 
         return back()->with('success', 'Opción actualizada correctamente.');
     }
@@ -154,7 +291,7 @@ class AdminServiceController extends Controller
 
             'type' => ['required', Rule::in(['core', 'addon', 'usage', 'external'])],
 
-            'billing_model' => ['required', Rule::in(['flat', 'seat_block', 'usage'])],
+            'billing_model' => ['required', Rule::in(['flat', 'per_user', 'seat_block', 'usage'])],
 
             'monthly_price' => ['nullable', 'numeric', 'min:0'],
             'yearly_price'  => ['nullable', 'numeric', 'min:0'],
@@ -163,6 +300,49 @@ class AdminServiceController extends Controller
 
             // seat_block
             'block_size' => ['nullable', 'integer', 'min:1'],
+            'pricing_tiers' => ['nullable', 'array'],
+            'pricing_tiers.*.billing_cycle' =>
+                ['required', Rule::in(['monthly', 'yearly'])],
+            'pricing_tiers.*.min_quantity' =>
+                ['required', 'integer', 'min:1'],
+            'pricing_tiers.*.max_quantity' =>
+                ['nullable', 'integer', 'min:1'],
+            'pricing_tiers.*.price' =>
+                ['required', 'numeric', 'min:0'],
+            'pricing_tiers.*.currency' =>
+                ['required', 'string', 'size:3'],
+            'pricing_tiers.*.active' =>
+                ['sometimes', 'boolean'],
+            'pricing_tiers.*.sort_order' =>
+                ['nullable', 'integer', 'min:0'],
+
+            // bundle comercial
+            'bundle' => ['nullable', 'array'],
+            'bundle.enabled' => ['sometimes', 'boolean'],
+            'bundle.items' => ['nullable', 'array'],
+            'bundle.items.*.service_id' =>
+                ['required', 'integer', 'exists:services,id'],
+            'bundle.items.*.required' =>
+                ['sometimes', 'boolean'],
+            'bundle.items.*.sort_order' =>
+                ['nullable', 'integer', 'min:0'],
+            'bundle.rules' => ['nullable', 'array'],
+            'bundle.rules.*.id' =>
+                ['nullable', 'integer', 'exists:service_bundle_discount_rules,id'],
+            'bundle.rules.*.code' =>
+                ['required', 'string', 'max:255'],
+            'bundle.rules.*.name' =>
+                ['required', 'string', 'max:255'],
+            'bundle.rules.*.discount_type' =>
+                ['required', Rule::in(['percentage', 'fixed_amount'])],
+            'bundle.rules.*.discount_value' =>
+                ['required', 'numeric', 'min:0'],
+            'bundle.rules.*.currency' =>
+                ['nullable', 'string', 'size:3'],
+            'bundle.rules.*.priority' =>
+                ['nullable', 'integer'],
+            'bundle.rules.*.active' =>
+                ['sometimes', 'boolean'],
 
             // usage
             'unit_name'          => ['nullable', 'string', 'max:50'],
@@ -192,9 +372,11 @@ class AdminServiceController extends Controller
         }
 
         if ($billing === 'seat_block') {
-            $data['block_size'] = isset($data['block_size']) ? (int) $data['block_size'] : 5;
-
-            $data['unit_name'] = 'users';
+            // El precio sale exclusivamente de service_pricing_tiers.
+            $data['monthly_price'] = null;
+            $data['yearly_price'] = null;
+            $data['block_size'] = null;
+            $data['unit_name'] = 'usuario';
             $data['included_units'] = null;
             $data['overage_unit_price'] = null;
 

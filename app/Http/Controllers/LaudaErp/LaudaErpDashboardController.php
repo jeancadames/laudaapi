@@ -375,6 +375,14 @@ class LaudaErpDashboardController extends Controller
 
     private function resolveCompanyForUser(int $userId, $userCompanyId, $userSubscriberId): ?Company
     {
+        if (app()->bound('currentCompany')) {
+            $current = app('currentCompany');
+
+            if ($current instanceof Company) {
+                return $current;
+            }
+        }
+
         if (!empty($userCompanyId)) {
             $c = Company::query()->find((int)$userCompanyId);
             if ($c) return $c;

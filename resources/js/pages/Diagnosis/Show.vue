@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import TransformationProgressChecklist from '@/components/diagnosis/TransformationProgressChecklist.vue';
+import TransformationQuickActions from '@/components/diagnosis/TransformationQuickActions.vue';
 import ExpandedReportCommercialCard from '@/components/diagnosis/ExpandedReportCommercialCard.vue';
 import { computed, reactive, ref } from 'vue';
 import { Head, Link, router } from '@inertiajs/vue3';
@@ -394,6 +395,11 @@ function submitDiagnosis(payload: {
             class="mx-auto w-full max-w-7xl px-4 py-6 sm:px-6 lg:px-8 lg:py-8"
         >
             <TransformationProgressChecklist
+                :progress="transformation_progress"
+            />
+            <TransformationQuickActions
+                mode="client"
+                :assessment-id="assessment.id"
                 :progress="transformation_progress"
             />
 

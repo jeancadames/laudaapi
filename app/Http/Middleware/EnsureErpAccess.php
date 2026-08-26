@@ -44,6 +44,24 @@ class EnsureErpAccess
             return redirect('/subscriber/subscription')->with('error', $msg);
         }
 
+        $preferredCompanyId = (int) $request->attributes->get('resolved_company_id', 0);
+
+        $company = app(\App\Services\Subscribers\CompanyContextResolver::class)
+            ->resolve($user, (int) $subscriberId, $preferredCompanyId);
+
+        if (! $company) {
+            $msg = 'No se pudo resolver una empresa activa de forma inequívoca.';
+
+            if ($request->expectsJson()) {
+                abort(409, $msg);
+            }
+
+            return redirect()->route('app.gateway')->with('error', $msg);
+        }
+
+        $request->attributes->set('resolved_company_id', (int) $company->id);
+        app()->instance('currentCompany', $company);
+
         // ✅ Útil para controllers (evita recalcular resolver)
         $request->attributes->set('resolved_subscriber_id', $subscriberId);
 

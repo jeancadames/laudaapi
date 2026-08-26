@@ -118,7 +118,7 @@ const props = defineProps<{
 
                 <div class="mt-10 flex justify-center">
                     <Button variant="outline" @click="props.openRequestForm">
-                        Solicitar y activar módulos
+                        Solicitar evaluación LAUDA 360
                     </Button>
                 </div>
             </div>

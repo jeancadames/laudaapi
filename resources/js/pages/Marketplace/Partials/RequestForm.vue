@@ -1,8 +1,8 @@
 <script setup lang="ts">
-import { watch, ref, computed } from 'vue'
+import { computed, ref, watch } from 'vue'
+import axios from 'axios'
 import { useForm } from '@inertiajs/vue3'
 import { useToast } from '@/components/ui/toast'
-import axios from 'axios'
 import InputError from '@/components/InputError.vue'
 import Button from '@/components/ui/button/Button.vue'
 import Input from '@/components/ui/input/Input.vue'
@@ -19,90 +19,93 @@ import DialogContent from '@/components/ui/dialog/DialogContent.vue'
 import DialogTitle from '@/components/ui/dialog/DialogTitle.vue'
 import DialogDescription from '@/components/ui/dialog/DialogDescription.vue'
 
+const DIAGNOSIS_REQUEST_ENDPOINT = '/contact'
+const DIAGNOSIS_TOPIC = 'Solicitud de acceso al Diagnóstico LAUDA 360'
+
 const { toast } = useToast()
 
 const props = defineProps({
     open: { type: Boolean, default: false },
+
+    /**
+     * Compatibility prop.
+     *
+     * Algunos padres históricos todavía envían postUrl="/activation".
+     * 9C-C lo conserva para no romper su interface, pero ya NO se utiliza.
+     * La solicitud pública siempre entra por /contact.
+     */
     postUrl: { type: String, default: '' },
 })
+
 const emit = defineEmits([ 'close', 'submitted' ])
 
-/**
- * ✅ OPCIONAL (recomendado):
- * - true  => si es "pending", cierra modal como antes
- * - false => NO cierra automático, siempre muestra "Resultado"
- */
-const AUTO_CLOSE_ON_PENDING = false
+const submitting = ref(false)
+const serverMessage = ref('')
 
 const form = useForm({
     name: '',
     company: '',
-    role: '',
     email: '',
     phone: '',
-    topic: '',
-    otherTopic: '',
-    system: '',
-    volume: '',
+    solution_interest: '',
+    company_size: '',
+    main_challenge: 'No sé por dónde comenzar',
+    assistance_level: 'Quiero que LAUDA me recomiende la modalidad',
     message: '',
     terms: false,
 })
 
-// ✅ estado para feedback y CTA
-const serverMessage = ref<string>('')
-const actionUrl = ref<string>('')    // e.g. /subscriber/activation o /login
-const actionLabel = ref<string>('')  // e.g. "Ir a iniciar trial"
-
-// opcional: para mostrar tipo/estado detectado
-const inferredState = ref<'pending' | 'accepted' | 'trialing' | 'converted' | 'unknown'>('unknown')
-
-const hasResult = computed(() => !!serverMessage.value)
-const hasCta = computed(() => !!actionUrl.value)
+const hasResult = computed(() => serverMessage.value.length > 0)
 
 const resetAll = () => {
     form.reset()
     form.clearErrors()
-
     serverMessage.value = ''
-    actionUrl.value = ''
-    actionLabel.value = ''
-    inferredState.value = 'unknown'
+    submitting.value = false
 }
 
 watch(
     () => props.open,
-    (val) => {
-        if (!val) resetAll()
-    }
+    (open) => {
+        if (!open) {
+            resetAll()
+        }
+    },
 )
 
 const validateClient = () => {
     form.clearErrors()
 
-    if (!form.name?.trim()) form.setError('name', 'El nombre es requerido')
-    if (!form.company?.trim()) form.setError('company', 'La empresa es requerida')
-    if (!form.role?.trim()) form.setError('role', 'El cargo o rol es requerido')
+    if (!form.name.trim()) {
+        form.setError('name', 'El nombre es requerido.')
+    }
 
-    if (!form.email?.trim()) {
-        form.setError('email', 'El email es requerido')
+    if (!form.company.trim()) {
+        form.setError('company', 'La empresa es requerida.')
+    }
+
+    if (!form.email.trim()) {
+        form.setError('email', 'El correo electrónico es requerido.')
     } else if (!/^\S+@\S+\.\S+$/.test(form.email)) {
-        form.setError('email', 'Ingresa un email válido')
+        form.setError('email', 'Debes ingresar un correo válido.')
     }
 
-    if (form.phone && form.phone.trim().length < 8) {
-        form.setError('phone', 'El número de teléfono es inválido')
+    if (!form.phone.trim()) {
+        form.setError('phone', 'El teléfono es requerido.')
+    } else if (form.phone.trim().length < 7) {
+        form.setError('phone', 'Debes ingresar un teléfono válido.')
     }
 
-    if (!form.topic) form.setError('topic', 'Selecciona un área de interés')
-    if (form.topic === 'Otro' && !form.otherTopic?.trim()) {
-        form.setError('otherTopic', 'Describe brevemente el tema')
+    if (!form.company_size) {
+        form.setError('company_size', 'Debes indicar el tamaño de la empresa.')
     }
 
-    if (!form.system) form.setError('system', 'Selecciona tu sistema actual')
-    if (!form.volume) form.setError('volume', 'Selecciona tu volumen mensual')
+    if (!form.main_challenge) {
+        form.setError('main_challenge', 'Debes indicar el principal reto.')
+    }
 
-    if (form.message && form.message.trim().length < 3) {
-        form.setError('message', 'El mensaje es muy corto')
+    if (!form.assistance_level) {
+        form.setError('assistance_level', 'Debes indicar la modalidad de acompañamiento.')
     }
 
     if (!form.terms) {
@@ -112,134 +115,104 @@ const validateClient = () => {
     return Object.keys(form.errors).length === 0
 }
 
-/**
- * ✅ NEW: decide CTA según message (robusto)
- * Importante: esto es heurística basada en texto.
- * Ideal sería que backend devuelva next_url/next_label.
- */
-const computeActionFromMessage = (msg: string) => {
-    const m = (msg || '').toLowerCase()
+const payload = () => ({
+    name: form.name.trim(),
+    email: form.email.trim(),
+    phone: form.phone.trim(),
+    company: form.company.trim(),
+    topic: DIAGNOSIS_TOPIC,
+    message: form.message.trim() || null,
+    terms: form.terms,
+    metadata: {
+        source: 'laudaapi.com',
+        request_type: 'digital_diagnosis_access_request',
+        solution_interest: form.solution_interest || null,
+        intake_type: 'digital_transformation_360',
+        company_size: form.company_size,
+        main_challenge: form.main_challenge,
+        assistance_level: form.assistance_level,
+        diagnosis_access: 'private_invitation',
+    },
+})
 
-    // reset
-    actionUrl.value = ''
-    actionLabel.value = ''
-    inferredState.value = 'unknown'
-
-    // ------------------------
-    // accepted => ir a activar trial desde panel
-    // cubre: "acceso concedido", "correo confirmado", "ya puedes iniciar tu prueba", etc.
-    // ------------------------
-    const looksAccepted =
-        m.includes('acceso concedido') ||
-        (m.includes('correo') && (m.includes('confirm') || m.includes('verific'))) ||
-        m.includes('iniciar tu prueba') ||
-        m.includes('subscriber/activation')
-
-    if (looksAccepted) {
-        inferredState.value = 'accepted'
-        actionUrl.value = '/subscriber/activation'
-        actionLabel.value = 'Ir a iniciar trial'
+const applyServerErrors = (errors: Record<string, string[] | string> | undefined) => {
+    if (!errors) {
         return
     }
 
-    // ------------------------
-    // trialing/activo => ir al dashboard subscriber
-    // ------------------------
-    const looksTrialing =
-        (m.includes('trial') && (m.includes('activo') || m.includes('ya está activo') || m.includes('trialing'))) ||
-        m.includes('ya tienes empresa y trial activo') ||
-        m.includes('activación completada')
-
-    if (looksTrialing) {
-        inferredState.value = 'trialing'
-        actionUrl.value = '/subscriber'
-        actionLabel.value = 'Ir al dashboard'
-        return
+    const fieldMap: Record<string, keyof typeof form.data> = {
+        name: 'name',
+        company: 'company',
+        email: 'email',
+        phone: 'phone',
+        terms: 'terms',
+        'metadata.company_size': 'company_size',
+        'metadata.main_challenge': 'main_challenge',
+        'metadata.assistance_level': 'assistance_level',
     }
 
-    // ------------------------
-    // converted / cuenta activa => ir a login (o panel si ya tiene sesión)
-    // ------------------------
-    const looksConverted =
-        (m.includes('cuenta') && (m.includes('activa') || m.includes('ya está activa'))) ||
-        m.includes('converted') ||
-        m.includes('suscripción activa')
+    Object.entries(fieldMap).forEach(([serverField, localField]) => {
+        const value = errors[serverField]
 
-    if (looksConverted) {
-        inferredState.value = 'converted'
-        actionUrl.value = '/login'
-        actionLabel.value = 'Iniciar sesión'
-        return
-    }
+        if (!value) {
+            return
+        }
 
-    // ------------------------
-    // pending => revisar correo (sin CTA)
-    // ------------------------
-    const looksPending =
-        m.includes('revisa tu correo') ||
-        m.includes('solicitud recibida') ||
-        m.includes('solicitud pendiente') ||
-        m.includes('te reenviamos el correo')
+        const message = Array.isArray(value)
+            ? String(value[0] ?? '')
+            : String(value)
 
-    if (looksPending) {
-        inferredState.value = 'pending'
-        return
-    }
-
-    // unknown -> sin CTA
-    inferredState.value = 'unknown'
+        if (message) {
+            form.setError(localField as never, message)
+        }
+    })
 }
 
 const submit = async () => {
-    if (!validateClient()) return
-
-    // sin postUrl → emit
-    if (!props.postUrl) {
-        emit('submitted', { ...form.data() })
-        toast({ title: 'Éxito', description: 'Formulario enviado correctamente.' })
-        emit('close')
-        resetAll()
+    if (!validateClient() || submitting.value) {
         return
     }
 
-    try {
-        const res = await axios.post(props.postUrl, form.data())
-        const msg = String(res?.data?.message ?? 'Solicitud procesada correctamente.')
+    submitting.value = true
+    serverMessage.value = ''
 
-        serverMessage.value = msg
-        computeActionFromMessage(msg)
+    try {
+        await axios.post(
+            DIAGNOSIS_REQUEST_ENDPOINT,
+            payload(),
+        )
+
+        serverMessage.value =
+            'Solicitud recibida. Nuestro equipo revisará la información y, '
+            + 'cuando se apruebe el acceso, recibirás por correo una invitación '
+            + 'privada para iniciar tu Diagnóstico Básico LAUDA 360.'
 
         emit('submitted')
 
         toast({
-            title: 'Éxito',
-            description: msg,
+            title: 'Solicitud recibida',
+            description:
+                'Te enviaremos la invitación al Diagnóstico LAUDA 360 después de la revisión.',
         })
-
-        // ✅ comportamiento controlado por flag
-        if (!hasCta.value && inferredState.value === 'pending' && AUTO_CLOSE_ON_PENDING) {
-            emit('close')
-            resetAll()
-        }
     } catch (error: unknown) {
         if (axios.isAxiosError(error)) {
             if (error.response?.status === 422) {
                 const errors = (error.response.data as any)?.errors
+                applyServerErrors(errors)
 
-                const firstError =
-                    errors?.email?.[ 0 ] ||
-                    errors?.name?.[ 0 ] ||
-                    errors?.company?.[ 0 ] ||
-                    errors?.terms?.[ 0 ]
+                const firstError = errors
+                    ? Object.values(errors).flat().map(String)[0]
+                    : null
 
-                if (firstError) {
-                    toast({
-                        title: 'Error',
-                        description: firstError,
-                        variant: 'destructive',
-                    })
-                    return
-                }
+                toast({
+                    title: 'Revisa la solicitud',
+                    description:
+                        firstError
+                        || String((error.response.data as any)?.message ?? 'Hay datos por corregir.'),
+                    variant: 'destructive',
+                })
+
+                return
             }
         }
 
@@ -248,12 +221,9 @@ const submit = async () => {
             description: 'Ocurrió un problema al procesar la solicitud.',
             variant: 'destructive',
         })
+    } finally {
+        submitting.value = false
     }
-}
-
-const goToAction = () => {
-    if (!actionUrl.value) return
-    window.location.href = actionUrl.value
 }
 </script>
 
@@ -261,165 +231,192 @@ const goToAction = () => {
     <Dialog :open="open" @update:open="$emit('close')">
         <DialogContent class="sm:max-w-3xl p-0 max-h-[85vh] flex flex-col">
             <div class="flex-1 overflow-y-auto p-8">
-                <form @submit.prevent="submit" class="grid grid-cols-1 sm:grid-cols-2 gap-6">
-                    <!-- Badge -->
-                    <div class="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs font-medium text-slate-700
-                   dark:border-slate-800 dark:bg-slate-900 dark:text-slate-200">
+                <form
+                    class="grid grid-cols-1 gap-6 sm:grid-cols-2"
+                    @submit.prevent="submit"
+                >
+                    <div
+                        class="sm:col-span-2 inline-flex w-fit items-center gap-2 rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs font-medium text-slate-700 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-200"
+                    >
                         <span class="inline-block h-2 w-2 rounded-full bg-blue-600"></span>
-                        Activación · Prueba gratis 30 días
+                        LAUDA 360 · Diagnóstico Básico
                     </div>
 
-                    <!-- Header -->
-                    <div class="sm:col-span-2 flex items-start justify-between mt-2">
-                        <div class="min-w-0">
-                            <DialogTitle class="text-xl font-semibold text-slate-900 dark:text-white">
-                                Activar prueba gratis de LaudaAPI
-                            </DialogTitle>
+                    <div class="sm:col-span-2">
+                        <DialogTitle class="text-xl font-semibold text-slate-900 dark:text-white">
+                            Solicitar acceso al Diagnóstico LAUDA 360
+                        </DialogTitle>
 
-                            <DialogDescription class="mt-1 text-sm text-slate-600 dark:text-slate-300">
-                                Sin tarjeta · Sin compromiso · Configuramos tu entorno según tu operación real.
-                            </DialogDescription>
-                        </div>
+                        <DialogDescription class="mt-1 text-sm text-slate-600 dark:text-slate-300">
+                            Cuéntanos brevemente sobre tu empresa. Revisaremos la solicitud y te enviaremos una invitación privada para comenzar el diagnóstico.
+                        </DialogDescription>
                     </div>
 
-                    <!-- Nombre -->
                     <div>
-                        <Input :class="form.errors.name ? 'border-blue-600 focus:ring-blue-600' : ''" v-model="form.name" placeholder="Nombre y Apellido" @input="form.clearErrors('name')" />
+                        <Input
+                            v-model="form.name"
+                            placeholder="Nombre y apellido"
+                            @input="form.clearErrors('name')"
+                        />
                         <InputError class="mt-1" :message="form.errors.name" />
                     </div>
 
-                    <!-- Empresa -->
                     <div>
-                        <Input :class="form.errors.company ? 'border-blue-600 focus:ring-blue-600' : ''" v-model="form.company" placeholder="Empresa" @input="form.clearErrors('company')" />
+                        <Input
+                            v-model="form.company"
+                            placeholder="Empresa"
+                            @input="form.clearErrors('company')"
+                        />
                         <InputError class="mt-1" :message="form.errors.company" />
                     </div>
 
-                    <!-- Cargo -->
                     <div>
-                        <Input :class="form.errors.role ? 'border-blue-600 focus:ring-blue-600' : ''" v-model="form.role" placeholder="Cargo / Rol" @input="form.clearErrors('role')" />
-                        <InputError class="mt-1" :message="form.errors.role" />
-                    </div>
-
-                    <!-- Email -->
-                    <div>
-                        <Input type="email" :class="form.errors.email ? 'border-blue-600 focus:ring-blue-600' : ''" v-model="form.email" placeholder="Email de trabajo" @input="form.clearErrors('email')" />
+                        <Input
+                            v-model="form.email"
+                            type="email"
+                            placeholder="Email de trabajo"
+                            @input="form.clearErrors('email')"
+                        />
                         <InputError class="mt-1" :message="form.errors.email" />
                     </div>
 
-                    <!-- Teléfono -->
-                    <div class="sm:col-span-2">
-                        <Input :class="form.errors.phone ? 'border-blue-600 focus:ring-blue-600' : ''" v-model="form.phone" placeholder="Teléfono / WhatsApp (opcional)" @input="form.clearErrors('phone')" />
+                    <div>
+                        <Input
+                            v-model="form.phone"
+                            placeholder="Teléfono / WhatsApp"
+                            @input="form.clearErrors('phone')"
+                        />
                         <InputError class="mt-1" :message="form.errors.phone" />
                     </div>
 
-                    <!-- Área de interés -->
                     <div class="sm:col-span-2">
-                        <Select v-model="form.topic" @update:modelValue="form.clearErrors('topic')">
-                            <SelectTrigger class="input w-full" :class="form.errors.topic ? 'border-blue-600 focus:ring-blue-600' : ''">
-                                <SelectValue placeholder="¿Qué deseas probar primero?" />
+                        <Select v-model="form.solution_interest">
+                            <SelectTrigger class="w-full">
+                                <SelectValue placeholder="Solución de interés (opcional)" />
                             </SelectTrigger>
 
                             <SelectContent>
                                 <SelectItem value="API para sistemas propios">API para sistemas propios</SelectItem>
-                                <SelectItem value="Integración con LAUDA ERP Modular">Integración con LAUDA ERP Modular</SelectItem>
-                                <SelectItem value="Servicios Web / Webhooks / Multi-tenant">Servicios Web / Webhooks / Multi-tenant</SelectItem>
-
+                                <SelectItem value="LAUDA ERP / CRM">LAUDA ERP / CRM</SelectItem>
                                 <SelectItem value="Facturación electrónica DGII">Facturación electrónica DGII</SelectItem>
-                                <SelectItem value="Certificación como emisor electrónico">Certificación como emisor electrónico</SelectItem>
-                                <SelectItem value="Cumplimiento fiscal y calendario fiscal">Cumplimiento fiscal y calendario fiscal</SelectItem>
-
-                                <SelectItem value="LaudaAPI Todo-en-Uno">LaudaAPI Todo-en-Uno</SelectItem>
-                                <SelectItem value="Ventas (Retail / Mayorista / QuickServe)">Ventas (Retail / Mayorista / QuickServe)</SelectItem>
-                                <SelectItem value="Social Commerce (Facebook/Instagram Shop)">Social Commerce (Facebook/Instagram Shop)</SelectItem>
-
-                                <SelectItem value="Otro">Otro</SelectItem>
+                                <SelectItem value="Cumplimiento fiscal">Cumplimiento fiscal</SelectItem>
+                                <SelectItem value="LaudaOne B2C">LaudaOne B2C</SelectItem>
+                                <SelectItem value="LaudaOne B2B">LaudaOne B2B</SelectItem>
+                                <SelectItem value="Presencia Digital">Presencia Digital</SelectItem>
+                                <SelectItem value="Transformación integral">Transformación integral</SelectItem>
                             </SelectContent>
                         </Select>
-                        <InputError class="mt-1" :message="form.errors.topic" />
                     </div>
 
-                    <!-- Campo "Otro" -->
-                    <div v-if="form.topic === 'Otro'" class="sm:col-span-2">
-                        <Input :class="form.errors.otherTopic ? 'border-blue-600 focus:ring-blue-600' : ''" v-model="form.otherTopic" placeholder="Describe brevemente tu caso" @input="form.clearErrors('otherTopic')" />
-                        <InputError class="mt-1" :message="form.errors.otherTopic" />
-                    </div>
-
-                    <!-- Sistema actual -->
                     <div class="sm:col-span-2">
-                        <Select v-model="form.system" @update:modelValue="form.clearErrors('system')">
-                            <SelectTrigger class="input w-full" :class="form.errors.system ? 'border-blue-600 focus:ring-blue-600' : ''">
-                                <SelectValue placeholder="Sistema que utilizas actualmente" />
+                        <Select
+                            v-model="form.company_size"
+                            @update:modelValue="form.clearErrors('company_size')"
+                        >
+                            <SelectTrigger class="w-full">
+                                <SelectValue placeholder="Tamaño aproximado de la empresa" />
                             </SelectTrigger>
 
                             <SelectContent>
-                                <SelectItem value="ERP propio / desarrollo interno">ERP propio / desarrollo interno</SelectItem>
-                                <SelectItem value="Odoo / SAP / Dynamics / NetSuite">Odoo / SAP / Dynamics / NetSuite</SelectItem>
-                                <SelectItem value="Software comercial (QuickBooks, Zoho, Alegra, etc.)">Software comercial (QuickBooks, Zoho, Alegra, etc.)</SelectItem>
-                                <SelectItem value="Excel / Manual">Excel / Manual</SelectItem>
-                                <SelectItem value="Sistema Legacy">Sistema Legacy</SelectItem>
-                                <SelectItem value="No estoy seguro">No estoy seguro</SelectItem>
+                                <SelectItem value="1 a 10 personas">1 a 10 personas</SelectItem>
+                                <SelectItem value="11 a 50 personas">11 a 50 personas</SelectItem>
+                                <SelectItem value="51 a 200 personas">51 a 200 personas</SelectItem>
+                                <SelectItem value="Más de 200 personas">Más de 200 personas</SelectItem>
                             </SelectContent>
                         </Select>
-                        <InputError class="mt-1" :message="form.errors.system" />
+                        <InputError class="mt-1" :message="form.errors.company_size" />
                     </div>
 
-                    <!-- Volumen mensual -->
                     <div class="sm:col-span-2">
-                        <Select v-model="form.volume" @update:modelValue="form.clearErrors('volume')">
-                            <SelectTrigger class="input w-full" :class="form.errors.volume ? 'border-blue-600 focus:ring-blue-600' : ''">
-                                <SelectValue placeholder="Volumen mensual (documentos / transacciones)" />
+                        <Select
+                            v-model="form.main_challenge"
+                            @update:modelValue="form.clearErrors('main_challenge')"
+                        >
+                            <SelectTrigger class="w-full">
+                                <SelectValue placeholder="Principal reto de transformación" />
                             </SelectTrigger>
 
                             <SelectContent>
-                                <SelectItem value="1 – 500">1 – 500</SelectItem>
-                                <SelectItem value="500 – 5,000">500 – 5,000</SelectItem>
-                                <SelectItem value="5,000 – 50,000">5,000 – 50,000</SelectItem>
-                                <SelectItem value="50,000+">50,000+</SelectItem>
+                                <SelectItem value="No sé por dónde comenzar">No sé por dónde comenzar</SelectItem>
+                                <SelectItem value="Organizar procesos y reducir trabajo manual">Organizar procesos y reducir trabajo manual</SelectItem>
+                                <SelectItem value="Mejorar captación, clientes y ventas">Mejorar captación, clientes y ventas</SelectItem>
+                                <SelectItem value="Digitalizar la operación diaria">Digitalizar la operación diaria</SelectItem>
+                                <SelectItem value="Integrar administración, fiscalidad y cumplimiento">Integrar administración, fiscalidad y cumplimiento</SelectItem>
+                                <SelectItem value="Centralizar datos, indicadores y BI">Centralizar datos, indicadores y BI</SelectItem>
+                                <SelectItem value="Conectar sistemas que hoy trabajan separados">Conectar sistemas que hoy trabajan separados</SelectItem>
                             </SelectContent>
                         </Select>
-                        <InputError class="mt-1" :message="form.errors.volume" />
+                        <InputError class="mt-1" :message="form.errors.main_challenge" />
                     </div>
 
-                    <!-- Mensaje -->
                     <div class="sm:col-span-2">
-                        <Textarea :class="form.errors.message ? 'border-blue-600 focus:ring-blue-600' : ''" v-model="form.message" placeholder="Opcional: cuéntanos qué te gustaría probar primero" @input="form.clearErrors('message')" />
-                        <InputError class="mt-1" :message="form.errors.message" />
+                        <Select
+                            v-model="form.assistance_level"
+                            @update:modelValue="form.clearErrors('assistance_level')"
+                        >
+                            <SelectTrigger class="w-full">
+                                <SelectValue placeholder="Acompañamiento preferido" />
+                            </SelectTrigger>
+
+                            <SelectContent>
+                                <SelectItem value="Quiero que LAUDA me recomiende la modalidad">Quiero que LAUDA me recomiende la modalidad</SelectItem>
+                                <SelectItem value="LAUDA 360 Guiado">LAUDA 360 Guiado</SelectItem>
+                                <SelectItem value="LAUDA 360 Asistido">LAUDA 360 Asistido</SelectItem>
+                                <SelectItem value="LAUDA 360 Gestionado">LAUDA 360 Gestionado</SelectItem>
+                            </SelectContent>
+                        </Select>
+                        <InputError class="mt-1" :message="form.errors.assistance_level" />
+                    </div>
+
+                    <div class="sm:col-span-2">
+                        <Textarea
+                            v-model="form.message"
+                            placeholder="Opcional: cuéntanos brevemente qué quieres mejorar o implementar"
+                        />
                     </div>
 
                     <div class="sm:col-span-2 flex items-start gap-3">
-                        <Checkbox :checked="form.terms" v-model="form.terms" id="terms" class="mt-1" />
+                        <Checkbox
+                            id="terms"
+                            v-model="form.terms"
+                            :checked="form.terms"
+                            class="mt-1"
+                        />
                         <LegalConsent :error="form.errors.terms" />
                     </div>
 
-                    <!-- ✅ Resultado inline (siempre que haya respuesta del server) -->
-                    <div v-if="hasResult" class="sm:col-span-2 rounded-xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-700 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-200">
-                        <div class="font-medium">Resultado</div>
+                    <div
+                        v-if="hasResult"
+                        class="sm:col-span-2 rounded-xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-700 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-200"
+                    >
+                        <div class="font-medium">Solicitud recibida</div>
                         <div class="mt-1 text-slate-600 dark:text-slate-300">
                             {{ serverMessage }}
                         </div>
 
-                        <div v-if="hasCta" class="mt-3 flex gap-2">
-                            <Button type="button" class="rounded-xl" @click="goToAction">
-                                {{ actionLabel }}
-                            </Button>
-                            <Button type="button" variant="outline" class="rounded-xl" @click="$emit('close')">
+                        <div class="mt-3">
+                            <Button
+                                type="button"
+                                variant="outline"
+                                class="rounded-xl"
+                                @click="$emit('close')"
+                            >
                                 Cerrar
                             </Button>
                         </div>
-
-                        <div v-else class="mt-2 text-xs text-slate-500 dark:text-slate-400">
-                            Si no recibes el correo en 2–3 minutos, revisa spam o solicita nuevamente.
-                        </div>
                     </div>
 
-                    <!-- Footer fijo con el botón -->
-                    <div class="border-t border-slate-200 dark:border-slate-800 p-6 sm:col-span-2">
-                        <Button type="submit" :disabled="form.processing" class="w-full inline-flex items-center justify-center rounded-xl bg-blue-600 px-6 py-3 text-sm font-semibold text-white transition hover:bg-blue-700 disabled:opacity-60">
-                            {{ form.processing ? 'Activando prueba…' : 'Activar prueba gratis 30 días' }}
+                    <div class="sm:col-span-2 border-t border-slate-200 pt-6 dark:border-slate-800">
+                        <Button
+                            type="submit"
+                            :disabled="submitting"
+                            class="w-full rounded-xl bg-blue-600 px-6 py-3 text-sm font-semibold text-white hover:bg-blue-700 disabled:opacity-60"
+                        >
+                            {{ submitting ? 'Enviando solicitud…' : 'Solicitar acceso al Diagnóstico LAUDA 360' }}
                         </Button>
 
-                        <p class="text-xs text-slate-500 dark:text-slate-400 text-center">
-                            Sin tarjeta · Sin compromiso · Te ayudamos a configurarlo.
+                        <p class="mt-2 text-center text-xs text-slate-500 dark:text-slate-400">
+                            El acceso al diagnóstico es privado y se habilita mediante invitación.
                         </p>
                     </div>
                 </form>

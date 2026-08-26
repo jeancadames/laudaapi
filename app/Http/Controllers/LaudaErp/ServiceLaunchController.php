@@ -8,6 +8,7 @@ use App\Models\Service;
 use App\Services\LaudaErp\ServiceAccessResolver;
 use App\Services\LaudaErp\ServiceLaunchTokenFactory;
 use App\Services\Subscribers\SubscriberResolver;
+use App\Services\Subscribers\CompanyContextResolver;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Symfony\Component\HttpKernel\Exception\HttpException;
@@ -32,9 +33,21 @@ class ServiceLaunchController extends Controller
 
         abort_unless($subscriberId > 0, 403);
 
-        return Company::query()
-            ->where('subscriber_id', $subscriberId)
-            ->firstOrFail();
+        $preferredCompanyId = (int) $request->attributes->get('resolved_company_id', 0);
+
+        $company = app(CompanyContextResolver::class)->resolve(
+            $user,
+            $subscriberId,
+            $preferredCompanyId
+        );
+
+        abort_unless(
+            $company,
+            403,
+            'No se pudo resolver una empresa activa de forma inequívoca.'
+        );
+
+        return $company;
     }
 
     public function open(Request $request, Service $service): RedirectResponse
@@ -49,9 +62,9 @@ class ServiceLaunchController extends Controller
         }
 
         // SE DESACTIVA PARA PRUEBAS
-        // if (! $this->accessResolver->userCanAccess($user, $company, $service)) {
-        //     throw new HttpException(403, 'No tienes acceso a este servicio.');
-        // }
+        if (! $this->accessResolver->userCanAccess($user, $company, $service)) {
+            throw new HttpException(403, 'No tienes acceso a este servicio.');
+        }
 
         $launchMode = (string) ($service->launch_mode ?? 'internal');
 

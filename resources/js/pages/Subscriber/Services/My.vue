@@ -186,7 +186,7 @@ function cancelDisabledReason(s: ActiveService): string | null {
 // -------------------------
 // Actions
 // -------------------------
-function activateRequested(serviceId: number, mode: 'trial' | 'billed' = 'trial') {
+function activateRequested(serviceId: number, mode: 'billed' = 'billed') {
     if (!props.activation_request) {
         toast({
             title: 'Requiere solicitud de activación',
@@ -373,12 +373,9 @@ const showCancelled = computed(() => filter.value === 'all' || filter.value === 
                         </div>
 
                         <div class="mt-4 flex flex-wrap items-center gap-2">
-                            <Button size="sm" :disabled="!canActivatePending(r)" class="bg-blue-600 text-white hover:bg-blue-700 disabled:bg-blue-600/40 disabled:text-white/70" @click="activateRequested(Number(r.service_id), 'trial')">
-                                Activar (Trial)
-                            </Button>
 
                             <Button size="sm" :disabled="!canActivatePending(r)" class="bg-emerald-600 text-white hover:bg-emerald-700 disabled:bg-emerald-600/40 disabled:text-white/70" @click="activateRequested(Number(r.service_id), 'billed')">
-                                Activar (Pago)
+                                Solicitar activación
                             </Button>
 
                             <div v-if="!canActivatePending(r)" class="text-xs text-muted-foreground">

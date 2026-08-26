@@ -6,14 +6,11 @@ use App\Http\Controllers\Controller;
 use App\Models\ActivationRequest;
 use App\Models\Company;
 use App\Models\CompanyTaxProfile;
-use App\Models\DgiiCompanySetting;
 use App\Models\Subscriber;
 use App\Models\Subscription;
 use App\Services\AuditService;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Str;
 use Inertia\Inertia;
 
 class SubscriberActivationController extends Controller
@@ -139,346 +136,66 @@ class SubscriberActivationController extends Controller
     public function activate(Request $request)
     {
         $user = $request->user();
-        if (!$user) abort(403);
 
-        // activar SOLO la última accepted
+        if (! $user) {
+            abort(403);
+        }
+
+        /* PASO 9C-A: compatibility guard; no crea Subscription ni trial. */
         $activation = ActivationRequest::query()
             ->where('user_id', $user->id)
-            ->where('status', ActivationRequest::STATUS_ACCEPTED)
             ->latest('id')
             ->first();
 
-        if (!$activation) {
-            AuditService::log('subscriber_activation_denied', null, [
-                'reason' => 'no_accepted_activation_request',
-                'user_id' => $user->id,
-            ], ['user_id' => $user->id]);
-
-            return back()->with('error', 'No tienes una solicitud aceptada para iniciar el trial.');
-        }
-
-        try {
-            $result = DB::transaction(function () use ($user, $activation) {
-
-                // 1) subscriber + pivot
-                [$subscriber, $subscriberCreated] = $this->ensureSubscriber($user, $activation);
-
-                // 2) company (unique subscriber_id)
-                [$company, $companyCreated] = $this->ensureCompany($user, $subscriber, $activation);
-
-                // ✅ 2.3) DGII settings 1:1 por company (creado en activación)
-                [$dgiiSetting, $dgiiSettingCreated] = $this->ensureDgiiCompanySetting($company);
-
-                // ✅ 2.5) tax profile 1:1 por company (creado en activación)
-                [$taxProfile, $taxProfileCreated] = $this->ensureCompanyTaxProfile($company, $activation);
-
-                // 3) subscription trialing (solo crea si no existe)
-                [$subscription, $subscriptionCreated] = $this->ensureSubscription($user, $subscriber, $activation);
-
-                // 4) activation status + trial dates (accepted -> trialing)
-                $this->ensureActivationTrial($activation);
-
-                // 5) NO-OP (users no tiene subscriber_id/company_id)
-                $this->safeLinkUser($user, $subscriber->id, $company->id);
-
-                // 6) invalidar cache dashboard subscriber
-                Cache::forget("subscriber.dashboard.stats.company.{$company->id}.user.{$user->id}");
-
-                return [
-                    'subscriber_id' => $subscriber->id,
-                    'company_id' => $company->id,
-                    'dgii_setting_id' => $dgiiSetting->id,
-                    'tax_profile_id' => $taxProfile->id,
-                    'subscription_id' => $subscription->id,
-                    'created' => [
-                        'subscriber' => $subscriberCreated,
-                        'company' => $companyCreated,
-                        'dgii_setting' => $dgiiSettingCreated,
-                        'tax_profile' => $taxProfileCreated,
-                        'subscription' => $subscriptionCreated,
-                    ],
-                ];
-            });
-
-            // ✅ Audit FUERA de la transacción
-            AuditService::log('subscriber_activation_completed', $activation, [
-                'user_id' => $user->id,
-                'activation_id' => $activation->id,
-                'subscriber_id' => $result['subscriber_id'],
-                'company_id' => $result['company_id'],
-                'dgii_setting_id' => $result['dgii_setting_id'],
-                'tax_profile_id' => $result['tax_profile_id'],
-                'subscription_id' => $result['subscription_id'],
-                'created' => $result['created'],
-                'new_activation_status' => ActivationRequest::STATUS_TRIALING,
-            ], ['user_id' => $user->id]);
-        } catch (\Throwable $e) {
-            AuditService::log('subscriber_activation_failed', $activation, [
-                'user_id' => $user->id,
-                'activation_id' => $activation->id,
-                'error' => $e->getMessage(),
-            ], ['user_id' => $user->id]);
-
-            report($e);
-            return back()->with('error', 'Falló la activación: ' . $e->getMessage());
-        }
-
-        return back()->with('success', 'Activación completada. Ya tienes empresa, settings DGII, perfil fiscal y trial activo.');
-    }
-
-    // ------------------------
-    // ENSURE METHODS
-    // ------------------------
-
-    protected function ensureSubscriber($user, ActivationRequest $activation): array
-    {
-        // 1) pivot activo
-        $existingId = (int) DB::table('subscriber_user')
+        $subscriberId = (int) DB::table('subscriber_user')
             ->where('user_id', $user->id)
             ->where('active', 1)
+            ->orderByDesc('id')
             ->value('subscriber_id');
 
-        if ($existingId > 0) {
-            $s = Subscriber::query()->find($existingId);
-            if ($s) return [$s, false];
+        $subscription = $subscriberId > 0
+            ? Subscription::query()
+                ->where('subscriber_id', $subscriberId)
+                ->latest('id')
+                ->first()
+            : null;
+
+        if ($subscription && in_array(strtolower((string) $subscription->status), ['active', 'trialing'], true)) {
+            AuditService::log(
+                'legacy_subscriber_activation_preserved_existing',
+                $activation,
+                [
+                    'user_id' => (int) $user->id,
+                    'subscriber_id' => $subscriberId,
+                    'subscription_id' => (int) $subscription->id,
+                    'subscription_status' => (string) $subscription->status,
+                    'hardening_step' => '9C-A',
+                ],
+                ['user_id' => (int) $user->id]
+            );
+
+            return redirect()->route('subscriber')->with(
+                'success',
+                'Tu suscripción existente se conserva. No es necesario iniciar una nueva activación.'
+            );
         }
 
-        $name = trim((string) ($activation->company ?: $activation->name ?: 'Subscriber'));
-        $slug = $this->uniqueSlug('subscribers', 'slug', Str::slug($name) ?: 'subscriber');
-
-        $subscriber = Subscriber::create([
-            'name' => $name,
-            'slug' => $slug,
-            'country_code' => 'DO',
-            'currency' => 'DOP',
-            'timezone' => 'America/Santo_Domingo',
-            'active' => true,
-            'meta' => null,
-        ]);
-
-        $this->ensureSubscriberUserPivot($subscriber->id, $user->id);
-
-        return [$subscriber, true];
-    }
-
-    protected function ensureSubscriberUserPivot(int $subscriberId, int $userId): void
-    {
-        DB::table('subscriber_user')->insertOrIgnore([
-            'subscriber_id' => $subscriberId,
-            'user_id' => $userId,
-            'role' => 'owner',
-            'active' => true,
-            'created_at' => now(),
-            'updated_at' => now(),
-        ]);
-
-        DB::table('subscriber_user')
-            ->where('subscriber_id', $subscriberId)
-            ->where('user_id', $userId)
-            ->update([
-                'active' => 1,
-                'role' => 'owner',
-                'updated_at' => now(),
-            ]);
-    }
-
-    protected function ensureCompany($user, Subscriber $subscriber, ActivationRequest $activation): array
-    {
-        $company = Company::query()->where('subscriber_id', $subscriber->id)->first();
-
-        if ($company) {
-            if (!$company->owner_user_id) {
-                $company->owner_user_id = $user->id;
-                $company->save();
-            }
-            return [$company, false];
-        }
-
-        $name = trim((string) ($activation->company ?: $subscriber->name ?: 'Company'));
-        $slug = $this->uniqueSlug('companies', 'slug', Str::slug($name) ?: 'company');
-
-        $company = Company::create([
-            'name' => $name,
-            'slug' => $slug,
-            'currency' => $subscriber->currency ?? 'DOP',
-            'timezone' => $subscriber->timezone ?? 'America/Santo_Domingo',
-            'owner_user_id' => $user->id,
-            'subscriber_id' => $subscriber->id,
-            'active' => true,
-        ]);
-
-        return [$company, true];
-    }
-
-    /**
-     * ✅ Settings DGII 1:1 por Company (dgii_company_settings.unique(company_id)).
-     * Idempotente: si ya existe, NO crea otro.
-     */
-    protected function ensureDgiiCompanySetting(Company $company): array
-    {
-        // ✅ forma anti race y simple (recomendada)
-        $setting = DgiiCompanySetting::firstOrCreate(
-            ['company_id' => $company->id],
+        AuditService::log(
+            'legacy_subscriber_activation_blocked_t360',
+            $activation,
             [
-                'environment' => 'precert',
-                'cf_prefix' => 'testecf',
-                'use_directory' => true,
-                'endpoints' => null,
-                'meta' => null,
-
-                // Token defaults
-                'dgii_token_auto' => true, // default auto (cámbialo a false si quieres manual por defecto)
-                'dgii_token_refresh_before_seconds' => 0,
-
-                // Token data (vacío al inicio)
-                'dgii_access_token' => null,
-                'dgii_token_issued_at' => null,
-                'dgii_token_expires_at' => null,
-                'dgii_token_last_requested_at' => null,
-                'dgii_token_last_error' => null,
-            ]
+                'user_id' => (int) $user->id,
+                'subscriber_id' => $subscriberId > 0 ? $subscriberId : null,
+                'activation_request_id' => $activation?->id,
+                'reason' => 'new_subscription_requires_lauda360_golive',
+                'hardening_step' => '9C-A',
+            ],
+            ['user_id' => (int) $user->id]
         );
 
-        // Para saber si se creó en este request:
-        // firstOrCreate no te da "wasRecentlyCreated" si ya existía, sí lo da si se creó
-        return [$setting, (bool) $setting->wasRecentlyCreated];
-    }
-
-    /**
-     * ✅ Perfil fiscal 1:1 por Company (company_tax_profiles.unique(company_id)).
-     * Idempotente: si ya existe, NO crea otro.
-     */
-    protected function ensureCompanyTaxProfile(Company $company, ActivationRequest $activation): array
-    {
-        $existing = CompanyTaxProfile::query()
-            ->where('company_id', $company->id)
-            ->first();
-
-        if ($existing) {
-            // opcional: backfill de billing_email si está vacío y viene en activation
-            if (!$existing->billing_email && $activation->email) {
-                $existing->billing_email = $activation->email;
-                $existing->save();
-            }
-
-            return [$existing, false];
-        }
-
-        $legalName = trim((string) ($activation->company ?: $company->name ?: '—'));
-
-        $profile = CompanyTaxProfile::create([
-            'company_id' => $company->id,
-
-            'legal_name' => $legalName,
-            'trade_name' => null,
-
-            'country_code' => 'DO',
-            'currency' => 'DOP',
-
-            'tax_id' => null,
-            'tax_id_type' => 'RNC',
-
-            'address_line1' => null,
-            'address_line2' => null,
-            'city' => null,
-            'state' => null,
-            'postal_code' => null,
-
-            'billing_email' => $activation->email ?: null,
-            'billing_phone' => null,
-            'billing_contact_name' => null,
-
-            'tax_exempt' => false,
-            'default_itbis_rate' => 18.000,
-
-            'meta' => null,
-        ]);
-
-        return [$profile, true];
-    }
-
-    protected function ensureSubscription($user, Subscriber $subscriber, ActivationRequest $activation): array
-    {
-        $sub = Subscription::query()
-            ->where('subscriber_id', $subscriber->id)
-            ->latest('id')
-            ->first();
-
-        if ($sub) return [$sub, false];
-
-        $trialDays = (int) ($activation->trial_days ?? 30);
-        $trialStarts = $activation->trial_starts_at ?? now();
-        $trialEnds = $activation->trial_ends_at ?? $trialStarts->copy()->addDays($trialDays);
-
-        $sub = Subscription::create([
-            'subscriber_id' => $subscriber->id,
-            'created_by_user_id' => $user->id,
-
-            'status' => ActivationRequest::STATUS_TRIALING,
-            'billing_cycle' => 'monthly',
-            'currency' => $subscriber->currency ?? 'USD',
-
-            'subtotal_amount' => 0,
-            'discount_amount' => 0,
-            'tax_amount' => 0,
-            'total_amount' => 0,
-
-            'trial_ends_at' => $trialEnds,
-            'current_period_start' => $trialStarts,
-            'current_period_end' => $trialEnds,
-
-            'starts_at' => now(),
-            'ends_at' => null,
-            'cancelled_at' => null,
-
-            'provider' => null,
-            'provider_subscription_id' => null,
-            'meta' => null,
-        ]);
-
-        return [$sub, true];
-    }
-
-    protected function ensureActivationTrial(ActivationRequest $activation): void
-    {
-        $trialDays = (int) ($activation->trial_days ?? 30);
-
-        $dirty = false;
-
-        if (!$activation->trial_starts_at) {
-            $activation->trial_starts_at = now();
-            $dirty = true;
-        }
-
-        if (!$activation->trial_ends_at) {
-            $activation->trial_ends_at = $activation->trial_starts_at->copy()->addDays($trialDays);
-            $dirty = true;
-        }
-
-        if (($activation->status ?? '') === ActivationRequest::STATUS_ACCEPTED) {
-            $activation->status = ActivationRequest::STATUS_TRIALING;
-            $dirty = true;
-        }
-
-        if ($dirty) $activation->save();
-    }
-
-    protected function safeLinkUser($user, int $subscriberId, int $companyId): void
-    {
-        // NO-OP
-    }
-
-    protected function uniqueSlug(string $table, string $column, string $base): string
-    {
-        $base = trim($base) ?: 'item';
-        $slug = $base;
-        $i = 2;
-
-        while (DB::table($table)->where($column, $slug)->exists()) {
-            $slug = $base . '-' . $i;
-            $i++;
-        }
-
-        return $slug;
+        return redirect()->route('subscriber')->with(
+            'error',
+            'Las nuevas suscripciones ya no se activan mediante un trial directo. La activación recurrente se realiza después del Go-Live correspondiente en LAUDA 360.'
+        );
     }
 }

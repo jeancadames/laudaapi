@@ -4,72 +4,155 @@ namespace App\Http\Middleware;
 
 use App\Models\Service;
 use App\Models\Subscription;
+use App\Services\Entitlements\ServiceEntitlementPolicy;
 use App\Services\Subscribers\SubscriberResolver;
 use Closure;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 
 class EnsureServiceEntitled
 {
-    public function handle(Request $request, Closure $next, string $serviceSlugs)
-    {
+    public function handle(
+        Request $request,
+        Closure $next,
+        string $serviceSlugs
+    ) {
         $user = $request->user();
         abort_unless($user, 403);
 
-        // ✅ 1) Preferir subscriber ya resuelto por EnsureErpAccess (/erp)
-        $subscriberId = (int) $request->attributes->get('resolved_subscriber_id', 0);
+        /*
+         * 1) Preferir subscriber ya resuelto por EnsureErpAccess.
+         * 2) Fallback por SubscriberResolver.
+         */
+        $subscriberId = (int) $request
+            ->attributes
+            ->get(
+                'resolved_subscriber_id',
+                0
+            );
 
-        // ✅ 2) Fallback robusto (pivot/company)
         if ($subscriberId <= 0) {
-            $subscriberId = (int) app(SubscriberResolver::class)->resolve($user);
+            $subscriberId = (int) app(
+                SubscriberResolver::class
+            )->resolve(
+                $user
+            );
         }
 
-        abort_unless($subscriberId > 0, 403);
+        abort_unless(
+            $subscriberId > 0,
+            403
+        );
 
-        // Permite "a|b|c" o "a,b,c"
-        $slugs = collect(preg_split('/[|,]/', $serviceSlugs))
-            ->map(fn($s) => trim((string) $s))
+        $slugs = collect(
+            preg_split(
+                '/[|,]/',
+                $serviceSlugs
+            )
+        )
+            ->map(
+                fn ($slug) =>
+                    trim(
+                        (string) $slug
+                    )
+            )
             ->filter()
             ->unique()
             ->values()
             ->all();
 
-        abort_unless(count($slugs) > 0, 403);
+        abort_unless(
+            count($slugs) > 0,
+            403
+        );
 
-        $cacheKey = "entitled:{$subscriberId}:" . implode('|', $slugs);
+        /*
+         * La existencia del slug es configuración:
+         * si falta uno, conservar 404.
+         */
+        $services = Service::query()
+            ->whereIn(
+                'slug',
+                $slugs
+            )
+            ->get([
+                'id',
+                'slug',
+                'active',
+            ]);
 
-        $allowed = Cache::remember($cacheKey, now()->addSeconds(45), function () use ($subscriberId, $slugs) {
+        if (
+            $services->count()
+            !== count($slugs)
+        ) {
+            abort(404);
+        }
 
-            $serviceIds = Service::query()
-                ->whereIn('slug', $slugs)
-                ->pluck('id');
+        $subscriptionId = Subscription::query()
+            ->where(
+                'subscriber_id',
+                $subscriberId
+            )
+            ->whereIn(
+                'status',
+                ServiceEntitlementPolicy::SUBSCRIPTION_STATUSES
+            )
+            ->orderByRaw(
+                "FIELD(status,'active','trialing')"
+            )
+            ->latest('id')
+            ->value('id');
 
-            // si un slug no existe => mala config
-            if ($serviceIds->count() !== count($slugs)) {
-                return null; // => 404
-            }
+        if (! $subscriptionId) {
+            abort(403);
+        }
 
-            $subscriptionId = Subscription::query()
-                ->where('subscriber_id', $subscriberId)
-                ->whereIn('status', ['active', 'trialing'])
-                ->orderByRaw("FIELD(status,'active','trialing')")
-                ->latest('id')
-                ->value('id');
+        /*
+         * Autorización fresca: NO cachear.
+         *
+         * Un Service concede acceso únicamente si:
+         * - Service está active;
+         * - Subscription está active|trialing;
+         * - SubscriptionItem está active|trialing.
+         *
+         * Para aliases a|b|c basta que uno cumpla.
+         */
+        $allowed = DB::table(
+            'subscription_items'
+        )
+            ->join(
+                'services',
+                'services.id',
+                '=',
+                'subscription_items.service_id'
+            )
+            ->where(
+                'subscription_items.subscription_id',
+                $subscriptionId
+            )
+            ->whereIn(
+                'subscription_items.service_id',
+                $services
+                    ->pluck('id')
+                    ->all()
+            )
+            ->whereIn(
+                'subscription_items.status',
+                ServiceEntitlementPolicy::ITEM_STATUSES
+            )
+            ->where(
+                'services.active',
+                true
+            )
+            ->exists();
 
-            if (!$subscriptionId) return false;
+        abort_unless(
+            $allowed,
+            403
+        );
 
-            // ✅ alineado a tu sidebar: incluye pending
-            return DB::table('subscription_items')
-                ->where('subscription_id', $subscriptionId)
-                ->whereIn('service_id', $serviceIds->all())
-                ->whereIn('status', ['active', 'trialing', 'pending'])
-                ->exists();
-        });
-
-        if ($allowed === null) abort(404);
-        if ($allowed === false) abort(403);
-
-        return $next($request);
+        return $next(
+            $request
+        );
     }
 }

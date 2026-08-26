@@ -131,6 +131,6 @@ class LaudaOneProvisioner
 
         return in_array((string) $currency, $allowed, true)
             ? (string) $currency
-            : 'USD';
+            : 'DOP';
     }
 }

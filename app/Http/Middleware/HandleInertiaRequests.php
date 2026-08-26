@@ -83,43 +83,37 @@ class HandleInertiaRequests extends Middleware
                 ] : null,
             ],
 
-            'activeCompany' => function () use ($request) {
+                        'activeCompany' => function () use ($request) {
                 $user = $request->user();
 
                 if (! $user) {
                     return null;
                 }
 
-                // Solo compartir esto en rutas /subscriber y /erp
                 if (! $request->is('subscriber*') && ! $request->is('erp*')) {
                     return null;
                 }
 
-                $company = Company::query()
-                    ->from('companies')
-                    ->leftJoin('company_tax_profiles as ctp', 'ctp.company_id', '=', 'companies.id')
-                    ->select(
-                        'companies.id',
-                        'companies.name',
-                        'companies.slug',
-                        'companies.ws_subdomain',
-                        'companies.owner_user_id',
-                        'ctp.tax_id'
-                    )
-                    ->where('companies.owner_user_id', $user->id)
-                    ->where('companies.active', true)
-                    ->first();
+                $subscriberId = (int) ($this->resolveSubscriberId($user) ?? 0);
+                $preferredCompanyId = (int) $request->attributes->get('resolved_company_id', 0);
+
+                $company = app(\App\Services\Subscribers\CompanyContextResolver::class)
+                    ->resolve($user, $subscriberId, $preferredCompanyId);
 
                 if (! $company) {
                     return null;
                 }
+
+                $taxId = \App\Models\CompanyTaxProfile::query()
+                    ->where('company_id', $company->id)
+                    ->value('tax_id');
 
                 return [
                     'id' => $company->id,
                     'name' => $company->name,
                     'slug' => $company->slug,
                     'ws_subdomain' => $company->ws_subdomain,
-                    'tax_id' => $company->tax_id,
+                    'tax_id' => $taxId,
                 ];
             },
 
@@ -269,6 +263,14 @@ class HandleInertiaRequests extends Middleware
      */
     private function resolveCompanyForUser($user, int $subscriberId): ?Company
     {
+        if (app()->bound('currentCompany')) {
+            $current = app('currentCompany');
+
+            if ($current instanceof Company) {
+                return $current;
+            }
+        }
+
         return Company::query()
             ->select(['id'])
             ->when(

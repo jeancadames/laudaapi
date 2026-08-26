@@ -20,7 +20,7 @@ class DiagnosisDetailedRoadmapGenerator
 
     public function generate(
         DiagnosisAssessment $assessment,
-        DiagnosisExpandedReport $report
+        ?DiagnosisExpandedReport $report = null
     ): array {
         $dimensions = $this->dimensions($assessment->dimension_scores ?? []);
         $initiatives = [];
@@ -69,24 +69,25 @@ class DiagnosisDetailedRoadmapGenerator
                             $assessment->business_activity_description,
                     ],
                 ],
-                'expanded_report' => [
+                'expanded_report' => $report ? [
                     'id' => $report->id,
                     'version' => $report->version,
                     'status' => $report->status,
                     'published_at' => $report->published_at?->toISOString(),
                     'sections' => $report->sections ?? [],
-                ],
+                ] : null,
             ],
             'roadmap' => [
                 'executive_direction' => [
                     'title' => 'Dirección ejecutiva de transformación',
                     'starting_point' => data_get(
-                        $report->sections,
+                        $report?->sections ?? [],
                         'executive_summary.body',
                         $assessment->review_summary
                     ),
-                    'objective' =>
-                        'Convertir los hallazgos del Diagnóstico y del Informe Ampliado en una secuencia ejecutable de iniciativas, responsables, dependencias e indicadores.',
+                    'objective' => $report
+                        ? 'Convertir los hallazgos del Diagnóstico y del Informe Ampliado en una secuencia ejecutable de iniciativas, responsables, dependencias e indicadores.'
+                        : 'Convertir los hallazgos del Diagnóstico oficial en una secuencia ejecutable de iniciativas, responsables, dependencias e indicadores.',
                     'recommended_modality' => $assessment->final_modality
                         ?? $assessment->recommended_modality,
                     'recommended_modality_label' => $assessment->final_modality_label
@@ -109,6 +110,8 @@ class DiagnosisDetailedRoadmapGenerator
                     $this->transformationCapabilities(
                         $assessment
                     ),
+                'service_capabilities' =>
+                    TransformationServiceCapabilityCatalog::all(),
                 'phases' => $this->phases($initiatives),
                 'initiatives' => $initiatives,
                 'governance' => [
@@ -152,6 +155,12 @@ class DiagnosisDetailedRoadmapGenerator
                 ],
             ],
         ];
+    }
+
+    public function generateFromAssessment(
+        DiagnosisAssessment $assessment
+    ): array {
+        return $this->generate($assessment, null);
     }
 
     private function transformationCapabilities(

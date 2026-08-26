@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import TransformationProgressChecklist from '@/components/diagnosis/TransformationProgressChecklist.vue';
+import TransformationQuickActions from '@/components/diagnosis/TransformationQuickActions.vue';
 import { computed, ref } from 'vue';
 import { Head, Link, router, useForm } from '@inertiajs/vue3';
 import {
@@ -466,6 +467,11 @@ function publish() {
                     <TransformationProgressChecklist
                         :progress="transformation_progress"
                         :admin="true"
+                    />
+                    <TransformationQuickActions
+                        mode="admin"
+                        :contact-id="contact.id"
+                        :progress="transformation_progress"
                     />
 
                     <Card>

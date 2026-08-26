@@ -6,6 +6,7 @@ use App\Models\Company;
 use App\Models\Service;
 use App\Models\Subscription;
 use App\Models\User;
+use App\Services\Entitlements\ServiceEntitlementPolicy;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 
@@ -69,51 +70,84 @@ class ServiceAccessResolver
         return in_array($userRole, $roles, true);
     }
 
-    private function hasActiveEntitlement(int $subscriberId, array $serviceSlugs): bool
-    {
-        if ($subscriberId <= 0 || empty($serviceSlugs)) {
+    private function hasActiveEntitlement(
+        int $subscriberId,
+        array $serviceSlugs
+    ): bool {
+        if (
+            $subscriberId <= 0
+            || $serviceSlugs === []
+        ) {
             return false;
         }
 
-        $serviceSlugs = collect($serviceSlugs)
-            ->map(fn($s) => trim((string) $s))
-            ->filter()
-            ->unique()
-            ->values()
-            ->all();
+        $serviceSlugs = array_values(
+            array_unique(
+                array_filter(
+                    array_map(
+                        fn ($slug) =>
+                            trim(
+                                (string) $slug
+                            ),
+                        $serviceSlugs
+                    ),
+                    fn (string $slug): bool =>
+                        $slug !== ''
+                )
+            )
+        );
 
-        if (empty($serviceSlugs)) {
+        if ($serviceSlugs === []) {
             return false;
         }
 
-        $cacheKey = "service-launch:entitled:{$subscriberId}:" . implode('|', $serviceSlugs);
+        /*
+         * Autorización no se cachea entre requests:
+         * una cancelación debe revocar el acceso inmediatamente.
+         */
+        $subscriptionId = Subscription::query()
+            ->where(
+                'subscriber_id',
+                $subscriberId
+            )
+            ->whereIn(
+                'status',
+                ServiceEntitlementPolicy::SUBSCRIPTION_STATUSES
+            )
+            ->orderByRaw(
+                "FIELD(status,'active','trialing')"
+            )
+            ->value('id');
 
-        return Cache::remember($cacheKey, now()->addSeconds(45), function () use ($subscriberId, $serviceSlugs) {
-            $serviceIds = Service::query()
-                ->whereIn('slug', $serviceSlugs)
-                ->pluck('id');
+        if (! $subscriptionId) {
+            return false;
+        }
 
-            // Si un slug no existe, no damos acceso
-            if ($serviceIds->count() !== count($serviceSlugs)) {
-                return false;
-            }
-
-            $subscriptionId = Subscription::query()
-                ->where('subscriber_id', $subscriberId)
-                ->whereIn('status', ['active', 'trialing'])
-                ->orderByRaw("FIELD(status,'active','trialing')")
-                ->latest('id')
-                ->value('id');
-
-            if (! $subscriptionId) {
-                return false;
-            }
-
-            return DB::table('subscription_items')
-                ->where('subscription_id', $subscriptionId)
-                ->whereIn('service_id', $serviceIds->all())
-                ->whereIn('status', ['active', 'trialing', 'pending'])
-                ->exists();
-        });
+        return DB::table(
+            'subscription_items'
+        )
+            ->join(
+                'services',
+                'services.id',
+                '=',
+                'subscription_items.service_id'
+            )
+            ->where(
+                'subscription_items.subscription_id',
+                $subscriptionId
+            )
+            ->whereIn(
+                'subscription_items.status',
+                ServiceEntitlementPolicy::ITEM_STATUSES
+            )
+            ->where(
+                'services.active',
+                true
+            )
+            ->whereIn(
+                'services.slug',
+                $serviceSlugs
+            )
+            ->exists();
     }
 }

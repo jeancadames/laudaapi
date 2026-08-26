@@ -5,8 +5,10 @@ namespace App\Http\Controllers\Subscriber;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Subscriber\CancelSubscriptionItemRequest;
 use App\Models\Company;
+use App\Models\Subscription;
 use App\Models\SubscriptionItem;
 use App\Services\AuditService;
+use App\Services\Billing\SubscriptionTotalsService;
 use Illuminate\Support\Facades\DB;
 
 class SubscriberServiceCancellationController extends Controller
@@ -45,12 +47,83 @@ class SubscriberServiceCancellationController extends Controller
             return back()->with('error', 'Este servicio no se puede cancelar en su estado actual.');
         }
 
-        $oldStatus = $item->status;
+        /*
+         * PASO 9E-C:
+         * Subscription es el mutex de cancelación.
+         * R2-J y cancelación usan el mismo orden Subscription → Item.
+         */
+        $result = DB::transaction(function () use ($item, $company) {
+            $subscription = Subscription::query()
+                ->whereKey($item->subscription_id)
+                ->where(
+                    'subscriber_id',
+                    $company->subscriber_id
+                )
+                ->lockForUpdate()
+                ->first();
 
-        DB::transaction(function () use ($item) {
+            if (! $subscription) {
+                return [
+                    'ok' => false,
+                    'message' => 'Acción no permitida.',
+                ];
+            }
+
+            $item = SubscriptionItem::query()
+                ->whereKey($item->id)
+                ->where(
+                    'subscription_id',
+                    $subscription->id
+                )
+                ->lockForUpdate()
+                ->first();
+
+            if (! $item) {
+                return [
+                    'ok' => false,
+                    'message' =>
+                        'El servicio activo (item) no existe.',
+                ];
+            }
+
+            if (! in_array(
+                $item->status,
+                ['active', 'trialing'],
+                true
+            )) {
+                return [
+                    'ok' => false,
+                    'message' =>
+                        'Este servicio no se puede cancelar en su estado actual.',
+                ];
+            }
+
+            $oldStatus = $item->status;
+
             $item->status = 'cancelled';
             $item->save();
-        });
+
+            app(SubscriptionTotalsService::class)
+                ->recalculate(
+                    $subscription
+                );
+
+            return [
+                'ok' => true,
+                'item' => $item->fresh(),
+                'old_status' => $oldStatus,
+            ];
+        }, 3);
+
+        if (! $result['ok']) {
+            return back()->with(
+                'error',
+                $result['message']
+            );
+        }
+
+        $item = $result['item'];
+        $oldStatus = $result['old_status'];
 
         // ✅ AuditLog (tu sistema es manual, hay que llamarlo)
         AuditService::log(

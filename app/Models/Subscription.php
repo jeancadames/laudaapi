@@ -55,4 +55,12 @@ class Subscription extends Model
     {
         return $query->where('status', 'trialing');
     }
+    public function bundleDiscountApplications(): \Illuminate\Database\Eloquent\Relations\HasMany
+    {
+        return $this->hasMany(
+            SubscriptionBundleDiscountApplication::class,
+            'subscription_id'
+        );
+    }
+
 }

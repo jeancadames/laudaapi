@@ -111,6 +111,18 @@ require __DIR__ . '/settings.php';
             [\App\Http\Controllers\Diagnosis\DiagnosisDetailedRoadmapCommercialController::class, 'requestPurchase']
         )->name('detailed_roadmap.request');
 
+
+        \Illuminate\Support\Facades\Route::get(
+            '/{assessment}/plan-implementacion',
+            [\App\Http\Controllers\Diagnosis\TransformationImplementationPlanController::class, 'show']
+        )->name('implementation_plan.show');
+
+
+        \Illuminate\Support\Facades\Route::post(
+            '/{assessment}/plan-implementacion/aceptar',
+            [\App\Http\Controllers\Diagnosis\TransformationImplementationPlanController::class, 'accept']
+        )->name('implementation_plan.accept');
+
     });
 // END LAUDA360 DIAGNOSIS ROUTES
 
@@ -139,3 +151,8 @@ require __DIR__ . '/settings.php';
         )->name('diagnosis.resume');
     });
 // END LAUDA360 DIAGNOSIS ACCESS ROUTES
+
+/* LAUDA 360 · gateway post-Go-Live */
+Route::middleware(['auth', 'verified'])
+    ->get('/app', \App\Http\Controllers\AppGatewayController::class)
+    ->name('app.gateway');
