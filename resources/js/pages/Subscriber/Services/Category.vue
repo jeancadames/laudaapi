@@ -80,8 +80,8 @@ watch(
 function toggleService(serviceId: number) {
     if (!canSelect.value) {
         toast({
-            title: 'Requiere suscripción activa',
-            description: `Tu estado actual es: ${props.subscription_status ?? '—'}`,
+            title: 'Servicio no disponible',
+            description: props.can_select_services_reason ?? 'No puedes solicitar servicios en este momento.',
             variant: 'destructive',
         })
         return
@@ -215,7 +215,7 @@ const filtered = computed(() => {
                     </div>
 
                     <div v-if="props.activation_request && !canSelect" class="text-amber-600 dark:text-amber-400">
-                        Requiere una <span class="font-medium">suscripción activa</span> para seleccionar servicios.
+                        No puedes solicitar servicios en este momento.
                         <span v-if="props.subscription_status" class="text-muted-foreground">
                             (Estado actual: {{ props.subscription_status }})
                         </span>

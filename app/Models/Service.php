@@ -99,6 +99,16 @@ class Service extends Model
         );
     }
 
+    public function commercialPlans(): HasMany
+    {
+        return $this->hasMany(
+            ServicePlan::class,
+            'service_id'
+        )
+            ->orderBy('sort_order')
+            ->orderBy('id');
+    }
+
     public function pricingTiers(): HasMany
     {
         return $this->hasMany(

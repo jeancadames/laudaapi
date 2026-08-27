@@ -3,11 +3,11 @@
 namespace App\Http\Controllers;
 
 use App\Models\DiagnosisAccessRequest;
-use App\Services\Entitlements\SubscriberEntitlements;
+use App\Services\Ecosystem\EcosystemHubService;
 use App\Services\Subscribers\CompanyContextResolver;
 use App\Services\Subscribers\SubscriberResolver;
-use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Inertia\Inertia;
 
 class AppGatewayController extends Controller
 {
@@ -15,42 +15,64 @@ class AppGatewayController extends Controller
         Request $request,
         SubscriberResolver $subscriberResolver,
         CompanyContextResolver $companyResolver,
-        SubscriberEntitlements $entitlements,
-    ): RedirectResponse {
+        EcosystemHubService $hubService
+    ) {
         $user = $request->user();
+
         abort_unless($user, 403);
 
         if (($user->role ?? null) === 'admin') {
-            return redirect()->route('dashboard');
+            return redirect()->route('admin.dashboard');
         }
 
         if (($user->role ?? null) === 'subscriber') {
-            $subscriberId = (int) ($subscriberResolver->resolve($user) ?? 0);
+            $subscriberId = (int) (
+                $subscriberResolver->resolve($user)
+                ?? 0
+            );
 
             if ($subscriberId > 0) {
-                $company = $companyResolver->resolve($user, $subscriberId);
+                $company = $companyResolver->resolve(
+                    $user,
+                    $subscriberId
+                );
 
-                if (
-                    $company
-                    && $entitlements->erpServicesForSubscriber($subscriberId)->isNotEmpty()
-                ) {
-                    return redirect()->route('erp.dashboard');
+                if ($company) {
+                    return Inertia::render(
+                        'App/Hub',
+                        [
+                            'company' => [
+                                'id' => $company->id,
+                                'name' =>
+                                    $company->name
+                                    ?? $company->business_name
+                                    ?? 'Mi empresa',
+                                'subscriber_id' =>
+                                    $company->subscriber_id,
+                            ],
+                            'groups' =>
+                                $hubService->groupsFor(
+                                    $user,
+                                    $company
+                                ),
+                        ]
+                    );
                 }
             }
+        }
 
-            $access = DiagnosisAccessRequest::query()
-                ->with('assessment')
-                ->where('user_id', $user->id)
-                ->whereNotNull('diagnosis_assessment_id')
-                ->latest('id')
-                ->first();
+        $access = DiagnosisAccessRequest::query()
+            ->with('assessment')
+            ->where('user_id', $user->id)
+            ->whereNotNull('diagnosis_assessment_id')
+            ->latest('id')
+            ->first();
 
-            if ($access?->assessment) {
-                return redirect()->route(
-                    'diagnosis.show',
-                    $access->assessment
-                );
-            }
+        if ($access?->assessment) {
+            return redirect()->route(
+                'diagnosis.show',
+                $access->assessment
+            );
         }
 
         return redirect()->route('home');

@@ -34,6 +34,27 @@ class TransformationServiceCapabilityCatalog
                 ],
             ],
 
+            'social' => [
+                'title' =>
+                    'Social',
+                'category' =>
+                    'commercial',
+                'linked_initiative_keys' =>
+                    ['PRS-01', 'COM-01'],
+                'service_key' =>
+                    'social',
+                'subscription_candidate' =>
+                    true,
+                'recommended' =>
+                    false,
+                'requires_lauda_review' =>
+                    true,
+                'commercial_readiness' =>
+                    'service_catalog_and_pricing_validation_required',
+                'purpose' =>
+                    'Capturar y gestionar interacciones sociales, contenido, inbox, leads y analítica, conectando la captación con el CRM y el seguimiento comercial.',
+            ],
+
             'crm' => [
                 'title' =>
                     'CRM',

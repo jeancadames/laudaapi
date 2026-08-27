@@ -12,6 +12,7 @@ class TransformationServiceCapabilityCatalogContractTest extends TestCase
         $this->assertSame(
             [
                 'digital_presence',
+                'social',
                 'crm',
                 'ecommerce_b2c',
                 'ecommerce_b2b',
@@ -150,4 +151,30 @@ class TransformationServiceCapabilityCatalogContractTest extends TestCase
             $this->assertStringNotContainsString($forbidden, $source);
         }
     }
+
+    public function test_social_is_a_distinct_capability_from_digital_presence(): void
+    {
+        $social = TransformationServiceCapabilityCatalog::get('social');
+        $presence = TransformationServiceCapabilityCatalog::get(
+            'digital_presence'
+        );
+        $crm = TransformationServiceCapabilityCatalog::get('crm');
+
+        $this->assertNotNull($social);
+        $this->assertNotNull($presence);
+        $this->assertNotNull($crm);
+
+        $this->assertSame('Social', $social['title']);
+        $this->assertSame('social', $social['service_key']);
+        $this->assertSame('erp_crm', $crm['service_key']);
+
+        $this->assertNotSame(
+            $social['service_key'],
+            $presence['service_key']
+        );
+
+        $this->assertTrue($social['subscription_candidate']);
+        $this->assertTrue($social['requires_lauda_review']);
+    }
+
 }

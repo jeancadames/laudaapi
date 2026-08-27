@@ -82,13 +82,22 @@ class MutationLockOrderHardeningContractTest extends TestCase
             'app/Services/Diagnosis/TransformationImplementationCapabilitySubscriptionService.php'
         );
 
+        $central = $this->source(
+            'app/Services/Entitlements/CentralEntitlementActivationService.php'
+        );
+
         $cancel = $this->source(
             'app/Http/Controllers/Subscriber/SubscriberServiceCancellationController.php'
         );
 
         $this->assertStringContainsString(
-            'Subscription es el mutex de sus SubscriptionItems.',
+            '->activateCommercialItem(',
             $r2j
+        );
+
+        $this->assertStringContainsString(
+            'Subscriber → Subscription → SubscriptionItem.',
+            $central
         );
 
         $this->assertStringContainsString(

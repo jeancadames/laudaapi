@@ -6,6 +6,7 @@ use App\Models\Invoice;
 use App\Models\Payment;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
+use Throwable;
 
 class InvoiceReconciliationService
 {
@@ -17,7 +18,7 @@ class InvoiceReconciliationService
             ? (int) $invoice->id
             : (int) $invoice;
 
-        return DB::transaction(function () use ($invoiceId): Invoice {
+        $reconciled = DB::transaction(function () use ($invoiceId): Invoice {
             $locked = Invoice::query()
                 ->whereKey($invoiceId)
                 ->lockForUpdate()
@@ -46,6 +47,8 @@ class InvoiceReconciliationService
                 $locked->fresh()
             );
         }, 3);
+
+        return $this->afterReconciliation($reconciled);
     }
 
     public function reconcilePayments(int|Invoice $invoice): Invoice
@@ -54,7 +57,7 @@ class InvoiceReconciliationService
             ? (int) $invoice->id
             : (int) $invoice;
 
-        return DB::transaction(function () use ($invoiceId): Invoice {
+        $reconciled = DB::transaction(function () use ($invoiceId): Invoice {
             $locked = Invoice::query()
                 ->whereKey($invoiceId)
                 ->lockForUpdate()
@@ -62,6 +65,8 @@ class InvoiceReconciliationService
 
             return $this->reconcilePaymentsLocked($locked);
         }, 3);
+
+        return $this->afterReconciliation($reconciled);
     }
 
     public function assertPaymentConsistency(Payment $payment): void
@@ -247,6 +252,69 @@ class InvoiceReconciliationService
             'amount_paid' => $paid,
             'status' => $status,
         ])->saveQuietly();
+
+        return $invoice->fresh();
+    }
+
+    /**
+     * Bridge post-reconciliation.
+     * Payment individual no es llave de idempotencia.
+     */
+    /**
+     * Bridge post-reconciliation.
+     *
+     * Invoice paid activa/reintenta entitlement.
+     * Invoice non-paid revoca entitlement previamente concedido.
+     * Payment individual sigue sin ser llave de idempotencia.
+     */
+    private function afterReconciliation(
+        Invoice $invoice
+    ): Invoice {
+        $status = strtolower(
+            (string) $invoice->status
+        );
+
+        try {
+            $settlements = app(
+                StandaloneServiceSettlementService::class
+            );
+
+            if ($status === 'paid') {
+                $settlements->settlePaidInvoice(
+                    $invoice
+                );
+            } else {
+                $settlements->revokeUnpaidInvoice(
+                    $invoice,
+                    null,
+                    'invoice_no_longer_paid'
+                );
+            }
+        } catch (Throwable $e) {
+            report($e);
+
+            try {
+                $settlements = app(
+                    StandaloneServiceSettlementService::class
+                );
+
+                if ($status === 'paid') {
+                    $settlements
+                        ->recordPostReconciliationFailure(
+                            $invoice,
+                            $e
+                        );
+                } else {
+                    $settlements
+                        ->recordPostReconciliationRevocationFailure(
+                            $invoice,
+                            $e
+                        );
+                }
+            } catch (Throwable $recordingError) {
+                report($recordingError);
+            }
+        }
 
         return $invoice->fresh();
     }

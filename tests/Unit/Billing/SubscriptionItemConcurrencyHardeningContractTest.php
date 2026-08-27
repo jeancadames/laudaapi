@@ -20,74 +20,85 @@ class SubscriptionItemConcurrencyHardeningContractTest extends TestCase
 
     public function test_r2j_serializes_item_creation_by_subscription_row(): void
     {
-        $source = $this->source(
-            'app/Services/Diagnosis/TransformationImplementationCapabilitySubscriptionService.php'
+        $central = $this->source(
+            'app/Services/Entitlements/CentralEntitlementActivationService.php'
         );
 
         foreach ([
-            'Subscription es el mutex de sus SubscriptionItems.',
+            'Subscriber → Subscription → SubscriptionItem.',
+            'Subscriber::query()',
             'Subscription::query()',
-            '->whereKey($subscription->id)',
-            "->where('subscriber_id', \$subscriptionActivation->subscriber_id)",
-            "->where('status', 'active')",
+            'SubscriptionItem::query()',
             '->lockForUpdate()',
             '}, 3);',
         ] as $required) {
             $this->assertStringContainsString(
                 $required,
-                $source
+                $central
             );
         }
 
-        $transaction = explode(
-            'return DB::transaction',
-            $source,
+        $method = explode(
+            'public function activateCommercialItem(',
+            $central,
             2
         )[1];
 
-        $subscriptionLock = strpos(
-            $transaction,
-            '->whereKey($subscription->id)'
+        $method = explode(
+            'public function activateCommercial(',
+            $method,
+            2
+        )[0];
+
+        $subscriberPos = strpos(
+            $method,
+            'Subscriber::query()'
         );
 
-        $itemLookup = strpos(
-            $transaction,
-            '$existingItem = SubscriptionItem::query()'
+        $subscriptionPos = strpos(
+            $method,
+            'Subscription::query()'
         );
 
-        $itemCreate = strpos(
-            $transaction,
+        $itemPos = strpos(
+            $method,
             'SubscriptionItem::query()'
         );
 
-        $this->assertNotFalse($subscriptionLock);
-        $this->assertNotFalse($itemLookup);
-        $this->assertNotFalse($itemCreate);
+        $this->assertNotFalse($subscriberPos);
+        $this->assertNotFalse($subscriptionPos);
+        $this->assertNotFalse($itemPos);
 
         $this->assertLessThan(
-            $itemLookup,
-            $subscriptionLock,
-            'La Subscription debe bloquearse antes de resolver el item.'
+            $subscriptionPos,
+            $subscriberPos
+        );
+
+        $this->assertLessThan(
+            $itemPos,
+            $subscriptionPos
         );
     }
 
     public function test_r2j_rechecks_same_golive_item_activation_after_mutex(): void
     {
-        $source = $this->source(
+        $r2j = $this->source(
             'app/Services/Diagnosis/TransformationImplementationCapabilitySubscriptionService.php'
         );
 
         $transaction = explode(
             'return DB::transaction',
-            $source,
+            $r2j,
             2
         )[1];
 
         foreach ([
+            '$subscriber = Subscriber::query()',
+            '$subscription =',
             '$lockedActivation',
             'TransformationImplementationSubscriptionItemActivation::query()',
-            'transformation_implementation_capability_go_live_id',
             'return $lockedActivation;',
+            '->activateCommercialItem(',
         ] as $required) {
             $this->assertStringContainsString(
                 $required,
@@ -95,9 +106,14 @@ class SubscriptionItemConcurrencyHardeningContractTest extends TestCase
             );
         }
 
-        $lockPos = strpos(
+        $subscriberPos = strpos(
             $transaction,
-            '->whereKey($subscription->id)'
+            '$subscriber = Subscriber::query()'
+        );
+
+        $subscriptionPos = strpos(
+            $transaction,
+            '$subscription ='
         );
 
         $recheckPos = strpos(
@@ -105,25 +121,29 @@ class SubscriptionItemConcurrencyHardeningContractTest extends TestCase
             '$lockedActivation'
         );
 
-        $itemLookupPos = strpos(
+        $delegatePos = strpos(
             $transaction,
-            '$existingItem = SubscriptionItem::query()'
+            '->activateCommercialItem('
         );
 
-        $this->assertNotFalse($lockPos);
+        $this->assertNotFalse($subscriberPos);
+        $this->assertNotFalse($subscriptionPos);
         $this->assertNotFalse($recheckPos);
-        $this->assertNotFalse($itemLookupPos);
+        $this->assertNotFalse($delegatePos);
 
         $this->assertLessThan(
-            $recheckPos,
-            $lockPos,
-            'El mutex debe adquirirse antes del activation recheck.'
+            $subscriptionPos,
+            $subscriberPos
         );
 
         $this->assertLessThan(
-            $itemLookupPos,
             $recheckPos,
-            'El activation recheck debe ocurrir antes de resolver/create item.'
+            $subscriptionPos
+        );
+
+        $this->assertLessThan(
+            $delegatePos,
+            $recheckPos
         );
     }
 
@@ -158,55 +178,73 @@ class SubscriptionItemConcurrencyHardeningContractTest extends TestCase
 
     public function test_cancelled_item_is_reactivated_in_place(): void
     {
-        $source = $this->source(
-            'app/Services/Diagnosis/TransformationImplementationCapabilitySubscriptionService.php'
+        $central = $this->source(
+            'app/Services/Entitlements/CentralEntitlementActivationService.php'
         );
 
         foreach ([
-            '$existingItem->forceFill(',
-            '$itemPayload',
+            '$item->forceFill(',
+            '$payload',
             ')->save();',
-            '$item = $existingItem->fresh();',
+            '$item = $item->fresh();',
+            "'reactivated'",
         ] as $required) {
             $this->assertStringContainsString(
                 $required,
-                $source
+                $central
             );
         }
     }
 
     public function test_r2j_still_recalculates_subscription_totals_centrally(): void
     {
-        $source = $this->source(
+        $r2j = $this->source(
             'app/Services/Diagnosis/TransformationImplementationCapabilitySubscriptionService.php'
         );
 
-        foreach ([
+        $central = $this->source(
+            'app/Services/Entitlements/CentralEntitlementActivationService.php'
+        );
+
+        $this->assertStringContainsString(
+            '->activateCommercialItem(',
+            $r2j
+        );
+
+        $this->assertStringContainsString(
             'SubscriptionTotalsService::class',
-            '->recalculate(',
-            '$this->recalculateSubscriptionTotals($subscription);',
-        ] as $required) {
-            $this->assertStringContainsString(
-                $required,
-                $source
-            );
-        }
+            $central
+        );
+
+        $this->assertStringContainsString(
+            ')->recalculate(',
+            $central
+        );
     }
 
     public function test_concurrency_hardening_does_not_move_pricing_out_of_engine(): void
     {
-        $source = $this->source(
+        $r2j = $this->source(
             'app/Services/Diagnosis/TransformationImplementationCapabilitySubscriptionService.php'
+        );
+
+        $central = $this->source(
+            'app/Services/Entitlements/CentralEntitlementActivationService.php'
+        );
+
+        $this->assertStringContainsString(
+            '->activateCommercialItem(',
+            $r2j
         );
 
         $this->assertStringContainsString(
             'ServicePricingEngine::class',
-            $source
+            $central
         );
 
         $this->assertStringContainsString(
             '->quote(',
-            $source
+            $central
         );
     }
 }

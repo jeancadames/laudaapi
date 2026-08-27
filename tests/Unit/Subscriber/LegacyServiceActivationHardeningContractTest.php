@@ -19,98 +19,112 @@ class LegacyServiceActivationHardeningContractTest extends TestCase
         );
     }
 
-    public function test_trial_mode_is_blocked_before_legacy_mutations(): void
+    public function test_trial_mode_remains_blocked(): void
     {
         $source = $this->controller();
 
         foreach ([
             "if (\$mode === 'trial')",
             'legacy_service_trial_activation_blocked_t360',
-            'service_activation_requires_lauda360_golive',
+            'direct_trial_activation_disabled',
         ] as $required) {
-            $this->assertStringContainsString(
-                $required,
-                $source
-            );
+            $this->assertStringContainsString($required, $source);
         }
 
         foreach ([
             'buildTrialItem',
             'LaudaOneProvisioner',
-            '->provision(',
             'SubscriptionTotalsService',
-            '$item->forceFill(',
+            'SubscriptionItem::query()->create',
         ] as $forbidden) {
-            $this->assertStringNotContainsString(
-                $forbidden,
-                $source
-            );
+            $this->assertStringNotContainsString($forbidden, $source);
         }
     }
 
-    public function test_billed_mode_is_request_only_and_grants_no_entitlement(): void
+    public function test_billed_mode_is_checkout_but_not_entitlement(): void
     {
-        $source = $this->controller();
+        $controller = $this->controller();
+
+        $checkout = file_get_contents(
+            $this->root()
+            .'/app/Services/Billing/StandaloneServiceCheckoutService.php'
+        );
+
+        foreach ([
+            'StandaloneServiceCheckoutService::class',
+            ')->checkout(',
+            "'billing_cycle'",
+        ] as $required) {
+            $this->assertStringContainsString($required, $controller);
+        }
 
         foreach ([
             "'pending_payment'",
-            "'activation_mode' =>",
-            "'billed'",
-            "'payment_required' =>",
-            "'entitlement_granted' =>",
-            'false',
-            'buildPriceSnapshot(',
-            'ServicePricingEngine::class',
+            "'entitlement_granted' => false",
+            'Invoice::query()->create',
+            'InvoiceItem::query()->create',
+            'StandaloneServiceSettlementService::class',
         ] as $required) {
-            $this->assertStringContainsString(
-                $required,
-                $source
-            );
+            $this->assertStringContainsString($required, $checkout);
         }
 
-        $this->assertStringNotContainsString(
+        foreach ([
+            'Subscription::query()->create',
             'SubscriptionItem::query()->create',
-            $source
-        );
+            'activateCommercial(',
+        ] as $forbidden) {
+            $this->assertStringNotContainsString($forbidden, $checkout);
+        }
     }
 
-    public function test_existing_subscription_must_be_eligible(): void
+    public function test_existing_subscription_is_no_longer_required_for_checkout(): void
     {
         $source = $this->controller();
+
+        $this->assertStringNotContainsString(
+            'no_eligible_existing_subscription',
+            $source
+        );
+
+        $this->assertStringNotContainsString(
+            'Subscription::query()',
+            $source
+        );
 
         $this->assertStringContainsString(
             'ServiceEntitlementPolicy::SUBSCRIPTION_STATUSES',
             $source
         );
-
-        $this->assertStringContainsString(
-            'no_eligible_existing_subscription',
-            $source
-        );
     }
 
-    public function test_real_item_activation_remains_owned_by_r2j_after_live(): void
+    public function test_real_entitlement_remains_owned_by_central_owner(): void
     {
-        $r2j = file_get_contents(
+        $settlement = file_get_contents(
             $this->root()
-            .'/app/Services/Diagnosis/TransformationImplementationCapabilitySubscriptionService.php'
+            .'/app/Services/Billing/StandaloneServiceSettlementService.php'
+        );
+
+        $central = file_get_contents(
+            $this->root()
+            .'/app/Services/Entitlements/CentralEntitlementActivationService.php'
         );
 
         foreach ([
-            'activateFromGoLive(',
-            'STATUS_LIVE',
-            'buildActiveItem(',
-            '$existingItem->forceFill(',
-            "'status' => 'active'",
+            'SOURCE_STANDALONE_SETTLEMENT',
+            '->activateCommercial(',
         ] as $required) {
-            $this->assertStringContainsString(
-                $required,
-                $r2j
-            );
+            $this->assertStringContainsString($required, $settlement);
+        }
+
+        foreach ([
+            'Subscription::query()->create',
+            'SubscriptionItem::query()',
+        ] as $required) {
+            $this->assertStringContainsString($required, $central);
         }
     }
 
-    public function test_subscriber_ui_no_longer_offers_direct_trial_activation(): void
+    public function test_subscriber_ui_still_has_no_direct_trial_activation(): void
     {
         $source = file_get_contents(
             $this->root()

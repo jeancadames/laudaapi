@@ -38,43 +38,39 @@ class SubscriptionItemReactivationContractTest extends TestCase
 
     public function test_r2j_reuses_cancelled_row_instead_of_duplicate_create(): void
     {
-        $source = file_get_contents(
+        $r2j = file_get_contents(
             $this->root()
             .'/app/Services/Diagnosis/TransformationImplementationCapabilitySubscriptionService.php'
         );
 
-        $method = explode(
-            'public function activateFromGoLive(',
-            $source,
-            2
-        )[1];
+        $central = file_get_contents(
+            $this->root()
+            .'/app/Services/Entitlements/CentralEntitlementActivationService.php'
+        );
 
-        $method = explode(
-            'private function buildActiveItem(',
-            $method,
-            2
-        )[0];
+        $this->assertStringContainsString(
+            '->activateCommercialItem(',
+            $r2j
+        );
 
         foreach ([
-            "->where('subscription_id', \$subscription->id)",
-            "->where('service_id', \$service->id)",
+            "'subscription_id'",
+            "'service_id'",
             '->lockForUpdate()',
-            '$wasAlreadyActive = in_array(',
-            '$existingItem->forceFill(',
-            '$itemPayload',
-            'TYPE_REUSED',
-            'TYPE_CREATED',
-            'recalculateSubscriptionTotals',
+            '$item->forceFill(',
+            "'reactivated'",
+            "'reused'",
+            "'created'",
         ] as $required) {
             $this->assertStringContainsString(
                 $required,
-                $method
+                $central
             );
         }
 
         $this->assertStringNotContainsString(
-            "->whereIn('status', ['active', 'trialing'])",
-            $method
+            'SubscriptionItem::query()->create',
+            $r2j
         );
     }
 

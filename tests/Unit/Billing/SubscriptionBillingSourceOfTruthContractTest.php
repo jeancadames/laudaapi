@@ -141,51 +141,102 @@ class SubscriptionBillingSourceOfTruthContractTest extends TestCase
         }
     }
 
-    public function test_r2j_and_cancellation_are_the_only_current_economic_item_mutation_hooks(): void
+    public function test_all_current_economic_item_mutation_hooks_use_canonical_totals_owner(): void
     {
-        $r2j = $this->source(
-            'app/Services/Diagnosis/TransformationImplementationCapabilitySubscriptionService.php'
+        $root = dirname(__DIR__, 3);
+
+        $r2j = file_get_contents(
+            $root
+            .'/app/Services/Diagnosis/TransformationImplementationCapabilitySubscriptionService.php'
         );
 
-        $cancel = $this->source(
-            'app/Http/Controllers/Subscriber/SubscriberServiceCancellationController.php'
+        $cancel = file_get_contents(
+            $root
+            .'/app/Http/Controllers/Subscriber/SubscriberServiceCancellationController.php'
         );
 
+        $central = file_get_contents(
+            $root
+            .'/app/Services/Entitlements/CentralEntitlementActivationService.php'
+        );
+
+        /*
+         * R2-J ya no es owner económico directo.
+         * Debe delegar al owner central T360.
+         */
+        foreach ([
+            'CentralEntitlementActivationService::class',
+            '->activateCommercialItem(',
+            'SOURCE_TRANSFORMATION_360',
+        ] as $required) {
+            $this->assertStringContainsString(
+                $required,
+                $r2j
+            );
+        }
+
+        /*
+         * Cancelación directa sigue cerrando en totals.
+         */
         foreach ([
             'SubscriptionTotalsService::class',
             'recalculate',
         ] as $required) {
             $this->assertStringContainsString(
                 $required,
-                $r2j
+                $cancel
             );
+        }
 
+        /*
+         * Owner central: activación/revocación y recálculo.
+         */
+        foreach ([
+            'SubscriptionTotalsService::class',
+            'recalculate',
+            'public function revokeCommercialItem(',
+        ] as $required) {
             $this->assertStringContainsString(
                 $required,
-                $cancel
+                $central
             );
         }
     }
 
     public function test_legacy_billed_request_stays_outside_subscription_totals(): void
     {
-        $source = $this->source(
+        $controller = $this->source(
             'app/Http/Controllers/Subscriber/SubscriberServiceActivationController.php'
         );
 
+        $checkout = $this->source(
+            'app/Services/Billing/StandaloneServiceCheckoutService.php'
+        );
+
         $this->assertStringContainsString(
+            'StandaloneServiceCheckoutService::class',
+            $controller
+        );
+
+        foreach ([
             "'pending_payment'",
-            $source
-        );
+            "'entitlement_granted' => false",
+        ] as $required) {
+            $this->assertStringContainsString(
+                $required,
+                $checkout
+            );
+        }
 
-        $this->assertStringNotContainsString(
+        foreach ([
             'SubscriptionTotalsService',
-            $source
-        );
-
-        $this->assertStringNotContainsString(
             'SubscriptionItem::query()->create',
-            $source
-        );
+            'activateCommercial(',
+        ] as $forbidden) {
+            $this->assertStringNotContainsString(
+                $forbidden,
+                $checkout
+            );
+        }
     }
 }

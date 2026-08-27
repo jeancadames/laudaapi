@@ -59,39 +59,67 @@ class CommercialConcurrencyHardeningContractTest extends TestCase
 
     public function test_r2i_serializes_general_subscription_by_subscriber_row(): void
     {
-        $source = $this->source(
+        $r2i = $this->source(
             'app/Services/Diagnosis/TransformationImplementationSubscriptionService.php'
+        );
+
+        $central = $this->source(
+            'app/Services/Entitlements/CentralEntitlementActivationService.php'
         );
 
         foreach ([
             'Subscriber::query()',
-            '->whereKey($subscriber->id)',
             '->lockForUpdate()',
-            'El Subscriber debe permanecer activo durante la activación post-Go-Live.',
+            '->ensureSubscription(',
+        ] as $required) {
+            $this->assertStringContainsString(
+                $required,
+                $r2i
+            );
+        }
+
+        foreach ([
+            'Subscriber es el mutex de la Subscription general.',
+            'Subscriber::query()',
+            'Subscription::query()',
+            '->lockForUpdate()',
+            'Subscription::query()->create',
             '}, 3);',
         ] as $required) {
             $this->assertStringContainsString(
                 $required,
-                $source
+                $central
             );
         }
 
-        $subscriberLock = strpos(
-            $source,
-            '->whereKey($subscriber->id)'
+        $method = explode(
+            'public function ensureSubscription(',
+            $central,
+            2
+        )[1];
+
+        $method = explode(
+            'public function activateCommercialItem(',
+            $method,
+            2
+        )[0];
+
+        $lockPos = strpos(
+            $method,
+            'Subscriber::query()'
         );
 
-        $subscriptionCreate = strpos(
-            $source,
+        $createPos = strpos(
+            $method,
             'Subscription::query()->create'
         );
 
-        $this->assertNotFalse($subscriberLock);
-        $this->assertNotFalse($subscriptionCreate);
+        $this->assertNotFalse($lockPos);
+        $this->assertNotFalse($createPos);
+
         $this->assertLessThan(
-            $subscriptionCreate,
-            $subscriberLock,
-            'El Subscriber debe bloquearse antes de crear Subscription.'
+            $createPos,
+            $lockPos
         );
     }
 
@@ -108,9 +136,11 @@ class CommercialConcurrencyHardeningContractTest extends TestCase
         )[1];
 
         foreach ([
+            'Subscriber::query()',
             '$lockedActivation',
             'transformation_implementation_capability_go_live_id',
             'return $lockedActivation;',
+            '->ensureSubscription(',
         ] as $required) {
             $this->assertStringContainsString(
                 $required,
@@ -120,7 +150,7 @@ class CommercialConcurrencyHardeningContractTest extends TestCase
 
         $lockPos = strpos(
             $transaction,
-            '->whereKey($subscriber->id)'
+            'Subscriber::query()'
         );
 
         $recheckPos = strpos(
@@ -128,25 +158,23 @@ class CommercialConcurrencyHardeningContractTest extends TestCase
             '$lockedActivation'
         );
 
-        $subscriptionCreatePos = strpos(
+        $delegatePos = strpos(
             $transaction,
-            'Subscription::query()->create'
+            '->ensureSubscription('
         );
 
         $this->assertNotFalse($lockPos);
         $this->assertNotFalse($recheckPos);
-        $this->assertNotFalse($subscriptionCreatePos);
+        $this->assertNotFalse($delegatePos);
 
         $this->assertLessThan(
             $recheckPos,
-            $lockPos,
-            'El mutex debe adquirirse antes del recheck.'
+            $lockPos
         );
 
         $this->assertLessThan(
-            $subscriptionCreatePos,
-            $recheckPos,
-            'El recheck debe ocurrir antes de crear Subscription.'
+            $delegatePos,
+            $recheckPos
         );
     }
 
@@ -199,18 +227,31 @@ class CommercialConcurrencyHardeningContractTest extends TestCase
 
     public function test_r2i_created_subscription_still_has_no_trial(): void
     {
-        $source = $this->source(
+        $r2i = $this->source(
             'app/Services/Diagnosis/TransformationImplementationSubscriptionService.php'
         );
+
+        $central = $this->source(
+            'app/Services/Entitlements/CentralEntitlementActivationService.php'
+        );
+
+        foreach ([
+            '->ensureSubscription(',
+            "'subscription_items_pending_r2j' =>",
+        ] as $required) {
+            $this->assertStringContainsString(
+                $required,
+                $r2i
+            );
+        }
 
         foreach ([
             "'status' => 'active'",
             "'trial_ends_at' => null",
-            "'subscription_items_pending_r2j' => true",
         ] as $required) {
             $this->assertStringContainsString(
                 $required,
-                $source
+                $central
             );
         }
     }

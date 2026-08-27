@@ -49,7 +49,14 @@ class SubscriberServiceCatalogController extends Controller
             $subscriptionId = $sub?->id;
 
             // ✅ NUEVA regla: active OR trialing vigente
-            [$canSelectServices, $selectReason] = $this->canSelectServicesFromSubscription($sub);
+            $canSelectServices =
+                $activationRequest !== null;
+
+            $selectReason =
+                $canSelectServices
+                    ? null
+                    : 'Debes crear una solicitud de activación '
+                        .'antes de solicitar servicios.';
         } else {
             $selectReason = 'No tienes subscriber asociado a tu compañía.';
         }

@@ -186,17 +186,357 @@ function cancelDisabledReason(s: ActiveService): string | null {
 // -------------------------
 // Actions
 // -------------------------
-function activateRequested(serviceId: number, mode: 'billed' = 'billed') {
+type BillingCycle = 'monthly' | 'yearly'
+
+type BillingOption = {
+    cycle: BillingCycle
+    label: string
+    available: boolean
+    amount_due?: number | null
+    currency?: string | null
+    billing_model?: string | null
+    quantity?: number | null
+    unit_price?: number | null
+    tier_id?: number | null
+    tier_min_quantity?: number | null
+    tier_max_quantity?: number | null
+    service_plan_id?: number | null
+    subscription_locked?: boolean
+    active_subscription_id?: number | null
+    reason?: string | null
+}
+
+type CommercialPlan = {
+    id: number
+    code: string
+    name: string
+    description?: string | null
+    currency: string
+    billing_model: string
+    features?: Record<string, boolean>
+    limits?: Record<string, number | null>
+    is_featured?: boolean
+    is_free?: boolean
+    activation_available?: boolean
+    activation_reason?: string | null
+    billing_options?: Partial<Record<BillingCycle, BillingOption>>
+}
+
+const billingCycleByService =
+    ref<Record<number, BillingCycle>>({})
+
+const planByService =
+    ref<Record<number, number>>({})
+
+function commercialPlans(r: any): CommercialPlan[] {
+    return Array.isArray(r?.commercial_plans)
+        ? r.commercial_plans
+        : []
+}
+
+function hasCommercialPlans(r: any): boolean {
+    return commercialPlans(r).length > 0
+}
+
+function selectedPlan(r: any): CommercialPlan | null {
+    const plans = commercialPlans(r)
+
+    if (plans.length === 0) return null
+
+    const serviceId = Number(r?.service_id)
+    const explicit =
+        Number.isFinite(serviceId)
+            ? planByService.value[serviceId]
+            : undefined
+
+    if (explicit) {
+        const found = plans.find(
+            (plan) =>
+                Number(plan.id) === Number(explicit),
+        )
+
+        if (found) return found
+    }
+
+    return (
+        plans.find((plan) => plan.is_featured)
+        ?? plans.find((plan) => !plan.is_free)
+        ?? plans[0]
+        ?? null
+    )
+}
+
+function selectedPlanId(r: any): number | null {
+    const plan = selectedPlan(r)
+
+    return plan
+        ? Number(plan.id)
+        : null
+}
+
+function setSelectedPlan(
+    r: any,
+    planId: number,
+) {
+    const serviceId = Number(r?.service_id)
+
+    if (!Number.isFinite(serviceId)) return
+
+    const plan = commercialPlans(r).find(
+        (candidate) =>
+            Number(candidate.id) === Number(planId),
+    )
+
+    if (!plan) return
+
+    planByService.value = {
+        ...planByService.value,
+        [serviceId]: Number(plan.id),
+    }
+
+    const next = {
+        ...billingCycleByService.value,
+    }
+
+    delete next[serviceId]
+
+    billingCycleByService.value = next
+}
+
+function billingOptions(r: any): BillingOption[] {
+    const plan = selectedPlan(r)
+
+    const raw =
+        plan?.billing_options
+        ?? r?.billing_options
+        ?? {}
+
+    return [raw.monthly, raw.yearly].filter(
+        (option): option is BillingOption => !!option,
+    )
+}
+
+function billingOption(
+    r: any,
+    cycle: BillingCycle,
+): BillingOption | null {
+    return (
+        billingOptions(r).find(
+            (option) => option.cycle === cycle,
+        ) ?? null
+    )
+}
+
+function selectedBillingCycle(
+    r: any,
+): BillingCycle | null {
+    const serviceId = Number(r?.service_id)
+
+    if (!Number.isFinite(serviceId)) return null
+
+    const explicit =
+        billingCycleByService.value[serviceId]
+
+    if (
+        explicit
+        && billingOption(r, explicit)?.available
+    ) {
+        return explicit
+    }
+
+    /*
+     * ServicePlan => ciclo por SubscriptionItem.
+     * No hereda el lock legacy de Subscription.
+     */
+    if (hasCommercialPlans(r)) {
+        if (billingOption(r, 'monthly')?.available) {
+            return 'monthly'
+        }
+
+        if (billingOption(r, 'yearly')?.available) {
+            return 'yearly'
+        }
+
+        return null
+    }
+
+    const currentCycle =
+        String(
+            props.subscription?.status ?? '',
+        ).toLowerCase() === 'active'
+            ? String(
+                  props.subscription?.billing_cycle ?? '',
+              ).toLowerCase()
+            : ''
+
+    if (
+        (
+            currentCycle === 'monthly'
+            || currentCycle === 'yearly'
+        )
+        && billingOption(
+            r,
+            currentCycle as BillingCycle,
+        )?.available
+    ) {
+        return currentCycle as BillingCycle
+    }
+
+    if (billingOption(r, 'monthly')?.available) {
+        return 'monthly'
+    }
+
+    if (billingOption(r, 'yearly')?.available) {
+        return 'yearly'
+    }
+
+    return null
+}
+
+function setBillingCycle(
+    r: any,
+    cycle: BillingCycle,
+) {
+    const option = billingOption(r, cycle)
+
+    if (!option?.available) return
+
+    const serviceId = Number(r?.service_id)
+
+    if (!Number.isFinite(serviceId)) return
+
+    billingCycleByService.value = {
+        ...billingCycleByService.value,
+        [serviceId]: cycle,
+    }
+}
+
+function billingCycleLabel(
+    cycle: BillingCycle,
+): string {
+    return cycle === 'yearly'
+        ? 'Anual'
+        : 'Mensual'
+}
+
+function formatBillingAmount(
+    option: BillingOption,
+): string {
+    const amount = Number(
+        option.amount_due ?? 0,
+    )
+
+    const currency =
+        String(
+            option.currency ?? 'DOP',
+        ).toUpperCase()
+
+    if (!Number.isFinite(amount)) return '—'
+    if (amount === 0) return 'Gratis'
+
+    try {
+        return new Intl.NumberFormat(
+            'es-DO',
+            {
+                style: 'currency',
+                currency,
+                maximumFractionDigits: 2,
+            },
+        ).format(amount)
+    } catch {
+        return `${amount.toFixed(2)} ${currency}`
+    }
+}
+
+function planPriceSummary(
+    plan: CommercialPlan,
+): string {
+    if (plan.is_free) return 'Gratis'
+
+    const parts: string[] = []
+
+    if (plan.billing_options?.monthly?.available) {
+        parts.push(
+            `${formatBillingAmount(
+                plan.billing_options.monthly,
+            )}/mes`,
+        )
+    }
+
+    if (plan.billing_options?.yearly?.available) {
+        parts.push(
+            `${formatBillingAmount(
+                plan.billing_options.yearly,
+            )}/año`,
+        )
+    }
+
+    return parts.length > 0
+        ? parts.join(' · ')
+        : 'Precio no disponible'
+}
+
+function selectedPlanIsFree(r: any): boolean {
+    return Boolean(
+        selectedPlan(r)?.is_free,
+    )
+}
+
+function activationCtaLabel(r: any): string {
+    if (selectedPlanIsFree(r)) {
+        return 'Starter gratis · Próximamente'
+    }
+
+    if (hasCommercialPlans(r)) {
+        return 'Continuar al pago'
+    }
+
+    /*
+     * Compatibilidad UX legacy S10-C:
+     * servicios sin ServicePlan conservan su CTA anterior.
+     */
+    return 'Solicitar activación'
+}
+
+function activateRequested(
+    serviceId: number,
+    billingCycle: BillingCycle | null,
+    servicePlanId: number | null = null,
+) {
     if (!props.activation_request) {
         toast({
             title: 'Requiere solicitud de activación',
-            description: 'Debes tener una solicitud antes de activar servicios.',
+            description:
+                'Debes tener una solicitud antes de activar servicios.',
             variant: 'destructive',
         })
+
         return
     }
 
-    router.post('/subscriber/services/activate', { service_id: serviceId, mode }, { preserveScroll: true })
+    if (!billingCycle) {
+        toast({
+            title: 'Selecciona un ciclo',
+            description:
+                'Elige un ciclo disponible antes de continuar.',
+            variant: 'destructive',
+        })
+
+        return
+    }
+
+    router.post(
+        '/subscriber/services/activate',
+        {
+            service_id: serviceId,
+            service_plan_id: servicePlanId,
+            mode: 'billed',
+            billing_cycle: billingCycle,
+        },
+        {
+            preserveScroll: true,
+        },
+    )
 }
 
 function cancelSubscriptionItemByService(s: ActiveService) {
@@ -374,9 +714,156 @@ const showCancelled = computed(() => filter.value === 'all' || filter.value === 
 
                         <div class="mt-4 flex flex-wrap items-center gap-2">
 
-                            <Button size="sm" :disabled="!canActivatePending(r)" class="bg-emerald-600 text-white hover:bg-emerald-700 disabled:bg-emerald-600/40 disabled:text-white/70" @click="activateRequested(Number(r.service_id), 'billed')">
-                                Solicitar activación
-                            </Button>
+                            <div class="mt-3 w-full space-y-3">
+                                <div
+                                    v-if="hasCommercialPlans(r)"
+                                    class="space-y-2"
+                                >
+                                    <div class="flex items-center justify-between gap-3">
+                                        <p class="text-xs font-medium text-foreground">
+                                            Plan
+                                        </p>
+                                        <span class="text-[11px] text-muted-foreground">
+                                            Precio y límites definidos por la solución
+                                        </span>
+                                    </div>
+
+                                    <div class="grid gap-2 lg:grid-cols-3">
+                                        <button
+                                            v-for="plan in commercialPlans(r)"
+                                            :key="`${r.service_id}-plan-${plan.id}`"
+                                            type="button"
+                                            class="rounded-lg border p-3 text-left transition"
+                                            :class="
+                                                selectedPlanId(r) === Number(plan.id)
+                                                    ? 'border-primary bg-primary/5'
+                                                    : 'border-border hover:bg-muted/40'
+                                            "
+                                            @click="setSelectedPlan(r, Number(plan.id))"
+                                        >
+                                            <div class="flex items-start justify-between gap-2">
+                                                <div>
+                                                    <p class="text-sm font-semibold text-foreground">
+                                                        {{ plan.name }}
+                                                    </p>
+                                                    <p
+                                                        v-if="plan.description"
+                                                        class="mt-1 text-[11px] leading-relaxed text-muted-foreground"
+                                                    >
+                                                        {{ plan.description }}
+                                                    </p>
+                                                </div>
+
+                                                <Badge
+                                                    v-if="plan.is_featured"
+                                                    variant="secondary"
+                                                >
+                                                    Recomendado
+                                                </Badge>
+                                            </div>
+
+                                            <div class="mt-2 text-sm font-semibold text-foreground">
+                                                {{ planPriceSummary(plan) }}
+                                            </div>
+
+                                            <div
+                                                v-if="plan.is_free && !plan.activation_available"
+                                                class="mt-2 text-[11px] leading-relaxed text-muted-foreground"
+                                            >
+                                                {{ plan.activation_reason }}
+                                            </div>
+                                        </button>
+                                    </div>
+                                </div>
+
+                                <div>
+                                    <div class="mb-2 flex items-center justify-between gap-3">
+                                        <p class="text-xs font-medium text-foreground">
+                                            Ciclo de facturación
+                                        </p>
+                                        <span
+                                            v-if="hasCommercialPlans(r)"
+                                            class="text-[11px] text-muted-foreground"
+                                        >
+                                            Ciclo independiente para esta solución
+                                        </span>
+                                        <span
+                                            v-else-if="props.subscription?.status === 'active'"
+                                            class="text-[11px] text-muted-foreground"
+                                        >
+                                            La suscripción legacy fija el ciclo
+                                        </span>
+                                    </div>
+
+                                    <div class="grid gap-2 sm:grid-cols-2">
+                                        <button
+                                            v-for="option in billingOptions(r)"
+                                            :key="`${r.service_id}-${option.cycle}`"
+                                            type="button"
+                                            class="rounded-lg border p-3 text-left transition disabled:cursor-not-allowed disabled:opacity-50"
+                                            :class="
+                                                selectedBillingCycle(r) === option.cycle
+                                                    ? 'border-primary bg-primary/5'
+                                                    : 'border-border hover:bg-muted/40'
+                                            "
+                                            :disabled="!option.available"
+                                            @click="setBillingCycle(r, option.cycle)"
+                                        >
+                                            <div class="flex items-center justify-between gap-2">
+                                                <span class="text-sm font-medium">
+                                                    {{ billingCycleLabel(option.cycle) }}
+                                                </span>
+                                                <Badge
+                                                    v-if="selectedBillingCycle(r) === option.cycle"
+                                                    variant="secondary"
+                                                >
+                                                    Seleccionado
+                                                </Badge>
+                                            </div>
+
+                                            <div
+                                                v-if="option.available"
+                                                class="mt-1 text-sm font-semibold text-foreground"
+                                            >
+                                                {{ formatBillingAmount(option) }}
+                                            </div>
+
+                                            <div
+                                                v-if="option.available && Number(option.quantity ?? 0) > 1"
+                                                class="mt-1 text-[11px] text-muted-foreground"
+                                            >
+                                                Cantidad: {{ option.quantity }}
+                                            </div>
+
+                                            <div
+                                                v-if="!option.available"
+                                                class="mt-1 text-[11px] leading-relaxed text-muted-foreground"
+                                            >
+                                                {{ option.reason || 'No disponible para este ciclo.' }}
+                                            </div>
+                                        </button>
+                                    </div>
+                                </div>
+
+                                <Button
+                                    size="sm"
+                                    :disabled="
+                                        !canActivatePending(r)
+                                        || !selectedBillingCycle(r)
+                                        || selectedPlanIsFree(r)
+                                    "
+                                    class="bg-emerald-600 text-white hover:bg-emerald-700 disabled:bg-emerald-600/40 disabled:text-white/70"
+                                    @click="
+                                        activateRequested(
+                                            Number(r.service_id),
+                                            selectedBillingCycle(r),
+                                            selectedPlanId(r),
+                                        )
+                                    "
+                                >
+                                    {{ activationCtaLabel(r) }}
+                                </Button>
+                            </div>
 
                             <div v-if="!canActivatePending(r)" class="text-xs text-muted-foreground">
                                 {{ pendingDisabledReason(r) }}

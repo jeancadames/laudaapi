@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Diagnosis\SubmitDiagnosisAssessmentRequest;
 use App\Http\Requests\Diagnosis\UpdateDiagnosisAssessmentRequest;
 use App\Models\DiagnosisAssessment;
+use App\Models\TransformationImplementationPlan;
 use App\Services\Diagnosis\DiagnosisBusinessProfileService;
 use App\Services\Diagnosis\DiagnosisExecutiveSummaryGenerator;
 use App\Services\Diagnosis\DiagnosisTransformationProgressService;
@@ -27,6 +28,18 @@ class DigitalDiagnosisController extends Controller
 
         $published = $assessment->status === 'reviewed'
             && $assessment->published_at !== null;
+
+        $implementationPlan = TransformationImplementationPlan::query()
+            ->where('diagnosis_assessment_id', $assessment->id)
+            ->whereIn('status', [
+                TransformationImplementationPlan::STATUS_PRESENTED,
+                TransformationImplementationPlan::STATUS_ACCEPTED,
+                TransformationImplementationPlan::STATUS_ACTIVE,
+                TransformationImplementationPlan::STATUS_COMPLETED,
+            ])
+            ->whereNotNull('presented_at')
+            ->orderByDesc('version')
+            ->first();
 
         return Inertia::render('Diagnosis/Show', [
             'assessment' => [
@@ -134,6 +147,13 @@ class DigitalDiagnosisController extends Controller
                     route('diagnosis.update', $assessment),
                 'submit' =>
                     route('diagnosis.submit', $assessment),
+                'implementation_plan_url' =>
+                    $implementationPlan
+                        ? route(
+                            'diagnosis.implementation_plan.show',
+                            $assessment
+                        )
+                        : null,
                 'back' => url('/'),
             ],
         ]);

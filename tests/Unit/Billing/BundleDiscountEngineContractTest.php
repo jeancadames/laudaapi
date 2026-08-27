@@ -151,14 +151,24 @@ class BundleDiscountEngineContractTest extends TestCase
             .'/app/Services/Diagnosis/TransformationImplementationCapabilitySubscriptionService.php'
         );
 
+        $central = file_get_contents(
+            $this->root()
+            .'/app/Services/Entitlements/CentralEntitlementActivationService.php'
+        );
+
         $this->assertStringContainsString(
-            'use App\\Services\\Billing\\SubscriptionTotalsService;',
+            '->activateCommercialItem(',
             $r2j
         );
 
         $this->assertStringContainsString(
-            'app(SubscriptionTotalsService::class)',
-            $r2j
+            'SubscriptionTotalsService::class',
+            $central
+        );
+
+        $this->assertStringContainsString(
+            ')->recalculate(',
+            $central
         );
     }
 }

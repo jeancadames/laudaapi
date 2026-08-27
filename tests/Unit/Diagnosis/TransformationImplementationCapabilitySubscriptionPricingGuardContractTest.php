@@ -34,21 +34,31 @@ class TransformationImplementationCapabilitySubscriptionPricingGuardContractTest
 
     public function test_r2j_delegates_pricing_to_central_engine(): void
     {
-        $service = $this->capabilityService();
+        $r2j = $this->capabilityService();
+
+        $central = file_get_contents(
+            $this->root()
+            .'/app/Services/Entitlements/CentralEntitlementActivationService.php'
+        );
 
         $this->assertStringContainsString(
-            'use App\\Services\\Billing\\ServicePricingEngine;',
-            $service
+            'CentralEntitlementActivationService::class',
+            $r2j
+        );
+
+        $this->assertStringContainsString(
+            '->activateCommercialItem(',
+            $r2j
         );
 
         $this->assertStringContainsString(
             'ServicePricingEngine::class',
-            $service
+            $central
         );
 
         $this->assertStringContainsString(
             '->quote(',
-            $service
+            $central
         );
     }
 

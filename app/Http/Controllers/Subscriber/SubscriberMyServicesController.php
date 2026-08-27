@@ -6,8 +6,11 @@ use App\Http\Controllers\Controller;
 use App\Models\ActivationRequest;
 use App\Models\Company;
 use App\Models\Service;
+use App\Models\ServicePlan;
 use App\Models\Subscription;
 use App\Models\SubscriptionItem;
+use App\Models\Subscriber;
+use App\Services\Billing\StandaloneServiceCheckoutService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
@@ -24,6 +27,9 @@ class SubscriberMyServicesController extends Controller
             return redirect()->route('subscriber')
                 ->with('error', 'No tienes compañía/suscriptor asignado.');
         }
+
+        $subscriber = Subscriber::query()
+            ->find($company->subscriber_id);
 
         // Última suscripción del subscriber (trialing/active/etc.)
         $subscription = Subscription::query()
@@ -149,7 +155,7 @@ class SubscriberMyServicesController extends Controller
             ];
         });
 
-        $requestedMapped = $requestedRows->map(function ($row) use ($services, $parents) {
+        $requestedMapped = $requestedRows->map(function ($row) use ($services, $parents, $subscriber, $company) {
             $serviceId = (int) $row->service_id;
             $s = $services->get($serviceId);
 
@@ -173,6 +179,31 @@ class SubscriberMyServicesController extends Controller
                 'currency' => $s?->currency ?? null,
                 'monthly_price' => $s?->monthly_price ?? null,
                 'yearly_price' => $s?->yearly_price ?? null,
+
+                'billing_options' => $this->billingOptions(
+
+                    $subscriber,
+
+                    $company,
+
+                    $s
+
+                ),
+
+
+                'commercial_plans' => $this->commercialPlans(
+
+
+                    $subscriber,
+
+
+                    $company,
+
+
+                    $s
+
+
+                ),
                 'required_plan' => $s?->required_plan ?? null,
                 'catalog_active' => (bool) ($s?->active ?? true),
 
@@ -208,6 +239,345 @@ class SubscriberMyServicesController extends Controller
             'active_services' => $activeMapped->values(),
             'requested_services' => $requestedMapped->values(),
         ]);
+    }
+
+    private function commercialPlans(
+        ?Subscriber $subscriber,
+        Company $company,
+        ?Service $service
+    ): array {
+        if (! $service) {
+            return [];
+        }
+
+        return ServicePlan::query()
+            ->where(
+                'service_id',
+                $service->id
+            )
+            ->where('active', true)
+            ->orderBy('sort_order')
+            ->orderBy('id')
+            ->get()
+            ->map(function (
+                ServicePlan $plan
+            ) use (
+                $subscriber,
+                $company,
+                $service
+            ): array {
+                $monthly = round(
+                    (float) ($plan->monthly_price ?? 0),
+                    2
+                );
+
+                $yearly = round(
+                    (float) ($plan->yearly_price ?? 0),
+                    2
+                );
+
+                $isFree =
+                    $monthly <= 0
+                    && $yearly <= 0;
+
+                $snapshot = is_array(
+                    $plan->source_snapshot
+                )
+                    ? $plan->source_snapshot
+                    : [];
+
+                return [
+                    'id' => (int) $plan->id,
+                    'code' => (string) $plan->code,
+                    'name' => (string) $plan->name,
+                    'description' =>
+                        $plan->description,
+                    'currency' =>
+                        (string) $plan->currency,
+                    'billing_model' =>
+                        (string) $plan->billing_model,
+                    'features' =>
+                        is_array($plan->features)
+                            ? $plan->features
+                            : [],
+                    'limits' =>
+                        is_array($plan->limits)
+                            ? $plan->limits
+                            : [],
+                    'is_featured' =>
+                        (bool) (
+                            $snapshot['isFeatured']
+                            ?? false
+                        ),
+                    'is_free' => $isFree,
+                    'activation_available' =>
+                        ! $isFree,
+                    'activation_reason' =>
+                        $isFree
+                            ? (
+                                'La activación gratuita se habilitará '
+                                .'junto al flujo de cambio de plan.'
+                            )
+                            : null,
+                    'billing_options' =>
+                        $isFree
+                            ? $this->freePlanBillingOptions(
+                                $plan
+                            )
+                            : $this->billingOptionsForPlan(
+                                $subscriber,
+                                $company,
+                                $service,
+                                $plan
+                            ),
+                    'source_solution' =>
+                        (string) $plan->source_solution,
+                    'source_plan_key' =>
+                        (string) $plan->source_plan_key,
+                ];
+            })
+            ->values()
+            ->all();
+    }
+
+    private function freePlanBillingOptions(
+        ServicePlan $plan
+    ): array {
+        $reason =
+            'Starter es gratuito, pero su activación requiere '
+            .'el lifecycle de upgrade/downgrade.';
+
+        return [
+            'monthly' => [
+                'cycle' => 'monthly',
+                'label' => 'Mensual',
+                'available' => false,
+                'amount_due' => 0.0,
+                'currency' =>
+                    (string) $plan->currency,
+                'billing_model' =>
+                    (string) $plan->billing_model,
+                'reason' => $reason,
+            ],
+            'yearly' => [
+                'cycle' => 'yearly',
+                'label' => 'Anual',
+                'available' => false,
+                'amount_due' => 0.0,
+                'currency' =>
+                    (string) $plan->currency,
+                'billing_model' =>
+                    (string) $plan->billing_model,
+                'reason' => $reason,
+            ],
+        ];
+    }
+
+    private function billingOptionsForPlan(
+        ?Subscriber $subscriber,
+        Company $company,
+        Service $service,
+        ServicePlan $plan
+    ): array {
+        $options = [];
+
+        foreach (
+            [
+                'monthly' => 'Mensual',
+                'yearly' => 'Anual',
+            ] as $cycle => $label
+        ) {
+            $option = [
+                'cycle' => $cycle,
+                'label' => $label,
+                'available' => false,
+                'amount_due' => null,
+                'currency' =>
+                    (string) $plan->currency,
+                'billing_model' =>
+                    (string) $plan->billing_model,
+                'quantity' => null,
+                'unit_price' => null,
+                'tier_id' => null,
+                'tier_min_quantity' => null,
+                'tier_max_quantity' => null,
+                'service_plan_id' =>
+                    (int) $plan->id,
+                'subscription_locked' => false,
+                'active_subscription_id' => null,
+                'reason' => null,
+            ];
+
+            if (! $subscriber) {
+                $option['reason'] =
+                    'No se pudo resolver el contexto comercial.';
+
+                $options[$cycle] = $option;
+                continue;
+            }
+
+            try {
+                $preview = app(
+                    StandaloneServiceCheckoutService::class
+                )->previewQuote(
+                    $subscriber,
+                    $company,
+                    $service,
+                    $cycle,
+                    $plan
+                );
+
+                $quote = (array) (
+                    $preview['quote']
+                    ?? []
+                );
+
+                $option = array_merge(
+                    $option,
+                    [
+                        'available' => true,
+                        'amount_due' =>
+                            (float) $preview['amount_due'],
+                        'currency' =>
+                            (string) $preview['currency'],
+                        'billing_model' =>
+                            $quote['billing_model']
+                            ?? null,
+                        'quantity' =>
+                            $quote['quantity']
+                            ?? null,
+                        'unit_price' =>
+                            $quote['unit_price']
+                            ?? null,
+                        'tier_id' =>
+                            $quote['tier_id']
+                            ?? null,
+                        'tier_min_quantity' =>
+                            $quote['tier_min_quantity']
+                            ?? null,
+                        'tier_max_quantity' =>
+                            $quote['tier_max_quantity']
+                            ?? null,
+                        'service_plan_id' =>
+                            (int) $plan->id,
+                        'subscription_locked' =>
+                            false,
+                        'active_subscription_id' =>
+                            $preview[
+                                'active_subscription_id'
+                            ]
+                            ?? null,
+                    ]
+                );
+            } catch (\Throwable $e) {
+                $option['reason'] =
+                    $e->getMessage();
+            }
+
+            $options[$cycle] = $option;
+        }
+
+        return $options;
+    }
+
+    private function billingOptions(
+        ?Subscriber $subscriber,
+        Company $company,
+        ?Service $service
+    ): array {
+        $options = [];
+
+        foreach (
+            [
+                'monthly' => 'Mensual',
+                'yearly' => 'Anual',
+            ] as $cycle => $label
+        ) {
+            $option = [
+                'cycle' => $cycle,
+                'label' => $label,
+                'available' => false,
+                'amount_due' => null,
+                'currency' => null,
+                'billing_model' => null,
+                'quantity' => null,
+                'unit_price' => null,
+                'tier_id' => null,
+                'tier_min_quantity' => null,
+                'tier_max_quantity' => null,
+                'subscription_locked' => false,
+                'active_subscription_id' => null,
+                'reason' => null,
+            ];
+
+            if (! $subscriber || ! $service) {
+                $option['reason'] =
+                    'No se pudo resolver el contexto comercial.';
+
+                $options[$cycle] = $option;
+                continue;
+            }
+
+            try {
+                $preview = app(
+                    StandaloneServiceCheckoutService::class
+                )->previewQuote(
+                    $subscriber,
+                    $company,
+                    $service,
+                    $cycle
+                );
+
+                $quote = (array) (
+                    $preview['quote']
+                    ?? []
+                );
+
+                $option = array_merge(
+                    $option,
+                    [
+                        'available' => true,
+                        'amount_due' =>
+                            (float) $preview['amount_due'],
+                        'currency' =>
+                            (string) $preview['currency'],
+                        'billing_model' =>
+                            $quote['billing_model']
+                            ?? null,
+                        'quantity' =>
+                            $quote['quantity']
+                            ?? null,
+                        'unit_price' =>
+                            $quote['unit_price']
+                            ?? null,
+                        'tier_id' =>
+                            $quote['tier_id']
+                            ?? null,
+                        'tier_min_quantity' =>
+                            $quote['tier_min_quantity']
+                            ?? null,
+                        'tier_max_quantity' =>
+                            $quote['tier_max_quantity']
+                            ?? null,
+                        'subscription_locked' =>
+                            (bool) (
+                                $preview['subscription_locked']
+                                ?? false
+                            ),
+                        'active_subscription_id' =>
+                            $preview['active_subscription_id']
+                            ?? null,
+                    ]
+                );
+            } catch (\Throwable $e) {
+                $option['reason'] =
+                    $e->getMessage();
+            }
+
+            $options[$cycle] = $option;
+        }
+
+        return $options;
     }
 
     private function resolveCompany($user): ?Company

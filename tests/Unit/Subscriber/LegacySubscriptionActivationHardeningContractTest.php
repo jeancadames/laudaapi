@@ -43,17 +43,36 @@ class LegacySubscriptionActivationHardeningContractTest extends TestCase
     public function test_r2i_remains_real_subscription_creation_boundary(): void
     {
         $r2i = file_get_contents(
-            $this->root().'/app/Services/Diagnosis/TransformationImplementationSubscriptionService.php'
+            $this->root()
+            .'/app/Services/Diagnosis/TransformationImplementationSubscriptionService.php'
+        );
+
+        $central = file_get_contents(
+            $this->root()
+            .'/app/Services/Entitlements/CentralEntitlementActivationService.php'
         );
 
         foreach ([
             'activateFromGoLive(',
             'STATUS_LIVE',
-            'Subscription::query()->create(',
+            '->ensureSubscription(',
+            'SOURCE_TRANSFORMATION_360',
+        ] as $required) {
+            $this->assertStringContainsString(
+                $required,
+                $r2i
+            );
+        }
+
+        foreach ([
+            'Subscription::query()->create',
             "'status' => 'active'",
             "'trial_ends_at' => null",
         ] as $required) {
-            $this->assertStringContainsString($required, $r2i);
+            $this->assertStringContainsString(
+                $required,
+                $central
+            );
         }
     }
 

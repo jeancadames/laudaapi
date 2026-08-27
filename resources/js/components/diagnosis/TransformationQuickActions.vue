@@ -16,11 +16,13 @@ const props = withDefaults(
         progress?: {
             steps?: ProgressStep[];
         } | null;
+        implementationPlanUrl?: string | null;
     }>(),
     {
         assessmentId: null,
         contactId: null,
         progress: null,
+        implementationPlanUrl: null,
     },
 );
 
@@ -99,7 +101,7 @@ const disabledClass =
 
         <div
             v-if="mode === 'client'"
-            class="grid gap-2 sm:grid-cols-2 lg:grid-cols-3"
+            class="grid gap-2 sm:grid-cols-2 lg:grid-cols-4"
         >
             <Link
                 v-if="clientDiagnosisUrl"
@@ -129,6 +131,17 @@ const disabledClass =
             </Link>
             <span v-else :class="disabledClass">
                 Roadmap Detallado no disponible
+            </span>
+
+            <Link
+                v-if="implementationPlanUrl"
+                :href="implementationPlanUrl"
+                :class="enabledClass"
+            >
+                Continuar con mi transformación
+            </Link>
+            <span v-else :class="disabledClass">
+                Plan de Implementación en preparación
             </span>
         </div>
 

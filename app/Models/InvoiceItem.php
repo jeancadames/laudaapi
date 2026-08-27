@@ -15,6 +15,7 @@ class InvoiceItem extends Model
     protected $fillable = [
         'invoice_id',
         'service_id',
+        'service_plan_id',
         'description',
         'quantity',
         'unit_price',
@@ -27,6 +28,7 @@ class InvoiceItem extends Model
     ];
 
     protected $casts = [
+        'service_plan_id' => 'integer',
         'quantity' => 'integer',
 
         'unit_price' => 'decimal:2',
@@ -38,6 +40,14 @@ class InvoiceItem extends Model
 
         'meta' => 'array',
     ];
+
+    public function servicePlan(): \Illuminate\Database\Eloquent\Relations\BelongsTo
+    {
+        return $this->belongsTo(
+            ServicePlan::class,
+            'service_plan_id'
+        );
+    }
 
     protected static function booted(): void
     {

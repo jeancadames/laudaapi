@@ -18,6 +18,11 @@ class SubscriptionMutationHardeningContractTest extends TestCase
             .'/app/Http/Controllers/Subscriber/SubscriberServiceActivationController.php'
         );
 
+        $checkout = file_get_contents(
+            $this->root()
+            .'/app/Services/Billing/StandaloneServiceCheckoutService.php'
+        );
+
         foreach ([
             'buildTrialItem',
             'SubscriptionTotalsService::class',
@@ -31,17 +36,27 @@ class SubscriptionMutationHardeningContractTest extends TestCase
             );
         }
 
-        foreach ([
+        $this->assertStringContainsString(
             'legacy_service_trial_activation_blocked_t360',
+            $controller
+        );
+
+        foreach ([
             "'pending_payment'",
-            "'entitlement_granted' =>",
-            'false',
+            "'entitlement_granted' => false",
+            'Invoice::query()->create',
+            'InvoiceItem::query()->create',
         ] as $required) {
             $this->assertStringContainsString(
                 $required,
-                $controller
+                $checkout
             );
         }
+
+        $this->assertStringNotContainsString(
+            'SubscriptionItem::query()->create',
+            $checkout
+        );
     }
 
     public function test_cancellation_recalculates_central_totals(): void
@@ -95,19 +110,24 @@ class SubscriptionMutationHardeningContractTest extends TestCase
 
     public function test_r2j_keeps_using_same_totals_engine(): void
     {
-        $service = file_get_contents(
+        $r2j = file_get_contents(
             $this->root()
             .'/app/Services/Diagnosis/TransformationImplementationCapabilitySubscriptionService.php'
         );
 
-        $this->assertStringContainsString(
-            'SubscriptionTotalsService::class',
-            $service
+        $central = file_get_contents(
+            $this->root()
+            .'/app/Services/Entitlements/CentralEntitlementActivationService.php'
         );
 
         $this->assertStringContainsString(
-            'recalculateSubscriptionTotals',
-            $service
+            '->activateCommercialItem(',
+            $r2j
+        );
+
+        $this->assertStringContainsString(
+            'SubscriptionTotalsService::class',
+            $central
         );
     }
 }

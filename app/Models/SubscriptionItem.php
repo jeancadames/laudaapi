@@ -15,6 +15,7 @@ class SubscriptionItem extends Model
         'subscription_id' => 'integer',
         'service_id' => 'integer',
 
+        'service_plan_id' => 'integer',
         'quantity' => 'integer',
         'block_size' => 'integer',
         'included_units' => 'integer',
@@ -40,6 +41,14 @@ class SubscriptionItem extends Model
     public function service(): BelongsTo
     {
         return $this->belongsTo(Service::class);
+    }
+
+    public function servicePlan(): BelongsTo
+    {
+        return $this->belongsTo(
+            ServicePlan::class,
+            'service_plan_id'
+        );
     }
 
     // -------------------------

@@ -114,4 +114,23 @@ class DiagnosisTransformationQuickActionsContractTest extends TestCase
             $this->assertStringContainsString($token, $source);
         }
     }
+
+    public function test_client_exposes_implementation_plan_continuation(): void
+    {
+        $source = file_get_contents(
+            dirname(__DIR__, 3)
+            .'/resources/js/components/diagnosis/TransformationQuickActions.vue'
+        );
+
+        foreach ([
+            'implementationPlanUrl?: string | null',
+            'v-if="implementationPlanUrl"',
+            ':href="implementationPlanUrl"',
+            'Continuar con mi transformación',
+            'Plan de Implementación en preparación',
+        ] as $token) {
+            $this->assertStringContainsString($token, $source);
+        }
+    }
+
 }

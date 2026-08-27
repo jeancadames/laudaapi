@@ -69,6 +69,7 @@ interface BusinessProfileOptions {
 
 interface Endpoints {
     request_expanded_report: string;
+    implementation_plan_url: string | null;
 
     update: string;
     submit: string;
@@ -401,6 +402,7 @@ function submitDiagnosis(payload: {
                 mode="client"
                 :assessment-id="assessment.id"
                 :progress="transformation_progress"
+                :implementation-plan-url="endpoints.implementation_plan_url"
             />
 
             <Card v-if="isEditable" class="mb-6">

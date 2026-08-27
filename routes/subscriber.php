@@ -107,12 +107,10 @@ Route::middleware(['auth', 'verified', 'role:subscriber', 'activation.accepted']
 
             // ✅ Solicitar/quitar (toggle) desde el catálogo
             Route::post('/request', [SubscriberServiceRequestController::class, 'toggle'])
-                ->middleware('subscription.active')
                 ->name('request.toggle');
 
             // ✅ Activar servicio solicitado (pasa a subscription_items)
             Route::post('/activate', [SubscriberServiceActivationController::class, 'activate'])
-                ->middleware('subscription.active')
                 ->name('activate');
 
             // ✅ Cancelar subscription_item

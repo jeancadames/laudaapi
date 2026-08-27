@@ -110,21 +110,43 @@ class TransformationImplementationE2EContractTest extends TestCase
 
     public function test_subscription_cannot_start_before_live(): void
     {
-        $subscription = $this->read(
+        $r2i = $this->read(
             'app/Services/Diagnosis/TransformationImplementationSubscriptionService.php'
+        );
+
+        $central = $this->read(
+            'app/Services/Entitlements/CentralEntitlementActivationService.php'
         );
 
         $this->assertStringContainsString(
             'TransformationImplementationCapabilityGoLive::STATUS_LIVE',
-            $subscription
+            $r2i
         );
 
         $this->assertStringContainsString(
-            "'starts_at' => \$goLive->went_live_at",
-            $subscription
+            '->ensureSubscription(',
+            $r2i
         );
 
-        $this->assertStringContainsString("'trial_ends_at' => null", $subscription);
+        $this->assertStringContainsString(
+            '$goLive->went_live_at',
+            $r2i
+        );
+
+        $this->assertStringContainsString(
+            "'starts_at' =>",
+            $central
+        );
+
+        $this->assertStringContainsString(
+            '$effectiveAt',
+            $central
+        );
+
+        $this->assertStringContainsString(
+            "'trial_ends_at' => null",
+            $central
+        );
     }
 
     public function test_subscription_is_idempotent_per_go_live(): void
@@ -148,20 +170,26 @@ class TransformationImplementationE2EContractTest extends TestCase
             'app/Services/Diagnosis/TransformationImplementationCapabilitySubscriptionService.php'
         );
 
-        $this->assertStringContainsString('$capabilityKey', $capability);
+        foreach ([
+            '$capabilityKey',
+            'TransformationImplementationCapabilityServiceMapping::query()',
+            "'capability_key'",
+            "'service_id' =>",
+            '->activateCommercialItem(',
+        ] as $required) {
+            $this->assertStringContainsString(
+                $required,
+                $capability
+            );
+        }
 
-        $this->assertStringContainsString(
-            "->where('capability_key', \$capabilityKey)",
-            $capability
-        );
-
-        $this->assertStringContainsString(
-            "'service_id' => \$service->id",
+        $this->assertStringNotContainsString(
+            'foreach ($phase->capabilities',
             $capability
         );
 
         $this->assertStringNotContainsString(
-            'foreach ($phase->capabilities',
+            'foreach ($plan->phases',
             $capability
         );
     }
@@ -184,8 +212,12 @@ class TransformationImplementationE2EContractTest extends TestCase
 
     public function test_subscription_item_pricing_uses_central_catalog_engine(): void
     {
-        $capability = $this->read(
+        $r2j = $this->read(
             'app/Services/Diagnosis/TransformationImplementationCapabilitySubscriptionService.php'
+        );
+
+        $central = $this->read(
+            'app/Services/Entitlements/CentralEntitlementActivationService.php'
         );
 
         $engine = $this->read(
@@ -193,13 +225,18 @@ class TransformationImplementationE2EContractTest extends TestCase
         );
 
         $this->assertStringContainsString(
+            '->activateCommercialItem(',
+            $r2j
+        );
+
+        $this->assertStringContainsString(
             'ServicePricingEngine::class',
-            $capability
+            $central
         );
 
         $this->assertStringContainsString(
             '->quote(',
-            $capability
+            $central
         );
 
         foreach ([
@@ -293,33 +330,59 @@ class TransformationImplementationE2EContractTest extends TestCase
             'app/Services/Diagnosis/TransformationImplementationGoLiveService.php'
         );
 
-        $subscription = $this->read(
+        $r2i = $this->read(
             'app/Services/Diagnosis/TransformationImplementationSubscriptionService.php'
         );
 
-        $item = $this->read(
+        $r2j = $this->read(
             'app/Services/Diagnosis/TransformationImplementationCapabilitySubscriptionService.php'
         );
 
-        $this->assertStringNotContainsString('Subscription::query()->create', $billing);
-        $this->assertStringNotContainsString('Subscription::query()->create', $execution);
-        $this->assertStringNotContainsString('Subscription::query()->create', $goLive);
-
-        $this->assertStringContainsString(
-            'Subscription::query()->create',
-            $subscription
+        $central = $this->read(
+            'app/Services/Entitlements/CentralEntitlementActivationService.php'
         );
 
         foreach ([
-            'SubscriptionItem::query()',
-            '->create(',
-            '$existingItem->forceFill(',
-            '->lockForUpdate()',
-        ] as $required) {
-            $this->assertStringContainsString(
-                $required,
-                $item
+            $billing,
+            $execution,
+            $goLive,
+            $r2i,
+            $r2j,
+        ] as $adapter) {
+            $this->assertStringNotContainsString(
+                'Subscription::query()->create',
+                $adapter
+            );
+
+            $this->assertStringNotContainsString(
+                'SubscriptionItem::query()->create',
+                $adapter
             );
         }
+
+        $this->assertStringContainsString(
+            'TransformationImplementationCapabilityGoLive::STATUS_LIVE',
+            $r2i
+        );
+
+        $this->assertStringContainsString(
+            '->ensureSubscription(',
+            $r2i
+        );
+
+        $this->assertStringContainsString(
+            '->activateCommercialItem(',
+            $r2j
+        );
+
+        $this->assertStringContainsString(
+            'Subscription::query()->create',
+            $central
+        );
+
+        $this->assertStringContainsString(
+            'SubscriptionItem::query()',
+            $central
+        );
     }
 }

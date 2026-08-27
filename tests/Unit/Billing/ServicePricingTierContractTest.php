@@ -150,6 +150,11 @@ class ServicePricingTierContractTest extends TestCase
             .'/app/Services/Diagnosis/TransformationImplementationCapabilitySubscriptionService.php'
         );
 
+        $central = file_get_contents(
+            $this->root()
+            .'/app/Services/Entitlements/CentralEntitlementActivationService.php'
+        );
+
         foreach ([
             "'pricing' => [",
             "'pricing_version' =>",
@@ -160,8 +165,18 @@ class ServicePricingTierContractTest extends TestCase
         ] as $required) {
             $this->assertStringContainsString(
                 $required,
-                $r2j
+                $central
             );
         }
+
+        $this->assertStringContainsString(
+            "'price_snapshot' =>",
+            $r2j
+        );
+
+        $this->assertStringContainsString(
+            "\$central['pricing']",
+            $r2j
+        );
     }
 }

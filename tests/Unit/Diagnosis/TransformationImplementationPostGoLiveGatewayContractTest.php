@@ -31,21 +31,22 @@ class TransformationImplementationPostGoLiveGatewayContractTest extends TestCase
         }
     }
 
-    public function test_gateway_sends_entitled_subscriber_to_erp_and_otherwise_to_diagnosis(): void
+    public function test_gateway_renders_central_hub_and_otherwise_falls_back_to_diagnosis(): void
     {
         $source = $this->read('app/Http/Controllers/AppGatewayController.php');
 
         foreach ([
             'SubscriberResolver',
             'CompanyContextResolver',
-            'SubscriberEntitlements',
-            'erpServicesForSubscriber(',
-            "'erp.dashboard'",
+            'EcosystemHubService',
+            "'App/Hub'",
             'DiagnosisAccessRequest::query()',
             "'diagnosis.show'",
         ] as $token) {
             $this->assertStringContainsString($token, $source);
         }
+
+        $this->assertStringNotContainsString("'erp.dashboard'", $source);
 
         $routes = $this->read('routes/web.php');
         $this->assertStringContainsString("->name('app.gateway')", $routes);

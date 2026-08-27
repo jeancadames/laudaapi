@@ -3,6 +3,8 @@
 namespace App\Services\Billing;
 
 use App\Models\Service;
+use App\Models\ServicePlan;
+use App\Models\ServicePlanPricingTier;
 use App\Models\ServicePricingTier;
 use App\Models\Subscription;
 use Illuminate\Support\Facades\DB;
@@ -203,6 +205,274 @@ class ServicePricingEngine
             'tier_min_quantity' => null,
             'tier_max_quantity' => null,
         ];
+    }
+
+    /**
+     * Cotiza un plan comercial espejado desde una solución.
+     * El ciclo es explícito por contrato/item.
+     */
+    public function quotePlan(
+        Service $service,
+        ServicePlan $plan,
+        Subscription $subscription,
+        string $billingCycle,
+        ?int $quantity = null
+    ): array {
+        $cycle = strtolower(trim($billingCycle));
+
+        if (! in_array($cycle, ['monthly', 'yearly'], true)) {
+            throw ValidationException::withMessages([
+                'billing_cycle' =>
+                    'El ciclo de facturación debe ser monthly o yearly.',
+            ]);
+        }
+
+        if (
+            ! $plan->active
+            || (int) $plan->service_id !== (int) $service->id
+        ) {
+            throw ValidationException::withMessages([
+                'service_plan' =>
+                    'El plan no está activo o no pertenece al Service.',
+            ]);
+        }
+
+        $model = strtolower(
+            trim((string) ($plan->billing_model ?? self::MODEL_FLAT))
+        );
+
+        if (! in_array(
+            $model,
+            [
+                self::MODEL_FLAT,
+                self::MODEL_PER_USER,
+                self::MODEL_SEAT_BLOCK,
+                self::MODEL_USAGE,
+            ],
+            true
+        )) {
+            throw ValidationException::withMessages([
+                'billing_model' =>
+                    'El billing_model del ServicePlan no es compatible.',
+            ]);
+        }
+
+        $currency = $this->planCurrency($plan, $subscription);
+
+        $base = [
+            'pricing_version' => 'plan-v1',
+            'pricing_source' => 'service_plan',
+            'service_plan_id' => (int) $plan->id,
+            'service_plan_code' => (string) $plan->code,
+            'service_plan_name' => (string) $plan->name,
+            'source_solution' => (string) $plan->source_solution,
+            'source_plan_key' => (string) $plan->source_plan_key,
+            'billing_model' => $model,
+            'currency' => $currency,
+            'cycle' => $cycle,
+        ];
+
+        if ($model === self::MODEL_USAGE) {
+            return array_merge($base, [
+                'quantity' => 1,
+                'quantity_source' => 'usage',
+                'unit_price' => 0.0,
+                'amount' => 0.0,
+                'block_size' => $plan->block_size,
+                'included_units' => (int) ($plan->included_units ?? 0),
+                'unit_name' => $plan->unit_name,
+                'overage_unit_price' =>
+                    (float) ($plan->overage_unit_price ?? 0),
+                'tier_id' => null,
+                'tier_min_quantity' => null,
+                'tier_max_quantity' => null,
+            ]);
+        }
+
+        if ($model === self::MODEL_PER_USER) {
+            $price = $this->planCyclePrice($plan, $cycle);
+
+            [$resolvedQuantity, $quantitySource] =
+                $this->seatQuantity($subscription, $quantity);
+
+            return array_merge($base, [
+                'quantity' => $resolvedQuantity,
+                'quantity_source' => $quantitySource,
+                'unit_price' => $price,
+                'amount' => round($price * $resolvedQuantity, 2),
+                'block_size' => null,
+                'included_units' => null,
+                'unit_name' => $plan->unit_name ?: 'usuario',
+                'overage_unit_price' => null,
+                'tier_id' => null,
+                'tier_min_quantity' => null,
+                'tier_max_quantity' => null,
+            ]);
+        }
+
+        if ($model === self::MODEL_SEAT_BLOCK) {
+            [$resolvedQuantity, $quantitySource] =
+                $this->seatQuantity($subscription, $quantity);
+
+            $tier = $this->resolvePlanSeatBlockTier(
+                $plan,
+                $cycle,
+                $resolvedQuantity,
+                $currency
+            );
+
+            $price = round((float) $tier->price, 2);
+
+            $blockSize =
+                $tier->max_quantity !== null
+                    ? (
+                        (int) $tier->max_quantity
+                        - (int) $tier->min_quantity
+                        + 1
+                    )
+                    : null;
+
+            return array_merge($base, [
+                'quantity' => $resolvedQuantity,
+                'quantity_source' => $quantitySource,
+                'unit_price' => $price,
+                'amount' => $price,
+                'block_size' => $blockSize,
+                'included_units' => null,
+                'unit_name' => $plan->unit_name ?: 'usuario',
+                'overage_unit_price' => null,
+                'tier_id' => (int) $tier->id,
+                'tier_min_quantity' => (int) $tier->min_quantity,
+                'tier_max_quantity' =>
+                    $tier->max_quantity !== null
+                        ? (int) $tier->max_quantity
+                        : null,
+            ]);
+        }
+
+        $price = $this->planCyclePrice($plan, $cycle);
+
+        return array_merge($base, [
+            'quantity' => 1,
+            'quantity_source' => 'fixed',
+            'unit_price' => $price,
+            'amount' => $price,
+            'block_size' => null,
+            'included_units' => null,
+            'unit_name' => null,
+            'overage_unit_price' => null,
+            'tier_id' => null,
+            'tier_min_quantity' => null,
+            'tier_max_quantity' => null,
+        ]);
+    }
+
+    private function resolvePlanSeatBlockTier(
+        ServicePlan $plan,
+        string $cycle,
+        int $quantity,
+        string $currency
+    ): ServicePlanPricingTier {
+        $tiers = ServicePlanPricingTier::query()
+            ->where('service_plan_id', $plan->id)
+            ->where('billing_cycle', $cycle)
+            ->where('active', true)
+            ->where('min_quantity', '<=', $quantity)
+            ->where(function ($query) use ($quantity) {
+                $query
+                    ->whereNull('max_quantity')
+                    ->orWhere('max_quantity', '>=', $quantity);
+            })
+            ->orderBy('min_quantity')
+            ->get();
+
+        if ($tiers->count() !== 1) {
+            throw ValidationException::withMessages([
+                'pricing_tier' =>
+                    'El plan seat_block debe resolver exactamente un tier.',
+            ]);
+        }
+
+        $tier = $tiers->first();
+
+        if (
+            strtoupper(trim((string) $tier->currency))
+            !== $currency
+        ) {
+            throw ValidationException::withMessages([
+                'currency' =>
+                    'La moneda del tier debe coincidir con el ServicePlan.',
+            ]);
+        }
+
+        if ((float) $tier->price < 0) {
+            throw ValidationException::withMessages([
+                'price' => 'El precio del tier no puede ser negativo.',
+            ]);
+        }
+
+        return $tier;
+    }
+
+    private function planCurrency(
+        ServicePlan $plan,
+        Subscription $subscription
+    ): string {
+        $planCurrency = strtoupper(
+            trim((string) ($plan->currency ?? ''))
+        );
+
+        $subscriptionCurrency = strtoupper(
+            trim((string) ($subscription->currency ?? 'DOP'))
+        );
+
+        if (
+            ! preg_match('/^[A-Z]{3}$/', $planCurrency)
+            || ! preg_match('/^[A-Z]{3}$/', $subscriptionCurrency)
+        ) {
+            throw ValidationException::withMessages([
+                'currency' =>
+                    'Plan y Subscription deben usar moneda ISO de tres letras.',
+            ]);
+        }
+
+        if ($planCurrency !== $subscriptionCurrency) {
+            throw ValidationException::withMessages([
+                'currency' =>
+                    'La moneda del ServicePlan debe coincidir '
+                    .'con la moneda comercial del Subscriber.',
+            ]);
+        }
+
+        return $planCurrency;
+    }
+
+    private function planCyclePrice(
+        ServicePlan $plan,
+        string $cycle
+    ): float {
+        $rawPrice =
+            $cycle === 'yearly'
+                ? $plan->yearly_price
+                : $plan->monthly_price;
+
+        if ($rawPrice === null) {
+            throw ValidationException::withMessages([
+                'price' =>
+                    "El ServicePlan no tiene precio {$cycle} configurado.",
+            ]);
+        }
+
+        $price = round((float) $rawPrice, 2);
+
+        if ($price < 0) {
+            throw ValidationException::withMessages([
+                'price' =>
+                    'El precio del ServicePlan no puede ser negativo.',
+            ]);
+        }
+
+        return $price;
     }
 
     private function resolveSeatBlockTier(
