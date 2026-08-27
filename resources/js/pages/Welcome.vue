@@ -948,12 +948,17 @@ function handleScroll() {
     updateActiveSection()
 }
 
-function goLogin() {
-    window.location.assign('https://app.laudaapi.com/login')
+const APP_HUB_URL = 'https://app.laudaapi.com'
+
+function goRegister() {
+    window.location.assign(`${APP_HUB_URL}/register`)
 }
 
-function goAppHub() {
-    window.location.assign('https://app.laudaapi.com')
+function goLogin() {
+    // Login único para clientes y administración.
+    // Después de autenticar, el backend decide el destino según
+    // permisos y/o la URL que el usuario intentaba visitar.
+    window.location.assign(`${APP_HUB_URL}/login`)
 }
 
 function openMobileMenu() {
@@ -1078,9 +1083,14 @@ onBeforeUnmount(() => {
                     <component :is="isDarkMode ? Sun : Moon" class="h-4 w-4" />
                 </button>
 
-                <Button class="lauda-login-button hidden gap-2 rounded-xl bg-[#0B0B12] px-6 py-6 text-white hover:bg-black lg:inline-flex" @click="goLogin">
+                <Button variant="outline" class="lauda-outline-button hidden gap-2 rounded-xl px-5 py-5 lg:inline-flex" @click="goLogin">
                     <User class="h-4 w-4" />
                     Iniciar sesión
+                </Button>
+
+                <Button class="lauda-login-button hidden gap-2 rounded-xl bg-(--brand) px-5 py-5 text-white hover:bg-(--brand-hover) lg:inline-flex" @click="goRegister">
+                    <ArrowRight class="h-4 w-4" />
+                    Crear cuenta
                 </Button>
 
                 <!-- Hamburguesa (solo móvil / tablet) -->
@@ -1120,8 +1130,13 @@ onBeforeUnmount(() => {
                         </nav>
                     </div>
 
-                    <div class="mt-4 border-t border-border pt-4">
-                        <Button class="w-full gap-2 rounded-xl bg-[#0B0B12] py-6 text-white hover:bg-black" @click="closeMobileMenu(); goLogin()">
+                    <div class="mt-4 grid gap-2 border-t border-border pt-4">
+                        <Button class="w-full gap-2 rounded-xl bg-(--brand) py-6 text-white hover:bg-(--brand-hover)" @click="closeMobileMenu(); goRegister()">
+                            <ArrowRight class="h-4 w-4" />
+                            Crear cuenta
+                        </Button>
+
+                        <Button variant="outline" class="lauda-outline-button w-full gap-2 rounded-xl py-6" @click="closeMobileMenu(); goLogin()">
                             <User class="h-4 w-4" />
                             Iniciar sesión
                         </Button>
@@ -1318,8 +1333,8 @@ onBeforeUnmount(() => {
                         </h2>
 
                         <p class="mt-4 max-w-2xl text-sm leading-relaxed text-muted">
-                            app.laudaapi.com centraliza su cuenta, empresa, contratación, suscripción, facturas, pagos,
-                            soluciones habilitadas y acceso. Cada solución mantiene su propia plataforma y operación.
+                            Cree su cuenta directamente en app.laudaapi.com y centralice empresa, contratación, suscripción,
+                            facturas, pagos, soluciones habilitadas y acceso. Cada solución mantiene su propia plataforma y operación.
                         </p>
 
                         <div class="mt-6 grid gap-3 sm:grid-cols-2">
@@ -1381,9 +1396,14 @@ onBeforeUnmount(() => {
                         </div>
 
                         <div class="mt-6 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
-                            <Button class="w-full justify-center gap-2 rounded-xl bg-[#0B0B12] px-6 py-6 text-white hover:bg-black sm:w-auto" @click="goAppHub">
+                            <Button class="w-full justify-center gap-2 rounded-xl bg-(--brand) px-6 py-6 text-white hover:bg-(--brand-hover) sm:w-auto" @click="goRegister">
+                                <ArrowRight class="h-4 w-4" />
+                                Crear cuenta
+                            </Button>
+
+                            <Button class="w-full justify-center gap-2 rounded-xl bg-[#0B0B12] px-6 py-6 text-white hover:bg-black sm:w-auto" @click="goLogin">
                                 <User class="h-4 w-4" />
-                                Ir a app.laudaapi.com
+                                Iniciar sesión
                             </Button>
 
                             <Button variant="outline" class="lauda-outline-button w-full justify-center gap-2 rounded-xl px-6 py-6 sm:w-auto" @click="scrollToId('soluciones')">
@@ -1391,6 +1411,10 @@ onBeforeUnmount(() => {
                                 <ArrowRight class="h-4 w-4" />
                             </Button>
                         </div>
+
+                        <p class="mt-3 max-w-2xl text-xs leading-relaxed text-muted">
+                            ¿Ya tiene una cuenta? El mismo inicio de sesión sirve para clientes y usuarios administrativos; el acceso posterior depende de sus permisos.
+                        </p>
                     </div>
 
                     <div class="border-t border-border bg-(--surface-soft) p-5 sm:p-6 lg:border-l lg:border-t-0 lg:p-8">
@@ -1418,7 +1442,7 @@ onBeforeUnmount(() => {
                                             Contratar una solución
                                         </h4>
                                         <p class="mt-2 text-sm leading-relaxed text-muted">
-                                            Explore Social, CRM, POS, e-CF y otras soluciones, conozca su producto y gestione su contratación desde su cuenta LAUDAAPI.
+                                            Cree su cuenta, explore Social, CRM, POS, e-CF y otras soluciones, conozca su producto y gestione la contratación desde el App Hub.
                                         </p>
                                         <button type="button" class="mt-4 inline-flex items-center gap-2 text-sm font-black text-(--brand)" @click="scrollToId('soluciones')">
                                             Explorar soluciones
