@@ -15,6 +15,7 @@ import { request } from '@/routes/password';
 
 defineProps<{
     status?: string;
+    error?: string;
     canResetPassword: boolean;
     canRegister: boolean;
 }>();
@@ -32,6 +33,16 @@ defineProps<{
             class="mb-4 text-center text-sm font-medium text-green-600"
         >
             {{ status }}
+        </div>
+
+        <!-- inactive_access_error -->
+        <div
+            v-if="error"
+            role="alert"
+            aria-live="assertive"
+            class="mb-4 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-semibold leading-relaxed text-red-700"
+        >
+            {{ error }}
         </div>
 
         <Form
