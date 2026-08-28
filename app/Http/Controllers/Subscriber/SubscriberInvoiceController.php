@@ -98,64 +98,124 @@ class SubscriberInvoiceController extends Controller
     public function show(Request $request, \App\Models\Invoice $invoice)
     {
         $user = $request->user();
-        if (!$user) abort(403);
+
+        if (! $user) {
+            abort(403);
+        }
 
         $company = $this->resolveCompany($user);
-        if (!$company || (int) $invoice->company_id !== (int) $company->id) {
+
+        if (
+            ! $company
+            || (int) $invoice->company_id !== (int) $company->id
+        ) {
             abort(404);
         }
+
+        $invoice->load([
+            'items.service',
+            'items.servicePlan',
+        ]);
 
         $total = (float) $invoice->total;
         $paid = (float) $invoice->amount_paid;
         $balance = max(0, $total - $paid);
 
-        return \Inertia\Inertia::render('Subscriber/Invoices/Show', [
-            'company' => [
-                'id' => $company->id,
-                'name' => $company->name,
-                'currency' => $company->currency,
-                'timezone' => $company->timezone,
-            ],
+        $billingCycle = data_get(
+            $invoice->billing_snapshot,
+            'billing_cycle'
+        );
 
-            'invoice' => [
-                'id' => $invoice->id,
-                'company_id' => $invoice->company_id,
-                'subscription_id' => $invoice->subscription_id,
+        $items = $invoice->items
+            ->map(function ($item) use ($billingCycle): array {
+                $itemCycle = data_get(
+                    $item->meta,
+                    'billing_cycle',
+                    $billingCycle
+                );
 
-                'number' => $invoice->number,
-                'status' => $invoice->status,
+                return [
+                    'id' => (int) $item->id,
+                    'description' => (string) (
+                        $item->description
+                        ?: $item->service?->title
+                        ?: 'Servicio LAUDAAPI'
+                    ),
+                    'quantity' => (int) ($item->quantity ?: 1),
+                    'unit_price' => (string) $item->unit_price,
+                    'line_subtotal' => (string) $item->line_subtotal,
+                    'discount_amount' => (string) $item->discount_amount,
+                    'tax_amount' => (string) $item->tax_amount,
+                    'line_total' => (string) $item->line_total,
+                    'service_name' => $item->service?->title,
+                    'plan_name' => $item->servicePlan?->name,
+                    'plan_code' => $item->servicePlan?->code,
+                    'billing_cycle' => $itemCycle,
+                ];
+            })
+            ->values()
+            ->all();
 
-                'issued_on' => optional($invoice->issued_on)->format('Y-m-d'),
-                'due_on' => optional($invoice->due_on)->format('Y-m-d'),
+        return \Inertia\Inertia::render(
+            'Subscriber/Invoices/Show',
+            [
+                'company' => [
+                    'id' => $company->id,
+                    'name' => $company->name,
+                    'legal_name' => $company->legal_name ?? null,
+                    'tax_id' =>
+                        $company->rnc
+                        ?? $company->tax_id
+                        ?? $company->tax_identifier
+                        ?? null,
+                    'country' =>
+                        $company->country
+                        ?? $company->country_code
+                        ?? null,
+                    'currency' => $company->currency,
+                    'timezone' => $company->timezone,
+                ],
 
-                'period_start' => optional($invoice->period_start)->toDateTimeString(),
-                'period_end' => optional($invoice->period_end)->toDateTimeString(),
+                'invoice' => [
+                    'id' => $invoice->id,
+                    'number' => $invoice->number,
+                    'status' => $invoice->status,
 
-                'currency' => $invoice->currency,
+                    'issued_on' =>
+                        optional($invoice->issued_on)->format('Y-m-d'),
+                    'due_on' =>
+                        optional($invoice->due_on)->format('Y-m-d'),
 
-                'subtotal' => (string) $invoice->subtotal,
-                'discount_total' => (string) $invoice->discount_total,
-                'tax_total' => (string) $invoice->tax_total,
-                'total' => (string) $invoice->total,
-                'amount_paid' => (string) $invoice->amount_paid,
-                'balance' => number_format($balance, 2, '.', ''),
+                    'period_start' =>
+                        optional($invoice->period_start)->format('Y-m-d'),
+                    'period_end' =>
+                        optional($invoice->period_end)->format('Y-m-d'),
 
-                'billing_snapshot' => $invoice->billing_snapshot, // json
-                'document_class' => $invoice->document_class,
-                'document_type' => $invoice->document_type,
-                'fiscal_number' => $invoice->fiscal_number,
-                'security_code' => $invoice->security_code,
-                'fiscal_meta' => $invoice->fiscal_meta, // json
+                    'currency' => $invoice->currency,
+                    'subtotal' => (string) $invoice->subtotal,
+                    'discount_total' =>
+                        (string) $invoice->discount_total,
+                    'tax_total' => (string) $invoice->tax_total,
+                    'total' => (string) $invoice->total,
+                    'amount_paid' =>
+                        (string) $invoice->amount_paid,
+                    'balance' =>
+                        number_format($balance, 2, '.', ''),
 
-                'provider' => $invoice->provider,
-                'provider_invoice_id' => $invoice->provider_invoice_id,
-                'hosted_invoice_url' => $invoice->hosted_invoice_url,
-                'payment_url' => $invoice->payment_url,
+                    'document_class' => $invoice->document_class,
+                    'document_type' => $invoice->document_type,
+                    'fiscal_number' => $invoice->fiscal_number,
+                    'security_code' => $invoice->security_code,
 
-                'created_at' => optional($invoice->created_at)->toDateTimeString(),
-                'updated_at' => optional($invoice->updated_at)->toDateTimeString(),
-            ],
-        ]);
+                    'hosted_invoice_url' =>
+                        $invoice->hosted_invoice_url,
+                    'payment_url' => $invoice->payment_url,
+
+                    'billing_cycle' => $billingCycle,
+                    'items' => $items,
+                ],
+            ]
+        );
     }
 
 
