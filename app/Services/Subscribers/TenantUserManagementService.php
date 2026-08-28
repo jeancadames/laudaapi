@@ -149,7 +149,12 @@ final class TenantUserManagementService
                         Str::password(48)
                     ),
                     'role' => 'subscriber',
-                    'must_change_password' => false,
+                    /*
+                     * A3 invitation marker:
+                     * the first secure password setup also proves control
+                     * of the invited mailbox.
+                     */
+                    'must_change_password' => true,
                 ]);
 
                 $created = true;
@@ -312,6 +317,17 @@ final class TenantUserManagementService
             ->first();
 
         abort_unless($membership, 404);
+
+        /*
+         * Recovery for A3 users created before the verification fix:
+         * when the address is still unverified, re-arm the initial-access
+         * marker before sending the secure password link.
+         */
+        if ($member->email_verified_at === null) {
+            $member->forceFill([
+                'must_change_password' => true,
+            ])->save();
+        }
 
         try {
             return Password::sendResetLink([
