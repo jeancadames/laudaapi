@@ -38,29 +38,41 @@ class AppGatewayController extends Controller
                 );
 
                 if ($company) {
-                    return Inertia::render(
-                        'App/Hub',
-                        [
-                            'company' => [
-                                'id' => $company->id,
-                                'name' =>
-                                    $company->name
-                                    ?? $company->business_name
-                                    ?? 'Mi empresa',
-                                'subscriber_id' =>
-                                    $company->subscriber_id,
-                            ],
-                            'groups' =>
-                                $hubService->groupsFor(
-                                    $user,
-                                    $company
-                                ),
-                        ]
-                    );
+                    return Inertia::render('App/Hub', [
+                        'company' => [
+                            'id' => $company->id,
+                            'name' =>
+                                $company->name
+                                ?? $company->business_name
+                                ?? 'Mi empresa',
+                            'subscriber_id' => $company->subscriber_id,
+                        ],
+                        'groups' =>
+                            $hubService->groupsFor($user, $company),
+                    ]);
                 }
             }
+
+            // Si el usuario llegó por T360, conserva ese flujo.
+            $access = DiagnosisAccessRequest::query()
+                ->with('assessment')
+                ->where('user_id', $user->id)
+                ->whereNotNull('diagnosis_assessment_id')
+                ->latest('id')
+                ->first();
+
+            if ($access?->assessment) {
+                return redirect()->route(
+                    'diagnosis.show',
+                    $access->assessment
+                );
+            }
+
+            // Registro directo sin empresa: onboarding central.
+            return redirect()->route('app.onboarding.show');
         }
 
+        // Usuarios legacy / invitaciones T360.
         $access = DiagnosisAccessRequest::query()
             ->with('assessment')
             ->where('user_id', $user->id)

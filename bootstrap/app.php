@@ -8,6 +8,7 @@ use Illuminate\Foundation\Configuration\Middleware;
 use App\Http\Middleware\RoleMiddleware;
 use App\Http\Middleware\EnsureActiveSubscription;
 use App\Http\Middleware\EnsureActivationAccepted;
+use App\Http\Middleware\EnsureAppHubOnboarded;
 use App\Http\Middleware\EnsureServiceEntitled;
 use App\Http\Middleware\EnsureErpAccess;
 use App\Http\Middleware\ResolveCompanyFromHost;
@@ -50,6 +51,7 @@ return Application::configure(basePath: dirname(__DIR__))
 
             // ✅ acceso subscriber solo con activation aceptada
             'activation.accepted' => EnsureActivationAccepted::class,
+            'apphub.onboarded' => EnsureAppHubOnboarded::class,
 
             // ✅ solo features con suscripción activa
             'subscription.active' => EnsureActiveSubscription::class,

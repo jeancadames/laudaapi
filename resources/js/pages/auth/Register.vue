@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { Form, Head } from '@inertiajs/vue3';
 import InputError from '@/components/InputError.vue';
+import PasswordInput from '@/components/PasswordInput.vue';
 import TextLink from '@/components/TextLink.vue';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -13,10 +14,10 @@ import { store } from '@/routes/register';
 
 <template>
     <AuthBase
-        title="Create an account"
-        description="Enter your details below to create your account"
+        title="Crear tu cuenta LAUDAAPI"
+        description="Una cuenta para gestionar tu empresa, contratar soluciones y acceder al ecosistema LAUDAAPI."
     >
-        <Head title="Register" />
+        <Head title="Crear cuenta" />
 
         <Form
             v-bind="store.form()"
@@ -26,7 +27,7 @@ import { store } from '@/routes/register';
         >
             <div class="grid gap-6">
                 <div class="grid gap-2">
-                    <Label for="name">Name</Label>
+                    <Label for="name">Nombre completo</Label>
                     <Input
                         id="name"
                         type="text"
@@ -35,13 +36,13 @@ import { store } from '@/routes/register';
                         :tabindex="1"
                         autocomplete="name"
                         name="name"
-                        placeholder="Full name"
+                        placeholder="Nombre completo"
                     />
                     <InputError :message="errors.name" />
                 </div>
 
                 <div class="grid gap-2">
-                    <Label for="email">Email address</Label>
+                    <Label for="email">Correo electrónico</Label>
                     <Input
                         id="email"
                         type="email"
@@ -49,59 +50,99 @@ import { store } from '@/routes/register';
                         :tabindex="2"
                         autocomplete="email"
                         name="email"
-                        placeholder="email@example.com"
+                        placeholder="correo@ejemplo.com"
                     />
                     <InputError :message="errors.email" />
                 </div>
 
                 <div class="grid gap-2">
-                    <Label for="password">Password</Label>
-                    <Input
+                    <Label for="password">Contraseña</Label>
+                    <PasswordInput
                         id="password"
-                        type="password"
                         required
                         :tabindex="3"
                         autocomplete="new-password"
                         name="password"
-                        placeholder="Password"
+                        placeholder="Contraseña"
                     />
                     <InputError :message="errors.password" />
                 </div>
 
                 <div class="grid gap-2">
-                    <Label for="password_confirmation">Confirm password</Label>
-                    <Input
+                    <Label for="password_confirmation">
+                        Confirmar contraseña
+                    </Label>
+                    <PasswordInput
                         id="password_confirmation"
-                        type="password"
                         required
                         :tabindex="4"
                         autocomplete="new-password"
                         name="password_confirmation"
-                        placeholder="Confirm password"
+                        placeholder="Confirmar contraseña"
                     />
                     <InputError :message="errors.password_confirmation" />
                 </div>
 
+                <div class="grid gap-2">
+                    <div class="flex items-start gap-3">
+                        <input
+                            id="terms"
+                            type="checkbox"
+                            name="terms"
+                            value="1"
+                            required
+                            :tabindex="5"
+                            class="mt-0.5 h-4 w-4 shrink-0 cursor-pointer rounded border-slate-300 accent-red-600"
+                        />
+
+                        <label
+                            for="terms"
+                            class="cursor-pointer text-sm leading-relaxed font-medium"
+                        >
+                            Acepto los
+                            <a
+                                href="/legal"
+                                target="_blank"
+                                class="font-bold text-red-600 hover:underline"
+                            >
+                                Términos de Uso
+                            </a>
+                            y la
+                            <a
+                                href="/legal"
+                                target="_blank"
+                                class="font-bold text-red-600 hover:underline"
+                            >
+                                Política de Privacidad
+                            </a>
+                            de LAUDAAPI.
+                        </label>
+                    </div>
+
+                    <InputError :message="errors.terms" />
+                </div>
+
                 <Button
                     type="submit"
-                    class="mt-2 w-full"
-                    tabindex="5"
+                    class="w-full"
+                    :tabindex="6"
                     :disabled="processing"
                     data-test="register-user-button"
                 >
                     <Spinner v-if="processing" />
-                    Create account
+                    Crear cuenta
                 </Button>
             </div>
 
             <div class="text-center text-sm text-muted-foreground">
-                Already have an account?
+                ¿Ya tienes una cuenta?
                 <TextLink
                     :href="login()"
                     class="underline underline-offset-4"
-                    :tabindex="6"
-                    >Log in</TextLink
+                    :tabindex="7"
                 >
+                    Iniciar sesión
+                </TextLink>
             </div>
         </Form>
     </AuthBase>

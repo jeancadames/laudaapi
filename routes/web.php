@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\ActivationController;
+use App\Http\Controllers\AppHubOnboardingController;
 use App\Http\Controllers\ActivationRequestController;
 use App\Http\Controllers\ContactRequestController;
 use App\Http\Controllers\Marketing\ServiceCatalogController;
@@ -151,6 +152,16 @@ require __DIR__ . '/settings.php';
         )->name('diagnosis.resume');
     });
 // END LAUDA360 DIAGNOSIS ACCESS ROUTES
+
+
+// BEGIN APP HUB S10-F4.6 V6
+Route::middleware(['auth', 'verified'])->group(function () {
+    Route::get('/onboarding', [AppHubOnboardingController::class, 'show'])
+        ->name('app.onboarding.show');
+    Route::post('/onboarding', [AppHubOnboardingController::class, 'store'])
+        ->name('app.onboarding.store');
+});
+// END APP HUB S10-F4.6 V6
 
 /* LAUDA 360 · gateway post-Go-Live */
 Route::middleware(['auth', 'verified'])

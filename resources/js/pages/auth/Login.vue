@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { Form, Head } from '@inertiajs/vue3';
 import InputError from '@/components/InputError.vue';
+import PasswordInput from '@/components/PasswordInput.vue';
 import TextLink from '@/components/TextLink.vue';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -8,6 +9,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Spinner } from '@/components/ui/spinner';
 import AuthBase from '@/layouts/AuthLayout.vue';
+import { register } from '@/routes';
 import { store } from '@/routes/login';
 import { request } from '@/routes/password';
 
@@ -20,10 +22,10 @@ defineProps<{
 
 <template>
     <AuthBase
-        title="Inicia sesión a tu cuenta"
-        description="Ingresa tu correo electrónico y contraseña para iniciar sesión"
+        title="Iniciar sesión en LAUDAAPI"
+        description="Accede a tu cuenta, tus soluciones o al área administrativa según tus permisos."
     >
-        <Head title="Inicio de sesión" />
+        <Head title="Iniciar sesión" />
 
         <div
             v-if="status"
@@ -57,37 +59,44 @@ defineProps<{
                 <div class="grid gap-2">
                     <div class="flex items-center justify-between">
                         <Label for="password">Contraseña</Label>
+
                         <TextLink
                             v-if="canResetPassword"
                             :href="request()"
                             class="text-sm"
                             :tabindex="5"
                         >
-                            Reiniciar contraseña
+                            ¿Olvidaste tu contraseña?
                         </TextLink>
                     </div>
-                    <Input
+
+                    <PasswordInput
                         id="password"
-                        type="password"
                         name="password"
                         required
                         :tabindex="2"
                         autocomplete="current-password"
                         placeholder="Contraseña"
                     />
+
                     <InputError :message="errors.password" />
                 </div>
 
-                <div class="flex items-center justify-between">
-                    <Label for="remember" class="flex items-center space-x-3">
-                        <Checkbox id="remember" name="remember" :tabindex="3" />
-                        <span>Recuérdame</span>
-                    </Label>
-                </div>
+                <Label
+                    for="remember"
+                    class="flex items-center space-x-3"
+                >
+                    <Checkbox
+                        id="remember"
+                        name="remember"
+                        :tabindex="3"
+                    />
+                    <span>Recuérdame</span>
+                </Label>
 
                 <Button
                     type="submit"
-                    class="mt-4 w-full"
+                    class="w-full"
                     :tabindex="4"
                     :disabled="processing"
                     data-test="login-button"
@@ -95,6 +104,19 @@ defineProps<{
                     <Spinner v-if="processing" />
                     Iniciar sesión
                 </Button>
+            </div>
+
+            <div
+                v-if="canRegister"
+                class="text-center text-sm text-muted-foreground"
+            >
+                ¿No tienes una cuenta?
+                <TextLink
+                    :href="register()"
+                    :tabindex="6"
+                >
+                    Crear cuenta
+                </TextLink>
             </div>
         </Form>
     </AuthBase>

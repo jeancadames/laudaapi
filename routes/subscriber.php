@@ -71,7 +71,7 @@ Route::middleware('auth')->group(function () {
 | Subscriber (dashboard)
 |--------------------------------------------------------------------------
 */
-Route::middleware(['auth', 'verified', 'role:subscriber', 'activation.accepted'])->group(function () {
+Route::middleware(['auth', 'verified', 'role:subscriber', 'apphub.onboarded'])->group(function () {
     Route::get('/subscriber', SubscriberDashboardController::class)->name('subscriber');
 });
 
@@ -80,7 +80,7 @@ Route::middleware(['auth', 'verified', 'role:subscriber', 'activation.accepted']
 | Subscriber Panel
 |--------------------------------------------------------------------------
 */
-Route::middleware(['auth', 'verified', 'role:subscriber', 'activation.accepted'])
+Route::middleware(['auth', 'verified', 'role:subscriber', 'apphub.onboarded'])
     ->prefix('subscriber')
     ->name('subscriber.')
     ->group(function () {
@@ -93,9 +93,11 @@ Route::middleware(['auth', 'verified', 'role:subscriber', 'activation.accepted']
 
         // ✅ Activation
         Route::get('/activation', [SubscriberActivationController::class, 'show'])
+            ->middleware('activation.accepted')
             ->name('activation.show');
 
         Route::post('/activation/activate', [SubscriberActivationController::class, 'activate'])
+            ->middleware('activation.accepted')
             ->name('activation.activate');
 
         // ✅ Services
