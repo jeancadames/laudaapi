@@ -22,7 +22,7 @@ class AppGatewayController extends Controller
         abort_unless($user, 403);
 
         if (($user->role ?? null) === 'admin') {
-            return redirect()->route('admin.dashboard');
+            return redirect()->route('dashboard');
         }
 
         if (($user->role ?? null) === 'subscriber') {
