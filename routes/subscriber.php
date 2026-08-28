@@ -72,7 +72,7 @@ Route::middleware('auth')->group(function () {
 |--------------------------------------------------------------------------
 */
 Route::middleware(['auth', 'verified', 'role:subscriber', 'apphub.onboarded'])->group(function () {
-    Route::get('/subscriber', SubscriberDashboardController::class)->name('subscriber');
+    Route::get('/subscriber', fn () => redirect()->route('app.gateway'))->name('subscriber');
 });
 
 /*

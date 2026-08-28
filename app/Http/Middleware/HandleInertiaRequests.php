@@ -8,6 +8,7 @@ use App\Models\Service;
 use App\Services\Dgii\DgiiCertificateRequirements;
 use App\Services\Dgii\DgiiTokenManager;
 use App\Services\Entitlements\SubscriberEntitlements;
+use App\Services\Subscribers\TenantAccessService;
 use Illuminate\Foundation\Inspiring;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -30,6 +31,9 @@ class HandleInertiaRequests extends Middleware
         $isErp = str_starts_with($request->path(), 'erp');
 
         $resolvedSubscriberId = $user ? $this->resolveSubscriberId($user) : null;
+        $tenantAccess = $user
+            ? app(TenantAccessService::class)->resolve($user, $resolvedSubscriberId)
+            : null;
 
         // ✅ Instancia única (evita duplicidad nav + token)
         $entitlements = ($user && $isErp && $resolvedSubscriberId)
@@ -78,6 +82,7 @@ class HandleInertiaRequests extends Middleware
                     'email'         => $user->email,
                     'role'          => $user->role,
                     'subscriber_id' => $resolvedSubscriberId,
+                    'tenant_access' => $tenantAccess,
                     'must_change_password' => (bool) $request->user()->must_change_password,
                     'password_changed_at' => $request->user()->password_changed_at,
                 ] : null,
@@ -90,7 +95,7 @@ class HandleInertiaRequests extends Middleware
                     return null;
                 }
 
-                if (! $request->is('subscriber*') && ! $request->is('erp*')) {
+                if (! $request->is('subscriber*') && ! $request->is('erp*') && ! $request->is('app')) {
                     return null;
                 }
 

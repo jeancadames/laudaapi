@@ -13,44 +13,14 @@ export const navigationByRole = {
         footer: [],
     },
 
-    subscriber: {
+    subscriber_admin: {
         main: [
-            { title: 'Dashboard', href: '/subscriber', icon: 'LayoutGrid' },
-
-            // Activación
+            { title: 'Control Panel', href: '/app', icon: 'LayoutGrid' },
+            { title: 'App Store', href: '/app#app-store', icon: 'Boxes' },
             {
-                title: 'Solicitud de Activación',
-                href: '/subscriber/activation',
-                icon: 'ClipboardCheck',
-            },
-
-            // Ecosistema
-            {
-                title: 'API Facturación Electrónica',
-                href: '/subscriber/services/api-facturacion-electronica',
-                icon: 'Webhook',
-            },
-            {
-                title: 'API Hub Marketplace',
-                href: '/subscriber/services/marketplace',
-                icon: 'Webhook',
-            },
-            {
-                title: 'API LaudaOne',
-                href: '/subscriber/services/laudaone',
-                icon: 'Webhook',
-            },
-            {
-                title: 'Mis Servicios',
-                href: '/subscriber/services/my',
-                icon: 'CheckCircle',
-            },
-
-            // Facturación
-            {
-                title: 'Mi Suscripción',
+                title: 'Mi suscripción',
                 href: '/subscriber/subscription',
-                icon: 'PlugZap',
+                icon: 'BadgeCheck',
             },
             {
                 title: 'Facturas',
@@ -62,8 +32,6 @@ export const navigationByRole = {
                 href: '/subscriber/payments',
                 icon: 'CreditCard',
             },
-
-            // Empresa
             {
                 title: 'Empresa',
                 href: '/subscriber/company',
@@ -74,21 +42,52 @@ export const navigationByRole = {
                 href: '/subscriber/payment-methods',
                 icon: 'WalletCards',
             },
-            {
-                title: 'Uso y Límites',
-                href: '/subscriber/usage',
-                icon: 'Gauge',
-            },
         ],
         footer: [
-            {
-                title: 'LaudaERP',
-                href: '/erp',
-                icon: 'LaudaIcon',
-                target: '_blank',
-            },
             { title: 'Soporte', href: '/subscriber/support', icon: 'LifeBuoy' },
         ],
+    },
+
+    subscriber_user: {
+        main: [
+            { title: 'Mis Apps', href: '/app', icon: 'Boxes' },
+        ],
+        footer: [],
+    },
+
+    subscriber_billing: {
+        main: [
+            { title: 'Mis Apps', href: '/app', icon: 'Boxes' },
+            {
+                title: 'Mi suscripción',
+                href: '/subscriber/subscription',
+                icon: 'BadgeCheck',
+            },
+            {
+                title: 'Facturas',
+                href: '/subscriber/invoices',
+                icon: 'ReceiptText',
+            },
+            {
+                title: 'Pagos',
+                href: '/subscriber/payments',
+                icon: 'CreditCard',
+            },
+            {
+                title: 'Métodos de pago',
+                href: '/subscriber/payment-methods',
+                icon: 'WalletCards',
+            },
+        ],
+        footer: [],
+    },
+
+    // Alias de compatibilidad. El sidebar nuevo resuelve el lane exacto.
+    subscriber: {
+        main: [
+            { title: 'Mis Apps', href: '/app', icon: 'Boxes' },
+        ],
+        footer: [],
     },
 } as const satisfies Record<
     string,

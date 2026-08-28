@@ -6,6 +6,7 @@ use App\Models\DiagnosisAccessRequest;
 use App\Services\Ecosystem\EcosystemHubService;
 use App\Services\Subscribers\CompanyContextResolver;
 use App\Services\Subscribers\SubscriberResolver;
+use App\Services\Subscribers\TenantAccessService;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 
@@ -15,7 +16,8 @@ class AppGatewayController extends Controller
         Request $request,
         SubscriberResolver $subscriberResolver,
         CompanyContextResolver $companyResolver,
-        EcosystemHubService $hubService
+        EcosystemHubService $hubService,
+        TenantAccessService $tenantAccessService
     ) {
         $user = $request->user();
 
@@ -38,6 +40,37 @@ class AppGatewayController extends Controller
                 );
 
                 if ($company) {
+                    $tenantAccess = $tenantAccessService->resolve(
+                        $user,
+                        $subscriberId
+                    );
+
+                    $groups = $hubService->groupsFor($user, $company);
+
+                    if (! ($tenantAccess['can_browse_store'] ?? false)) {
+                        $groups = collect($groups)
+                            ->map(function (array $group): array {
+                                $group['solutions'] = collect(
+                                    $group['solutions'] ?? []
+                                )
+                                    ->filter(
+                                        fn (array $solution): bool =>
+                                            (bool) ($solution['entitled'] ?? false)
+                                            && ! empty($solution['launch_url'])
+                                    )
+                                    ->values()
+                                    ->all();
+
+                                return $group;
+                            })
+                            ->filter(
+                                fn (array $group): bool =>
+                                    count($group['solutions'] ?? []) > 0
+                            )
+                            ->values()
+                            ->all();
+                    }
+
                     return Inertia::render('App/Hub', [
                         'company' => [
                             'id' => $company->id,
@@ -47,8 +80,8 @@ class AppGatewayController extends Controller
                                 ?? 'Mi empresa',
                             'subscriber_id' => $company->subscriber_id,
                         ],
-                        'groups' =>
-                            $hubService->groupsFor($user, $company),
+                        'groups' => $groups,
+                        'tenant_access' => $tenantAccess,
                     ]);
                 }
             }
