@@ -952,6 +952,10 @@ function goLogin() {
     window.location.assign('https://app.laudaapi.com/login')
 }
 
+function goRegister() {
+    window.location.assign('https://app.laudaapi.com/register')
+}
+
 function goAppHub() {
     window.location.assign('https://app.laudaapi.com')
 }
@@ -1083,6 +1087,14 @@ onBeforeUnmount(() => {
                     Iniciar sesión
                 </Button>
 
+                <Button
+                    data-app-hub-register="desktop"
+                    class="hidden rounded-xl bg-(--brand) px-6 py-6 font-black text-white hover:bg-[#d92731] lg:inline-flex"
+                    @click="goRegister"
+                >
+                    Crear cuenta
+                </Button>
+
                 <!-- Hamburguesa (solo móvil / tablet) -->
                 <button ref="hamburgerRef" type="button" class="lauda-icon-btn lauda-nav-action ml-1 grid h-11 w-11 place-items-center rounded-xl border lg:hidden" aria-controls="mobile-menu" :aria-expanded="mobileMenuOpen" aria-label="Abrir menú de navegación" @click="openMobileMenu">
                     <Menu class="h-5 w-5" />
@@ -1120,10 +1132,18 @@ onBeforeUnmount(() => {
                         </nav>
                     </div>
 
-                    <div class="mt-4 border-t border-border pt-4">
+                    <div class="mt-4 grid gap-2 border-t border-border pt-4">
                         <Button class="w-full gap-2 rounded-xl bg-[#0B0B12] py-6 text-white hover:bg-black" @click="closeMobileMenu(); goLogin()">
                             <User class="h-4 w-4" />
                             Iniciar sesión
+                        </Button>
+
+                        <Button
+                            data-app-hub-register="mobile"
+                            class="w-full rounded-xl bg-(--brand) py-6 font-black text-white hover:bg-[#d92731]"
+                            @click="closeMobileMenu(); goRegister()"
+                        >
+                            Crear cuenta
                         </Button>
                     </div>
                 </div>
