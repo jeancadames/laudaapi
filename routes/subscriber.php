@@ -20,6 +20,7 @@ use App\Http\Controllers\Subscriber\SubscriberServiceRequestController;
 use App\Http\Controllers\Subscriber\SubscriberActivationController;
 use App\Http\Controllers\Subscriber\SubscriberCompanyController;
 use App\Http\Controllers\Subscriber\SubscriberMyServicesController;
+use App\Http\Controllers\Subscriber\SubscriberAppStoreController;
 use App\Http\Controllers\Subscriber\SubscriberSubscriptionController;
 use App\Http\Controllers\Subscriber\SubscriberServiceActivationController;
 use App\Http\Controllers\Subscriber\SubscriberServiceCancellationController;
@@ -124,6 +125,18 @@ Route::middleware(['auth', 'verified', 'role:subscriber', 'apphub.onboarded'])
             Route::get('/{categorySlug}', [SubscriberServiceCatalogController::class, 'category'])
                 ->whereIn('categorySlug', ['api-facturacion-electronica', 'marketplace', 'laudaone'])
                 ->name('category');
+        });
+
+
+        // ✅ S10-F4.8-B1 · App Store moderno
+        Route::prefix('apps')->name('apps.')->group(function () {
+            Route::get('/{serviceKey}', [SubscriberAppStoreController::class, 'show'])
+                ->whereIn('serviceKey', ['social'])
+                ->name('show');
+
+            Route::post('/{serviceKey}/checkout', [SubscriberAppStoreController::class, 'checkout'])
+                ->whereIn('serviceKey', ['social'])
+                ->name('checkout');
         });
 
         // ✅ Support

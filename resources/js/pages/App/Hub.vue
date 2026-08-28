@@ -380,7 +380,11 @@ const stateLabel = (app: Solution) => {
                                 </p>
 
                                 <a
-                                    href="/subscriber/services/my"
+                                    :href="
+                                        app.service_key === 'social'
+                                            ? '/subscriber/apps/social'
+                                            : '/subscriber/services/my'
+                                    "
                                     class="mt-5 inline-flex h-10 items-center justify-center gap-2 rounded-xl border border-slate-200 px-4 text-sm font-bold text-slate-800 transition hover:bg-slate-50 dark:border-slate-800 dark:text-slate-100 dark:hover:bg-slate-900"
                                 >
                                     Ver planes
