@@ -8,6 +8,7 @@ use App\Services\Subscribers\CompanyContextResolver;
 use App\Services\Subscribers\SubscriberResolver;
 use App\Services\Subscribers\TenantAccessService;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
 
 class AppGatewayController extends Controller
@@ -28,6 +29,35 @@ class AppGatewayController extends Controller
         }
 
         if (($user->role ?? null) === 'subscriber') {
+            /*
+             * S10-F4.8-A3 · inactive_membership_blocked
+             *
+             * Un usuario que ya pertenece a un tenant pero cuya membresía
+             * fue desactivada NO es un usuario nuevo y nunca debe caer en
+             * el onboarding para crear otra empresa.
+             */
+            $hasAnyTenantMembership = DB::table('subscriber_user')
+                ->where('user_id', $user->id)
+                ->exists();
+
+            $hasActiveTenantMembership = DB::table('subscriber_user')
+                ->where('user_id', $user->id)
+                ->where('active', 1)
+                ->exists();
+
+            if ($hasAnyTenantMembership && ! $hasActiveTenantMembership) {
+                auth()->guard('web')->logout();
+                $request->session()->invalidate();
+                $request->session()->regenerateToken();
+
+                return redirect()
+                    ->route('login')
+                    ->with(
+                        'error',
+                        'Tu acceso a esta empresa está desactivado. Contacta al administrador de tu cuenta.'
+                    );
+            }
+
             $subscriberId = (int) (
                 $subscriberResolver->resolve($user)
                 ?? 0
