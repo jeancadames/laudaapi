@@ -17,6 +17,7 @@ export const navigationByRole = {
         main: [
             { title: 'Control Panel', href: '/app', icon: 'LayoutGrid' },
             { title: 'App Store', href: '/app#app-store', icon: 'Boxes' },
+            { title: 'Usuarios', href: '/subscriber/users', icon: 'Users' },
             {
                 title: 'Mi suscripción',
                 href: '/subscriber/subscription',

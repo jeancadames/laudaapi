@@ -85,7 +85,11 @@ const adminSections = computed<SidebarSection[]>(() => [
 const tenantAdminSections = computed<SidebarSection[]>(() => [
     {
         title: 'Ecosistema',
-        items: byHrefs(tenantAdminMain, ['/app', '/app#app-store']),
+        items: byHrefs(tenantAdminMain, [
+            '/app',
+            '/app#app-store',
+            '/subscriber/users',
+        ]),
     },
     {
         title: 'Cuenta',

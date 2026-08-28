@@ -187,3 +187,45 @@ Route::middleware(['auth', 'verified', 'role:subscriber', 'apphub.onboarded'])
         Route::get('/payments/{payment}', [SubscriberPaymentController::class, 'show'])
             ->name('payments.show');
     });
+
+/*
+|--------------------------------------------------------------------------
+| S10-F4.8-A3 · Gestión central de usuarios del tenant
+|--------------------------------------------------------------------------
+| El controller aplica además TenantAccessService:
+| solo owner/admin activos del subscriber pueden administrar miembros.
+*/
+Route::get(
+    '/subscriber/users',
+    [\App\Http\Controllers\Subscriber\SubscriberTenantUserController::class, 'index']
+)
+    ->middleware(['auth', 'verified'])
+    ->name('subscriber.users.index');
+
+Route::post(
+    '/subscriber/users',
+    [\App\Http\Controllers\Subscriber\SubscriberTenantUserController::class, 'store']
+)
+    ->middleware(['auth', 'verified'])
+    ->name('subscriber.users.store');
+
+Route::patch(
+    '/subscriber/users/{member}/role',
+    [\App\Http\Controllers\Subscriber\SubscriberTenantUserController::class, 'updateRole']
+)
+    ->middleware(['auth', 'verified'])
+    ->name('subscriber.users.role');
+
+Route::patch(
+    '/subscriber/users/{member}/active',
+    [\App\Http\Controllers\Subscriber\SubscriberTenantUserController::class, 'toggleActive']
+)
+    ->middleware(['auth', 'verified'])
+    ->name('subscriber.users.active');
+
+Route::post(
+    '/subscriber/users/{member}/resend-access',
+    [\App\Http\Controllers\Subscriber\SubscriberTenantUserController::class, 'resendAccess']
+)
+    ->middleware(['auth', 'verified'])
+    ->name('subscriber.users.resend_access');
