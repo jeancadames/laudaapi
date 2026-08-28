@@ -73,12 +73,6 @@ final class SubscriberTenantUserController extends Controller
                     'description' =>
                         'Solo Mis Apps y acceso a soluciones autorizadas.',
                 ],
-                [
-                    'value' => 'billing',
-                    'label' => 'Facturación',
-                    'description' =>
-                        'Mis Apps y funciones centrales de facturación.',
-                ],
             ],
             'summary' => [
                 'total' => count($members),
@@ -110,7 +104,7 @@ final class SubscriberTenantUserController extends Controller
             ],
             'role' => [
                 'required',
-                'in:owner,admin,member,billing',
+                'in:owner,admin,member',
             ],
         ]);
 
@@ -160,7 +154,7 @@ final class SubscriberTenantUserController extends Controller
         $data = $request->validate([
             'role' => [
                 'required',
-                'in:owner,admin,member,billing',
+                'in:owner,admin,member',
             ],
         ]);
 

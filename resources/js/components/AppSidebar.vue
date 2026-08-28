@@ -27,7 +27,7 @@ type ActiveCompany = {
 } | null;
 
 type TenantAccess = {
-    mode?: 'platform.admin' | 'subscriber.admin' | 'subscriber.user' | 'subscriber.billing';
+    mode?: 'platform.admin' | 'subscriber.admin' | 'subscriber.user';
     pivot_role?: string | null;
     tenant_admin?: boolean;
     can_browse_store?: boolean;
@@ -65,8 +65,6 @@ const tenantAdminMain: NavItem[] = mapToNavItems(navigationByRole.subscriber_adm
 const tenantAdminFooter: NavItem[] = mapToNavItems(navigationByRole.subscriber_admin.footer);
 const tenantUserMain: NavItem[] = mapToNavItems(navigationByRole.subscriber_user.main);
 const tenantUserFooter: NavItem[] = mapToNavItems(navigationByRole.subscriber_user.footer);
-const tenantBillingMain: NavItem[] = mapToNavItems(navigationByRole.subscriber_billing.main);
-const tenantBillingFooter: NavItem[] = mapToNavItems(navigationByRole.subscriber_billing.footer);
 
 function byHrefs(items: NavItem[], hrefs: string[]): NavItem[] {
     return hrefs
@@ -115,33 +113,15 @@ const tenantUserSections = computed<SidebarSection[]>(() => [
     },
 ]);
 
-const tenantBillingSections = computed<SidebarSection[]>(() => [
-    {
-        title: 'Ecosistema',
-        items: byHrefs(tenantBillingMain, ['/app']),
-    },
-    {
-        title: 'Facturación',
-        items: byHrefs(tenantBillingMain, [
-            '/subscriber/subscription',
-            '/subscriber/invoices',
-            '/subscriber/payments',
-            '/subscriber/payment-methods',
-        ]),
-    },
-]);
-
 const sections = computed<SidebarSection[]>(() => {
     if (isAdmin.value) return adminSections.value;
     if (tenantMode.value === 'subscriber.admin') return tenantAdminSections.value;
-    if (tenantMode.value === 'subscriber.billing') return tenantBillingSections.value;
     return tenantUserSections.value;
 });
 
 const footerNavItems = computed<NavItem[]>(() => {
     if (isAdmin.value) return adminFooter;
     if (tenantMode.value === 'subscriber.admin') return tenantAdminFooter;
-    if (tenantMode.value === 'subscriber.billing') return tenantBillingFooter;
     return tenantUserFooter;
 });
 
@@ -150,7 +130,6 @@ const homeHref = computed(() => (isAdmin.value ? '/dashboard' : '/app'));
 const brandCaption = computed(() => {
     if (isAdmin.value) return 'CONTROL CENTER';
     if (tenantMode.value === 'subscriber.admin') return 'CONTROL PANEL';
-    if (tenantMode.value === 'subscriber.billing') return 'FACTURACIÓN';
     return 'MIS APPS';
 });
 </script>

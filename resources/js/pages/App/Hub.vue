@@ -44,7 +44,7 @@ type ActionGroup = {
 };
 
 type TenantAccess = {
-    mode: 'platform.admin' | 'subscriber.admin' | 'subscriber.user' | 'subscriber.billing';
+    mode: 'platform.admin' | 'subscriber.admin' | 'subscriber.user';
     pivot_role: string | null;
     tenant_admin: boolean;
     can_browse_store: boolean;
@@ -71,7 +71,6 @@ const breadcrumbs: BreadcrumbItem[] = [
 const query = ref('');
 
 const isTenantAdmin = computed(() => props.tenant_access.mode === 'subscriber.admin');
-const isBilling = computed(() => props.tenant_access.mode === 'subscriber.billing');
 
 const allApps = computed<Solution[]>(() =>
     props.groups.flatMap((group) => group.solutions ?? []),
@@ -124,17 +123,12 @@ const pendingApps = computed(() =>
 
 const pageTitle = computed(() => {
     if (isTenantAdmin.value) return 'Control Panel';
-    if (isBilling.value) return 'Mis Apps y facturación';
     return 'Mis Apps';
 });
 
 const pageDescription = computed(() => {
     if (isTenantAdmin.value) {
         return 'Administra tu ecosistema, abre las aplicaciones activas y descubre nuevas soluciones para tu empresa.';
-    }
-
-    if (isBilling.value) {
-        return 'Accede a tus aplicaciones activas y a la información comercial de la cuenta.';
     }
 
     return 'Tus aplicaciones disponibles en un solo lugar. Los permisos internos se administran dentro de cada solución.';
@@ -185,12 +179,6 @@ const stateLabel = (app: Solution) => {
                                     class="rounded-full bg-emerald-50 px-3 py-1.5 font-medium text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300"
                                 >
                                     Administrador del tenant
-                                </span>
-                                <span
-                                    v-else-if="isBilling"
-                                    class="rounded-full bg-blue-50 px-3 py-1.5 font-medium text-blue-700 dark:bg-blue-950/40 dark:text-blue-300"
-                                >
-                                    Facturación
                                 </span>
                                 <span
                                     v-else
@@ -475,35 +463,6 @@ const stateLabel = (app: Solution) => {
                     </section>
                 </template>
 
-                <section
-                    v-else-if="isBilling"
-                    class="grid gap-4 sm:grid-cols-3"
-                >
-                    <a
-                        href="/subscriber/subscription"
-                        class="rounded-2xl border border-slate-100 bg-white p-5 transition hover:bg-slate-50 dark:border-slate-800 dark:bg-slate-950 dark:hover:bg-slate-900"
-                    >
-                        <CreditCard class="h-5 w-5 text-slate-500" />
-                        <p class="mt-3 font-bold text-slate-950 dark:text-white">Suscripción</p>
-                        <p class="mt-1 text-xs text-slate-500">Estado comercial de la cuenta</p>
-                    </a>
-                    <a
-                        href="/subscriber/invoices"
-                        class="rounded-2xl border border-slate-100 bg-white p-5 transition hover:bg-slate-50 dark:border-slate-800 dark:bg-slate-950 dark:hover:bg-slate-900"
-                    >
-                        <CreditCard class="h-5 w-5 text-slate-500" />
-                        <p class="mt-3 font-bold text-slate-950 dark:text-white">Facturas</p>
-                        <p class="mt-1 text-xs text-slate-500">Documentos pendientes y pagados</p>
-                    </a>
-                    <a
-                        href="/subscriber/payments"
-                        class="rounded-2xl border border-slate-100 bg-white p-5 transition hover:bg-slate-50 dark:border-slate-800 dark:bg-slate-950 dark:hover:bg-slate-900"
-                    >
-                        <CreditCard class="h-5 w-5 text-slate-500" />
-                        <p class="mt-3 font-bold text-slate-950 dark:text-white">Pagos</p>
-                        <p class="mt-1 text-xs text-slate-500">Historial de pagos</p>
-                    </a>
-                </section>
             </div>
         </div>
     </AppLayout>

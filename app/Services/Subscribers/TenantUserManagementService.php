@@ -16,7 +16,6 @@ final class TenantUserManagementService
         'owner',
         'admin',
         'member',
-        'billing',
     ];
 
     public function __construct(
@@ -62,7 +61,7 @@ final class TenantUserManagementService
                 case subscriber_user.role
                     when 'owner' then 1
                     when 'admin' then 2
-                    when 'billing' then 3
+                    when 'member' then 3
                     else 4
                 end
             ")
@@ -81,7 +80,13 @@ final class TenantUserManagementService
                     'name' => (string) $user->name,
                     'email' => (string) $user->email,
                     'global_role' => (string) $user->role,
-                    'role' => (string) $user->pivot->role,
+                    'role' => in_array(
+                        strtolower((string) $user->pivot->role),
+                        self::ROLES,
+                        true
+                    )
+                        ? strtolower((string) $user->pivot->role)
+                        : 'member',
                     'active' => (bool) $user->pivot->active,
                     'email_verified' => $user->email_verified_at !== null,
                     'created_at' => $user->created_at?->toIso8601String(),

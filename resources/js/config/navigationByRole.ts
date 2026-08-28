@@ -56,33 +56,6 @@ export const navigationByRole = {
         footer: [],
     },
 
-    subscriber_billing: {
-        main: [
-            { title: 'Mis Apps', href: '/app', icon: 'Boxes' },
-            {
-                title: 'Mi suscripción',
-                href: '/subscriber/subscription',
-                icon: 'BadgeCheck',
-            },
-            {
-                title: 'Facturas',
-                href: '/subscriber/invoices',
-                icon: 'ReceiptText',
-            },
-            {
-                title: 'Pagos',
-                href: '/subscriber/payments',
-                icon: 'CreditCard',
-            },
-            {
-                title: 'Métodos de pago',
-                href: '/subscriber/payment-methods',
-                icon: 'WalletCards',
-            },
-        ],
-        footer: [],
-    },
-
     // Alias de compatibilidad. El sidebar nuevo resuelve el lane exacto.
     subscriber: {
         main: [

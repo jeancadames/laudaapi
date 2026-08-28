@@ -15,7 +15,7 @@ import { computed, ref } from 'vue';
 import AppLayout from '@/layouts/AppLayout.vue';
 import type { BreadcrumbItem } from '@/types';
 
-type RoleValue = 'owner' | 'admin' | 'member' | 'billing';
+type RoleValue = 'owner' | 'admin' | 'member';
 
 type Member = {
     id: number;

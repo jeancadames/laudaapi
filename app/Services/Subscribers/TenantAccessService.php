@@ -10,7 +10,6 @@ final class TenantAccessService
     public const PLATFORM_ADMIN = 'platform.admin';
     public const SUBSCRIBER_ADMIN = 'subscriber.admin';
     public const SUBSCRIBER_USER = 'subscriber.user';
-    public const SUBSCRIBER_BILLING = 'subscriber.billing';
 
     public function resolve(User $user, ?int $subscriberId = null): array
     {
@@ -45,6 +44,15 @@ final class TenantAccessService
 
         $pivotRole = strtolower(trim((string) $pivotRole));
 
+        /*
+         * Compatibilidad A3:
+         * "billing" dejó de ser un rol central. Si existiera un registro
+         * histórico, se comporta como member sin mutar la base de datos.
+         */
+        if ($pivotRole === 'billing') {
+            $pivotRole = 'member';
+        }
+
         return match ($pivotRole) {
             'owner', 'admin' => $this->payload(
                 self::SUBSCRIBER_ADMIN,
@@ -55,17 +63,6 @@ final class TenantAccessService
                 true,
                 true,
                 true
-            ),
-
-            'billing' => $this->payload(
-                self::SUBSCRIBER_BILLING,
-                $pivotRole,
-                false,
-                false,
-                false,
-                true,
-                true,
-                false
             ),
 
             default => $this->payload(
