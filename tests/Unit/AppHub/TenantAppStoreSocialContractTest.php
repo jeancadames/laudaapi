@@ -29,7 +29,7 @@ class TenantAppStoreSocialContractTest extends TestCase
         );
 
         $this->assertStringContainsString(
-            "/subscriber/apps/social",
+            '`/subscriber/apps/${app.service_key}`',
             $hub
         );
 
@@ -48,7 +48,7 @@ class TenantAppStoreSocialContractTest extends TestCase
         foreach ([
             'SubscriberAppStoreController',
             "Route::prefix('apps')",
-            "->whereIn('serviceKey', ['social'])",
+            "->whereIn('serviceKey', ['social', 'crm'])",
             "->name('checkout')",
         ] as $required) {
             $this->assertStringContainsString(

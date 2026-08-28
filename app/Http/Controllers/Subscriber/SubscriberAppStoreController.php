@@ -175,7 +175,9 @@ class SubscriberAppStoreController extends Controller
         if ($this->activeEntitlement($subscriber, $service)) {
             return back()->with(
                 'error',
-                'Social ya está activo para esta empresa. Los cambios de plan se habilitarán en S10-F5.'
+                (string) $service->title
+                    .' ya está activo para esta empresa. '
+                    .'Los cambios de plan se habilitarán en S10-F5.'
             );
         }
 
@@ -286,10 +288,13 @@ class SubscriberAppStoreController extends Controller
     private function storeService(string $serviceKey): Service
     {
         /*
-         * B1 empieza exclusivamente con Social.
-         * El controller queda listo para crecer solución por solución.
+         * B2 habilita únicamente soluciones ya incorporadas
+         * al App Store moderno. Se amplía una por una.
          */
-        abort_unless($serviceKey === 'social', 404);
+        abort_unless(
+            in_array($serviceKey, ['social', 'crm'], true),
+            404
+        );
 
         return Service::query()
             ->where('service_key', $serviceKey)
@@ -337,9 +342,7 @@ class SubscriberAppStoreController extends Controller
             'description' => $plan->description,
             'currency' => (string) $plan->currency,
             'billing_model' => (string) $plan->billing_model,
-            'features' => is_array($plan->features)
-                ? $plan->features
-                : [],
+            'features' => $this->featurePayload($plan),
             'limits' => is_array($plan->limits)
                 ? $plan->limits
                 : [],
@@ -373,6 +376,29 @@ class SubscriberAppStoreController extends Controller
                 ),
             ],
         ];
+    }
+
+    private function featurePayload(ServicePlan $plan): array
+    {
+        $features = is_array($plan->features)
+            ? $plan->features
+            : [];
+
+        if (array_is_list($features)) {
+            $normalized = [];
+
+            foreach ($features as $feature) {
+                $label = trim((string) $feature);
+
+                if ($label !== '') {
+                    $normalized[$label] = true;
+                }
+            }
+
+            return $normalized;
+        }
+
+        return $features;
     }
 
     private function billingOption(

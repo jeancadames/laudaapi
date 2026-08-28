@@ -118,6 +118,31 @@ const selectedPlan = computed<Plan | null>(
         ) ?? null,
 );
 
+const availableCycles = computed<BillingCycle[]>(() => {
+    if (!selectedPlan.value) return [];
+
+    return (['monthly', 'yearly'] as BillingCycle[])
+        .filter(
+            (cycle) =>
+                Boolean(
+                    selectedPlan.value?.billing_options?.[cycle]?.available,
+                ),
+        );
+});
+
+watch(
+    selectedPlan,
+    () => {
+        if (
+            availableCycles.value.length > 0
+            && !availableCycles.value.includes(billingCycle.value)
+        ) {
+            billingCycle.value = availableCycles.value[0];
+        }
+    },
+    { immediate: true },
+);
+
 const selectedOption = computed<BillingOption | null>(
     () =>
         selectedPlan.value?.billing_options?.[billingCycle.value]
@@ -323,7 +348,7 @@ const checkout = () => {
                                 Planes
                             </p>
                             <h2 class="mt-1 text-2xl font-black tracking-tight text-slate-950">
-                                Seleccione cómo quiere usar Social
+                                Seleccione cómo quiere usar {{ service.title }}
                             </h2>
                         </div>
 
@@ -332,6 +357,7 @@ const checkout = () => {
                             class="inline-flex w-fit rounded-2xl border border-slate-200 bg-white p-1 shadow-sm"
                         >
                             <button
+                                v-if="availableCycles.includes('monthly')"
                                 type="button"
                                 class="rounded-xl px-4 py-2 text-sm font-bold transition"
                                 :class="
@@ -344,6 +370,7 @@ const checkout = () => {
                                 Mensual
                             </button>
                             <button
+                                v-if="availableCycles.includes('yearly')"
                                 type="button"
                                 class="rounded-xl px-4 py-2 text-sm font-bold transition"
                                 :class="
@@ -385,7 +412,7 @@ const checkout = () => {
                                     {{ plan.name }}
                                 </p>
                                 <p class="mt-2 min-h-12 text-sm leading-6 text-slate-500">
-                                    {{ plan.description || 'Plan de Social LAUDAAPI.' }}
+                                    {{ plan.description || `Plan de ${service.title} LAUDAAPI.` }}
                                 </p>
                             </div>
 
