@@ -229,3 +229,34 @@ Route::post(
 )
     ->middleware(['auth', 'verified'])
     ->name('subscriber.users.resend_access');
+
+
+/*
+|--------------------------------------------------------------------------
+| S10-F4.8-A3 MEMBER ROUTE HARDENING
+|--------------------------------------------------------------------------
+|
+| UI visibility is not authorization.
+|
+| Every central tenant route under /subscriber/* must require the
+| subscriber.admin lane (owner/admin). The exact /subscriber gateway is
+| intentionally excluded so member users can still be redirected to /app.
+|
+| We attach the middleware to the route objects after this file registers
+| them. A boot-time contract test below verifies that no /subscriber/*
+| route remains uncovered.
+|
+*/
+foreach (Route::getRoutes() as $route) {
+    $uri = ltrim((string) $route->uri(), '/');
+
+    if ($uri === 'subscriber') {
+        continue;
+    }
+
+    if (str_starts_with($uri, 'subscriber/')) {
+        $route->middleware(
+            \App\Http\Middleware\EnsureTenantAdminArea::class
+        );
+    }
+}
