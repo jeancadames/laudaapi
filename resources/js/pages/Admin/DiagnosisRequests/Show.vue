@@ -108,6 +108,16 @@ const props = defineProps<{
     statuses: string[];
     businessProfileOptions: BusinessProfileOptions;
     transformation_progress: Record<string, any> | null;
+
+    expanded_report_commercial: Record<string, any> | null;
+    detailed_roadmap_commercial: Record<string, any> | null;
+
+    commercial_endpoints: {
+        expanded_prepare_invoice: string | null;
+        expanded_record_payment: string | null;
+        roadmap_prepare_invoice: string | null;
+        roadmap_record_payment: string | null;
+    };
 }>();
 
 const breadcrumbs: BreadcrumbItem[] = [
@@ -422,7 +432,7 @@ function publish() {
     </Transition>
 
     <AppLayout :breadcrumbs="breadcrumbs">
-        <div class="mx-auto w-full max-w-7xl space-y-5 p-4 md:p-6">
+        <div class="mx-auto w-full max-w-[1600px] space-y-6 p-4 md:p-6">
             <div
                 class="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between"
             >
@@ -462,18 +472,30 @@ function publish() {
                 </div>
             </div>
 
-            <div class="grid gap-5 lg:grid-cols-[0.8fr_1.2fr]">
-                <div class="space-y-5">
+            <!-- DIAGNOSIS360_ADMIN_QUICK_ACTIONS_TOP -->
+            <TransformationQuickActions
+                mode="admin"
+                :contact-id="contact.id"
+                :progress="transformation_progress"
+                :expanded-report-commercial="expanded_report_commercial"
+                :roadmap-commercial="detailed_roadmap_commercial"
+                :commercial-endpoints="commercial_endpoints"
+            />
+
+            <!-- DIAGNOSIS360_ADMIN_TWO_COLUMN_LAYOUT -->
+            <div
+                class="grid items-start gap-6 lg:grid-cols-[minmax(340px,0.8fr)_minmax(0,1.2fr)]"
+            >
+                <!-- DIAGNOSIS360_ADMIN_CHECKLIST_LEFT -->
+                <aside class="min-w-0 lg:sticky lg:top-6">
                     <TransformationProgressChecklist
                         :progress="transformation_progress"
                         :admin="true"
                     />
-                    <TransformationQuickActions
-                        mode="admin"
-                        :contact-id="contact.id"
-                        :progress="transformation_progress"
-                    />
+                </aside>
 
+                <!-- DIAGNOSIS360_ADMIN_RIGHT_COLUMN -->
+                <div class="min-w-0 space-y-6">
                     <Card>
                         <CardHeader>
                             <CardTitle>Solicitud y acceso</CardTitle>
@@ -708,9 +730,7 @@ function publish() {
                             </p>
                         </CardContent>
                     </Card>
-                </div>
 
-                <div class="space-y-5">
                     <Card v-if="!assessment">
                         <CardContent class="p-6 text-sm text-muted-foreground">
                             El diagnóstico todavía no ha sido creado. Se genera
@@ -1017,7 +1037,10 @@ function publish() {
                                     </Badge>
                                 </div>
                             </CardHeader>
-                            <CardContent class="space-y-4">
+                            <CardContent
+                                class="space-y-4"
+                                id="informe-diagnostico"
+                            >
                                 <div>
                                     <label class="text-xs font-bold">
                                         Conclusión ejecutiva

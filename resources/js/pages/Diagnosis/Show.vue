@@ -69,6 +69,7 @@ interface BusinessProfileOptions {
 
 interface Endpoints {
     request_expanded_report: string;
+    request_detailed_roadmap: string;
     implementation_plan_url: string | null;
 
     update: string;
@@ -101,6 +102,7 @@ const props = defineProps<{
             total: string;
         } | null;
     } | null;
+    detailed_roadmap_commercial: Record<string, any> | null;
     endpoints: Endpoints;
     businessProfileOptions: BusinessProfileOptions;
     transformation_progress: Record<string, any> | null;
@@ -395,15 +397,23 @@ function submitDiagnosis(payload: {
         <main
             class="mx-auto w-full max-w-7xl px-4 py-6 sm:px-6 lg:px-8 lg:py-8"
         >
-            <TransformationProgressChecklist
-                :progress="transformation_progress"
-            />
-            <TransformationQuickActions
-                mode="client"
-                :assessment-id="assessment.id"
-                :progress="transformation_progress"
-                :implementation-plan-url="endpoints.implementation_plan_url"
-            />
+            <div class="mb-8 space-y-6">
+                <TransformationProgressChecklist
+                    :progress="transformation_progress"
+                />
+                <TransformationQuickActions
+                    mode="client"
+                    :assessment-id="assessment.id"
+                    :progress="transformation_progress"
+                    :implementation-plan-url="endpoints.implementation_plan_url"
+                    :expanded-report-commercial="expanded_report_commercial"
+                    :roadmap-commercial="detailed_roadmap_commercial"
+                    :request-expanded-report-url="
+                        endpoints.request_expanded_report
+                    "
+                    :request-roadmap-url="endpoints.request_detailed_roadmap"
+                />
+            </div>
 
             <Card v-if="isEditable" class="mb-6">
                 <CardContent class="space-y-5 p-5 sm:p-6">
@@ -688,6 +698,7 @@ function submitDiagnosis(payload: {
                 <div class="space-y-5">
                     <Card
                         class="border-emerald-200 bg-emerald-50/60 dark:border-emerald-900/50 dark:bg-emerald-950/20"
+                        id="informe-diagnostico"
                     >
                         <CardContent class="p-6 sm:p-8">
                             <div class="flex items-start gap-4">
@@ -888,6 +899,7 @@ function submitDiagnosis(payload: {
                             </div>
 
                             <ExpandedReportCommercialCard
+                                id="informe-ampliado"
                                 v-if="
                                     !expanded_report_commercial?.paid_access ||
                                     !expanded_report
