@@ -10,6 +10,7 @@ use App\Models\Invoice;
 use App\Models\Payment;
 use App\Models\Subscription;
 use App\Models\SubscriptionItem;
+use App\Services\Ecosystem\SubscriberTransformation360DashboardService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
@@ -19,8 +20,10 @@ class SubscriberDashboardController extends Controller
 {
     private const DASHBOARD_CACHE_TTL_SECONDS = 60;
 
-    public function __invoke(Request $request)
-    {
+    public function __invoke(
+        Request $request,
+        SubscriberTransformation360DashboardService $transformation360Dashboard
+    ) {
         $user = $request->user();
         if (!$user) abort(403);
 
@@ -62,6 +65,17 @@ class SubscriberDashboardController extends Controller
             now()->addSeconds(self::DASHBOARD_CACHE_TTL_SECONDS),
             fn() => $this->getStats($company->id, (int) $company->subscriber_id, (int) $user->id, (string) $company->currency, (string) $company->timezone)
         );
+
+        /*
+         * T360 se calcula fuera del cache general del dashboard.
+         * Así presentación/aceptación/ejecución se refleja
+         * inmediatamente al recargar, sin esperar 60 segundos.
+         */
+        $stats['transformation360'] =
+            $transformation360Dashboard->forCompany(
+                $company,
+                (int) $user->id
+            );
 
         return Inertia::render('Subscriber/Dashboard', [
             'stats' => $stats,
@@ -343,6 +357,22 @@ class SubscriberDashboardController extends Controller
                 'month_units' => 0,
                 'days_with_usage' => 0,
                 'services_with_usage' => 0,
+            ],
+
+            'transformation360' => [
+                'visible' => false,
+                'has_workflow' => false,
+                'assessment_id' => null,
+                'organization_name' => null,
+                'current_label' => null,
+                'plan_public' => false,
+                'execution' => [
+                    'progress_percentage' => 0,
+                    'phase_count' => 0,
+                    'completed_phase_count' => 0,
+                ],
+                'stages' => [],
+                'primary_action' => null,
             ],
         ];
     }
