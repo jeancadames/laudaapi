@@ -131,11 +131,11 @@ Route::middleware(['auth', 'verified', 'role:subscriber', 'apphub.onboarded'])
         // ✅ S10-F4.8-B1 · App Store moderno
         Route::prefix('apps')->name('apps.')->group(function () {
             Route::get('/{serviceKey}', [SubscriberAppStoreController::class, 'show'])
-                ->whereIn('serviceKey', ['social', 'crm', 'pos', 'ecf'])
+                ->whereIn('serviceKey', ['social', 'crm', 'pos', 'ecf', 'cumplimiento'])
                 ->name('show');
 
             Route::post('/{serviceKey}/checkout', [SubscriberAppStoreController::class, 'checkout'])
-                ->whereIn('serviceKey', ['social', 'crm', 'pos', 'ecf'])
+                ->whereIn('serviceKey', ['social', 'crm', 'pos', 'ecf', 'cumplimiento'])
                 ->name('checkout');
         });
 

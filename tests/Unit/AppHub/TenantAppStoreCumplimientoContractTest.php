@@ -2,7 +2,7 @@
 
 use PHPUnit\Framework\TestCase;
 
-final class TenantAppStoreEcfContractTest extends TestCase
+final class TenantAppStoreCumplimientoContractTest extends TestCase
 {
     private function read(string $relative): string
     {
@@ -18,7 +18,7 @@ final class TenantAppStoreEcfContractTest extends TestCase
         return $contents;
     }
 
-    public function test_routes_allow_ecf(): void
+    public function test_routes_allow_cumplimiento(): void
     {
         $routes = $this->read('routes/subscriber.php');
 
@@ -32,24 +32,25 @@ final class TenantAppStoreEcfContractTest extends TestCase
         );
     }
 
-    public function test_ecosystem_uses_independent_ecf_identity(): void
+    public function test_ecosystem_uses_independent_identity(): void
     {
         $config = $this->read(
             'config/ecosystem_hub.php'
         );
 
         $this->assertStringContainsString(
-            "'ecf' => [",
+            "'cumplimiento' => [",
             $config
         );
 
         $this->assertStringContainsString(
-            "'service_key' => 'ecf'",
+            "'service_key' => 'cumplimiento'",
             $config
         );
 
         $this->assertStringContainsString(
-            "'target_url' => 'https://ecf.laudaapi.com'",
+            "'target_url' => "
+            ."'https://cumplimiento.laudaapi.com'",
             $config
         );
 
@@ -59,7 +60,7 @@ final class TenantAppStoreEcfContractTest extends TestCase
         );
     }
 
-    public function test_controller_allows_ecf(): void
+    public function test_controller_allows_cumplimiento(): void
     {
         $controller = $this->read(
             'app/Http/Controllers/Subscriber/'
@@ -85,14 +86,14 @@ final class TenantAppStoreEcfContractTest extends TestCase
         }
     }
 
-    public function test_hub_routes_ecf_to_modern_store(): void
+    public function test_hub_routes_to_modern_store(): void
     {
         $hub = $this->read(
             'resources/js/pages/App/Hub.vue'
         );
 
         $this->assertStringContainsString(
-            "app.service_key === 'ecf'",
+            "app.service_key === 'cumplimiento'",
             $hub
         );
 
@@ -102,15 +103,14 @@ final class TenantAppStoreEcfContractTest extends TestCase
         );
     }
 
-    public function test_ui_supports_ecf_limits(): void
+    public function test_ui_supports_api_request_limits(): void
     {
         $page = $this->read(
             'resources/js/pages/App/Store/Show.vue'
         );
 
         foreach ([
-            "ecfs: 'e-CF / mes'",
-            "webhooks: 'Webhooks'",
+            "api_requests: 'API requests / mes'",
             "users: 'Usuarios'",
             "availableCycles.includes('monthly')",
             "availableCycles.includes('yearly')",

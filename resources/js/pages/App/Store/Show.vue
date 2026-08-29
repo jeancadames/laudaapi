@@ -184,6 +184,7 @@ const limitLabel = (key: string, value: number | null) => {
         warehouses: 'Almacenes',
         ecfs: 'e-CF / mes',
         webhooks: 'Webhooks',
+        api_requests: 'API requests / mes',
         leads: 'Leads',
         accounts: 'Cuentas sociales',
         social_accounts: 'Cuentas sociales',

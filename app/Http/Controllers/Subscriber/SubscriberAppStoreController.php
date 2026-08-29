@@ -288,11 +288,11 @@ class SubscriberAppStoreController extends Controller
     private function storeService(string $serviceKey): Service
     {
         /*
-         * B4 habilita únicamente soluciones ya incorporadas
+         * B5 habilita únicamente soluciones ya incorporadas
          * al App Store moderno. Se amplía una por una.
          */
         abort_unless(
-            in_array($serviceKey, ['social', 'crm', 'pos', 'ecf'], true),
+            in_array($serviceKey, ['social', 'crm', 'pos', 'ecf', 'cumplimiento'], true),
             404
         );
 

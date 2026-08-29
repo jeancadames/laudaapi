@@ -111,7 +111,7 @@ return [
                     'title' => 'Cumplimiento',
                     'description' =>
                         'Obligaciones, calendario y seguimiento fiscal.',
-                    'service_key' => 'cumplimiento_fiscal',
+                    'service_key' => 'cumplimiento',
                     'integration' => 'external',
                     'launchable' => true,
                     'target_url' => 'https://cumplimiento.laudaapi.com',
