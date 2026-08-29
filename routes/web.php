@@ -167,3 +167,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
 Route::middleware(['auth', 'verified'])
     ->get('/app', \App\Http\Controllers\AppGatewayController::class)
     ->name('app.gateway');
+
+Route::middleware(['auth', 'verified'])
+    ->get('/app/control', \App\Http\Controllers\AppGatewayController::class)
+    ->name('app.control');

@@ -129,7 +129,7 @@ const homeHref = computed(() => (isAdmin.value ? '/dashboard' : '/app'));
 
 const brandCaption = computed(() => {
     if (isAdmin.value) return 'CONTROL CENTER';
-    if (tenantMode.value === 'subscriber.admin') return 'CONTROL PANEL';
+    if (tenantMode.value === 'subscriber.admin') return 'APP HUB';
     return 'MIS APPS';
 });
 </script>

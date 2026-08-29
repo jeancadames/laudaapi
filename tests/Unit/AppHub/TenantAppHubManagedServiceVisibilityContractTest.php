@@ -95,21 +95,36 @@ class TenantAppHubManagedServiceVisibilityContractTest extends TestCase
         }
     }
 
-    public function test_sidebar_navigation_uses_supported_icons_for_store_and_subscription(): void
+    public function test_sidebar_navigation_uses_home_and_control_panel_without_redundant_store(): void
     {
         $navigation = file_get_contents(
             $this->root().'/resources/js/config/navigationByRole.ts'
         );
 
         $this->assertStringContainsString(
-            "{ title: 'App Store', href: '/app#app-store', icon: 'LayoutGrid' }",
+            "{ title: 'Inicio', href: '/app', icon: 'LayoutGrid' }",
+            $navigation
+        );
+
+        $this->assertStringContainsString(
+            "{ title: 'Control Panel', href: '/app/control', icon: 'Boxes' }",
+            $navigation
+        );
+
+        $this->assertStringNotContainsString(
+            "{ title: 'App Store', href: '/app#app-store'",
+            $navigation
+        );
+
+        $this->assertStringNotContainsString(
+            "{ title: 'Mis Apps', href: '/app'",
             $navigation
         );
 
         $this->assertMatchesRegularExpression(
-            "/title:\\s*'Mi suscripción',[\\s\\S]*?"
-            ."href:\\s*'\\/subscriber\\/subscription',[\\s\\S]*?"
-            ."icon:\\s*'CreditCard'/",
+            "/title:\s*'Mi suscripción',[\s\S]*?"
+            ."href:\s*'\/subscriber\/subscription',[\s\S]*?"
+            ."icon:\s*'CreditCard'/",
             $navigation
         );
     }

@@ -104,6 +104,25 @@ class AppGatewayController extends Controller
                             ->all();
                     }
 
+                    if (! $request->routeIs('app.control')) {
+                        return Inertia::render('App/Home', [
+                            'company' => [
+                                'id' => $company->id,
+                                'name' =>
+                                    $company->name
+                                    ?? $company->business_name
+                                    ?? 'Mi empresa',
+                                'subscriber_id' => $company->subscriber_id,
+                            ],
+                            'groups' => $groups,
+                            'tenant_access' => $tenantAccess,
+                        ]);
+                    }
+
+                    if (! ($tenantAccess['can_browse_store'] ?? false)) {
+                        return redirect()->route('app.gateway');
+                    }
+
                     return Inertia::render('App/Hub', [
                         'company' => [
                             'id' => $company->id,

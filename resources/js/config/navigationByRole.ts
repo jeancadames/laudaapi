@@ -15,8 +15,8 @@ export const navigationByRole = {
 
     subscriber_admin: {
         main: [
-            { title: 'Control Panel', href: '/app', icon: 'LayoutGrid' },
-            { title: 'App Store', href: '/app#app-store', icon: 'LayoutGrid' },
+            { title: 'Inicio', href: '/app', icon: 'LayoutGrid' },
+            { title: 'Control Panel', href: '/app/control', icon: 'Boxes' },
             { title: 'Usuarios', href: '/subscriber/users', icon: 'Users' },
             {
                 title: 'Mi suscripción',
@@ -51,7 +51,7 @@ export const navigationByRole = {
 
     subscriber_user: {
         main: [
-            { title: 'Mis Apps', href: '/app', icon: 'Boxes' },
+            { title: 'Inicio', href: '/app', icon: 'LayoutGrid' },
         ],
         footer: [],
     },
@@ -59,7 +59,7 @@ export const navigationByRole = {
     // Alias de compatibilidad. El sidebar nuevo resuelve el lane exacto.
     subscriber: {
         main: [
-            { title: 'Mis Apps', href: '/app', icon: 'Boxes' },
+            { title: 'Inicio', href: '/app', icon: 'LayoutGrid' },
         ],
         footer: [],
     },

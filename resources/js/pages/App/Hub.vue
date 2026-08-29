@@ -151,7 +151,8 @@ const props = defineProps<{
 }>();
 
 const breadcrumbs: BreadcrumbItem[] = [
-    { title: 'Mi ecosistema', href: '/app' },
+    { title: 'Inicio', href: '/app' },
+    { title: 'Control Panel', href: '/app/control' },
 ];
 
 const query = ref('');
