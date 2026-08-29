@@ -80,7 +80,7 @@ const breadcrumbs = [
             <div>
                 <h1 class="text-2xl font-bold tracking-tight">Solicitudes de Diagnóstico LAUDA 360</h1>
                 <p class="mt-1 text-sm text-muted-foreground">
-                    Revisa las solicitudes públicas y habilita el diagnóstico inicial gratuito.
+                    Revisa las solicitudes públicas y confirma y habilita el diagnóstico inicial sin costo.
                 </p>
             </div>
 

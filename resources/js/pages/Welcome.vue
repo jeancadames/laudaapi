@@ -540,36 +540,9 @@ async function refreshContactCsrf() {
 }
 
 function buildContactPayload() {
-    const form = contactForm.value;
-
-    return {
-        name: form.name,
-        company: form.company,
-        email: form.email,
-        phone: form.phone,
-        topic: 'Solicitud de acceso al Diagnóstico LAUDA 360',
-        terms: form.terms,
-        metadata: {
-            source: 'laudaapi.com',
-            request_type: 'digital_diagnosis_access_request',
-            company_size: form.company_size || null,
-            main_challenge: form.main_challenge,
-            assistance_level: form.assistance_level,
-            intake_type: 'digital_transformation_360',
-            diagnosis_access: 'private_invitation',
-        },
-        message: [
-            'Solicitud: Acceso al Diagnóstico LAUDA 360',
-            `Tamaño aproximado: ${form.company_size || 'No indicado'}`,
-            `Reto principal: ${form.main_challenge}`,
-            `Acompañamiento: ${form.assistance_level}`,
-            '',
-            'Contexto adicional:',
-            form.message || 'No indicado',
-            '',
-            'Origen: laudaapi.com',
-        ].join('\n'),
-    };
+    window.location.assign(
+        `${APP_URL}/app/diagnostico-360/entrada`,
+    );
 }
 
 async function sendContactRequest(payload: ReturnType<typeof buildContactPayload>) {

@@ -166,6 +166,61 @@ class CentralCompanyProfileContractTest extends TestCase
         }
     }
 
+    public function test_all_company_profile_text_fields_use_native_inputs(): void
+    {
+        $form = $this->read(
+            'resources/js/components/company/CompanyProfileForm.vue'
+        );
+
+        foreach ([
+            'company_name',
+            'legal_name',
+            'tax_id',
+            'country_code',
+            'billing_email',
+            'billing_phone',
+            'billing_contact_name',
+            'address_line1',
+            'address_line2',
+            'state',
+            'city',
+            'postal_code',
+            'timezone',
+            'economic_activity_primary_code',
+            'economic_activity_primary_name',
+        ] as $name) {
+            $this->assertMatchesRegularExpression(
+                '/<input[\s\S]*?name="'.preg_quote($name, '/').'"/',
+                $form,
+                'Campo no nativo: '.$name
+            );
+        }
+
+        $this->assertMatchesRegularExpression(
+            '/<input[\s\S]*?name="tax_id"[\s\S]*?maxlength="50"/',
+            $form
+        );
+
+        $this->assertMatchesRegularExpression(
+            '/<input[\s\S]*?name="billing_phone"[\s\S]*?type="tel"[\s\S]*?maxlength="50"/',
+            $form
+        );
+
+        foreach ([
+            'address_line1',
+            'address_line2',
+            'state',
+            'city',
+            'postal_code',
+        ] as $locationField) {
+            $this->assertStringContainsString(
+                'name="'.$locationField.'"',
+                $form
+            );
+        }
+    }
+
+
     public function test_legacy_compliance_endpoint_is_preserved(): void
     {
         $controller = $this->read(

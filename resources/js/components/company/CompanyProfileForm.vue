@@ -85,12 +85,15 @@ const props = withDefaults(
             <div class="grid gap-4 sm:grid-cols-2">
                 <div class="grid gap-2">
                     <Label for="name">Tu nombre</Label>
-                    <Input
+                    <input
                         id="name"
                         name="name"
-                        required
+                        type="text"
+                        maxlength="255"
                         autocomplete="name"
+                        required
                         :value="props.account.name"
+                        class="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm shadow-xs transition-colors outline-none placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:cursor-not-allowed disabled:opacity-50"
                     />
                     <InputError :message="errors.name" />
                 </div>
@@ -130,34 +133,46 @@ const props = withDefaults(
             <div class="grid gap-4 sm:grid-cols-2">
                 <div class="grid gap-2">
                     <Label for="company_name">Nombre comercial *</Label>
-                    <Input
+                    <input
                         id="company_name"
                         name="company_name"
+                        type="text"
+                        maxlength="255"
+                        autocomplete="organization"
                         required
                         :value="props.initial.company_name"
                         placeholder="Nombre de tu empresa"
+                        class="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm shadow-xs transition-colors outline-none placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:cursor-not-allowed disabled:opacity-50"
                     />
                     <InputError :message="errors.company_name" />
                 </div>
 
                 <div class="grid gap-2">
                     <Label for="legal_name">Razón social</Label>
-                    <Input
+                    <input
                         id="legal_name"
                         name="legal_name"
+                        type="text"
+                        maxlength="255"
+                        autocomplete="organization"
                         :value="props.initial.legal_name"
                         placeholder="Razón social registrada"
+                        class="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm shadow-xs transition-colors outline-none placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:cursor-not-allowed disabled:opacity-50"
                     />
                     <InputError :message="errors.legal_name" />
                 </div>
 
                 <div class="grid gap-2">
                     <Label for="tax_id">RNC / identificación fiscal</Label>
-                    <Input
+                    <input
                         id="tax_id"
                         name="tax_id"
+                        type="text"
+                        maxlength="50"
+                        autocomplete="off"
                         :value="props.initial.tax_id"
                         placeholder="Ej. 101000000"
+                        class="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm shadow-xs transition-colors outline-none placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:cursor-not-allowed disabled:opacity-50"
                     />
                     <InputError :message="errors.tax_id" />
                 </div>
@@ -203,13 +218,14 @@ const props = withDefaults(
 
                 <div class="grid gap-2">
                     <Label for="country_code">País *</Label>
-                    <Input
+                    <input
                         id="country_code"
                         name="country_code"
-                        required
+                        type="text"
                         maxlength="2"
-                        class="uppercase"
+                        required
                         :value="props.initial.country_code"
+                        class="uppercase flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm shadow-xs transition-colors outline-none placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:cursor-not-allowed disabled:opacity-50"
                     />
                     <InputError :message="errors.country_code" />
                 </div>
@@ -238,35 +254,45 @@ const props = withDefaults(
             <div class="grid gap-4 sm:grid-cols-2">
                 <div class="grid gap-2">
                     <Label for="billing_email">Correo de la empresa *</Label>
-                    <Input
+                    <input
                         id="billing_email"
                         name="billing_email"
                         type="email"
+                        maxlength="255"
+                        autocomplete="email"
                         required
                         :value="props.initial.billing_email"
                         placeholder="empresa@dominio.com"
+                        class="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm shadow-xs transition-colors outline-none placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:cursor-not-allowed disabled:opacity-50"
                     />
                     <InputError :message="errors.billing_email" />
                 </div>
 
                 <div class="grid gap-2">
                     <Label for="billing_phone">Teléfono</Label>
-                    <Input
+                    <input
                         id="billing_phone"
                         name="billing_phone"
                         type="tel"
+                        maxlength="50"
+                        autocomplete="tel"
                         :value="props.initial.billing_phone"
                         placeholder="809-555-0000"
+                        class="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm shadow-xs transition-colors outline-none placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:cursor-not-allowed disabled:opacity-50"
                     />
                     <InputError :message="errors.billing_phone" />
                 </div>
 
                 <div class="grid gap-2 sm:col-span-2">
                     <Label for="billing_contact_name">Contacto principal</Label>
-                    <Input
+                    <input
                         id="billing_contact_name"
                         name="billing_contact_name"
+                        type="text"
+                        maxlength="255"
+                        autocomplete="name"
                         :value="props.initial.billing_contact_name"
+                        class="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm shadow-xs transition-colors outline-none placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:cursor-not-allowed disabled:opacity-50"
                     />
                     <InputError :message="errors.billing_contact_name" />
                 </div>
@@ -295,51 +321,70 @@ const props = withDefaults(
             <div class="grid gap-4 sm:grid-cols-2">
                 <div class="grid gap-2 sm:col-span-2">
                     <Label for="address_line1">Dirección</Label>
-                    <Input
+                    <input
                         id="address_line1"
                         name="address_line1"
+                        type="text"
+                        maxlength="255"
+                        autocomplete="street-address"
                         :value="props.initial.address_line1"
                         placeholder="Calle, número, sector"
+                        class="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm shadow-xs transition-colors outline-none placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:cursor-not-allowed disabled:opacity-50"
                     />
                     <InputError :message="errors.address_line1" />
                 </div>
 
                 <div class="grid gap-2 sm:col-span-2">
                     <Label for="address_line2">Referencia / complemento</Label>
-                    <Input
+                    <input
                         id="address_line2"
                         name="address_line2"
+                        type="text"
+                        maxlength="255"
                         :value="props.initial.address_line2"
+                        class="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm shadow-xs transition-colors outline-none placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:cursor-not-allowed disabled:opacity-50"
                     />
                     <InputError :message="errors.address_line2" />
                 </div>
 
                 <div class="grid gap-2">
                     <Label for="state">Provincia / estado</Label>
-                    <Input
+                    <input
                         id="state"
                         name="state"
+                        type="text"
+                        maxlength="255"
+                        autocomplete="address-level1"
                         :value="props.initial.state"
+                        class="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm shadow-xs transition-colors outline-none placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:cursor-not-allowed disabled:opacity-50"
                     />
                     <InputError :message="errors.state" />
                 </div>
 
                 <div class="grid gap-2">
                     <Label for="city">Ciudad / municipio</Label>
-                    <Input
+                    <input
                         id="city"
                         name="city"
+                        type="text"
+                        maxlength="255"
+                        autocomplete="address-level2"
                         :value="props.initial.city"
+                        class="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm shadow-xs transition-colors outline-none placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:cursor-not-allowed disabled:opacity-50"
                     />
                     <InputError :message="errors.city" />
                 </div>
 
                 <div class="grid gap-2">
                     <Label for="postal_code">Código postal</Label>
-                    <Input
+                    <input
                         id="postal_code"
                         name="postal_code"
+                        type="text"
+                        maxlength="50"
+                        autocomplete="postal-code"
                         :value="props.initial.postal_code"
+                        class="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm shadow-xs transition-colors outline-none placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:cursor-not-allowed disabled:opacity-50"
                     />
                     <InputError :message="errors.postal_code" />
                 </div>
@@ -384,11 +429,14 @@ const props = withDefaults(
 
                 <div class="grid gap-2">
                     <Label for="timezone">Zona horaria *</Label>
-                    <Input
+                    <input
                         id="timezone"
                         name="timezone"
+                        type="text"
+                        maxlength="100"
                         required
                         :value="props.initial.timezone"
+                        class="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm shadow-xs transition-colors outline-none placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:cursor-not-allowed disabled:opacity-50"
                     />
                     <InputError :message="errors.timezone" />
                 </div>
@@ -397,10 +445,13 @@ const props = withDefaults(
                     <Label for="economic_activity_primary_code">
                         Código actividad económica
                     </Label>
-                    <Input
+                    <input
                         id="economic_activity_primary_code"
                         name="economic_activity_primary_code"
+                        type="text"
+                        maxlength="20"
                         :value="props.initial.economic_activity_primary_code"
+                        class="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm shadow-xs transition-colors outline-none placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:cursor-not-allowed disabled:opacity-50"
                     />
                     <InputError
                         :message="errors.economic_activity_primary_code"
@@ -411,11 +462,14 @@ const props = withDefaults(
                     <Label for="economic_activity_primary_name">
                         Actividad económica
                     </Label>
-                    <Input
+                    <input
                         id="economic_activity_primary_name"
                         name="economic_activity_primary_name"
+                        type="text"
+                        maxlength="255"
                         :value="props.initial.economic_activity_primary_name"
                         placeholder="Descripción de la actividad principal"
+                        class="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm shadow-xs transition-colors outline-none placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:cursor-not-allowed disabled:opacity-50"
                     />
                     <InputError
                         :message="errors.economic_activity_primary_name"

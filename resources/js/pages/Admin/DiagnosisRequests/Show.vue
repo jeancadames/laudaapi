@@ -565,7 +565,7 @@ function publish() {
                                     :disabled="approveForm.processing"
                                     @click="approve"
                                 >
-                                    Aprobar y enviar invitación
+                                    Aprobar / habilitar diagnóstico
                                 </Button>
                             </template>
 
@@ -989,7 +989,7 @@ function publish() {
                                             </CardTitle>
                                             <CardDescription>
                                                 Entregable posterior al
-                                                diagnóstico gratuito.
+                                                diagnóstico inicial sin costo.
                                             </CardDescription>
                                         </CardHeader>
                                         <CardContent>

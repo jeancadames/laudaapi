@@ -217,6 +217,11 @@ class AdminDiagnosisAccessRequestController extends Controller
                 'invitation_accepted_at' => $workflow
                     ->invitation_accepted_at?->toISOString(),
                 'rejected_at' => $workflow->rejected_at?->toISOString(),
+                'initial_diagnosis' => data_get(
+                    $workflow->meta,
+                    'initial_diagnosis'
+                ),
+                'source' => data_get($workflow->meta, 'source'),
                 'user' => $workflow->user,
                 'assessment' => $assessment ? [
                     'id' => $assessment->id,
@@ -312,11 +317,20 @@ class AdminDiagnosisAccessRequestController extends Controller
         ContactRequest $contact,
         DiagnosisAccessService $service
     ): RedirectResponse {
-        $service->approve($contact, $request->user());
+        $workflow = $service->approve(
+            $contact,
+            $request->user()
+        );
+
+        $native =
+            data_get($workflow->meta, 'source')
+            === \App\Services\Diagnosis\InitialDiagnosisCommercialService::SOURCE;
 
         return back()->with(
             'success',
-            'Solicitud aprobada e invitación de diagnóstico enviada.'
+            $native
+                ? 'Solicitud confirmada. La factura RD$0.00 queda como evidencia de cortesía y el Diagnóstico 360 fue habilitado en App Hub.'
+                : 'Solicitud aprobada e invitación de diagnóstico enviada.'
         );
     }
 

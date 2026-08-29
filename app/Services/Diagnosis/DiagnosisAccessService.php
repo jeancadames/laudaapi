@@ -6,6 +6,7 @@ use App\Mail\DiagnosisInvitationMail;
 use App\Models\ContactRequest;
 use App\Models\DiagnosisAccessRequest;
 use App\Models\DiagnosisAssessment;
+use App\Models\Invoice;
 use App\Models\User;
 use App\Services\AuditService;
 use Illuminate\Support\Facades\DB;
@@ -80,6 +81,39 @@ class DiagnosisAccessService
                 ]);
             }
 
+            $isAppHubNative =
+                data_get($workflow->meta, 'source')
+                === InitialDiagnosisCommercialService::SOURCE;
+
+            if ($isAppHubNative) {
+                $invoiceId = (int) data_get(
+                    $workflow->meta,
+                    'initial_diagnosis.invoice_id',
+                    0
+                );
+
+                $invoice = $invoiceId > 0
+                    ? Invoice::query()->find($invoiceId)
+                    : null;
+
+                if (
+                    ! $invoice
+                    || $invoice->status !== 'issued'
+                    || round((float) $invoice->total, 2) !== 0.0
+                    || ! (bool) data_get(
+                        $invoice->billing_snapshot,
+                        'complimentary',
+                        false
+                    )
+                ) {
+                    throw ValidationException::withMessages([
+                        'invoice' => [
+                            'La solicitud App Hub requiere su factura de cortesía RD$0.00 antes de confirmar el diagnóstico.',
+                        ],
+                    ]);
+                }
+            }
+
             $email = strtolower(trim((string) $contact->email));
 
             $user = User::query()
@@ -142,6 +176,55 @@ class DiagnosisAccessService
 
             return $workflow->fresh(['contactRequest', 'user', 'assessment']);
         });
+
+        if (
+            data_get($workflow->meta, 'source')
+            === InitialDiagnosisCommercialService::SOURCE
+        ) {
+            $meta = is_array($workflow->meta)
+                ? $workflow->meta
+                : [];
+
+            $meta['initial_diagnosis'] = array_merge(
+                is_array($meta['initial_diagnosis'] ?? null)
+                    ? $meta['initial_diagnosis']
+                    : [],
+                [
+                    'confirmation_status' => 'confirmed',
+                    'confirmed_at' => now()->toIso8601String(),
+                    'confirmed_by_user_id' => $admin->id,
+                ]
+            );
+
+            $workflow->forceFill([
+                'status' => DiagnosisAccessRequest::STATUS_ACTIVE,
+                'meta' => $meta,
+            ])->save();
+
+            AuditService::log(
+                'diagnosis_initial_apphub_confirmed',
+                $workflow,
+                [
+                    'contact_request_id' =>
+                        $workflow->contact_request_id,
+                    'user_id' => $workflow->user_id,
+                    'diagnosis_assessment_id' =>
+                        $workflow->diagnosis_assessment_id,
+                    'invoice_id' => data_get(
+                        $meta,
+                        'initial_diagnosis.invoice_id'
+                    ),
+                    'confirmed_by_user_id' => $admin->id,
+                ],
+                ['user_id' => $admin->id]
+            );
+
+            return $workflow->fresh([
+                'contactRequest',
+                'user',
+                'assessment',
+            ]);
+        }
 
         return $this->sendInvitation($workflow, $admin);
     }

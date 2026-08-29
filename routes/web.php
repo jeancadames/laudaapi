@@ -171,3 +171,25 @@ Route::middleware(['auth', 'verified'])
 Route::middleware(['auth', 'verified'])
     ->get('/app/control', \App\Http\Controllers\AppGatewayController::class)
     ->name('app.control');
+
+/*
+|--------------------------------------------------------------------------
+| S10-F4.12-C · Diagnóstico 360 nativo en App Hub
+|--------------------------------------------------------------------------
+*/
+Route::get(
+    '/app/diagnostico-360/entrada',
+    [\App\Http\Controllers\AppHubDiagnosisController::class, 'entry']
+)->name('app.diagnosis.entry');
+
+Route::middleware(['auth'])->group(function (): void {
+    Route::get(
+        '/app/diagnostico-360',
+        [\App\Http\Controllers\AppHubDiagnosisController::class, 'show']
+    )->name('app.diagnosis.show');
+
+    Route::post(
+        '/app/diagnostico-360/solicitar',
+        [\App\Http\Controllers\AppHubDiagnosisController::class, 'store']
+    )->name('app.diagnosis.request');
+});

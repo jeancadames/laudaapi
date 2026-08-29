@@ -17,6 +17,7 @@ export const navigationByRole = {
         main: [
             { title: 'Inicio', href: '/app', icon: 'LayoutGrid' },
             { title: 'Control Panel', href: '/app/control', icon: 'Boxes' },
+            { title: 'Diagnóstico 360', href: '/app/diagnostico-360', icon: 'FileText' },
             { title: 'Usuarios', href: '/subscriber/users', icon: 'Users' },
             {
                 title: 'Mi suscripción',

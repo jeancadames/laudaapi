@@ -26,6 +26,13 @@ class AppHubOnboardingController extends Controller
         }
 
         if ($this->hasHubContext($user)) {
+            if (
+                $request->session()->get('apphub.intent')
+                === \App\Services\Diagnosis\InitialDiagnosisCommercialService::INTENT
+            ) {
+                return redirect()->route('app.diagnosis.show');
+            }
+
             return redirect()->route('app.gateway');
         }
 
@@ -56,6 +63,13 @@ class AppHubOnboardingController extends Controller
         abort_if(($user->role ?? null) === 'admin', 403);
 
         if ($this->hasHubContext($user)) {
+            if (
+                $request->session()->get('apphub.intent')
+                === \App\Services\Diagnosis\InitialDiagnosisCommercialService::INTENT
+            ) {
+                return redirect()->route('app.diagnosis.show');
+            }
+
             return redirect()->route('app.gateway');
         }
 
@@ -148,6 +162,18 @@ class AppHubOnboardingController extends Controller
                 'role' => 'subscriber',
             ])->save();
         });
+
+        if (
+            $request->session()->get('apphub.intent')
+            === \App\Services\Diagnosis\InitialDiagnosisCommercialService::INTENT
+        ) {
+            return redirect()
+                ->route('app.diagnosis.show')
+                ->with(
+                    'success',
+                    'Tu empresa está lista. Continuaremos con la solicitud del Diagnóstico 360.'
+                );
+        }
 
         return redirect()
             ->route('app.gateway')

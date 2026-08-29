@@ -72,6 +72,15 @@ class AppGatewayController extends Controller
                 );
 
                 if ($company) {
+                    if (
+                        $request->session()->get('apphub.intent')
+                        === \App\Services\Diagnosis\InitialDiagnosisCommercialService::INTENT
+                    ) {
+                        return redirect()->route(
+                            'app.diagnosis.show'
+                        );
+                    }
+
                     $tenantAccess = $tenantAccessService->resolve(
                         $user,
                         $subscriberId

@@ -12,6 +12,18 @@ return [
     |
     */
 
+    'initial_diagnosis' => [
+        'code' => 'lauda360_initial_diagnosis',
+        'name' => 'Diagnóstico Inicial LAUDA 360',
+        'invoice_description' =>
+            'Diagnóstico Inicial LAUDA 360 · Evaluación inicial sin costo (cortesía LAUDAAPI)',
+        'currency' => 'DOP',
+        'subtotal' => 0.00,
+        'tax_rate' => 0.000,
+        'complimentary' => true,
+        'manual_confirmation_required' => true,
+    ],
+
     'expanded_report' => [
         'code' => 'lauda360_expanded_report',
         'name' => 'Informe Ampliado LAUDA 360',
