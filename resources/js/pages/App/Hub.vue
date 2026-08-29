@@ -386,6 +386,7 @@ const stateLabel = (app: Solution) => {
                                         || app.service_key === 'pos'
                                         || app.service_key === 'ecf'
                                         || app.service_key === 'cumplimiento'
+                                        || app.service_key === 'bys'
                                             ? `/subscriber/apps/${app.service_key}`
                                             : '/subscriber/services/my'
                                     "

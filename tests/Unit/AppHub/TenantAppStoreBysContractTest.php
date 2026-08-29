@@ -2,7 +2,7 @@
 
 use PHPUnit\Framework\TestCase;
 
-final class TenantAppStoreCumplimientoContractTest extends TestCase
+final class TenantAppStoreBysContractTest extends TestCase
 {
     private function read(string $relative): string
     {
@@ -18,49 +18,40 @@ final class TenantAppStoreCumplimientoContractTest extends TestCase
         return $contents;
     }
 
-    public function test_routes_allow_cumplimiento(): void
+    public function test_routes_allow_bys(): void
     {
         $routes = $this->read('routes/subscriber.php');
 
+        $needle = "->whereIn('serviceKey', "
+            ."['social', 'crm', 'pos', 'ecf', "
+            ."'cumplimiento', 'bys'])";
+
         $this->assertSame(
             2,
-            substr_count(
-                $routes,
-                "->whereIn('serviceKey', "
-                ."['social', 'crm', 'pos', 'ecf', 'cumplimiento', 'bys'])"
-            )
+            substr_count($routes, $needle)
         );
     }
 
-    public function test_ecosystem_uses_independent_identity(): void
+    public function test_ecosystem_bys_identity_is_independent(): void
     {
         $config = $this->read(
             'config/ecosystem_hub.php'
         );
 
-        $this->assertStringContainsString(
-            "'cumplimiento' => [",
-            $config
-        );
-
-        $this->assertStringContainsString(
-            "'service_key' => 'cumplimiento'",
-            $config
-        );
-
-        $this->assertStringContainsString(
-            "'target_url' => "
-            ."'https://cumplimiento.laudaapi.com'",
-            $config
-        );
-
-        $this->assertStringContainsString(
+        foreach ([
+            "'bys' => [",
+            "'service_key' => 'bys'",
+            "'target_url' => 'https://bys.laudaapi.com'",
             "'target_launch_path' => '/launch'",
-            $config
-        );
+        ] as $required) {
+            $this->assertStringContainsString(
+                $required,
+                $config
+            );
+        }
     }
 
-    public function test_controller_allows_cumplimiento(): void
+    public function test_controller_allows_bys(): void
     {
         $controller = $this->read(
             'app/Http/Controllers/Subscriber/'
@@ -69,7 +60,8 @@ final class TenantAppStoreCumplimientoContractTest extends TestCase
 
         $this->assertStringContainsString(
             "in_array(\$serviceKey, "
-            ."['social', 'crm', 'pos', 'ecf', 'cumplimiento', 'bys'], true)",
+            ."['social', 'crm', 'pos', 'ecf', "
+            ."'cumplimiento', 'bys'], true)",
             $controller
         );
 
@@ -86,14 +78,14 @@ final class TenantAppStoreCumplimientoContractTest extends TestCase
         }
     }
 
-    public function test_hub_routes_to_modern_store(): void
+    public function test_hub_routes_bys_to_modern_store(): void
     {
         $hub = $this->read(
             'resources/js/pages/App/Hub.vue'
         );
 
         $this->assertStringContainsString(
-            "app.service_key === 'cumplimiento'",
+            "app.service_key === 'bys'",
             $hub
         );
 
@@ -103,17 +95,17 @@ final class TenantAppStoreCumplimientoContractTest extends TestCase
         );
     }
 
-    public function test_ui_supports_api_request_limits(): void
+    public function test_ui_has_bys_limit_labels(): void
     {
         $page = $this->read(
             'resources/js/pages/App/Store/Show.vue'
         );
 
         foreach ([
-            "api_requests: 'API requests / mes'",
             "users: 'Usuarios'",
-            "availableCycles.includes('monthly')",
-            "availableCycles.includes('yearly')",
+            "api_requests: 'API requests / mes'",
+            "companies: 'Empresas / tenants'",
+            "purchases: 'Compras / mes'",
         ] as $required) {
             $this->assertStringContainsString(
                 $required,
@@ -122,7 +114,7 @@ final class TenantAppStoreCumplimientoContractTest extends TestCase
         }
     }
 
-    public function test_checkout_engine_remains_shared(): void
+    public function test_checkout_engine_remains_plan_aware(): void
     {
         $checkout = $this->read(
             'app/Services/Billing/'

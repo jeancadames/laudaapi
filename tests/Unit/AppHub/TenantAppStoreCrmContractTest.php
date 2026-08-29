@@ -26,7 +26,7 @@ final class TenantAppStoreCrmContractTest extends TestCase
             2,
             substr_count(
                 $routes,
-                "->whereIn('serviceKey', ['social', 'crm', 'pos', 'ecf', 'cumplimiento'])"
+                "->whereIn('serviceKey', ['social', 'crm', 'pos', 'ecf', 'cumplimiento', 'bys'])"
             )
         );
     }
@@ -39,7 +39,7 @@ final class TenantAppStoreCrmContractTest extends TestCase
         );
 
         foreach ([
-            "in_array(\$serviceKey, ['social', 'crm', 'pos', 'ecf', 'cumplimiento'], true)",
+            "in_array(\$serviceKey, ['social', 'crm', 'pos', 'ecf', 'cumplimiento', 'bys'], true)",
             '$this->featurePayload($plan)',
             'array_is_list($features)',
             ".' ya está activo para esta empresa. '",

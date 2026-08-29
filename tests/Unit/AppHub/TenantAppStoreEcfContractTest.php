@@ -27,7 +27,7 @@ final class TenantAppStoreEcfContractTest extends TestCase
             substr_count(
                 $routes,
                 "->whereIn('serviceKey', "
-                ."['social', 'crm', 'pos', 'ecf', 'cumplimiento'])"
+                ."['social', 'crm', 'pos', 'ecf', 'cumplimiento', 'bys'])"
             )
         );
     }
@@ -68,7 +68,7 @@ final class TenantAppStoreEcfContractTest extends TestCase
 
         $this->assertStringContainsString(
             "in_array(\$serviceKey, "
-            ."['social', 'crm', 'pos', 'ecf', 'cumplimiento'], true)",
+            ."['social', 'crm', 'pos', 'ecf', 'cumplimiento', 'bys'], true)",
             $controller
         );
 

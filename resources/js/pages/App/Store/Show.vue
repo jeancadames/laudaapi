@@ -185,6 +185,8 @@ const limitLabel = (key: string, value: number | null) => {
         ecfs: 'e-CF / mes',
         webhooks: 'Webhooks',
         api_requests: 'API requests / mes',
+        companies: 'Empresas / tenants',
+        purchases: 'Compras / mes',
         leads: 'Leads',
         accounts: 'Cuentas sociales',
         social_accounts: 'Cuentas sociales',
