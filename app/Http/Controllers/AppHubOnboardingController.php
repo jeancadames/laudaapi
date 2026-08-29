@@ -5,18 +5,20 @@ namespace App\Http\Controllers;
 use App\Models\Company;
 use App\Models\DiagnosisAccessRequest;
 use App\Models\Subscriber;
+use App\Services\Companies\CentralCompanyProfileService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
-use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 use Inertia\Response as InertiaResponse;
 
 class AppHubOnboardingController extends Controller
 {
-    public function show(Request $request): InertiaResponse|RedirectResponse
-    {
+    public function show(
+        Request $request,
+        CentralCompanyProfileService $profiles
+    ): InertiaResponse|RedirectResponse {
         $user = $request->user();
 
         if (($user->role ?? null) === 'admin') {
@@ -27,9 +29,13 @@ class AppHubOnboardingController extends Controller
             return redirect()->route('app.gateway');
         }
 
-        // No secuestrar usuarios que llegaron por Transformación 360.
+        // Mantener compatibilidad con entradas T360 existentes.
+        // La unificación visual del Diagnóstico 360 corresponde a F4.12-C.
         if ($assessment = $this->t360Assessment($user->id)) {
-            return redirect()->route('diagnosis.show', $assessment);
+            return redirect()->route(
+                'diagnosis.show',
+                $assessment
+            );
         }
 
         return Inertia::render('Onboarding/AppHub', [
@@ -37,16 +43,14 @@ class AppHubOnboardingController extends Controller
                 'name' => (string) $user->name,
                 'email' => (string) $user->email,
             ],
-            'defaults' => [
-                'country_code' => 'DO',
-                'currency' => 'DOP',
-                'timezone' => 'America/Santo_Domingo',
-            ],
+            'profile' => $profiles->onboardingDefaults($user),
         ]);
     }
 
-    public function store(Request $request): RedirectResponse
-    {
+    public function store(
+        Request $request,
+        CentralCompanyProfileService $profiles
+    ): RedirectResponse {
         $user = $request->user();
 
         abort_if(($user->role ?? null) === 'admin', 403);
@@ -56,25 +60,28 @@ class AppHubOnboardingController extends Controller
         }
 
         if ($assessment = $this->t360Assessment($user->id)) {
-            return redirect()->route('diagnosis.show', $assessment);
+            return redirect()->route(
+                'diagnosis.show',
+                $assessment
+            );
         }
 
-        $data = $request->validate([
-            'name' => ['required', 'string', 'max:255'],
-            'phone' => ['nullable', 'string', 'max:40'],
-            'company_name' => ['required', 'string', 'max:255'],
-            'legal_name' => ['nullable', 'string', 'max:255'],
-            'tax_id' => ['nullable', 'string', 'max:50'],
-            'country_code' => ['required', 'string', 'size:2'],
-            'currency' => ['required', Rule::in(['DOP', 'USD', 'EUR'])],
-            'timezone' => ['required', 'string', 'max:100'],
-            'company_size' => [
-                'required',
-                Rule::in(['1-10', '11-50', '51-200', '201+']),
+        $data = $request->validate(array_merge(
+            [
+                'name' => [
+                    'required',
+                    'string',
+                    'max:255',
+                ],
             ],
-        ]);
+            $profiles->rules()
+        ));
 
-        DB::transaction(function () use ($user, $data): void {
+        DB::transaction(function () use (
+            $user,
+            $data,
+            $profiles
+        ): void {
             $subscriber = $user->activeSubscribers()
                 ->orderBy('subscribers.id')
                 ->first();
@@ -86,19 +93,15 @@ class AppHubOnboardingController extends Controller
                         Subscriber::class,
                         $data['company_name']
                     ),
-                    'country_code' => strtoupper($data['country_code']),
+                    'country_code' => strtoupper(
+                        $data['country_code']
+                    ),
                     'currency' => $data['currency'],
                     'timezone' => $data['timezone'],
                     'active' => true,
                     'meta' => [
-                        'source' => 'app_hub_direct_onboarding',
-                        'app_hub_onboarding' => [
-                            'phone' => $data['phone'] ?: null,
-                            'legal_name' => $data['legal_name'] ?: null,
-                            'tax_id' => $data['tax_id'] ?: null,
-                            'company_size' => $data['company_size'],
-                            'completed_at' => now()->toIso8601String(),
-                        ],
+                        'source' =>
+                            'app_hub_direct_onboarding',
                     ],
                 ]);
             }
@@ -133,32 +136,12 @@ class AppHubOnboardingController extends Controller
                 ])->save();
             }
 
-            $meta = is_array($subscriber->meta)
-                ? $subscriber->meta
-                : [];
-
-            $previous = is_array($meta['app_hub_onboarding'] ?? null)
-                ? $meta['app_hub_onboarding']
-                : [];
-
-            $meta['source'] ??= 'app_hub_direct_onboarding';
-            $meta['app_hub_onboarding'] = array_merge($previous, [
-                'phone' => $data['phone'] ?: null,
-                'legal_name' => $data['legal_name'] ?: null,
-                'tax_id' => $data['tax_id'] ?: null,
-                'company_size' => $data['company_size'],
-                'completed_at' =>
-                    $previous['completed_at']
-                    ?? now()->toIso8601String(),
-            ]);
-
-            $subscriber->forceFill([
-                'country_code' => strtoupper($data['country_code']),
-                'currency' => $data['currency'],
-                'timezone' => $data['timezone'],
-                'meta' => $meta,
-                'active' => true,
-            ])->save();
+            $profiles->save(
+                $company,
+                $subscriber,
+                $data,
+                $user
+            );
 
             $user->forceFill([
                 'name' => $data['name'],
@@ -168,7 +151,10 @@ class AppHubOnboardingController extends Controller
 
         return redirect()
             ->route('app.gateway')
-            ->with('success', 'Tu cuenta LAUDAAPI está lista.');
+            ->with(
+                'success',
+                'Tu cuenta LAUDAAPI está lista.'
+            );
     }
 
     private function hasHubContext($user): bool
@@ -187,13 +173,19 @@ class AppHubOnboardingController extends Controller
             ->value('diagnosis_assessment_id');
     }
 
-    private function uniqueSlug(string $modelClass, string $value): string
-    {
+    private function uniqueSlug(
+        string $modelClass,
+        string $value
+    ): string {
         $base = Str::slug($value) ?: 'empresa';
         $slug = $base;
         $suffix = 2;
 
-        while ($modelClass::query()->where('slug', $slug)->exists()) {
+        while (
+            $modelClass::query()
+                ->where('slug', $slug)
+                ->exists()
+        ) {
             $slug = $base.'-'.$suffix++;
         }
 
