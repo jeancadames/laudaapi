@@ -22,6 +22,7 @@ const props = defineProps<{
 
 <template>
     <AuthBase
+        wide
         title="Configura tu empresa"
         description="Una sola identidad empresarial para todo el ecosistema LAUDAAPI."
     >
