@@ -45,7 +45,7 @@ final class PublicDiagnosisIntakeService
             ]);
         }
 
-        $lockName = 'laudaapi:diagnosis-intake:'.sha1($email);
+        $lockName = 'laudaapi:diag-intake:'.sha1($email);
         $lock = DB::selectOne(
             'SELECT GET_LOCK(?, 10) AS acquired',
             [$lockName]
