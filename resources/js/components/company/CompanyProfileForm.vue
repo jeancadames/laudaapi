@@ -82,9 +82,15 @@ const formState = reactive({
     country_code: props.initial.country_code ?? '',
     currency: props.initial.currency ?? 'DOP',
     timezone: props.initial.timezone ?? 'America/Santo_Domingo',
-    billing_email: props.initial.billing_email ?? '',
+    billing_email:
+        props.onboarding && props.account
+            ? props.account.email
+            : props.initial.billing_email ?? '',
     billing_phone: props.initial.billing_phone ?? '',
-    billing_contact_name: props.initial.billing_contact_name ?? '',
+    billing_contact_name:
+        props.onboarding && props.account
+            ? props.account.name
+            : props.initial.billing_contact_name ?? '',
     address_line1: props.initial.address_line1 ?? '',
     address_line2: props.initial.address_line2 ?? '',
     state: props.initial.state ?? '',
@@ -726,7 +732,10 @@ function companySizeLabel(value: string): string {
             </div>
 
             <div class="grid gap-4 sm:grid-cols-2">
-                <div class="grid gap-2">
+                <div
+                    v-show="!props.onboarding"
+                    class="grid gap-2"
+                >
                     <Label for="billing_email">
                         Correo de la empresa *
                     </Label>
@@ -744,6 +753,22 @@ function companySizeLabel(value: string): string {
                     />
 
                     <InputError :message="errors.billing_email" />
+                </div>
+
+                <div
+                    v-if="props.onboarding"
+                    class="grid gap-2 sm:col-span-2"
+                >
+                    <Label>Correo de la cuenta</Label>
+
+                    <Input
+                        :value="formState.billing_email"
+                        disabled
+                    />
+
+                    <p class="text-xs text-slate-500">
+                        Usaremos el mismo correo de tu cuenta como correo inicial de la empresa. Podrás cambiarlo después desde Perfil de Empresa.
+                    </p>
                 </div>
 
                 <div class="grid gap-2">

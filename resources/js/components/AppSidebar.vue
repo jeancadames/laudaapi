@@ -90,6 +90,12 @@ const tenantAdminSections = computed<SidebarSection[]>(() => [
         ]),
     },
     {
+        title: 'LAUDA 360',
+        items: byHrefs(tenantAdminMain, [
+            '/app/diagnostico-360',
+        ]),
+    },
+    {
         title: 'Cuenta',
         items: byHrefs(tenantAdminMain, [
             '/subscriber/subscription',
