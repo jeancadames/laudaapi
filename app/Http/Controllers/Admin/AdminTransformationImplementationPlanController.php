@@ -18,6 +18,7 @@ use App\Services\Diagnosis\TransformationImplementationModalityService;
 use App\Services\Diagnosis\TransformationImplementationPhaseService;
 use App\Services\Diagnosis\TransformationImplementationPlanService;
 use App\Services\Diagnosis\TransformationImplementationPricingService;
+use App\Services\Diagnosis\TransformationProfessionalCapabilityCatalog;
 use App\Services\Diagnosis\TransformationServiceCapabilityCatalog;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -174,12 +175,57 @@ class AdminTransformationImplementationPlanController extends Controller
         $capabilities = collect(
             $validated['capability_keys']
         )->values()->map(
-            fn (string $key, int $index) => [
-                'sequence' => $index + 1,
-                'capability_key' => $key,
-                'capability_label' =>
-                    $options->get($key)['label'],
-            ]
+            function (
+                string $key,
+                int $index
+            ) use ($options): array {
+                $option = $options->get($key);
+
+                return [
+                    'sequence' =>
+                        $index + 1,
+
+                    'capability_key' =>
+                        $key,
+
+                    'capability_label' =>
+                        $option['label'],
+
+                    'capability_summary' =>
+                        $option['purpose']
+                        ?? null,
+
+                    'source_snapshot' => [
+                        'capability_key' =>
+                            $key,
+
+                        'capability_label' =>
+                            $option['label'],
+
+                        'kind' =>
+                            $option['kind']
+                            ?? null,
+
+                        'subscription_candidate' =>
+                            (bool) (
+                                $option['subscription_candidate']
+                                ?? false
+                            ),
+
+                        'service_key' =>
+                            $option['service_key']
+                            ?? null,
+
+                        'purpose' =>
+                            $option['purpose']
+                            ?? null,
+
+                        'includes' =>
+                            $option['includes']
+                            ?? [],
+                    ],
+                ];
+            }
         )->all();
 
         $phaseService->createPhaseFromRoadmap(
@@ -499,37 +545,72 @@ class AdminTransformationImplementationPlanController extends Controller
             | JSON_UNESCAPED_SLASHES
         );
 
-        return collect(
-            TransformationServiceCapabilityCatalog::all()
-        )->map(
-            function (
-                array $definition,
-                string|int $catalogKey
-            ) {
-                $key = (string) (
-                    $definition['capability_key']
-                    ?? $definition['key']
-                    ?? $catalogKey
-                );
+        $catalog = array_merge(
+            TransformationServiceCapabilityCatalog::all(),
+            TransformationProfessionalCapabilityCatalog::all()
+        );
 
-                return [
-                    'key' => $key,
-                    'label' =>
-                        $definition['title']
-                        ?? $definition['label']
-                        ?? $key,
-                    'service_key' =>
-                        $definition['service_key'] ?? null,
-                ];
-            }
-        )->filter(
-            fn (array $option) =>
-                is_string($snapshot)
-                && str_contains(
-                    $snapshot,
-                    $option['key']
-                )
-        )->values()->all();
+        return collect($catalog)
+            ->map(
+                function (
+                    array $definition,
+                    string|int $catalogKey
+                ) {
+                    $key = (string) (
+                        $definition['capability_key']
+                        ?? $definition['key']
+                        ?? $catalogKey
+                    );
+
+                    $subscriptionCandidate = (bool) (
+                        $definition['subscription_candidate']
+                        ?? false
+                    );
+
+                    return [
+                        'key' =>
+                            $key,
+
+                        'label' =>
+                            $definition['title']
+                            ?? $definition['label']
+                            ?? $key,
+
+                        'service_key' =>
+                            $definition['service_key']
+                            ?? null,
+
+                        'kind' =>
+                            $definition['kind']
+                            ?? (
+                                $subscriptionCandidate
+                                    ? 'subscription_service'
+                                    : 'professional_service'
+                            ),
+
+                        'subscription_candidate' =>
+                            $subscriptionCandidate,
+
+                        'purpose' =>
+                            $definition['purpose']
+                            ?? null,
+
+                        'includes' =>
+                            $definition['includes']
+                            ?? [],
+                    ];
+                }
+            )
+            ->filter(
+                fn (array $option) =>
+                    is_string($snapshot)
+                    && str_contains(
+                        $snapshot,
+                        $option['key']
+                    )
+            )
+            ->values()
+            ->all();
     }
 
     private function serializePlan(

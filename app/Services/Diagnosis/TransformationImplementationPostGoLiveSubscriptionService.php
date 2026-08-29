@@ -24,6 +24,25 @@ class TransformationImplementationPostGoLiveSubscriptionService
             'capability.phase.plan.assessment'
         );
 
+        $capabilityKey = trim(
+            (string) $goLive->capability?->capability_key
+        );
+
+        if (
+            TransformationProfessionalCapabilityCatalog::isProfessional(
+                $capabilityKey
+            )
+        ) {
+            throw ValidationException::withMessages([
+                'capability' =>
+                    'Esta capability es un servicio profesional de '
+                    .'Transformación 360. Su ejecución y Go-Live se '
+                    .'controlan dentro del Plan, pero no genera '
+                    .'Subscription ni SubscriptionItem.',
+            ]);
+        }
+
+
         if (
             $goLive->status
             !== TransformationImplementationCapabilityGoLive::STATUS_LIVE

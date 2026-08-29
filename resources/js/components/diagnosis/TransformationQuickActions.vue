@@ -986,14 +986,37 @@ const disabledClass =
                 </p>
             </div>
 
+            <!-- DIAGNOSIS360_DIRECT_IMPLEMENTATION_PLAN -->
+            <div
+                v-if="diagnosisPublished"
+                class="rounded-xl border bg-muted/20 p-4"
+            >
+                <p class="text-sm font-black">Crear Plan de Implementación</p>
+                <p class="mt-1 text-xs leading-5 text-muted-foreground">
+                    Disponible desde el resultado oficial del Diagnóstico 360.
+                    El Informe Ampliado y el Roadmap Detallado son opcionales
+                    para iniciar esta fase.
+                </p>
+                <p class="mt-2 text-xs leading-5 text-muted-foreground">
+                    Si existe un Roadmap Detallado publicado, el Plan lo utiliza
+                    como fuente. Si no existe, LAUDA puede crear el Plan
+                    directamente desde el diagnóstico oficial.
+                </p>
+            </div>
+
             <Link
-                v-if="mode === 'admin' && adminPlanUrl"
+                v-if="mode === 'admin' && diagnosisPublished && adminPlanUrl"
                 :href="adminPlanUrl"
                 class="inline-flex min-h-10 shrink-0 items-center justify-center gap-2 rounded-xl border bg-background px-4 py-2 text-sm font-bold hover:bg-muted"
             >
                 Gestionar Plan de Implementación
                 <ArrowRight class="size-4" />
             </Link>
+            <!-- DIAGNOSIS360_IMPLEMENTATION_PLAN_BLOCKED -->
+            <div v-if="!diagnosisPublished" :class="disabledClass">
+                Plan de Implementación disponible después de publicar el
+                resultado oficial del Diagnóstico 360
+            </div>
 
             <template v-else-if="mode === 'client'">
                 <Link

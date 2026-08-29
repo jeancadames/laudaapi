@@ -150,9 +150,7 @@ const readinessForms = reactive<
     >
 >({});
 
-const goLiveForms = reactive<
-    Record<number, { go_live_notes: string }>
->({});
+const goLiveForms = reactive<Record<number, { go_live_notes: string }>>({});
 
 const subscriptionForms = reactive<
     Record<number, { billing_cycle: 'monthly' | 'yearly' }>
@@ -162,8 +160,7 @@ for (const phase of props.plan.phases) {
     for (const capability of phase.capabilities) {
         progressForms[capability.id] = {
             progress_percentage:
-                capability.execution?.progress_percentage?.toString()
-                ?? '0',
+                capability.execution?.progress_percentage?.toString() ?? '0',
             notes: '',
         };
 
@@ -181,8 +178,8 @@ for (const phase of props.plan.phases) {
 
             subscriptionForms[capability.go_live.id] = {
                 billing_cycle:
-                    capability.go_live.subscription_activation
-                        ?.subscription?.billing_cycle === 'yearly'
+                    capability.go_live.subscription_activation?.subscription
+                        ?.billing_cycle === 'yearly'
                         ? 'yearly'
                         : 'monthly',
             };
@@ -205,6 +202,10 @@ function statusLabel(status: string) {
             rolled_back: 'Rollback',
         }[status] ?? status
     );
+}
+
+function isProfessionalCapability(capability: Capability): boolean {
+    return capability.capability_key === 'branding_identity';
 }
 
 function initializePhase(phaseId: number) {
@@ -232,11 +233,7 @@ function updateProgress(capabilityId: number) {
 }
 
 function completeCapability(capabilityId: number) {
-    if (
-        !window.confirm(
-            '¿Marcar esta capability como completada al 100%?',
-        )
-    ) {
+    if (!window.confirm('¿Marcar esta capability como completada al 100%?')) {
         return;
     }
 
@@ -286,16 +283,12 @@ const commercialSummary = computed(() => {
 
     const subscriptionActivation = capabilities
         .map(
-            (capability) =>
-                capability.go_live?.subscription_activation ?? null,
+            (capability) => capability.go_live?.subscription_activation ?? null,
         )
         .find((activation) => activation?.subscription);
 
     const items = capabilities
-        .map(
-            (capability) =>
-                capability.go_live?.service_activation ?? null,
-        )
+        .map((capability) => capability.go_live?.service_activation ?? null)
         .filter(
             (
                 activation,
@@ -316,21 +309,15 @@ const commercialSummary = computed(() => {
     );
 
     return {
-        subscriber:
-            subscriptionActivation?.subscriber ?? null,
-        company:
-            subscriptionActivation?.company ?? null,
-        subscription:
-            subscriptionActivation?.subscription ?? null,
+        subscriber: subscriptionActivation?.subscriber ?? null,
+        company: subscriptionActivation?.company ?? null,
+        subscription: subscriptionActivation?.subscription ?? null,
         items: uniqueItems,
         activeServices: uniqueItems.length,
     };
 });
 
-function money(
-    value: number | null | undefined,
-    currency = 'DOP',
-) {
+function money(value: number | null | undefined, currency = 'DOP') {
     const amount = Number(value ?? 0);
 
     return `${currency} ${new Intl.NumberFormat('es-DO', {
@@ -375,10 +362,10 @@ function readinessComplete(goLiveId: number) {
     const form = readinessForms[goLiveId];
 
     return Boolean(
-        form
-        && form.technical_readiness
-        && form.operational_readiness
-        && form.client_readiness,
+        form &&
+        form.technical_readiness &&
+        form.operational_readiness &&
+        form.client_readiness,
     );
 }
 </script>
@@ -441,338 +428,310 @@ function readinessComplete(goLiveId: number) {
                 class="rounded-xl border border-destructive/40 bg-destructive/5 p-4"
             >
                 <p class="font-bold">No se pudo completar la acción:</p>
-            <section
-                class="rounded-2xl border bg-card p-5 shadow-sm"
-            >
-                <div
-                    class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between"
-                >
-                    <div>
-                        <p
-                            class="text-xs font-black uppercase tracking-wide text-muted-foreground"
+                <section class="rounded-2xl border bg-card p-5 shadow-sm">
+                    <div
+                        class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between"
+                    >
+                        <div>
+                            <p
+                                class="text-xs font-black tracking-wide text-muted-foreground uppercase"
+                            >
+                                Estado comercial post-Go-Live
+                            </p>
+                            <h2 class="mt-1 text-xl font-black">
+                                Subscription general LAUDAAPI
+                            </h2>
+                            <p
+                                class="mt-1 max-w-3xl text-sm text-muted-foreground"
+                            >
+                                Una sola Subscription por cliente. Cada solución
+                                activa se representa como un SubscriptionItem.
+                            </p>
+                        </div>
+
+                        <div
+                            v-if="commercialSummary.subscription"
+                            class="rounded-full border px-3 py-1 text-xs font-black uppercase"
                         >
-                            Estado comercial post-Go-Live
-                        </p>
-                        <h2 class="mt-1 text-xl font-black">
-                            Subscription general LAUDAAPI
-                        </h2>
-                        <p
-                            class="mt-1 max-w-3xl text-sm text-muted-foreground"
-                        >
-                            Una sola Subscription por cliente. Cada solución
-                            activa se representa como un SubscriptionItem.
-                        </p>
+                            {{ commercialSummary.subscription.status }}
+                        </div>
                     </div>
 
                     <div
                         v-if="commercialSummary.subscription"
-                        class="rounded-full border px-3 py-1 text-xs font-black uppercase"
+                        class="mt-5 space-y-5"
                     >
-                        {{
-                            commercialSummary.subscription.status
-                        }}
-                    </div>
-                </div>
-
-                <div
-                    v-if="commercialSummary.subscription"
-                    class="mt-5 space-y-5"
-                >
-                    <div
-                        class="grid gap-3 sm:grid-cols-2 xl:grid-cols-4"
-                    >
-                        <div class="rounded-xl border p-4">
-                            <p
-                                class="text-xs font-bold uppercase text-muted-foreground"
-                            >
-                                Cliente
-                            </p>
-                            <p class="mt-1 font-black">
-                                {{
-                                    commercialSummary.company?.name
-                                    ?? commercialSummary.subscriber?.name
-                                    ?? '—'
-                                }}
-                            </p>
-                            <p
-                                class="mt-1 text-xs text-muted-foreground"
-                            >
-                                Company #
-                                {{
-                                    commercialSummary.company?.id
-                                    ?? '—'
-                                }}
-                                · Subscriber #
-                                {{
-                                    commercialSummary.subscriber?.id
-                                    ?? '—'
-                                }}
-                            </p>
-                        </div>
-
-                        <div class="rounded-xl border p-4">
-                            <p
-                                class="text-xs font-bold uppercase text-muted-foreground"
-                            >
-                                Subscription
-                            </p>
-                            <p class="mt-1 font-black">
-                                #{{
-                                    commercialSummary.subscription.id
-                                }}
-                            </p>
-                            <p
-                                class="mt-1 text-xs text-muted-foreground"
-                            >
-                                {{
-                                    commercialSummary.subscription
-                                        .billing_cycle === 'yearly'
-                                        ? 'Anual'
-                                        : 'Mensual'
-                                }}
-                                ·
-                                {{
-                                    commercialSummary.subscription
-                                        .currency
-                                }}
-                            </p>
-                        </div>
-
-                        <div class="rounded-xl border p-4">
-                            <p
-                                class="text-xs font-bold uppercase text-muted-foreground"
-                            >
-                                Soluciones activas
-                            </p>
-                            <p class="mt-1 text-2xl font-black">
-                                {{
-                                    commercialSummary.activeServices
-                                }}
-                            </p>
-                            <p
-                                class="mt-1 text-xs text-muted-foreground"
-                            >
-                                SubscriptionItems activos desde
-                                Transformación 360
-                            </p>
-                        </div>
-
-                        <div class="rounded-xl border p-4">
-                            <p
-                                class="text-xs font-bold uppercase text-muted-foreground"
-                            >
-                                Total recurrente
-                            </p>
-                            <p class="mt-1 text-2xl font-black">
-                                {{
-                                    money(
-                                        commercialSummary.subscription
-                                            .total_amount,
-                                        commercialSummary.subscription
-                                            .currency,
-                                    )
-                                }}
-                            </p>
-                            <p
-                                class="mt-1 text-xs text-muted-foreground"
-                            >
-                                {{
-                                    commercialSummary.subscription
-                                        .billing_cycle === 'yearly'
-                                        ? 'por año'
-                                        : 'por mes'
-                                }}
-                            </p>
-                        </div>
-                    </div>
-
-                    <div
-                        class="grid gap-3 sm:grid-cols-2 xl:grid-cols-4"
-                    >
-                        <div class="rounded-xl border p-3 text-sm">
-                            <span class="text-muted-foreground">
-                                Subtotal
-                            </span>
-                            <p class="mt-1 font-black">
-                                {{
-                                    money(
-                                        commercialSummary.subscription
-                                            .subtotal_amount,
-                                        commercialSummary.subscription
-                                            .currency,
-                                    )
-                                }}
-                            </p>
-                        </div>
-
-                        <div class="rounded-xl border p-3 text-sm">
-                            <span class="text-muted-foreground">
-                                Descuento
-                            </span>
-                            <p class="mt-1 font-black">
-                                {{
-                                    money(
-                                        commercialSummary.subscription
-                                            .discount_amount,
-                                        commercialSummary.subscription
-                                            .currency,
-                                    )
-                                }}
-                            </p>
-                        </div>
-
-                        <div class="rounded-xl border p-3 text-sm">
-                            <span class="text-muted-foreground">
-                                Impuestos
-                            </span>
-                            <p class="mt-1 font-black">
-                                {{
-                                    money(
-                                        commercialSummary.subscription
-                                            .tax_amount,
-                                        commercialSummary.subscription
-                                            .currency,
-                                    )
-                                }}
-                            </p>
-                        </div>
-
-                        <div class="rounded-xl border p-3 text-sm">
-                            <span class="text-muted-foreground">
-                                Total
-                            </span>
-                            <p class="mt-1 font-black">
-                                {{
-                                    money(
-                                        commercialSummary.subscription
-                                            .total_amount,
-                                        commercialSummary.subscription
-                                            .currency,
-                                    )
-                                }}
-                            </p>
-                        </div>
-                    </div>
-
-                    <div>
-                        <h3 class="font-black">
-                            Soluciones activas
-                        </h3>
-
-                        <div
-                            v-if="commercialSummary.items.length"
-                            class="mt-3 grid gap-3 lg:grid-cols-2"
-                        >
-                            <div
-                                v-for="activation in commercialSummary.items"
-                                :key="activation.subscription_item_id"
-                                class="rounded-xl border p-4"
-                            >
-                                <div
-                                    class="flex items-start justify-between gap-3"
+                        <div class="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+                            <div class="rounded-xl border p-4">
+                                <p
+                                    class="text-xs font-bold text-muted-foreground uppercase"
                                 >
-                                    <div>
-                                        <p class="font-black">
-                                            {{
-                                                activation.service?.name
-                                                ?? `Service #${activation.service_id}`
-                                            }}
-                                        </p>
-                                        <p
-                                            class="mt-1 text-xs text-muted-foreground"
-                                        >
-                                            {{
-                                                activation.service?.key
-                                                ?? 'service'
-                                            }}
-                                            · SubscriptionItem #
-                                            {{
-                                                activation.subscription_item_id
-                                            }}
-                                        </p>
-                                    </div>
+                                    Cliente
+                                </p>
+                                <p class="mt-1 font-black">
+                                    {{
+                                        commercialSummary.company?.name ??
+                                        commercialSummary.subscriber?.name ??
+                                        '—'
+                                    }}
+                                </p>
+                                <p class="mt-1 text-xs text-muted-foreground">
+                                    Company #
+                                    {{ commercialSummary.company?.id ?? '—' }}
+                                    · Subscriber #
+                                    {{
+                                        commercialSummary.subscriber?.id ?? '—'
+                                    }}
+                                </p>
+                            </div>
 
-                                    <span
-                                        class="rounded-full border px-2 py-1 text-[11px] font-black uppercase"
-                                    >
-                                        {{
-                                            activation.subscription_item
-                                                ?.billing_model
-                                        }}
-                                    </span>
-                                </div>
-
-                                <div
-                                    class="mt-3 flex flex-wrap gap-x-5 gap-y-2 text-sm"
+                            <div class="rounded-xl border p-4">
+                                <p
+                                    class="text-xs font-bold text-muted-foreground uppercase"
                                 >
-                                    <span>
-                                        Cantidad:
-                                        <strong>
-                                            {{
-                                                activation
-                                                    .subscription_item
-                                                    ?.quantity
-                                            }}
-                                        </strong>
-                                    </span>
-                                    <span>
-                                        Precio:
-                                        <strong>
-                                            {{
-                                                money(
-                                                    activation
-                                                        .subscription_item
-                                                        ?.unit_price,
-                                                    activation
-                                                        .subscription_item
-                                                        ?.currency
-                                                        ?? commercialSummary
-                                                            .subscription
-                                                            .currency,
-                                                )
-                                            }}
-                                        </strong>
-                                    </span>
-                                    <span>
-                                        Importe:
-                                        <strong>
-                                            {{
-                                                money(
-                                                    activation
-                                                        .subscription_item
-                                                        ?.amount,
-                                                    activation
-                                                        .subscription_item
-                                                        ?.currency
-                                                        ?? commercialSummary
-                                                            .subscription
-                                                            .currency,
-                                                )
-                                            }}
-                                        </strong>
-                                    </span>
-                                </div>
+                                    Subscription
+                                </p>
+                                <p class="mt-1 font-black">
+                                    #{{ commercialSummary.subscription.id }}
+                                </p>
+                                <p class="mt-1 text-xs text-muted-foreground">
+                                    {{
+                                        commercialSummary.subscription
+                                            .billing_cycle === 'yearly'
+                                            ? 'Anual'
+                                            : 'Mensual'
+                                    }}
+                                    ·
+                                    {{
+                                        commercialSummary.subscription.currency
+                                    }}
+                                </p>
+                            </div>
+
+                            <div class="rounded-xl border p-4">
+                                <p
+                                    class="text-xs font-bold text-muted-foreground uppercase"
+                                >
+                                    Soluciones activas
+                                </p>
+                                <p class="mt-1 text-2xl font-black">
+                                    {{ commercialSummary.activeServices }}
+                                </p>
+                                <p class="mt-1 text-xs text-muted-foreground">
+                                    SubscriptionItems activos desde
+                                    Transformación 360
+                                </p>
+                            </div>
+
+                            <div class="rounded-xl border p-4">
+                                <p
+                                    class="text-xs font-bold text-muted-foreground uppercase"
+                                >
+                                    Total recurrente
+                                </p>
+                                <p class="mt-1 text-2xl font-black">
+                                    {{
+                                        money(
+                                            commercialSummary.subscription
+                                                .total_amount,
+                                            commercialSummary.subscription
+                                                .currency,
+                                        )
+                                    }}
+                                </p>
+                                <p class="mt-1 text-xs text-muted-foreground">
+                                    {{
+                                        commercialSummary.subscription
+                                            .billing_cycle === 'yearly'
+                                            ? 'por año'
+                                            : 'por mes'
+                                    }}
+                                </p>
                             </div>
                         </div>
 
-                        <p
-                            v-else
-                            class="mt-3 rounded-xl border border-dashed p-4 text-sm text-muted-foreground"
-                        >
-                            La Subscription general existe, pero todavía
-                            no hay soluciones activadas por R2-J.
-                        </p>
-                    </div>
-                </div>
+                        <div class="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+                            <div class="rounded-xl border p-3 text-sm">
+                                <span class="text-muted-foreground">
+                                    Subtotal
+                                </span>
+                                <p class="mt-1 font-black">
+                                    {{
+                                        money(
+                                            commercialSummary.subscription
+                                                .subtotal_amount,
+                                            commercialSummary.subscription
+                                                .currency,
+                                        )
+                                    }}
+                                </p>
+                            </div>
 
-                <div
-                    v-else
-                    class="mt-5 rounded-xl border border-dashed p-4 text-sm text-muted-foreground"
-                >
-                    Todavía no existe una Subscription general vinculada
-                    desde un Go-Live. Completa R2-I en una capability LIVE.
-                </div>
-            </section>
+                            <div class="rounded-xl border p-3 text-sm">
+                                <span class="text-muted-foreground">
+                                    Descuento
+                                </span>
+                                <p class="mt-1 font-black">
+                                    {{
+                                        money(
+                                            commercialSummary.subscription
+                                                .discount_amount,
+                                            commercialSummary.subscription
+                                                .currency,
+                                        )
+                                    }}
+                                </p>
+                            </div>
+
+                            <div class="rounded-xl border p-3 text-sm">
+                                <span class="text-muted-foreground">
+                                    Impuestos
+                                </span>
+                                <p class="mt-1 font-black">
+                                    {{
+                                        money(
+                                            commercialSummary.subscription
+                                                .tax_amount,
+                                            commercialSummary.subscription
+                                                .currency,
+                                        )
+                                    }}
+                                </p>
+                            </div>
+
+                            <div class="rounded-xl border p-3 text-sm">
+                                <span class="text-muted-foreground">
+                                    Total
+                                </span>
+                                <p class="mt-1 font-black">
+                                    {{
+                                        money(
+                                            commercialSummary.subscription
+                                                .total_amount,
+                                            commercialSummary.subscription
+                                                .currency,
+                                        )
+                                    }}
+                                </p>
+                            </div>
+                        </div>
+
+                        <div>
+                            <h3 class="font-black">Soluciones activas</h3>
+
+                            <div
+                                v-if="commercialSummary.items.length"
+                                class="mt-3 grid gap-3 lg:grid-cols-2"
+                            >
+                                <div
+                                    v-for="activation in commercialSummary.items"
+                                    :key="activation.subscription_item_id"
+                                    class="rounded-xl border p-4"
+                                >
+                                    <div
+                                        class="flex items-start justify-between gap-3"
+                                    >
+                                        <div>
+                                            <p class="font-black">
+                                                {{
+                                                    activation.service?.name ??
+                                                    `Service #${activation.service_id}`
+                                                }}
+                                            </p>
+                                            <p
+                                                class="mt-1 text-xs text-muted-foreground"
+                                            >
+                                                {{
+                                                    activation.service?.key ??
+                                                    'service'
+                                                }}
+                                                · SubscriptionItem #
+                                                {{
+                                                    activation.subscription_item_id
+                                                }}
+                                            </p>
+                                        </div>
+
+                                        <span
+                                            class="rounded-full border px-2 py-1 text-[11px] font-black uppercase"
+                                        >
+                                            {{
+                                                activation.subscription_item
+                                                    ?.billing_model
+                                            }}
+                                        </span>
+                                    </div>
+
+                                    <div
+                                        class="mt-3 flex flex-wrap gap-x-5 gap-y-2 text-sm"
+                                    >
+                                        <span>
+                                            Cantidad:
+                                            <strong>
+                                                {{
+                                                    activation.subscription_item
+                                                        ?.quantity
+                                                }}
+                                            </strong>
+                                        </span>
+                                        <span>
+                                            Precio:
+                                            <strong>
+                                                {{
+                                                    money(
+                                                        activation
+                                                            .subscription_item
+                                                            ?.unit_price,
+                                                        activation
+                                                            .subscription_item
+                                                            ?.currency ??
+                                                            commercialSummary
+                                                                .subscription
+                                                                .currency,
+                                                    )
+                                                }}
+                                            </strong>
+                                        </span>
+                                        <span>
+                                            Importe:
+                                            <strong>
+                                                {{
+                                                    money(
+                                                        activation
+                                                            .subscription_item
+                                                            ?.amount,
+                                                        activation
+                                                            .subscription_item
+                                                            ?.currency ??
+                                                            commercialSummary
+                                                                .subscription
+                                                                .currency,
+                                                    )
+                                                }}
+                                            </strong>
+                                        </span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <p
+                                v-else
+                                class="mt-3 rounded-xl border border-dashed p-4 text-sm text-muted-foreground"
+                            >
+                                La Subscription general existe, pero todavía no
+                                hay soluciones activadas por R2-J.
+                            </p>
+                        </div>
+                    </div>
+
+                    <div
+                        v-else
+                        class="mt-5 rounded-xl border border-dashed p-4 text-sm text-muted-foreground"
+                    >
+                        Todavía no existe una Subscription general vinculada
+                        desde un Go-Live. Completa R2-I en una capability LIVE.
+                    </div>
+                </section>
 
                 <ul class="mt-2 list-disc space-y-1 pl-5 text-sm">
                     <li v-for="(message, key) in errors" :key="key">
@@ -781,12 +740,11 @@ function readinessComplete(goLiveId: number) {
                 </ul>
             </div>
 
-            <Card
-                v-for="phase in plan.phases"
-                :key="phase.id"
-            >
+            <Card v-for="phase in plan.phases" :key="phase.id">
                 <CardHeader>
-                    <div class="flex flex-wrap items-start justify-between gap-3">
+                    <div
+                        class="flex flex-wrap items-start justify-between gap-3"
+                    >
                         <div>
                             <CardTitle>
                                 {{ phase.sequence }}. {{ phase.name }}
@@ -796,10 +754,7 @@ function readinessComplete(goLiveId: number) {
                             </CardDescription>
                         </div>
 
-                        <Badge
-                            v-if="phase.execution"
-                            variant="outline"
-                        >
+                        <Badge v-if="phase.execution" variant="outline">
                             {{ statusLabel(phase.execution.status) }}
                             · {{ phase.execution.progress_percentage }}%
                         </Badge>
@@ -820,7 +775,9 @@ function readinessComplete(goLiveId: number) {
                         :key="capability.id"
                         class="space-y-4 rounded-2xl border p-4"
                     >
-                        <div class="flex flex-wrap items-start justify-between gap-3">
+                        <div
+                            class="flex flex-wrap items-start justify-between gap-3"
+                        >
                             <div>
                                 <p class="font-bold">
                                     {{ capability.capability_label }}
@@ -828,6 +785,21 @@ function readinessComplete(goLiveId: number) {
                                 <p class="text-xs text-muted-foreground">
                                     {{ capability.capability_key }}
                                 </p>
+                                <div
+                                    v-if="isProfessionalCapability(capability)"
+                                    class="mt-2 rounded-xl border bg-muted/20 p-3 text-xs leading-5 text-muted-foreground"
+                                >
+                                    <p class="font-black text-foreground">
+                                        Servicio profesional
+                                    </p>
+                                    <p class="mt-1">
+                                        Branding e Identidad Digital se ejecuta
+                                        y entrega dentro del Plan. Puede tener
+                                        Go-Live como cierre de implantación,
+                                        pero no genera Subscription ni
+                                        SubscriptionItem.
+                                    </p>
+                                </div>
                             </div>
 
                             <div class="flex flex-wrap gap-2">
@@ -836,9 +808,7 @@ function readinessComplete(goLiveId: number) {
                                     variant="outline"
                                 >
                                     {{
-                                        statusLabel(
-                                            capability.execution.status,
-                                        )
+                                        statusLabel(capability.execution.status)
                                     }}
                                     ·
                                     {{
@@ -852,16 +822,14 @@ function readinessComplete(goLiveId: number) {
                                     variant="secondary"
                                 >
                                     Go-Live:
-                                    {{
-                                        statusLabel(
-                                            capability.go_live.status,
-                                        )
-                                    }}
+                                    {{ statusLabel(capability.go_live.status) }}
                                 </Badge>
                             </div>
                         </div>
 
-                        <template v-if="phase.execution && capability.execution">
+                        <template
+                            v-if="phase.execution && capability.execution"
+                        >
                             <Button
                                 v-if="capability.execution.status === 'pending'"
                                 variant="outline"
@@ -872,8 +840,8 @@ function readinessComplete(goLiveId: number) {
 
                             <div
                                 v-if="
-                                    capability.execution.status
-                                    === 'in_progress'
+                                    capability.execution.status ===
+                                    'in_progress'
                                 "
                                 class="grid gap-3 md:grid-cols-[160px_1fr_auto]"
                             >
@@ -891,9 +859,7 @@ function readinessComplete(goLiveId: number) {
                                 />
 
                                 <input
-                                    v-model="
-                                        progressForms[capability.id].notes
-                                    "
+                                    v-model="progressForms[capability.id].notes"
                                     class="rounded-md border bg-background px-3 py-2"
                                     placeholder="Notas del avance"
                                 />
@@ -908,14 +874,10 @@ function readinessComplete(goLiveId: number) {
                                 <div class="md:col-span-3">
                                     <Button
                                         @click="
-                                            completeCapability(
-                                                capability.id,
-                                            )
+                                            completeCapability(capability.id)
                                         "
                                     >
-                                        <CheckCircle2
-                                            class="mr-2 size-4"
-                                        />
+                                        <CheckCircle2 class="mr-2 size-4" />
                                         Completar al 100%
                                     </Button>
                                 </div>
@@ -923,10 +885,7 @@ function readinessComplete(goLiveId: number) {
                         </template>
 
                         <div
-                            v-if="
-                                capability.execution?.status
-                                === 'completed'
-                            "
+                            v-if="capability.execution?.status === 'completed'"
                             class="space-y-4 border-t pt-4"
                         >
                             <Button
@@ -940,8 +899,8 @@ function readinessComplete(goLiveId: number) {
 
                             <template
                                 v-if="
-                                    capability.go_live
-                                    && capability.go_live.status === 'draft'
+                                    capability.go_live &&
+                                    capability.go_live.status === 'draft'
                                 "
                             >
                                 <p class="font-semibold">
@@ -949,7 +908,9 @@ function readinessComplete(goLiveId: number) {
                                 </p>
 
                                 <div class="grid gap-2 md:grid-cols-3">
-                                    <label class="flex gap-2 rounded-xl border p-3 text-sm">
+                                    <label
+                                        class="flex gap-2 rounded-xl border p-3 text-sm"
+                                    >
                                         <input
                                             v-model="
                                                 readinessForms[
@@ -961,7 +922,9 @@ function readinessComplete(goLiveId: number) {
                                         Readiness técnico confirmado
                                     </label>
 
-                                    <label class="flex gap-2 rounded-xl border p-3 text-sm">
+                                    <label
+                                        class="flex gap-2 rounded-xl border p-3 text-sm"
+                                    >
                                         <input
                                             v-model="
                                                 readinessForms[
@@ -973,7 +936,9 @@ function readinessComplete(goLiveId: number) {
                                         Readiness operativo confirmado
                                     </label>
 
-                                    <label class="flex gap-2 rounded-xl border p-3 text-sm">
+                                    <label
+                                        class="flex gap-2 rounded-xl border p-3 text-sm"
+                                    >
                                         <input
                                             v-model="
                                                 readinessForms[
@@ -988,9 +953,8 @@ function readinessComplete(goLiveId: number) {
 
                                 <input
                                     v-model="
-                                        readinessForms[
-                                            capability.go_live.id
-                                        ].readiness_notes
+                                        readinessForms[capability.go_live.id]
+                                            .readiness_notes
                                     "
                                     class="w-full rounded-md border bg-background px-3 py-2"
                                     placeholder="Notas/evidencia de readiness"
@@ -1002,11 +966,7 @@ function readinessComplete(goLiveId: number) {
                                             capability.go_live.id,
                                         )
                                     "
-                                    @click="
-                                        markReady(
-                                            capability.go_live.id,
-                                        )
-                                    "
+                                    @click="markReady(capability.go_live.id)"
                                 >
                                     <ShieldCheck class="mr-2 size-4" />
                                     Marcar Ready
@@ -1015,17 +975,16 @@ function readinessComplete(goLiveId: number) {
 
                             <template
                                 v-if="
-                                    capability.go_live
-                                    && ['ready', 'scheduled'].includes(
+                                    capability.go_live &&
+                                    ['ready', 'scheduled'].includes(
                                         capability.go_live.status,
                                     )
                                 "
                             >
                                 <input
                                     v-model="
-                                        goLiveForms[
-                                            capability.go_live.id
-                                        ].go_live_notes
+                                        goLiveForms[capability.go_live.id]
+                                            .go_live_notes
                                     "
                                     class="w-full rounded-md border bg-background px-3 py-2"
                                     placeholder="Notas del Go-Live"
@@ -1033,9 +992,7 @@ function readinessComplete(goLiveId: number) {
 
                                 <Button
                                     @click="
-                                        activateGoLive(
-                                            capability.go_live.id,
-                                        )
+                                        activateGoLive(capability.go_live.id)
                                     "
                                 >
                                     <Rocket class="mr-2 size-4" />
@@ -1045,15 +1002,16 @@ function readinessComplete(goLiveId: number) {
 
                             <div
                                 v-if="
-                                    capability.go_live?.status === 'live'
+                                    capability.go_live?.status === 'live' &&
+                                    !isProfessionalCapability(capability)
                                 "
                                 class="space-y-4 rounded-xl border p-4"
                             >
                                 <div>
-                                    <p class="font-black">
-                                        Capability LIVE
-                                    </p>
-                                    <p class="mt-1 text-sm text-muted-foreground">
+                                    <p class="font-black">Capability LIVE</p>
+                                    <p
+                                        class="mt-1 text-sm text-muted-foreground"
+                                    >
                                         El Go-Live ya ocurrió. La activación
                                         comercial se controla por separado.
                                     </p>
@@ -1096,8 +1054,8 @@ function readinessComplete(goLiveId: number) {
                                     </div>
 
                                     <p class="text-xs text-muted-foreground">
-                                        Esta acción asegura Subscriber/Company
-                                        y ejecuta R2-I. No crea ningún
+                                        Esta acción asegura Subscriber/Company y
+                                        ejecuta R2-I. No crea ningún
                                         SubscriptionItem.
                                     </p>
                                 </template>
@@ -1133,20 +1091,20 @@ function readinessComplete(goLiveId: number) {
                                                 .subscription?.currency
                                         }}
                                     </p>
-                                    <p class="mt-2 text-xs text-muted-foreground">
-                                        R2-I completado. La Subscription
-                                        general ya está vinculada. El Service
-                                        todavía no está agregado;
-                                        eso corresponde a R2-J.
+                                    <p
+                                        class="mt-2 text-xs text-muted-foreground"
+                                    >
+                                        R2-I completado. La Subscription general
+                                        ya está vinculada. El Service todavía no
+                                        está agregado; eso corresponde a R2-J.
                                     </p>
                                 </div>
 
                                 <template
                                     v-if="
                                         capability.go_live
-                                            .subscription_activation
-                                        && !capability.go_live
-                                            .service_activation
+                                            .subscription_activation &&
+                                        !capability.go_live.service_activation
                                     "
                                 >
                                     <Button
@@ -1162,30 +1120,27 @@ function readinessComplete(goLiveId: number) {
 
                                     <p class="text-xs text-muted-foreground">
                                         R2-J agregará únicamente el Service
-                                        asociado a esta capability dentro de
-                                        la misma Subscription general.
+                                        asociado a esta capability dentro de la
+                                        misma Subscription general.
                                     </p>
                                 </template>
 
                                 <div
-                                    v-if="
-                                        capability.go_live
-                                            .service_activation
-                                    "
+                                    v-if="capability.go_live.service_activation"
                                     class="rounded-xl border p-3 text-sm"
                                 >
-                                    <p class="font-bold">
-                                        Solución activa
-                                    </p>
+                                    <p class="font-bold">Solución activa</p>
 
                                     <p class="mt-1">
                                         {{
                                             capability.go_live
-                                                .service_activation
-                                                .service?.name
-                                            ?? `Service #${capability.go_live
-                                                .service_activation
-                                                .service_id}`
+                                                .service_activation.service
+                                                ?.name ??
+                                            `Service #${
+                                                capability.go_live
+                                                    .service_activation
+                                                    .service_id
+                                            }`
                                         }}
                                     </p>
 
@@ -1207,18 +1162,18 @@ function readinessComplete(goLiveId: number) {
                                         {{
                                             capability.go_live
                                                 .service_activation
-                                                .subscription_item
-                                                ?.currency
+                                                .subscription_item?.currency
                                         }}
                                         {{
                                             capability.go_live
                                                 .service_activation
-                                                .subscription_item
-                                                ?.amount
+                                                .subscription_item?.amount
                                         }}
                                     </p>
 
-                                    <p class="mt-2 text-xs text-muted-foreground">
+                                    <p
+                                        class="mt-2 text-xs text-muted-foreground"
+                                    >
                                         {{
                                             capability.go_live
                                                 .service_activation

@@ -75,6 +75,10 @@ const props = defineProps<{
         key: string;
         label: string;
         service_key: string | null;
+        kind: 'subscription_service' | 'professional_service';
+        subscription_candidate: boolean;
+        purpose: string | null;
+        includes: string[];
     }>;
     modality_options: Array<{
         key: string;
@@ -126,8 +130,7 @@ const milestoneForms = reactive<
 
 for (const phase of props.plan?.phases ?? []) {
     estimateForms[phase.id] = {
-        price_amount:
-            phase.estimate?.price_amount?.toString() ?? '',
+        price_amount: phase.estimate?.price_amount?.toString() ?? '',
         estimated_duration_value:
             phase.estimate?.estimated_duration_value?.toString() ?? '',
         estimated_duration_unit:
@@ -138,9 +141,7 @@ for (const phase of props.plan?.phases ?? []) {
         sequence: (
             Math.max(
                 0,
-                ...(phase.milestones ?? []).map(
-                    (item) => item.sequence,
-                ),
+                ...(phase.milestones ?? []).map((item) => item.sequence),
             ) + 1
         ).toString(),
         name: '',
@@ -148,13 +149,9 @@ for (const phase of props.plan?.phases ?? []) {
     };
 }
 
-const isDraft = computed(
-    () => props.plan?.status === 'draft',
-);
+const isDraft = computed(() => props.plan?.status === 'draft');
 
-const isPresented = computed(
-    () => props.plan?.status === 'presented',
-);
+const isPresented = computed(() => props.plan?.status === 'presented');
 
 function statusLabel(status: string) {
     return (
@@ -179,7 +176,6 @@ function money(value: number, currency = 'DOP') {
 }
 
 function createPlan() {
-
     if (
         !window.confirm(
             '¿Crear Plan de Implementación? Se usará el Roadmap Detallado publicado cuando exista; de lo contrario, el Diagnóstico oficial como fuente interna.',
@@ -188,11 +184,7 @@ function createPlan() {
         return;
     }
 
-    router.post(
-        props.endpoints.create,
-        {},
-        { preserveScroll: true },
-    );
+    router.post(props.endpoints.create, {}, { preserveScroll: true });
 }
 
 function storePhase() {
@@ -233,22 +225,16 @@ function saveEstimate(phaseId: number) {
 function saveMilestone(phaseId: number) {
     const form = milestoneForms[phaseId];
 
-    router.post(
-        `${props.endpoints.phase_base}/${phaseId}/milestones`,
-        form,
-        {
-            preserveScroll: true,
-            onSuccess: () => {
-                milestoneForms[phaseId] = {
-                    sequence: (
-                        Number(form.sequence) + 1
-                    ).toString(),
-                    name: '',
-                    billing_amount: '',
-                };
-            },
+    router.post(`${props.endpoints.phase_base}/${phaseId}/milestones`, form, {
+        preserveScroll: true,
+        onSuccess: () => {
+            milestoneForms[phaseId] = {
+                sequence: (Number(form.sequence) + 1).toString(),
+                name: '',
+                billing_amount: '',
+            };
         },
-    );
+    });
 }
 
 function presentPlan() {
@@ -260,27 +246,15 @@ function presentPlan() {
         return;
     }
 
-    router.post(
-        props.endpoints.present,
-        {},
-        { preserveScroll: true },
-    );
+    router.post(props.endpoints.present, {}, { preserveScroll: true });
 }
 
 function acceptPlan() {
-    if (
-        !window.confirm(
-            '¿Marcar este Plan como aceptado por el cliente?',
-        )
-    ) {
+    if (!window.confirm('¿Marcar este Plan como aceptado por el cliente?')) {
         return;
     }
 
-    router.post(
-        props.endpoints.accept,
-        {},
-        { preserveScroll: true },
-    );
+    router.post(props.endpoints.accept, {}, { preserveScroll: true });
 }
 </script>
 
@@ -342,13 +316,9 @@ function acceptPlan() {
                     <CardTitle>Fuente del Plan</CardTitle>
                     <CardDescription>
                         <template
-                            v-if="
-                                plan?.source_type
-                                === 'internal_assessment'
-                            "
+                            v-if="plan?.source_type === 'internal_assessment'"
                         >
-                            Snapshot operativo interno del Diagnóstico
-                            oficial.
+                            Snapshot operativo interno del Diagnóstico oficial.
                         </template>
 
                         <template v-else-if="roadmap">
@@ -356,45 +326,32 @@ function acceptPlan() {
                         </template>
 
                         <template v-else>
-                            Diagnóstico oficial disponible como fuente
-                            interna.
+                            Diagnóstico oficial disponible como fuente interna.
                         </template>
                     </CardDescription>
                 </CardHeader>
 
                 <CardContent>
                     <div
-                        v-if="
-                            plan?.source_type
-                            === 'internal_assessment'
-                        "
+                        v-if="plan?.source_type === 'internal_assessment'"
                         class="rounded-xl border p-4"
                     >
                         <p class="font-bold">
                             Diagnóstico oficial · snapshot interno
                         </p>
 
-                        <p
-                            class="mt-1 text-sm text-muted-foreground"
-                        >
-                            No crea ni publica el Roadmap Detallado
-                            comercial.
+                        <p class="mt-1 text-sm text-muted-foreground">
+                            No crea ni publica el Roadmap Detallado comercial.
                         </p>
                     </div>
 
-                    <div
-                        v-else-if="roadmap"
-                        class="rounded-xl border p-4"
-                    >
+                    <div v-else-if="roadmap" class="rounded-xl border p-4">
                         <p class="font-bold">
                             Roadmap Detallado V{{ roadmap.version }}
                         </p>
 
-                        <p
-                            class="mt-1 text-sm text-muted-foreground"
-                        >
-                            Este Plan usa como fuente el entregable
-                            publicado.
+                        <p class="mt-1 text-sm text-muted-foreground">
+                            Este Plan usa como fuente el entregable publicado.
                         </p>
                     </div>
 
@@ -402,9 +359,9 @@ function acceptPlan() {
                         v-else
                         class="rounded-xl border border-dashed p-4 text-sm text-muted-foreground"
                     >
-                        No existe Roadmap Detallado publicado. El Plan
-                        puede crearse desde el Diagnóstico oficial sin
-                        generar ni exponer ese entregable comercial.
+                        No existe Roadmap Detallado publicado. El Plan puede
+                        crearse desde el Diagnóstico oficial sin generar ni
+                        exponer ese entregable comercial.
                     </p>
                 </CardContent>
             </Card>
@@ -413,8 +370,8 @@ function acceptPlan() {
                 <CardHeader>
                     <CardTitle>Crear Plan</CardTitle>
                     <CardDescription>
-                        Crea el borrador operativo sin iniciar ejecución
-                        ni suscripción.
+                        Crea el borrador operativo sin iniciar ejecución ni
+                        suscripción.
                     </CardDescription>
                 </CardHeader>
 
@@ -422,15 +379,12 @@ function acceptPlan() {
                     <div class="flex gap-3 rounded-xl border p-4 text-sm">
                         <LockKeyhole class="mt-0.5 size-5 shrink-0" />
                         <p class="text-muted-foreground">
-                            La suscripción LAUDAAPI solo puede comenzar
-                            después del Go-Live.
+                            La suscripción LAUDAAPI solo puede comenzar después
+                            del Go-Live.
                         </p>
                     </div>
 
-                    <Button
-                        
-                        @click="createPlan"
-                    >
+                    <Button @click="createPlan">
                         <FileText class="mr-2 size-4" />
                         Crear Plan de Implementación
                     </Button>
@@ -455,8 +409,8 @@ function acceptPlan() {
                             </CardDescription>
                             <CardTitle class="text-lg">
                                 {{
-                                    plan.recommended_modality_label
-                                    ?? 'Pendiente'
+                                    plan.recommended_modality_label ??
+                                    'Pendiente'
                                 }}
                             </CardTitle>
                         </CardHeader>
@@ -469,8 +423,7 @@ function acceptPlan() {
                             </CardDescription>
                             <CardTitle class="text-lg">
                                 {{
-                                    plan.selected_modality_label
-                                    ?? 'Pendiente'
+                                    plan.selected_modality_label ?? 'Pendiente'
                                 }}
                             </CardTitle>
                         </CardHeader>
@@ -510,14 +463,49 @@ function acceptPlan() {
                                     type="checkbox"
                                     :value="option.key"
                                 />
-                                <span>{{ option.label }}</span>
+                                <span class="min-w-0">
+                                    <span
+                                        class="flex flex-wrap items-center gap-2"
+                                    >
+                                        <span class="font-bold">
+                                            {{ option.label }}
+                                        </span>
+
+                                        <Badge
+                                            v-if="
+                                                option.kind ===
+                                                'professional_service'
+                                            "
+                                            variant="secondary"
+                                        >
+                                            Servicio profesional
+                                        </Badge>
+                                    </span>
+
+                                    <span
+                                        v-if="option.purpose"
+                                        class="mt-1 block text-xs leading-5 text-muted-foreground"
+                                    >
+                                        {{ option.purpose }}
+                                    </span>
+
+                                    <span
+                                        v-if="
+                                            option.kind ===
+                                            'professional_service'
+                                        "
+                                        class="mt-1 block text-[11px] font-semibold text-muted-foreground"
+                                    >
+                                        Se cotiza dentro del Plan · no genera
+                                        suscripción recurrente
+                                    </span>
+                                </span>
                             </label>
                         </div>
 
                         <Button
                             :disabled="
-                                !phaseName
-                                || phaseCapabilities.length === 0
+                                !phaseName || phaseCapabilities.length === 0
                             "
                             @click="storePhase"
                         >
@@ -552,10 +540,7 @@ function acceptPlan() {
                             </label>
                         </div>
 
-                        <Button
-                            :disabled="!modality"
-                            @click="saveModality"
-                        >
+                        <Button :disabled="!modality" @click="saveModality">
                             Guardar modalidad
                         </Button>
                     </CardContent>
@@ -565,8 +550,8 @@ function acceptPlan() {
                     <CardHeader>
                         <CardTitle>3. Fases configuradas</CardTitle>
                         <CardDescription>
-                            Precio, tiempo e hitos son de implementación,
-                            no de suscripción.
+                            Precio, tiempo e hitos son de implementación, no de
+                            suscripción.
                         </CardDescription>
                     </CardHeader>
 
@@ -653,14 +638,8 @@ function acceptPlan() {
                                     }}
                                 </strong>
                                 ·
-                                {{
-                                    phase.estimate
-                                        .estimated_duration_value
-                                }}
-                                {{
-                                    phase.estimate
-                                        .estimated_duration_unit
-                                }}
+                                {{ phase.estimate.estimated_duration_value }}
+                                {{ phase.estimate.estimated_duration_unit }}
                             </div>
 
                             <div class="border-t pt-4">
@@ -687,9 +666,9 @@ function acceptPlan() {
 
                                 <div
                                     v-if="
-                                        isDraft
-                                        && plan.selected_modality
-                                        && phase.estimate
+                                        isDraft &&
+                                        plan.selected_modality &&
+                                        phase.estimate
                                     "
                                     class="mt-3 grid gap-3 md:grid-cols-3"
                                 >
@@ -704,9 +683,7 @@ function acceptPlan() {
                                     />
 
                                     <input
-                                        v-model="
-                                            milestoneForms[phase.id].name
-                                        "
+                                        v-model="milestoneForms[phase.id].name"
                                         class="rounded-md border bg-background px-3 py-2"
                                         placeholder="Nombre del hito"
                                     />
@@ -742,18 +719,12 @@ function acceptPlan() {
                     </CardHeader>
 
                     <CardContent class="flex flex-wrap gap-3">
-                        <Button
-                            v-if="isDraft"
-                            @click="presentPlan"
-                        >
+                        <Button v-if="isDraft" @click="presentPlan">
                             <Send class="mr-2 size-4" />
                             Presentar Plan
                         </Button>
 
-                        <Button
-                            v-if="isPresented"
-                            @click="acceptPlan"
-                        >
+                        <Button v-if="isPresented" @click="acceptPlan">
                             <CheckCircle2 class="mr-2 size-4" />
                             Marcar como aceptado
                         </Button>
@@ -770,8 +741,8 @@ function acceptPlan() {
                     <CardHeader>
                         <CardTitle>5. Ejecución</CardTitle>
                         <CardDescription>
-                            Opera el avance de capabilities y su Go-Live
-                            después de la aceptación.
+                            Opera el avance de capabilities y su Go-Live después
+                            de la aceptación.
                         </CardDescription>
                     </CardHeader>
 
@@ -789,8 +760,8 @@ function acceptPlan() {
                 <div
                     class="rounded-2xl border bg-muted/20 p-4 text-sm text-muted-foreground"
                 >
-                    Aceptar el Plan no crea una suscripción.
-                    La suscripción comienza únicamente después del Go-Live.
+                    Aceptar el Plan no crea una suscripción. La suscripción
+                    comienza únicamente después del Go-Live.
                 </div>
             </template>
         </div>
