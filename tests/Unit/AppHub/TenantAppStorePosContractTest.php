@@ -26,7 +26,7 @@ final class TenantAppStorePosContractTest extends TestCase
             2,
             substr_count(
                 $routes,
-                "->whereIn('serviceKey', ['social', 'crm', 'pos'])"
+                "->whereIn('serviceKey', ['social', 'crm', 'pos', 'ecf'])"
             )
         );
     }
@@ -39,7 +39,7 @@ final class TenantAppStorePosContractTest extends TestCase
         );
 
         foreach ([
-            "in_array(\$serviceKey, ['social', 'crm', 'pos'], true)",
+            "in_array(\$serviceKey, ['social', 'crm', 'pos', 'ecf'], true)",
             "\$plan->name.' gratis · Próximamente'",
             'ServicePlan::query()',
             '->previewQuote(',

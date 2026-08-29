@@ -99,7 +99,7 @@ return [
                     'title' => 'e-CF',
                     'description' =>
                         'Facturación electrónica y servicios fiscales DGII.',
-                    'service_key' => 'api_facturacion_electronica',
+                    'service_key' => 'ecf',
                     'integration' => 'external',
                     'launchable' => true,
                     'target_url' => 'https://ecf.laudaapi.com',

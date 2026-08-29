@@ -2,7 +2,7 @@
 
 use PHPUnit\Framework\TestCase;
 
-final class TenantAppStoreCrmContractTest extends TestCase
+final class TenantAppStoreEcfContractTest extends TestCase
 {
     private function read(string $relative): string
     {
@@ -18,7 +18,7 @@ final class TenantAppStoreCrmContractTest extends TestCase
         return $contents;
     }
 
-    public function test_routes_allow_social_and_crm(): void
+    public function test_routes_allow_ecf(): void
     {
         $routes = $this->read('routes/subscriber.php');
 
@@ -26,44 +26,73 @@ final class TenantAppStoreCrmContractTest extends TestCase
             2,
             substr_count(
                 $routes,
-                "->whereIn('serviceKey', ['social', 'crm', 'pos', 'ecf'])"
+                "->whereIn('serviceKey', "
+                ."['social', 'crm', 'pos', 'ecf'])"
             )
         );
     }
 
-    public function test_controller_allows_crm_and_is_generic(): void
+    public function test_ecosystem_uses_independent_ecf_identity(): void
+    {
+        $config = $this->read(
+            'config/ecosystem_hub.php'
+        );
+
+        $this->assertStringContainsString(
+            "'ecf' => [",
+            $config
+        );
+
+        $this->assertStringContainsString(
+            "'service_key' => 'ecf'",
+            $config
+        );
+
+        $this->assertStringContainsString(
+            "'target_url' => 'https://ecf.laudaapi.com'",
+            $config
+        );
+
+        $this->assertStringContainsString(
+            "'target_launch_path' => '/launch'",
+            $config
+        );
+    }
+
+    public function test_controller_allows_ecf(): void
     {
         $controller = $this->read(
             'app/Http/Controllers/Subscriber/'
             .'SubscriberAppStoreController.php'
         );
 
+        $this->assertStringContainsString(
+            "in_array(\$serviceKey, "
+            ."['social', 'crm', 'pos', 'ecf'], true)",
+            $controller
+        );
+
         foreach ([
-            "in_array(\$serviceKey, ['social', 'crm', 'pos', 'ecf'], true)",
-            '$this->featurePayload($plan)',
-            'array_is_list($features)',
-            ".' ya está activo para esta empresa. '",
+            'ServicePlan::query()',
+            '->previewQuote(',
+            '->checkout(',
+            'featurePayload(',
         ] as $required) {
             $this->assertStringContainsString(
                 $required,
                 $controller
             );
         }
-
-        $this->assertStringNotContainsString(
-            'Social ya está activo para esta empresa.',
-            $controller
-        );
     }
 
-    public function test_hub_routes_crm_to_modern_store(): void
+    public function test_hub_routes_ecf_to_modern_store(): void
     {
         $hub = $this->read(
             'resources/js/pages/App/Hub.vue'
         );
 
         $this->assertStringContainsString(
-            "app.service_key === 'crm'",
+            "app.service_key === 'ecf'",
             $hub
         );
 
@@ -73,32 +102,27 @@ final class TenantAppStoreCrmContractTest extends TestCase
         );
     }
 
-    public function test_ui_uses_service_name_and_hides_unavailable_cycles(): void
+    public function test_ui_supports_ecf_limits(): void
     {
         $page = $this->read(
             'resources/js/pages/App/Store/Show.vue'
         );
 
         foreach ([
-            'Seleccione cómo quiere usar {{ service.title }}',
-            'const availableCycles = computed<BillingCycle[]>',
+            "ecfs: 'e-CF / mes'",
+            "webhooks: 'Webhooks'",
+            "users: 'Usuarios'",
             "availableCycles.includes('monthly')",
             "availableCycles.includes('yearly')",
-            'selectedPlan.value?.billing_options?.[cycle]?.available',
         ] as $required) {
             $this->assertStringContainsString(
                 $required,
                 $page
             );
         }
-
-        $this->assertStringNotContainsString(
-            'Seleccione cómo quiere usar Social',
-            $page
-        );
     }
 
-    public function test_checkout_engine_remains_plan_aware(): void
+    public function test_checkout_engine_remains_shared(): void
     {
         $checkout = $this->read(
             'app/Services/Billing/'
