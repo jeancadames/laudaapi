@@ -7,6 +7,87 @@ class TransformationProfessionalCapabilityCatalog
     public static function all(): array
     {
         return [
+            'procedures_guide' => [
+                'capability_key' =>
+                    'procedures_guide',
+
+                'title' =>
+                    'Guía de Procesos y Procedimientos LAUDA 360',
+
+                'kind' =>
+                    'professional_service',
+
+                'category' =>
+                    'operations',
+
+                'service_key' =>
+                    null,
+
+                'subscription_candidate' =>
+                    false,
+
+                'requires_lauda_review' =>
+                    false,
+
+                'linked_initiative_keys' => [
+                    'STR-01',
+                    'PPL-01',
+                    'OPS-01',
+                    'GOV-01',
+                ],
+
+                'commercial_readiness' =>
+                    'implementation_plan_estimate_required',
+
+                'purpose' =>
+                    'Documentar cómo debe operar la empresa después de la transformación, reduciendo dependencia de conocimiento informal y facilitando adopción, control y continuidad.',
+
+                'includes' => [
+                    'Objetivo y alcance del proceso.',
+                    'Responsables y participantes.',
+                    'Entradas, requisitos y precondiciones.',
+                    'Procedimiento paso a paso.',
+                    'Sistemas y herramientas utilizadas.',
+                    'Controles, autorizaciones y excepciones.',
+                    'Evidencias y documentos.',
+                    'Indicadores y resultado esperado.',
+                ],
+
+                'commercial_model' => [
+                    'type' =>
+                        'implementation_project',
+
+                    'currency' =>
+                        'DOP',
+
+                    'pricing_source' =>
+                        'transformation_implementation_phase_estimate',
+
+                    'duration_source' =>
+                        'transformation_implementation_phase_estimate',
+
+                    'billing_source' =>
+                        'transformation_implementation_milestones',
+
+                    'recurring' =>
+                        false,
+                ],
+
+                'execution' => [
+                    'tracked' =>
+                        true,
+
+                    'go_live_supported' =>
+                        false,
+
+                    'creates_subscription' =>
+                        false,
+
+                    'creates_subscription_item' =>
+                        false,
+                ],
+            ],
+
             'branding_identity' => [
                 'capability_key' =>
                     'branding_identity',
@@ -28,6 +109,11 @@ class TransformationProfessionalCapabilityCatalog
 
                 'requires_lauda_review' =>
                     true,
+
+                'linked_initiative_keys' => [
+                    'STR-01',
+                    'PRS-01',
+                ],
 
                 'commercial_readiness' =>
                     'implementation_plan_estimate_required',

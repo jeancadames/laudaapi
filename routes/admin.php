@@ -250,6 +250,36 @@ Route::middleware(['auth', 'verified', 'role:admin'])
         )->name('diagnosis_requests.detailed_roadmap.record_payment');
 
 
+        /*
+        |--------------------------------------------------------------------------
+        | Transformación 360 · Matriz comercial de implementación
+        |--------------------------------------------------------------------------
+        |
+        | Configuración global. No corresponde al pricing recurrente
+        | de Services / ServicePlans.
+        |
+        */
+        \Illuminate\Support\Facades\Route::get(
+            '/transformation-360/commercial-settings',
+            [
+                \App\Http\Controllers\Admin\AdminTransformationImplementationCommercialSettingsController::class,
+                'show'
+            ]
+        )->name(
+            'transformation360.commercial_settings.show'
+        );
+
+        \Illuminate\Support\Facades\Route::patch(
+            '/transformation-360/commercial-settings',
+            [
+                \App\Http\Controllers\Admin\AdminTransformationImplementationCommercialSettingsController::class,
+                'update'
+            ]
+        )->name(
+            'transformation360.commercial_settings.update'
+        );
+
+
         \Illuminate\Support\Facades\Route::get(
             '/diagnosis-requests/{contact}/implementation-plan',
             [\App\Http\Controllers\Admin\AdminTransformationImplementationPlanController::class, 'show']
@@ -265,6 +295,17 @@ Route::middleware(['auth', 'verified', 'role:admin'])
             '/diagnosis-requests/{contact}/implementation-plan/phases',
             [\App\Http\Controllers\Admin\AdminTransformationImplementationPlanController::class, 'storePhase']
         )->name('diagnosis_requests.implementation_plan.phase.store');
+
+        \Illuminate\Support\Facades\Route::post(
+            '/diagnosis-requests/{contact}/implementation-plan/commercial-scenarios',
+            [
+                \App\Http\Controllers\Admin\AdminTransformationImplementationPlanController::class,
+                'generateCommercialScenarios'
+            ]
+        )->name(
+            'diagnosis_requests.implementation_plan.commercial.generate'
+        );
+
 
         \Illuminate\Support\Facades\Route::post(
             '/diagnosis-requests/{contact}/implementation-plan/modality',
