@@ -25,7 +25,7 @@ final class AppHubDiagnosisController extends Controller
         }
 
         if (($request->user()->role ?? null) === 'admin') {
-            return redirect()->route('admin.dashboard');
+            return redirect()->route('dashboard');
         }
 
         return redirect()->route('app.diagnosis.show');
@@ -41,7 +41,7 @@ final class AppHubDiagnosisController extends Controller
         abort_unless($user, 403);
 
         if (($user->role ?? null) === 'admin') {
-            return redirect()->route('admin.dashboard');
+            return redirect()->route('dashboard');
         }
 
         [$subscriber, $company, $role] =
