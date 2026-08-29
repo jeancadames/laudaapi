@@ -25,7 +25,7 @@ export const navigationByRole = {
             {
                 title: 'Transformación 360',
                 href: '/app/transformacion-360',
-                icon: 'Boxes',
+                icon: 'Layers',
             },
             { title: 'Usuarios', href: '/subscriber/users', icon: 'Users' },
             {
