@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\DiagnosisAccessRequest;
 use App\Services\Ecosystem\EcosystemHubService;
+use App\Services\Ecosystem\TransformationControlPanelService;
 use App\Services\Subscribers\CompanyContextResolver;
 use App\Services\Subscribers\SubscriberResolver;
 use App\Services\Subscribers\TenantAccessService;
@@ -18,7 +19,8 @@ class AppGatewayController extends Controller
         SubscriberResolver $subscriberResolver,
         CompanyContextResolver $companyResolver,
         EcosystemHubService $hubService,
-        TenantAccessService $tenantAccessService
+        TenantAccessService $tenantAccessService,
+        TransformationControlPanelService $transformationControlPanelService
     ) {
         $user = $request->user();
 
@@ -76,6 +78,7 @@ class AppGatewayController extends Controller
                     );
 
                     $groups = $hubService->groupsFor($user, $company);
+                    $transformation360 = $transformationControlPanelService->forCompany($company);
 
                     if (! ($tenantAccess['can_browse_store'] ?? false)) {
                         $groups = collect($groups)
@@ -112,6 +115,7 @@ class AppGatewayController extends Controller
                         ],
                         'groups' => $groups,
                         'tenant_access' => $tenantAccess,
+                        'transformation360' => $transformation360,
                     ]);
                 }
             }
