@@ -6,6 +6,7 @@ use App\Models\Company;
 use App\Models\DiagnosisAccessRequest;
 use App\Models\Subscriber;
 use App\Services\Companies\CentralCompanyProfileService;
+use App\Services\Diagnosis\InitialDiagnosisCommercialService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -45,18 +46,33 @@ class AppHubOnboardingController extends Controller
             );
         }
 
+        $profile = $profiles->onboardingDefaults($user);
+
+        if ($workflow = $this->nativeDiagnosisWorkflow($user->id)) {
+            $request->session()->put(
+                'apphub.intent',
+                InitialDiagnosisCommercialService::INTENT
+            );
+
+            $profile = array_replace(
+                $profile,
+                $this->diagnosisProfilePrefill($workflow, $user)
+            );
+        }
+
         return Inertia::render('Onboarding/AppHub', [
             'account' => [
                 'name' => (string) $user->name,
                 'email' => (string) $user->email,
             ],
-            'profile' => $profiles->onboardingDefaults($user),
+            'profile' => $profile,
         ]);
     }
 
     public function store(
         Request $request,
-        CentralCompanyProfileService $profiles
+        CentralCompanyProfileService $profiles,
+        InitialDiagnosisCommercialService $commercial
     ): RedirectResponse {
         $user = $request->user();
 
@@ -163,9 +179,27 @@ class AppHubOnboardingController extends Controller
             ])->save();
         });
 
+        if ($this->nativeDiagnosisWorkflow($user->id)) {
+            /*
+             * Ya existe la solicitud Welcome. Ahora sí hay Company/Subscriber
+             * owner y se puede materializar de forma idempotente la factura
+             * comercial RD$0.00.
+             */
+            $commercial->ensure($user->fresh());
+
+            $request->session()->forget('apphub.intent');
+
+            return redirect()
+                ->route('app.diagnosis.show')
+                ->with(
+                    'success',
+                    'Tu empresa está lista. La solicitud del Diagnóstico 360 quedó registrada con su factura de cortesía RD$0.00 y pendiente de confirmación.'
+                );
+        }
+
         if (
             $request->session()->get('apphub.intent')
-            === \App\Services\Diagnosis\InitialDiagnosisCommercialService::INTENT
+            === InitialDiagnosisCommercialService::INTENT
         ) {
             return redirect()
                 ->route('app.diagnosis.show')
@@ -181,6 +215,59 @@ class AppHubOnboardingController extends Controller
                 'success',
                 'Tu cuenta LAUDAAPI está lista.'
             );
+    }
+
+    private function nativeDiagnosisWorkflow(
+        int $userId
+    ): ?DiagnosisAccessRequest {
+        return DiagnosisAccessRequest::query()
+            ->where('user_id', $userId)
+            ->where(
+                'meta->source',
+                InitialDiagnosisCommercialService::SOURCE
+            )
+            ->where(
+                'status',
+                '!=',
+                DiagnosisAccessRequest::STATUS_REJECTED
+            )
+            ->with('contactRequest')
+            ->latest('id')
+            ->first();
+    }
+
+    private function diagnosisProfilePrefill(
+        DiagnosisAccessRequest $workflow,
+        $user
+    ): array {
+        $contact = $workflow->contactRequest;
+
+        if (! $contact) {
+            return [];
+        }
+
+        $size = (string) data_get(
+            $contact->metadata,
+            'company_size',
+            ''
+        );
+
+        $size = match ($size) {
+            '1 a 10 personas' => '1-10',
+            '11 a 50 personas' => '11-50',
+            '51 a 200 personas' => '51-200',
+            'Más de 200 personas' => '201+',
+            '1-10', '11-50', '51-200', '201+' => $size,
+            default => '',
+        };
+
+        return array_filter([
+            'company_name' => (string) $contact->company,
+            'company_size' => $size,
+            'billing_email' => (string) $user->email,
+            'billing_phone' => (string) $contact->phone,
+            'billing_contact_name' => (string) $contact->name,
+        ], static fn (mixed $value): bool => $value !== '');
     }
 
     private function hasHubContext($user): bool

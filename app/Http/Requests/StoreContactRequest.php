@@ -33,8 +33,11 @@ class StoreContactRequest extends FormRequest
     private const ASSISTANCE_LEVELS = [
         'Quiero que LAUDA me recomiende la modalidad',
         'LAUDA 360 Guiado',
+        'LAUDA 360 Guiado — autoservicio + soporte por email',
         'LAUDA 360 Asistido',
+        'LAUDA 360 Asistido — trabajo conjunto',
         'LAUDA 360 Gestionado',
+        'LAUDA 360 Gestionado — LAUDA lidera',
     ];
 
     public function authorize(): bool
@@ -148,7 +151,7 @@ class StoreContactRequest extends FormRequest
                 'nullable',
                 'string',
                 'max:100',
-                Rule::in(['private_invitation']),
+                Rule::in(['private_invitation', 'apphub_native']),
             ],
         ];
     }

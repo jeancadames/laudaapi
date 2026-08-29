@@ -171,6 +171,38 @@ final class InitialDiagnosisCommercialService
                 );
             }
 
+            /*
+             * S10-F4.12-D:
+             * si el workflow nació en Welcome antes de existir el tenant,
+             * conservar ese ContactRequest y enriquecer su metadata.
+             * No crear una segunda solicitud.
+             */
+            if ($workflow->contact_request_id) {
+                $contact = ContactRequest::query()
+                    ->whereKey($workflow->contact_request_id)
+                    ->first();
+
+                if ($contact) {
+                    $contactMeta = is_array($contact->metadata)
+                        ? $contact->metadata
+                        : [];
+
+                    $contact->forceFill([
+                        'metadata' => array_merge(
+                            $contactMeta,
+                            [
+                                'request_type' =>
+                                    'digital_diagnosis_access_request',
+                                'apphub_user_id' => $user->id,
+                                'subscriber_id' => $subscriber->id,
+                                'company_id' => $company->id,
+                                'complimentary' => true,
+                            ]
+                        ),
+                    ])->save();
+                }
+            }
+
             $meta = is_array($workflow->meta) ? $workflow->meta : [];
             $invoiceId = (int) data_get($meta, 'initial_diagnosis.invoice_id', 0);
 

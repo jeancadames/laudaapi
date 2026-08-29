@@ -426,6 +426,7 @@ const assistanceLevels = [
 const contactProcessing = ref(false);
 const contactSuccessMessage = ref('');
 const contactErrors = ref<Record<string, any>>({});
+let contactSuccessTimer: ReturnType<typeof setTimeout> | null = null;
 
 const contactForm = ref({
     name: '',
@@ -540,9 +541,26 @@ async function refreshContactCsrf() {
 }
 
 function buildContactPayload() {
-    window.location.assign(
-        `${APP_URL}/app/diagnostico-360/entrada`,
-    );
+    const form = contactForm.value;
+
+    return {
+        name: form.name,
+        company: form.company,
+        phone: form.phone,
+        email: form.email,
+        topic: 'Solicitud de acceso al Diagnóstico LAUDA 360',
+        message: form.message,
+        terms: form.terms,
+        metadata: {
+            source: 'laudaapi.com',
+            request_type: 'digital_diagnosis_access_request',
+            intake_type: 'digital_transformation_360',
+            company_size: form.company_size,
+            main_challenge: form.main_challenge,
+            assistance_level: form.assistance_level,
+            diagnosis_access: 'apphub_native',
+        },
+    };
 }
 
 async function sendContactRequest(payload: ReturnType<typeof buildContactPayload>) {
@@ -602,7 +620,16 @@ async function submitContact() {
 
         contactSuccessMessage.value =
             data.message ||
-            'Gracias. LAUDA revisará la solicitud y le contactará con los próximos pasos.';
+            'Solicitud recibida. Revisa tu correo para continuar.';
+
+        if (contactSuccessTimer) {
+            clearTimeout(contactSuccessTimer);
+        }
+
+        contactSuccessTimer = setTimeout(() => {
+            contactSuccessMessage.value = '';
+            contactSuccessTimer = null;
+        }, 8000);
 
         resetContactForm();
     } catch (error: any) {
@@ -623,6 +650,11 @@ onMounted(() => {
 onUnmounted(() => {
     if (timer) {
         clearInterval(timer);
+    }
+
+    if (contactSuccessTimer) {
+        clearTimeout(contactSuccessTimer);
+        contactSuccessTimer = null;
     }
 });
 </script>
@@ -1167,8 +1199,14 @@ onUnmounted(() => {
                             {{ contactErrors.general }}
                         </div>
 
-                        <div v-if="contactSuccessMessage" class="mt-4 rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-sm font-bold text-emerald-800 dark:border-emerald-900/50 dark:bg-emerald-950/30 dark:text-emerald-300">
-                            {{ contactSuccessMessage }}
+                        <div v-if="contactSuccessMessage" role="status" aria-live="polite" class="fixed top-5 right-5 z-[100] max-w-sm rounded-2xl border border-emerald-200 bg-white p-4 text-sm font-bold text-emerald-800 shadow-2xl dark:border-emerald-900/50 dark:bg-slate-950 dark:text-emerald-300">
+                            <div class="flex items-start gap-3">
+                                <CheckCircle2 class="mt-0.5 h-5 w-5 shrink-0 text-emerald-600" />
+                                <div>
+                                    <p class="font-black">Solicitud recibida.</p>
+                                    <p class="mt-1 font-semibold">{{ contactSuccessMessage }}</p>
+                                </div>
+                            </div>
                         </div>
 
                         <button type="submit" :disabled="!canSubmitContact" class="mt-6 inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-slate-900 px-6 py-4 text-base font-black text-white shadow-xl transition-all hover:bg-red-600 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-white dark:text-slate-900 dark:hover:bg-red-500 dark:hover:text-white">

@@ -7,7 +7,7 @@ use App\Mail\ContactConfirmationMail;
 use App\Mail\ContactInternalNotificationMail;
 use App\Models\ContactRequest;
 use App\Services\AuditService;
-use App\Services\Diagnosis\DiagnosisRequestEmailGuard;
+use App\Services\Diagnosis\PublicDiagnosisIntakeService;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
@@ -16,23 +16,36 @@ class ContactRequestController extends Controller
 {
     public function store(
         StoreContactRequest $request,
-        DiagnosisRequestEmailGuard $emailGuard
+        PublicDiagnosisIntakeService $diagnosisIntake
     ) {
         $data = $request->validated();
 
         if ($request->isDiagnosisRequest()) {
-            $emailError = $emailGuard->blockingMessage(
-                (string) ($data['email'] ?? '')
-            );
+            try {
+                $result = $diagnosisIntake->submit($data);
 
-            if ($emailError !== null) {
+                return response()->json([
+                    'success' => true,
+                    'message' => $result['message'],
+                ]);
+            } catch (\Illuminate\Validation\ValidationException $e) {
                 return response()->json([
                     'success' => false,
-                    'message' => $emailError,
-                    'errors' => [
-                        'email' => [$emailError],
-                    ],
+                    'message' => 'No se pudo procesar la solicitud.',
+                    'errors' => $e->errors(),
                 ], 422);
+            } catch (\Throwable $e) {
+                Log::error(
+                    'Error procesando intake público Diagnosis 360: '
+                    .$e->getMessage(),
+                    ['exception' => $e]
+                );
+
+                return response()->json([
+                    'success' => false,
+                    'message' =>
+                        'Ocurrió un error al procesar la solicitud.',
+                ], 500);
             }
         }
 

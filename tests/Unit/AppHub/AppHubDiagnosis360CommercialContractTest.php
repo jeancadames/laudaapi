@@ -74,24 +74,27 @@ final class AppHubDiagnosis360CommercialContractTest extends TestCase
             'resources/js/pages/Welcome.vue'
         );
 
+        /*
+         * S10-F4.12-D:
+         * Welcome ya no salta al login antes de persistir el intake.
+         * Primero envía /contact con el marcador apphub_native; el correo
+         * seguro es quien conduce después al App Hub.
+         */
         $this->assertStringContainsString(
-            '/app/diagnostico-360/entrada',
+            "const CONTACT_REQUEST_ENDPOINT = '/contact';",
             $welcome
         );
-
-        $routes = $this->source('routes/web.php');
-
         $this->assertStringContainsString(
-            "name('app.diagnosis.entry')",
-            $routes
+            "request_type: 'digital_diagnosis_access_request'",
+            $welcome
         );
         $this->assertStringContainsString(
-            "name('app.diagnosis.show')",
-            $routes
+            "diagnosis_access: 'apphub_native'",
+            $welcome
         );
-        $this->assertStringContainsString(
-            "name('app.diagnosis.request')",
-            $routes
+        $this->assertStringNotContainsString(
+            "`${APP_URL}/app/diagnostico-360/entrada`",
+            $welcome
         );
     }
 
