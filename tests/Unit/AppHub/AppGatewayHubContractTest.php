@@ -73,20 +73,32 @@ class AppGatewayHubContractTest extends TestCase
         }
     }
 
-    public function test_ui_is_grouped_by_action(): void
+    public function test_ui_exposes_installed_and_available_app_sections_without_pending_catalog(): void
     {
         $page = $this->read(
             'resources/js/pages/App/Hub.vue'
         );
 
         foreach ([
-            'v-for="group in props.groups"',
-            'v-for="solution in group.solutions"',
-            'solution.launch_url',
-            'Integración en preparación',
+            'const installedApps = computed',
+            'const availableApps = computed',
+            'app.launch_url',
+            'Apps disponibles',
         ] as $token) {
             $this->assertStringContainsString(
                 $token,
+                $page
+            );
+        }
+
+        foreach ([
+            'const pendingApps = computed',
+            '{ pendingApps.length }',
+            'v-for="app in pendingApps"',
+            'Integración en preparación',
+        ] as $removedToken) {
+            $this->assertStringNotContainsString(
+                $removedToken,
                 $page
             );
         }
