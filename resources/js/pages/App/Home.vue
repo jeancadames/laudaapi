@@ -5,8 +5,6 @@ import {
     ArrowUpRight,
     Boxes,
     CheckCircle2,
-    Circle,
-    Clock3,
     LayoutGrid,
     ShieldCheck,
     Sparkles,
@@ -52,36 +50,6 @@ type TenantAccess = {
     can_manage_company: boolean;
 };
 
-type Transformation360Stage = {
-    key: string;
-    label: string;
-    state: 'completed' | 'current' | 'available' | 'pending';
-    status_label: string;
-    description: string;
-    optional: boolean;
-    url: string | null;
-    action_label: string | null;
-};
-
-type Transformation360Journey = {
-    visible: boolean;
-    has_workflow: boolean;
-    assessment_id: number | null;
-    organization_name: string | null;
-    current_label: string | null;
-    plan_public: boolean;
-    execution: {
-        progress_percentage: number;
-        phase_count: number;
-        completed_phase_count: number;
-    };
-    stages: Transformation360Stage[];
-    primary_action: {
-        label: string;
-        url: string;
-    } | null;
-};
-
 const props = defineProps<{
     company: {
         id: number;
@@ -90,7 +58,6 @@ const props = defineProps<{
     };
     groups: ActionGroup[];
     tenant_access: TenantAccess;
-    transformation360: Transformation360Journey;
 }>();
 
 const breadcrumbs: BreadcrumbItem[] = [{ title: 'Inicio', href: '/app' }];
@@ -98,8 +65,6 @@ const breadcrumbs: BreadcrumbItem[] = [{ title: 'Inicio', href: '/app' }];
 const isTenantAdmin = computed(
     () => props.tenant_access.mode === 'subscriber.admin',
 );
-
-const transformation360 = computed(() => props.transformation360 ?? null);
 
 const uniqueSolutions = computed(() => {
     const seen = new Set<string>();
@@ -245,174 +210,6 @@ const appInitial = (app: Solution) =>
                         </div>
                     </div>
                 </header>
-
-                <section v-if="transformation360?.visible" class="space-y-4">
-                    <div
-                        class="overflow-hidden rounded-[2rem] border border-slate-200/70 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-950"
-                    >
-                        <div
-                            class="flex flex-col gap-4 border-b border-slate-100 p-5 sm:p-6 lg:flex-row lg:items-center lg:justify-between dark:border-slate-800"
-                        >
-                            <div>
-                                <div
-                                    class="flex items-center gap-2 text-xs font-bold tracking-wide text-red-600 uppercase"
-                                >
-                                    <Sparkles class="h-4 w-4" />
-                                    Transformación Digital 360
-                                </div>
-
-                                <h2
-                                    class="mt-2 text-xl font-black text-slate-950 sm:text-2xl dark:text-white"
-                                >
-                                    {{
-                                        transformation360.current_label ??
-                                        'Tu recorrido de transformación'
-                                    }}
-                                </h2>
-
-                                <p
-                                    class="mt-2 max-w-3xl text-sm leading-6 text-slate-500 dark:text-slate-400"
-                                >
-                                    Consulta el avance desde el Diagnóstico 360
-                                    hasta el Plan de Implementación y su
-                                    ejecución.
-                                </p>
-
-                                <p
-                                    v-if="
-                                        transformation360.execution
-                                            .phase_count > 0
-                                    "
-                                    class="mt-2 text-xs font-semibold text-slate-500"
-                                >
-                                    {{
-                                        transformation360.execution
-                                            .completed_phase_count
-                                    }}
-                                    de
-                                    {{
-                                        transformation360.execution.phase_count
-                                    }}
-                                    fases completadas ·
-                                    {{
-                                        transformation360.execution
-                                            .progress_percentage
-                                    }}%
-                                </p>
-                            </div>
-
-                            <a
-                                v-if="transformation360.primary_action?.url"
-                                :href="transformation360.primary_action.url"
-                                class="inline-flex h-10 shrink-0 items-center justify-center gap-2 rounded-xl bg-slate-950 px-4 text-sm font-bold text-white transition hover:bg-slate-800 dark:bg-white dark:text-slate-950 dark:hover:bg-slate-200"
-                            >
-                                {{ transformation360.primary_action.label }}
-                                <ArrowUpRight class="h-4 w-4" />
-                            </a>
-                        </div>
-
-                        <div
-                            class="grid gap-3 p-5 sm:p-6 md:grid-cols-2 xl:grid-cols-5"
-                        >
-                            <article
-                                v-for="(
-                                    stage, index
-                                ) in transformation360.stages"
-                                :key="stage.key"
-                                class="flex min-h-52 flex-col rounded-2xl border border-slate-200/70 p-4 dark:border-slate-800"
-                                :class="{
-                                    'bg-emerald-50/40 dark:bg-emerald-950/10':
-                                        stage.state === 'completed',
-                                    'border-red-200 bg-red-50/30 ring-1 ring-red-100 dark:border-red-950 dark:bg-red-950/10 dark:ring-red-950':
-                                        stage.state === 'current',
-                                    'bg-slate-50/60 dark:bg-slate-900/30':
-                                        stage.state === 'pending',
-                                }"
-                            >
-                                <div
-                                    class="flex items-start justify-between gap-3"
-                                >
-                                    <div
-                                        class="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-950"
-                                    >
-                                        <CheckCircle2
-                                            v-if="stage.state === 'completed'"
-                                            class="h-4 w-4 text-emerald-600"
-                                        />
-
-                                        <Clock3
-                                            v-else-if="
-                                                stage.state === 'current' ||
-                                                stage.state === 'available'
-                                            "
-                                            class="h-4 w-4 text-red-600"
-                                        />
-
-                                        <Circle
-                                            v-else
-                                            class="h-4 w-4 text-slate-400"
-                                        />
-                                    </div>
-
-                                    <span
-                                        class="rounded-full border border-slate-200 bg-white px-2 py-1 text-[10px] font-black text-slate-600 uppercase dark:border-slate-800 dark:bg-slate-950 dark:text-slate-300"
-                                    >
-                                        {{ stage.status_label }}
-                                    </span>
-                                </div>
-
-                                <p
-                                    class="mt-4 text-[10px] font-black tracking-widest text-slate-400 uppercase"
-                                >
-                                    Etapa {{ index + 1 }}
-                                    <template v-if="stage.optional">
-                                        · Opcional
-                                    </template>
-                                </p>
-
-                                <h3
-                                    class="mt-1 font-black text-slate-950 dark:text-white"
-                                >
-                                    {{ stage.label }}
-                                </h3>
-
-                                <p
-                                    class="mt-2 flex-1 text-xs leading-5 text-slate-500 dark:text-slate-400"
-                                >
-                                    {{ stage.description }}
-                                </p>
-
-                                <a
-                                    v-if="stage.url && stage.action_label"
-                                    :href="stage.url"
-                                    class="mt-4 inline-flex h-9 items-center justify-center gap-2 rounded-xl border border-slate-200 px-3 text-xs font-bold text-slate-800 transition hover:bg-slate-50 dark:border-slate-800 dark:text-slate-100 dark:hover:bg-slate-900"
-                                >
-                                    {{ stage.action_label }}
-                                    <ArrowUpRight class="h-3.5 w-3.5" />
-                                </a>
-
-                                <div
-                                    v-else-if="
-                                        stage.key === 'implementation_plan' &&
-                                        stage.status_label === 'En preparación'
-                                    "
-                                    class="mt-4 rounded-xl border border-dashed border-slate-200 px-3 py-2 text-center text-xs font-semibold text-slate-500 dark:border-slate-800"
-                                >
-                                    Borrador privado de LAUDA
-                                </div>
-                            </article>
-                        </div>
-
-                        <div
-                            class="border-t border-slate-100 px-5 py-4 text-xs leading-5 text-slate-500 sm:px-6 dark:border-slate-800"
-                        >
-                            El Informe Ampliado y el Roadmap Detallado son
-                            opcionales. El Plan de Implementación puede
-                            prepararse directamente desde el resultado oficial
-                            del Diagnóstico 360.
-                        </div>
-                    </div>
-                </section>
 
                 <section class="space-y-4">
                     <div

@@ -17,7 +17,16 @@ export const navigationByRole = {
         main: [
             { title: 'Inicio', href: '/app', icon: 'LayoutGrid' },
             { title: 'Control Panel', href: '/app/control', icon: 'Boxes' },
-            { title: 'Diagnóstico 360', href: '/app/diagnostico-360', icon: 'FileText' },
+            {
+                title: 'Diagnóstico 360',
+                href: '/app/diagnostico-360',
+                icon: 'FileText',
+            },
+            {
+                title: 'Transformación 360',
+                href: '/app/transformacion-360',
+                icon: 'Boxes',
+            },
             { title: 'Usuarios', href: '/subscriber/users', icon: 'Users' },
             {
                 title: 'Mi suscripción',
@@ -51,17 +60,13 @@ export const navigationByRole = {
     },
 
     subscriber_user: {
-        main: [
-            { title: 'Inicio', href: '/app', icon: 'LayoutGrid' },
-        ],
+        main: [{ title: 'Inicio', href: '/app', icon: 'LayoutGrid' }],
         footer: [],
     },
 
     // Alias de compatibilidad. El sidebar nuevo resuelve el lane exacto.
     subscriber: {
-        main: [
-            { title: 'Inicio', href: '/app', icon: 'LayoutGrid' },
-        ],
+        main: [{ title: 'Inicio', href: '/app', icon: 'LayoutGrid' }],
         footer: [],
     },
 } as const satisfies Record<

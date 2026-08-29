@@ -172,6 +172,13 @@ Route::middleware(['auth', 'verified'])
     ->get('/app/control', \App\Http\Controllers\AppGatewayController::class)
     ->name('app.control');
 
+Route::middleware(['auth', 'verified'])
+    ->get(
+        '/app/transformacion-360',
+        \App\Http\Controllers\AppHubTransformationController::class
+    )
+    ->name('app.transformation.show');
+
 /*
 |--------------------------------------------------------------------------
 | S10-F4.12-C · Diagnóstico 360 nativo en App Hub
