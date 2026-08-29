@@ -523,15 +523,21 @@ class AdminTransformationImplementationPlanController extends Controller
 
     private function modalityOptions(): array
     {
+        $catalog = app(
+            TransformationImplementationModalityCatalog::class
+        );
+
         return collect(
-            TransformationImplementationModalityCatalog::all()
+            $catalog->all()
         )->map(
             fn (array $definition, string $key) => [
                 'key' => $key,
                 'label' =>
                     $definition['label'] ?? $key,
                 'description' =>
-                    $definition['description'] ?? null,
+                    $definition['summary']
+                    ?? $definition['description']
+                    ?? null,
             ]
         )->values()->all();
     }
