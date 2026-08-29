@@ -48,7 +48,7 @@ class TenantAppStoreSocialContractTest extends TestCase
         foreach ([
             'SubscriberAppStoreController',
             "Route::prefix('apps')",
-            "->whereIn('serviceKey', ['social', 'crm'])",
+            "->whereIn('serviceKey', ['social', 'crm', 'pos'])",
             "->name('checkout')",
         ] as $required) {
             $this->assertStringContainsString(

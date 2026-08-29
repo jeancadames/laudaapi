@@ -288,11 +288,11 @@ class SubscriberAppStoreController extends Controller
     private function storeService(string $serviceKey): Service
     {
         /*
-         * B2 habilita únicamente soluciones ya incorporadas
+         * B3 habilita únicamente soluciones ya incorporadas
          * al App Store moderno. Se amplía una por una.
          */
         abort_unless(
-            in_array($serviceKey, ['social', 'crm'], true),
+            in_array($serviceKey, ['social', 'crm', 'pos'], true),
             404
         );
 
@@ -353,7 +353,7 @@ class SubscriberAppStoreController extends Controller
             'is_free' => $isFree,
             'activation_available' => ! $isFree,
             'activation_reason' => $isFree
-                ? 'Starter gratis · Próximamente'
+                ? $plan->name.' gratis · Próximamente'
                 : null,
             'billing_options' => [
                 'monthly' => $this->billingOption(

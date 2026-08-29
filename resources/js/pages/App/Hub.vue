@@ -383,6 +383,7 @@ const stateLabel = (app: Solution) => {
                                     :href="
                                         app.service_key === 'social'
                                         || app.service_key === 'crm'
+                                        || app.service_key === 'pos'
                                             ? `/subscriber/apps/${app.service_key}`
                                             : '/subscriber/services/my'
                                     "

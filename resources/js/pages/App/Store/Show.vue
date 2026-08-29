@@ -178,7 +178,11 @@ const formatMoney = (
 
 const limitLabel = (key: string, value: number | null) => {
     const labels: Record<string, string> = {
+        branches: 'Sucursales',
         users: 'Usuarios',
+        products: 'Productos',
+        warehouses: 'Almacenes',
+        leads: 'Leads',
         accounts: 'Cuentas sociales',
         social_accounts: 'Cuentas sociales',
         posts: 'Publicaciones / mes',
@@ -353,7 +357,7 @@ const checkout = () => {
                         </div>
 
                         <div
-                            v-if="!hasActiveEntitlement"
+                            v-if="!hasActiveEntitlement && availableCycles.length > 0"
                             class="inline-flex w-fit rounded-2xl border border-slate-200 bg-white p-1 shadow-sm"
                         >
                             <button
