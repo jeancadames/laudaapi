@@ -6,7 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\DiagnosisAssessment;
 use App\Models\DiagnosisDetailedRoadmap;
 use App\Models\TransformationImplementationPlan;
-use App\Services\Diagnosis\DiagnosisDetailedRoadmapCommercialService;
+use App\Services\Diagnosis\DiagnosisDeliverableValidationService;
 use Illuminate\Support\Facades\Gate;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -15,18 +15,15 @@ class DiagnosisDetailedRoadmapController extends Controller
 {
     public function show(
         DiagnosisAssessment $assessment,
-        DiagnosisDetailedRoadmapCommercialService $commercialService
+        DiagnosisDeliverableValidationService $validations
     ): Response {
         Gate::authorize('view', $assessment);
 
-        abort_unless(
-            $commercialService->hasPaidAccess($assessment),
-            403,
-            'El Roadmap Detallado requiere pago confirmado.'
-        );
-
         $roadmap = DiagnosisDetailedRoadmap::query()
-            ->where('diagnosis_assessment_id', $assessment->id)
+            ->where(
+                'diagnosis_assessment_id',
+                $assessment->id
+            )
             ->where(
                 'status',
                 DiagnosisDetailedRoadmap::STATUS_PUBLISHED
@@ -35,17 +32,21 @@ class DiagnosisDetailedRoadmapController extends Controller
             ->orderByDesc('version')
             ->firstOrFail();
 
-        $implementationPlan = TransformationImplementationPlan::query()
-            ->where('diagnosis_assessment_id', $assessment->id)
-            ->whereIn('status', [
-                TransformationImplementationPlan::STATUS_PRESENTED,
-                TransformationImplementationPlan::STATUS_ACCEPTED,
-                TransformationImplementationPlan::STATUS_ACTIVE,
-                TransformationImplementationPlan::STATUS_COMPLETED,
-            ])
-            ->whereNotNull('presented_at')
-            ->orderByDesc('version')
-            ->first();
+        $implementationPlan =
+            TransformationImplementationPlan::query()
+                ->where(
+                    'diagnosis_assessment_id',
+                    $assessment->id
+                )
+                ->whereIn('status', [
+                    TransformationImplementationPlan::STATUS_PRESENTED,
+                    TransformationImplementationPlan::STATUS_ACCEPTED,
+                    TransformationImplementationPlan::STATUS_ACTIVE,
+                    TransformationImplementationPlan::STATUS_COMPLETED,
+                ])
+                ->whereNotNull('presented_at')
+                ->orderByDesc('version')
+                ->first();
 
         return Inertia::render(
             'Diagnosis/DetailedRoadmap',
@@ -73,12 +74,28 @@ class DiagnosisDetailedRoadmapController extends Controller
                     'diagnosis.expanded_report.show',
                     $assessment
                 ),
-                'implementation_plan_url' => $implementationPlan
-                    ? route(
-                        'diagnosis.implementation_plan.show',
-                        $assessment
-                    )
-                    : null,
+                'implementation_plan_url' =>
+                    $implementationPlan
+                        ? route(
+                            'diagnosis.implementation_plan.show',
+                            $assessment
+                        )
+                        : null,
+                'validation' => $validations->stateFor($roadmap),
+                'validation_endpoints' => [
+                    'review' => route(
+                        'diagnosis.deliverable.review',
+                        [$assessment, 'roadmap']
+                    ),
+                    'validate' => route(
+                        'diagnosis.deliverable.validate',
+                        [$assessment, 'roadmap']
+                    ),
+                    'request_adjustment' => route(
+                        'diagnosis.deliverable.adjustment',
+                        [$assessment, 'roadmap']
+                    ),
+                ],
                 'diagnosis_url' => route(
                     'diagnosis.show',
                     $assessment

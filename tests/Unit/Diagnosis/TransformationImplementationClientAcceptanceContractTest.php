@@ -11,111 +11,28 @@ class TransformationImplementationClientAcceptanceContractTest extends TestCase
         return dirname(__DIR__, 3);
     }
 
-    private function read(string $path): string
+    public function test_free_plan_has_no_active_acceptance_route_or_action(): void
     {
-        return file_get_contents(
-            $this->root().'/'.$path
-        );
+        $web = file_get_contents($this->root().'/routes/web.php');
+        $controller = file_get_contents($this->root().'/app/Http/Controllers/Diagnosis/TransformationImplementationPlanController.php');
+        $page = file_get_contents($this->root().'/resources/js/pages/Diagnosis/ImplementationPlan.vue');
+
+        foreach (['implementation_plan.accept', 'plan-implementacion/aceptar'] as $token) {
+            $this->assertStringNotContainsString($token, $web);
+        }
+        foreach (['function accept(', "'accept_url' =>", 'acceptPlan('] as $token) {
+            $this->assertStringNotContainsString($token, $controller);
+        }
+        foreach (['accept_url', 'acceptPlan()', 'aceptas este Plan', 'Aceptar Plan'] as $token) {
+            $this->assertStringNotContainsString($token, $page);
+        }
+        $this->assertStringContainsString('La validación del documento confirmará su revisión', $page);
     }
 
-    public function test_client_post_route_exists(): void
+    public function test_historical_acceptance_service_is_preserved_but_quarantined(): void
     {
-        $routes = $this->read('routes/web.php');
-
-        foreach ([
-            "/{assessment}/plan-implementacion/aceptar",
-            "TransformationImplementationPlanController::class, 'accept'",
-            "implementation_plan.accept",
-        ] as $token) {
-            $this->assertStringContainsString(
-                $token,
-                $routes
-            );
-        }
-    }
-
-    public function test_controller_reuses_policy_and_domain_service(): void
-    {
-        $controller = $this->read(
-            'app/Http/Controllers/Diagnosis/TransformationImplementationPlanController.php'
-        );
-
-        foreach ([
-            'public function accept(',
-            "Gate::authorize('view', \$assessment)",
-            'TransformationImplementationPlanService $planService',
-            'TransformationImplementationPlan::STATUS_PRESENTED',
-            'TransformationImplementationPlan::STATUS_ACCEPTED',
-            "whereNotNull('presented_at')",
-            '$planService->acceptPlan(',
-            "'diagnosis.implementation_plan.show'",
-        ] as $token) {
-            $this->assertStringContainsString(
-                $token,
-                $controller
-            );
-        }
-    }
-
-    public function test_client_acceptance_does_not_own_recurring_activation(): void
-    {
-        $controller = $this->read(
-            'app/Http/Controllers/Diagnosis/TransformationImplementationPlanController.php'
-        );
-
-        foreach ([
-            'Subscriber::create(',
-            'Company::create(',
-            'Subscription::create(',
-            'SubscriptionItem::create(',
-            'activateFromGoLive(',
-        ] as $token) {
-            $this->assertStringNotContainsString(
-                $token,
-                $controller
-            );
-        }
-    }
-
-    public function test_ui_only_offers_accept_on_presented(): void
-    {
-        $page = $this->read(
-            'resources/js/pages/Diagnosis/ImplementationPlan.vue'
-        );
-
-        foreach ([
-            'accept_url: string;',
-            'function acceptPlan()',
-            'router.post(',
-            'props.accept_url',
-            "plan.status === 'presented'",
-            'Aceptar Plan de Implementación',
-            'Tu aceptación quedó registrada.',
-        ] as $token) {
-            $this->assertStringContainsString(
-                $token,
-                $page
-            );
-        }
-    }
-
-    public function test_domain_acceptance_remains_idempotent_and_readiness_guarded(): void
-    {
-        $service = $this->read(
-            'app/Services/Diagnosis/TransformationImplementationPlanService.php'
-        );
-
-        foreach ([
-            'public function acceptPlan(',
-            'TransformationImplementationPlan::STATUS_ACCEPTED',
-            'TransformationImplementationPlan::STATUS_PRESENTED',
-            'private function commercialReadiness(',
-            "'subscription_created' => false",
-        ] as $token) {
-            $this->assertStringContainsString(
-                $token,
-                $service
-            );
-        }
+        $service = file_get_contents($this->root().'/app/Services/Diagnosis/TransformationImplementationPlanService.php');
+        $this->assertStringContainsString('public function acceptPlan(', $service);
+        $this->assertStringContainsString('private function commercialReadiness(', $service);
     }
 }

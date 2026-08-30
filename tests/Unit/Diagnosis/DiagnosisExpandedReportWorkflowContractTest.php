@@ -12,11 +12,11 @@ class DiagnosisExpandedReportWorkflowContractTest extends TestCase
         $root = dirname(__DIR__, 3);
 
         $admin = file_get_contents(
-            $root . '/routes/admin.php'
+            $root.'/routes/admin.php'
         );
 
         $web = file_get_contents(
-            $root . '/routes/web.php'
+            $root.'/routes/web.php'
         );
 
         foreach ([
@@ -43,37 +43,35 @@ class DiagnosisExpandedReportWorkflowContractTest extends TestCase
     {
         $source = file_get_contents(
             dirname(__DIR__, 3)
-            . '/app/Http/Controllers/Diagnosis/DiagnosisExpandedReportController.php'
+            .'/app/Http/Controllers/Diagnosis/'
+            .'DiagnosisExpandedReportController.php'
         );
 
-        $this->assertStringContainsString(
+        foreach ([
             'STATUS_PUBLISHED',
-            $source
-        );
-
-        $this->assertStringContainsString(
             "whereNotNull('published_at')",
-            $source
-        );
-
-        $this->assertStringContainsString(
             "Gate::authorize(",
-            $source
-        );
+        ] as $token) {
+            $this->assertStringContainsString(
+                $token,
+                $source
+            );
+        }
     }
 
-    public function test_ui_contract_is_present(): void
+    public function test_ui_contract_is_present_and_free(): void
     {
         $root = dirname(__DIR__, 3);
 
         $admin = file_get_contents(
             $root
-            . '/resources/js/pages/Admin/DiagnosisRequests/ExpandedReport.vue'
+            .'/resources/js/pages/Admin/DiagnosisRequests/'
+            .'ExpandedReport.vue'
         );
 
         $client = file_get_contents(
             $root
-            . '/resources/js/pages/Diagnosis/ExpandedReport.vue'
+            .'/resources/js/pages/Diagnosis/ExpandedReport.vue'
         );
 
         foreach ([
@@ -82,7 +80,7 @@ class DiagnosisExpandedReportWorkflowContractTest extends TestCase
             '@click="markReview"',
             '@click="publish"',
             '@click="generate"',
-            'Facturación one-time',
+            'Entregable gratuito del Diagnóstico 360',
         ] as $token) {
             $this->assertStringContainsString(
                 $token,
@@ -90,12 +88,18 @@ class DiagnosisExpandedReportWorkflowContractTest extends TestCase
             );
         }
 
+        $this->assertStringNotContainsString(
+            'Facturación one-time',
+            $admin
+        );
+
         foreach ([
             'Informe Ampliado',
             'Análisis por dimensión',
             'Brechas críticas',
             'Focos recomendados',
             'Del Informe Ampliado al Roadmap',
+            'Siguiente entregable gratuito del Diagnóstico 360',
         ] as $token) {
             $this->assertStringContainsString(
                 $token,

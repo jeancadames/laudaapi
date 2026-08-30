@@ -11,98 +11,25 @@ class TransformationImplementationClientCommercialSummaryContractTest extends Te
         return dirname(__DIR__, 3);
     }
 
-    private function read(string $path): string
+    public function test_client_payload_is_consultive_only(): void
     {
-        return file_get_contents(
-            $this->root().'/'.$path
-        );
-    }
-
-    public function test_controller_uses_existing_phase_relations(): void
-    {
-        $source = $this->read(
-            'app/Http/Controllers/Diagnosis/TransformationImplementationPlanController.php'
-        );
-
-        foreach ([
-            "'phases.estimates'",
-            "'phases.milestones'",
-            '$commercialPhases =',
-            '$commercialSummary =',
-            "'commercial_summary' => \$commercialSummary",
-            "\$commercialPhases =",
-            "'commercial_summary' => \$commercialSummary",
-            "'phases' => \$clientPhases",
-            "'total_price_amount' =>",
-            "'estimate' =>",
-            "'estimated_duration_value' =>",
-            "'milestones' =>",
-            "'billing_amount' =>",
-            "'billing_status' =>",
-        ] as $token) {
-            $this->assertStringContainsString(
-                $token,
-                $source
-            );
+        $controller = file_get_contents($this->root().'/app/Http/Controllers/Diagnosis/TransformationImplementationPlanController.php');
+        foreach (["'horizon' =>", "'initiatives' =>", "'dependencies' =>", "'deliverables' =>", "'capabilities' =>"] as $token) {
+            $this->assertStringContainsString($token, $controller);
+        }
+        foreach (['commercial_summary', 'selected_modality', 'recommended_modality', "'estimate' =>", "'estimates' =>", "'milestones' =>", 'billing_amount', 'price_amount'] as $token) {
+            $this->assertStringNotContainsString($token, $controller);
         }
     }
 
-    public function test_payload_does_not_expose_internal_fields(): void
+    public function test_client_ui_has_no_prices_or_billing(): void
     {
-        $source = $this->read(
-            'app/Http/Controllers/Diagnosis/TransformationImplementationPlanController.php'
-        );
-
-        foreach ([
-            "'internal_notes' =>",
-            "'source_snapshot' =>",
-        ] as $token) {
-            $this->assertStringNotContainsString(
-                $token,
-                $source
-            );
+        $page = file_get_contents($this->root().'/resources/js/pages/Diagnosis/ImplementationPlan.vue');
+        foreach (['No selecciona modalidad', 'no contiene precios ni hitos de facturación', 'Iniciativas, actividades y responsables', 'Dependencias', 'Entregables'] as $token) {
+            $this->assertStringContainsString($token, $page);
         }
-    }
-
-    public function test_client_page_keeps_record_payload_and_shows_summary(): void
-    {
-        $page = $this->read(
-            'resources/js/pages/Diagnosis/ImplementationPlan.vue'
-        );
-
-        foreach ([
-            'plan: Record<string, any>',
-            'Resumen comercial',
-            'Inversión de implementación',
-            'Condiciones de esta fase',
-            'Duración estimada',
-            'Hitos de implementación',
-            'plan.selected_modality_label',
-            'plan.recommended_modality_label',
-            'plan.commercial_summary',
-            'phase.estimate',
-            '.billing_amount',
-            '.billing_status',
-            'function money(',
-            'function durationLabel(',
-            'function milestoneStatusLabel(',
-        ] as $token) {
-            $this->assertStringContainsString(
-                $token,
-                $page
-            );
+        foreach (['money(', 'commercial_summary', 'billing_amount', 'milestoneStatusLabel', 'selected_modality_label'] as $token) {
+            $this->assertStringNotContainsString($token, $page);
         }
-    }
-
-    public function test_recurring_remains_separate(): void
-    {
-        $page = $this->read(
-            'resources/js/pages/Diagnosis/ImplementationPlan.vue'
-        );
-
-        $this->assertStringContainsString(
-            'La suscripción recurrente no forma parte de este monto.',
-            $page
-        );
     }
 }

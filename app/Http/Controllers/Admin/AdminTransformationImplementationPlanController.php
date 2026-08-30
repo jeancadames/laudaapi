@@ -7,22 +7,12 @@ use App\Models\ContactRequest;
 use App\Models\DiagnosisAccessRequest;
 use App\Models\DiagnosisAssessment;
 use App\Models\DiagnosisDetailedRoadmap;
-use App\Models\TransformationImplementationMilestone;
-use App\Models\TransformationImplementationPhase;
-use App\Models\TransformationImplementationPhaseEstimate;
 use App\Models\TransformationImplementationPlan;
 use App\Services\Diagnosis\DiagnosisAccessService;
-use App\Services\Diagnosis\TransformationImplementationCommercialEngine;
-use App\Services\Diagnosis\TransformationImplementationCommercialMatrixService;
-use App\Services\Diagnosis\TransformationImplementationMilestoneBillingService;
-use App\Services\Diagnosis\TransformationImplementationModalityCatalog;
-use App\Services\Diagnosis\TransformationImplementationModalityService;
 use App\Services\Diagnosis\TransformationImplementationPhaseService;
-use App\Services\Diagnosis\TransformationImplementationPlanService;
 use App\Services\Diagnosis\TransformationImplementationPlanAutogenerator;
-use App\Services\Diagnosis\TransformationImplementationPricingService;
+use App\Services\Diagnosis\TransformationImplementationPlanService;
 use App\Services\Diagnosis\TransformationProfessionalCapabilityCatalog;
-use App\Services\Diagnosis\TransformationServiceCapabilityCatalog;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
@@ -33,8 +23,7 @@ class AdminTransformationImplementationPlanController extends Controller
 {
     public function show(
         ContactRequest $contact,
-        DiagnosisAccessService $accessService,
-        TransformationImplementationCommercialMatrixService $commercialMatrixService
+        DiagnosisAccessService $accessService
     ): Response {
         $assessment = $this->assessmentFor($contact, $accessService);
         $roadmap = $this->publishedRoadmap($assessment);
@@ -61,24 +50,17 @@ class AdminTransformationImplementationPlanController extends Controller
                 ],
                 'assessment' => [
                     'id' => $assessment->id,
-                    'organization_name' =>
-                        $assessment->organization_name,
+                    'organization_name' => $assessment->organization_name,
                 ],
                 'roadmap' => $roadmap ? [
                     'id' => $roadmap->id,
                     'version' => $roadmap->version,
-                    'published_at' =>
-                        $roadmap->published_at?->toISOString(),
+                    'published_at' => $roadmap->published_at?->toISOString(),
                 ] : null,
-                'plan' => $plan
-                    ? $this->serializePlan($plan)
-                    : null,
+                'plan' => $plan ? $this->serializePlan($plan) : null,
                 'capability_options' => $plan
                     ? $this->capabilityOptionsFor($plan)
                     : [],
-                'modality_options' => $this->modalityOptions(),
-                'commercial_matrix_readiness' =>
-                    $commercialMatrixService->readiness(),
                 'endpoints' => [
                     'back' => $roadmap
                         ? route(
@@ -101,24 +83,10 @@ class AdminTransformationImplementationPlanController extends Controller
                         'admin.diagnosis_requests.implementation_plan.phase.store',
                         $contact
                     ),
-                    'modality_select' => route(
-                        'admin.diagnosis_requests.implementation_plan.modality.select',
-                        $contact
-                    ),
-                    'commercial_generate' => route(
-                        'admin.diagnosis_requests.implementation_plan.commercial.generate',
-                        $contact
-                    ),
                     'present' => route(
                         'admin.diagnosis_requests.implementation_plan.present',
                         $contact
                     ),
-                    'accept' => route(
-                        'admin.diagnosis_requests.implementation_plan.accept',
-                        $contact
-                    ),
-                    'phase_base' =>
-                        "/admin/diagnosis-requests/{$contact->id}/implementation-plan/phases",
                 ],
             ]
         );
@@ -132,13 +100,11 @@ class AdminTransformationImplementationPlanController extends Controller
         TransformationImplementationPlanAutogenerator $autogenerator
     ): RedirectResponse {
         $assessment = $this->assessmentFor($contact, $accessService);
-
         $existing = $planService->latestForAssessment($assessment);
 
         if ($existing) {
             if (
-                $existing->status
-                    === TransformationImplementationPlan::STATUS_DRAFT
+                $existing->status === TransformationImplementationPlan::STATUS_DRAFT
                 && ! $existing->phases()->exists()
             ) {
                 $generated = $autogenerator->generate(
@@ -178,7 +144,7 @@ class AdminTransformationImplementationPlanController extends Controller
 
         return $this->backToPlan(
             $contact,
-            "Plan de Implementación V{$plan->version} creado y autogenerado como borrador."
+            "Plan de Implementación V{$plan->version} creado y autogenerado como borrador consultivo."
         );
     }
 
@@ -188,24 +154,18 @@ class AdminTransformationImplementationPlanController extends Controller
         DiagnosisAccessService $accessService,
         TransformationImplementationPlanAutogenerator $autogenerator
     ): RedirectResponse {
-        $plan =
-            $this->editablePlanFor(
-                $contact,
-                $accessService
-            );
+        $plan = $this->editablePlanFor($contact, $accessService);
 
-        $generated =
-            $autogenerator->regenerate(
-                $plan,
-                $request->user()?->id
-            );
+        $generated = $autogenerator->regenerate(
+            $plan,
+            $request->user()?->id
+        );
 
         return $this->backToPlan(
             $contact,
-            "Plan de Implementación V{$generated->version} regenerado desde su fuente. Las estimaciones anteriores y la modalidad seleccionada fueron invalidadas."
+            "Plan de Implementación V{$generated->version} regenerado desde su fuente consultiva."
         );
     }
-
 
     public function storePhase(
         Request $request,
@@ -215,13 +175,11 @@ class AdminTransformationImplementationPlanController extends Controller
     ): RedirectResponse {
         $plan = $this->editablePlanFor($contact, $accessService);
 
-        $options = collect(
-            $this->capabilityOptionsFor($plan)
-        )
+        $options = collect($this->capabilityOptionsFor($plan))
             ->filter(
                 fn (array $option): bool =>
-                    ($option['kind'] ?? null)
-                    === 'professional_service'
+                    ($option['kind'] ?? null) === 'professional_service'
+                    && ! ($option['subscription_candidate'] ?? false)
             )
             ->keyBy('key');
 
@@ -239,69 +197,35 @@ class AdminTransformationImplementationPlanController extends Controller
 
         $sequence = (int) $plan->phases()->max('sequence') + 1;
 
-        $capabilities = collect(
-            $validated['capability_keys']
-        )->values()->map(
-            function (
-                string $key,
-                int $index
-            ) use ($options): array {
+        $capabilities = collect($validated['capability_keys'])
+            ->values()
+            ->map(function (string $key, int $index) use ($options): array {
                 $option = $options->get($key);
 
                 return [
-                    'sequence' =>
-                        $index + 1,
-
-                    'capability_key' =>
-                        $key,
-
-                    'capability_label' =>
-                        $option['label'],
-
-                    'capability_summary' =>
-                        $option['purpose']
-                        ?? null,
-
+                    'sequence' => $index + 1,
+                    'capability_key' => $key,
+                    'capability_label' => $option['label'],
+                    'capability_summary' => $option['purpose'] ?? null,
                     'source_snapshot' => [
-                        'capability_key' =>
-                            $key,
-
-                        'capability_label' =>
-                            $option['label'],
-
-                        'kind' =>
-                            $option['kind']
-                            ?? null,
-
-                        'subscription_candidate' =>
-                            (bool) (
-                                $option['subscription_candidate']
-                                ?? false
-                            ),
-
-                        'service_key' =>
-                            $option['service_key']
-                            ?? null,
-
-                        'purpose' =>
-                            $option['purpose']
-                            ?? null,
-
-                        'includes' =>
-                            $option['includes']
-                            ?? [],
+                        'capability_key' => $key,
+                        'capability_label' => $option['label'],
+                        'kind' => 'professional_service',
+                        'subscription_candidate' => false,
+                        'service_key' => null,
+                        'purpose' => $option['purpose'] ?? null,
+                        'includes' => $option['includes'] ?? [],
                     ],
                 ];
-            }
-        )->all();
+            })
+            ->all();
 
         $phaseService->createPhaseFromRoadmap(
             $plan,
             [
                 'sequence' => $sequence,
                 'name' => $validated['name'],
-                'objective' =>
-                    $validated['objective'] ?? null,
+                'objective' => $validated['objective'] ?? null,
                 'capabilities' => $capabilities,
             ],
             $request->user()?->id
@@ -309,201 +233,7 @@ class AdminTransformationImplementationPlanController extends Controller
 
         return $this->backToPlan(
             $contact,
-            'Fase agregada al Plan.'
-        );
-    }
-
-    public function generateCommercialScenarios(
-        Request $request,
-        ContactRequest $contact,
-        DiagnosisAccessService $accessService,
-        TransformationImplementationCommercialMatrixService $commercialMatrixService,
-        TransformationImplementationCommercialEngine $commercialEngine
-    ): RedirectResponse {
-        $plan = $this->editablePlanFor(
-            $contact,
-            $accessService
-        );
-
-        if (
-            $plan->status
-            !== TransformationImplementationPlan::STATUS_DRAFT
-        ) {
-            throw \Illuminate\Validation\ValidationException::withMessages([
-                'commercial_scenarios' =>
-                    'Los escenarios comerciales solo pueden generarse mientras el Plan está en borrador.',
-            ]);
-        }
-
-        $readiness =
-            $commercialMatrixService->readiness();
-
-        if (! $readiness['ready']) {
-            $missing =
-                array_slice(
-                    $readiness['missing'] ?? [],
-                    0,
-                    10
-                );
-
-            throw \Illuminate\Validation\ValidationException::withMessages([
-                'commercial_matrix' =>
-                    'La matriz comercial de Transformación 360 está incompleta. Faltan '
-                    .($readiness['missing_count'] ?? count($missing))
-                    .' campos. '
-                    .implode(', ', $missing),
-            ]);
-        }
-
-        $generated =
-            $commercialEngine->generate(
-                $plan,
-                $request->user()?->id
-            );
-
-        $estimateCount =
-            $generated->phases
-                ->sum(
-                    fn ($phase): int =>
-                        $phase->estimates->count()
-                );
-
-        return $this->backToPlan(
-            $contact,
-            "Escenarios comerciales generados correctamente: {$estimateCount} estimaciones para Guiado, Asistido y Gestionado."
-        );
-    }
-
-
-    public function selectModality(
-        Request $request,
-        ContactRequest $contact,
-        DiagnosisAccessService $accessService,
-        TransformationImplementationModalityService $modalityService
-    ): RedirectResponse {
-        $plan = $this->configurablePlanFor(
-            $contact,
-            $accessService
-        );
-
-        $keys = collect(
-            $this->modalityOptions()
-        )->pluck('key')->all();
-
-        $validated = $request->validate([
-            'modality' => [
-                'required',
-                'string',
-                Rule::in($keys),
-            ],
-        ]);
-
-        $modalityService->select(
-            $plan,
-            $validated['modality'],
-            $request->user()?->id
-        );
-
-        return $this->backToPlan(
-            $contact,
-            'Modalidad seleccionada.'
-        );
-    }
-
-    public function upsertEstimate(
-        Request $request,
-        ContactRequest $contact,
-        TransformationImplementationPhase $phase,
-        DiagnosisAccessService $accessService,
-        TransformationImplementationPricingService $pricingService
-    ): RedirectResponse {
-        $plan = $this->editablePlanFor($contact, $accessService);
-        $this->assertPhaseBelongsToPlan($phase, $plan);
-
-        abort_unless(
-            filled($plan->selected_modality),
-            422,
-            'Seleccione primero una modalidad.'
-        );
-
-        $validated = $request->validate([
-            'price_amount' => [
-                'required',
-                'numeric',
-                'min:0',
-            ],
-            'estimated_duration_value' => [
-                'required',
-                'numeric',
-                'gt:0',
-            ],
-            'estimated_duration_unit' => [
-                'required',
-                'string',
-                Rule::in(['days', 'weeks', 'months']),
-            ],
-        ]);
-
-        $pricingService->upsertEstimate(
-            $phase,
-            [
-                'modality' => $plan->selected_modality,
-                'price_amount' => $validated['price_amount'],
-                'currency' => 'DOP',
-                'estimated_duration_value' =>
-                    $validated['estimated_duration_value'],
-                'estimated_duration_unit' =>
-                    $validated['estimated_duration_unit'],
-            ],
-            $request->user()?->id
-        );
-
-        return $this->backToPlan(
-            $contact,
-            'Precio y tiempo actualizados.'
-        );
-    }
-
-    public function upsertMilestone(
-        Request $request,
-        ContactRequest $contact,
-        TransformationImplementationPhase $phase,
-        DiagnosisAccessService $accessService,
-        TransformationImplementationMilestoneBillingService $milestoneService
-    ): RedirectResponse {
-        $plan = $this->editablePlanFor($contact, $accessService);
-        $this->assertPhaseBelongsToPlan($phase, $plan);
-
-        abort_unless(
-            filled($plan->selected_modality),
-            422,
-            'Seleccione primero una modalidad.'
-        );
-
-        $validated = $request->validate([
-            'sequence' => ['required', 'integer', 'min:1'],
-            'name' => ['required', 'string', 'max:255'],
-            'billing_amount' => [
-                'required',
-                'numeric',
-                'min:0',
-            ],
-        ]);
-
-        $milestoneService->upsertMilestone(
-            $phase,
-            [
-                'sequence' => $validated['sequence'],
-                'name' => $validated['name'],
-                'billing_amount' =>
-                    $validated['billing_amount'],
-            ],
-            $request->user()?->id
-        );
-
-        return $this->backToPlan(
-            $contact,
-            'Hito guardado.'
+            'Fase profesional agregada al Plan.'
         );
     }
 
@@ -522,31 +252,7 @@ class AdminTransformationImplementationPlanController extends Controller
 
         return $this->backToPlan(
             $contact,
-            'Plan presentado al cliente.'
-        );
-    }
-
-    public function accept(
-        Request $request,
-        ContactRequest $contact,
-        DiagnosisAccessService $accessService,
-        TransformationImplementationPlanService $planService
-    ): RedirectResponse {
-        $assessment = $this->assessmentFor($contact, $accessService);
-
-        $plan = TransformationImplementationPlan::query()
-            ->where('diagnosis_assessment_id', $assessment->id)
-            ->orderByDesc('version')
-            ->firstOrFail();
-
-        $planService->acceptPlan(
-            $plan,
-            $request->user()
-        );
-
-        return $this->backToPlan(
-            $contact,
-            'Plan marcado como aceptado.'
+            'Plan de Implementación presentado al tenant como entregable consultivo gratuito.'
         );
     }
 
@@ -587,103 +293,24 @@ class AdminTransformationImplementationPlanController extends Controller
             ->first();
     }
 
-    private function configurablePlanFor(
-        ContactRequest $contact,
-        DiagnosisAccessService $accessService
-    ): TransformationImplementationPlan {
-        $assessment = $this->assessmentFor(
-            $contact,
-            $accessService
-        );
-
-        $plan = TransformationImplementationPlan::query()
-            ->where(
-                'diagnosis_assessment_id',
-                $assessment->id
-            )
-            ->orderByDesc('version')
-            ->firstOrFail();
-
-        abort_unless(
-            in_array(
-                $plan->status,
-                [
-                    TransformationImplementationPlan::STATUS_DRAFT,
-                    TransformationImplementationPlan::STATUS_PRESENTED,
-                ],
-                true
-            ),
-            422,
-            'La configuración comercial ya no puede modificarse en este estado.'
-        );
-
-        return $plan;
-    }
-
     private function editablePlanFor(
         ContactRequest $contact,
         DiagnosisAccessService $accessService
     ): TransformationImplementationPlan {
-        $plan = $this->configurablePlanFor(
-            $contact,
-            $accessService
-        );
+        $assessment = $this->assessmentFor($contact, $accessService);
+
+        $plan = TransformationImplementationPlan::query()
+            ->where('diagnosis_assessment_id', $assessment->id)
+            ->orderByDesc('version')
+            ->firstOrFail();
 
         abort_unless(
-            $plan->status
-                === TransformationImplementationPlan::STATUS_DRAFT,
+            $plan->status === TransformationImplementationPlan::STATUS_DRAFT,
             422,
-            'Solo un Plan en borrador puede editar fases, precios e hitos.'
+            'Solo un Plan consultivo en borrador puede editarse.'
         );
 
         return $plan;
-    }
-
-    private function assertPhaseBelongsToPlan(
-        TransformationImplementationPhase $phase,
-        TransformationImplementationPlan $plan
-    ): void {
-        abort_unless(
-            (int) $phase->transformation_implementation_plan_id
-                === (int) $plan->id,
-            404
-        );
-    }
-
-    private function modalityOptions(): array
-    {
-        $catalog = app(
-            TransformationImplementationModalityCatalog::class
-        );
-
-        return collect(
-            $catalog->all()
-        )->map(
-            fn (array $definition, string $key) => [
-                'key' =>
-                    $key,
-
-                'label' =>
-                    $definition['label']
-                    ?? $key,
-
-                'description' =>
-                    $definition['summary']
-                    ?? null,
-
-                'lauda_role' =>
-                    $definition['lauda_role']
-                    ?? null,
-
-                'client_role' =>
-                    $definition['client_role']
-                    ?? null,
-
-                'includes' =>
-                    $definition['includes']
-                    ?? [],
-            ]
-        )->values()->all();
     }
 
     private function capabilityOptionsFor(
@@ -691,73 +318,33 @@ class AdminTransformationImplementationPlanController extends Controller
     ): array {
         $snapshot = json_encode(
             $plan->source_snapshot,
-            JSON_UNESCAPED_UNICODE
-            | JSON_UNESCAPED_SLASHES
+            JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES
         );
 
-        $catalog = array_merge(
-            TransformationServiceCapabilityCatalog::all(),
-            TransformationProfessionalCapabilityCatalog::all()
-        );
+        return collect(TransformationProfessionalCapabilityCatalog::all())
+            ->map(function (array $definition, string|int $catalogKey): array {
+                $key = (string) (
+                    $definition['capability_key']
+                    ?? $definition['key']
+                    ?? $catalogKey
+                );
 
-        return collect($catalog)
-            ->map(
-                function (
-                    array $definition,
-                    string|int $catalogKey
-                ) {
-                    $key = (string) (
-                        $definition['capability_key']
-                        ?? $definition['key']
-                        ?? $catalogKey
-                    );
-
-                    $subscriptionCandidate = (bool) (
-                        $definition['subscription_candidate']
-                        ?? false
-                    );
-
-                    return [
-                        'key' =>
-                            $key,
-
-                        'label' =>
-                            $definition['title']
-                            ?? $definition['label']
-                            ?? $key,
-
-                        'service_key' =>
-                            $definition['service_key']
-                            ?? null,
-
-                        'kind' =>
-                            $definition['kind']
-                            ?? (
-                                $subscriptionCandidate
-                                    ? 'subscription_service'
-                                    : 'professional_service'
-                            ),
-
-                        'subscription_candidate' =>
-                            $subscriptionCandidate,
-
-                        'purpose' =>
-                            $definition['purpose']
-                            ?? null,
-
-                        'includes' =>
-                            $definition['includes']
-                            ?? [],
-                    ];
-                }
-            )
+                return [
+                    'key' => $key,
+                    'label' => $definition['title']
+                        ?? $definition['label']
+                        ?? $key,
+                    'service_key' => null,
+                    'kind' => 'professional_service',
+                    'subscription_candidate' => false,
+                    'purpose' => $definition['purpose'] ?? null,
+                    'includes' => $definition['includes'] ?? [],
+                ];
+            })
             ->filter(
-                fn (array $option) =>
+                fn (array $option): bool =>
                     is_string($snapshot)
-                    && str_contains(
-                        $snapshot,
-                        $option['key']
-                    )
+                    && str_contains($snapshot, $option['key'])
             )
             ->values()
             ->all();
@@ -766,271 +353,112 @@ class AdminTransformationImplementationPlanController extends Controller
     private function serializePlan(
         TransformationImplementationPlan $plan
     ): array {
+        $sourceType = data_get(
+            $plan->source_snapshot,
+            'source_type',
+            $plan->diagnosis_detailed_roadmap_id
+                ? 'published_roadmap'
+                : 'internal_assessment'
+        );
+
         return [
-            'id' =>
-                $plan->id,
-
-            'version' =>
-                $plan->version,
-
-            'status' =>
+            'id' => $plan->id,
+            'version' => $plan->version,
+            'status' => $plan->status,
+            'source_type' => $sourceType,
+            'source_label' => $sourceType === 'published_roadmap'
+                ? 'Roadmap Detallado publicado'
+                : 'Diagnóstico oficial · snapshot interno',
+            'autogeneration' => data_get(
+                $plan->source_snapshot,
+                'autogeneration'
+            ),
+            'presented_at' => $plan->presented_at?->toISOString(),
+            'legacy_execution_available' => in_array(
                 $plan->status,
+                [
+                    TransformationImplementationPlan::STATUS_ACCEPTED,
+                    TransformationImplementationPlan::STATUS_ACTIVE,
+                    TransformationImplementationPlan::STATUS_COMPLETED,
+                ],
+                true
+            ),
+            'phases' => $plan->phases
+                ->map(fn ($phase): array => $this->serializePhase($phase))
+                ->values(),
+        ];
+    }
 
-            'source_type' =>
-                data_get(
-                    $plan->source_snapshot,
-                    'source_type',
-                    $plan->diagnosis_detailed_roadmap_id
-                        ? 'published_roadmap'
-                        : 'internal_assessment'
+    private function serializePhase($phase): array
+    {
+        $initiatives = collect(
+            data_get($phase->source_snapshot, 'initiatives', [])
+        )->map(fn ($initiative): array => [
+            'id' => data_get($initiative, 'id'),
+            'priority' => data_get($initiative, 'priority'),
+            'title' => data_get($initiative, 'title'),
+            'objective' => data_get($initiative, 'objective'),
+            'actions' => data_get($initiative, 'actions', []),
+            'owner_role' => data_get($initiative, 'owner_role'),
+            'dependencies' => data_get($initiative, 'dependencies', []),
+            'success_metrics' => data_get($initiative, 'success_metrics', []),
+        ])->values();
+
+        $capabilities = $phase->capabilities
+            ->filter(function ($capability): bool {
+                $kind = data_get($capability->source_snapshot, 'kind');
+                $subscriptionCandidate = (bool) data_get(
+                    $capability->source_snapshot,
+                    'subscription_candidate',
+                    false
+                );
+
+                return $kind !== 'subscription_service'
+                    && ! $subscriptionCandidate;
+            })
+            ->map(fn ($capability): array => [
+                'id' => $capability->id,
+                'sequence' => $capability->sequence,
+                'capability_key' => $capability->capability_key,
+                'capability_label' => $capability->capability_label,
+                'summary' => $capability->capability_summary,
+                'kind' => 'professional_service',
+                'includes' => data_get(
+                    $capability->source_snapshot,
+                    'includes',
+                    []
                 ),
+            ])
+            ->values();
 
-            'autogeneration' =>
-                data_get(
-                    $plan->source_snapshot,
-                    'autogeneration'
-                ),
-
-            'recommended_modality' =>
-                $plan->recommended_modality,
-
-            'recommended_modality_label' =>
-                $plan->recommended_modality_label,
-
-            'selected_modality' =>
-                $plan->selected_modality,
-
-            'selected_modality_label' =>
-                $plan->selected_modality_label,
-
-            'presented_at' =>
-                $plan->presented_at?->toISOString(),
-
-            'accepted_at' =>
-                $plan->accepted_at?->toISOString(),
-
-            'phases' =>
-                $plan->phases->map(
-                    function (
-                        TransformationImplementationPhase $phase
-                    ) use ($plan) {
-                        $estimates =
-                            TransformationImplementationPhaseEstimate::query()
-                                ->where(
-                                    'transformation_implementation_phase_id',
-                                    $phase->id
-                                )
-                                ->orderBy('modality')
-                                ->get();
-
-                        $estimate =
-                            filled($plan->selected_modality)
-                                ? $estimates->firstWhere(
-                                    'modality',
-                                    $plan->selected_modality
-                                )
-                                : null;
-
-                        $milestones =
-                            TransformationImplementationMilestone::query()
-                                ->where(
-                                    'transformation_implementation_phase_id',
-                                    $phase->id
-                                )
-                                ->orderBy('modality')
-                                ->orderBy('sequence')
-                                ->get();
-
-                        return [
-                            'id' =>
-                                $phase->id,
-
-                            'sequence' =>
-                                $phase->sequence,
-
-                            'name' =>
-                                $phase->name,
-
-                            'objective' =>
-                                $phase->objective,
-
-                            'horizon' =>
-                                data_get(
-                                    $phase->source_snapshot,
-                                    'horizon'
-                                ),
-
-                            'initiative_ids' =>
-                                data_get(
-                                    $phase->source_snapshot,
-                                    'initiative_ids',
-                                    []
-                                ),
-
-                            'dependencies' =>
-                                data_get(
-                                    $phase->source_snapshot,
-                                    'dependencies',
-                                    []
-                                ),
-
-                            'deliverables' =>
-                                data_get(
-                                    $phase->source_snapshot,
-                                    'deliverables',
-                                    []
-                                ),
-
-                            'autogenerated' =>
-                                (bool) data_get(
-                                    $phase->source_snapshot,
-                                    'autogenerated',
-                                    false
-                                ),
-
-                            'capabilities' =>
-                                $phase->capabilities->map(
-                                    fn ($capability) => [
-                                        'id' =>
-                                            $capability->id,
-
-                                        'sequence' =>
-                                            $capability->sequence,
-
-                                        'capability_key' =>
-                                            $capability
-                                                ->capability_key,
-
-                                        'capability_label' =>
-                                            $capability
-                                                ->capability_label,
-
-                                        'summary' =>
-                                            $capability
-                                                ->capability_summary,
-
-                                        'kind' =>
-                                            data_get(
-                                                $capability
-                                                    ->source_snapshot,
-                                                'kind'
-                                            ),
-
-                                        'service_key' =>
-                                            data_get(
-                                                $capability
-                                                    ->source_snapshot,
-                                                'service_key'
-                                            ),
-
-                                        'subscription_candidate' =>
-                                            (bool) data_get(
-                                                $capability
-                                                    ->source_snapshot,
-                                                'subscription_candidate',
-                                                false
-                                            ),
-
-                                        'includes' =>
-                                            data_get(
-                                                $capability
-                                                    ->source_snapshot,
-                                                'includes',
-                                                []
-                                            ),
-                                    ]
-                                )->values(),
-
-                            'estimate' =>
-                                $estimate
-                                    ? [
-                                        'modality' =>
-                                            $estimate->modality,
-
-                                        'price_amount' =>
-                                            (float)
-                                                $estimate
-                                                    ->price_amount,
-
-                                        'currency' =>
-                                            $estimate->currency,
-
-                                        'estimated_duration_value' =>
-                                            (float)
-                                                $estimate
-                                                    ->estimated_duration_value,
-
-                                        'estimated_duration_unit' =>
-                                            $estimate
-                                                ->estimated_duration_unit,
-                                    ]
-                                    : null,
-
-                            'estimates' =>
-                                $estimates->map(
-                                    fn ($item) => [
-                                        'modality' =>
-                                            $item->modality,
-
-                                        'price_amount' =>
-                                            (float)
-                                                $item
-                                                    ->price_amount,
-
-                                        'currency' =>
-                                            $item->currency,
-
-                                        'estimated_duration_value' =>
-                                            (float)
-                                                $item
-                                                    ->estimated_duration_value,
-
-                                        'estimated_duration_unit' =>
-                                            $item
-                                                ->estimated_duration_unit,
-                                    ]
-                                )->values(),
-
-                            'milestones' =>
-                                $milestones->map(
-                                    fn ($milestone) => [
-                                        'id' =>
-                                            $milestone->id,
-
-                                        'sequence' =>
-                                            $milestone->sequence,
-
-                                        'name' =>
-                                            $milestone->name,
-
-                                        'modality' =>
-                                            $milestone->modality,
-
-                                        'modality_label' =>
-                                            $milestone
-                                                ->modality_label,
-
-                                        'billing_percentage' =>
-                                            (float)
-                                                $milestone
-                                                    ->billing_percentage,
-
-                                        'billing_amount' =>
-                                            (float)
-                                                $milestone
-                                                    ->billing_amount,
-
-                                        'currency' =>
-                                            $milestone->currency,
-
-                                        'billing_status' =>
-                                            $milestone
-                                                ->billing_status,
-                                    ]
-                                )->values(),
-                        ];
-                    }
-                )->values(),
+        return [
+            'id' => $phase->id,
+            'sequence' => $phase->sequence,
+            'name' => $phase->name,
+            'objective' => $phase->objective,
+            'horizon' => data_get($phase->source_snapshot, 'horizon'),
+            'initiative_ids' => data_get(
+                $phase->source_snapshot,
+                'initiative_ids',
+                []
+            ),
+            'initiatives' => $initiatives,
+            'dependencies' => data_get(
+                $phase->source_snapshot,
+                'dependencies',
+                []
+            ),
+            'deliverables' => data_get(
+                $phase->source_snapshot,
+                'deliverables',
+                []
+            ),
+            'autogenerated' => (bool) data_get(
+                $phase->source_snapshot,
+                'autogenerated',
+                false
+            ),
+            'capabilities' => $capabilities,
         ];
     }
 

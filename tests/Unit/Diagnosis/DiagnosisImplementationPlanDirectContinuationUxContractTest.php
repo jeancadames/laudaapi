@@ -34,7 +34,7 @@ final class DiagnosisImplementationPlanDirectContinuationUxContractTest
         }
     }
 
-    public function test_ui_says_paid_deliverables_are_not_prerequisites(): void
+    public function test_reports_are_presented_as_free_consultive_deliverables(): void
     {
         $source = file_get_contents(
             $this->root()
@@ -48,17 +48,24 @@ final class DiagnosisImplementationPlanDirectContinuationUxContractTest
             $source
         );
 
-        $this->assertIsString($normalized);
+        $this->assertIsString(
+            $normalized
+        );
 
         foreach ([
-            'Informe Ampliado y el Roadmap Detallado son opcionales para iniciar esta fase',
-            'directamente desde el diagnóstico oficial',
+            'El Informe Ampliado y el Roadmap Detallado forman parte del flujo gratuito del Diagnóstico 360.',
+            'Se preparan como entregables consultivos',
         ] as $token) {
             $this->assertStringContainsString(
                 $token,
                 $normalized
             );
         }
+
+        $this->assertStringNotContainsString(
+            'son opcionales para iniciar esta fase',
+            $normalized
+        );
     }
 
     public function test_backend_supports_both_plan_sources(): void

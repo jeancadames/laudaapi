@@ -10,6 +10,11 @@ use Illuminate\Validation\ValidationException;
 
 class DiagnosisResultPublisher
 {
+    public function __construct(
+        private readonly DiagnosisFreeDeliverablesOrchestrator $deliverables
+    ) {
+    }
+
     public const MODALITY_LABELS = [
         'guided' => 'LAUDA 360 Guiado',
         'assisted' => 'LAUDA 360 Asistido',
@@ -122,12 +127,25 @@ class DiagnosisResultPublisher
                 'published_at' => now(),
             ])->save();
 
+            $deliverables = $this->deliverables->generateAndPresent(
+                $locked,
+                $reviewer
+            );
+
             AuditService::log('diagnosis_result_published', $locked, [
                 'assessment_id' => $locked->id,
                 'reviewed_by_user_id' => $reviewer->id,
                 'automatic_modality' => $locked->recommended_modality,
                 'final_modality' => $locked->final_modality,
                 'review_required' => (bool) $locked->review_required,
+                'free_deliverables_generated' => [
+                    'expanded_report_id' =>
+                        $deliverables['expanded_report']->id,
+                    'roadmap_id' =>
+                        $deliverables['roadmap']->id,
+                    'implementation_plan_id' =>
+                        $deliverables['implementation_plan']->id,
+                ],
             ]);
 
             return $locked->fresh(['user', 'reviewedBy']);

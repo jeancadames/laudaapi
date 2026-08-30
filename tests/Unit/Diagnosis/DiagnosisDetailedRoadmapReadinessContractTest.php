@@ -6,13 +6,14 @@ use PHPUnit\Framework\TestCase;
 
 class DiagnosisDetailedRoadmapReadinessContractTest extends TestCase
 {
-    public function test_backend_exposes_generation_and_publication_readiness(): void
+    public function test_backend_exposes_content_generation_and_publication_readiness(): void
     {
         $root = dirname(__DIR__, 3);
 
         $controller = file_get_contents(
             $root
-            . '/app/Http/Controllers/Admin/AdminDiagnosisDetailedRoadmapController.php'
+            .'/app/Http/Controllers/Admin/'
+            .'AdminDiagnosisDetailedRoadmapController.php'
         );
 
         foreach ([
@@ -27,51 +28,93 @@ class DiagnosisDetailedRoadmapReadinessContractTest extends TestCase
                 $controller
             );
         }
+
+        $service = file_get_contents(
+            $root
+            .'/app/Services/Diagnosis/'
+            .'DiagnosisTransformationProgressService.php'
+        );
+
+        foreach ([
+            "'diagnosis_published'",
+            "'expanded_report_published'",
+            "'publication_ready'",
+        ] as $token) {
+            $this->assertStringContainsString(
+                $token,
+                $service
+            );
+        }
+
+        foreach ([
+            'roadmap_requested',
+            'roadmap_invoiced',
+            'roadmap_paid',
+            "'commercial' =>",
+        ] as $token) {
+            $this->assertStringNotContainsString(
+                $token,
+                $service
+            );
+        }
     }
 
-    public function test_ui_explains_disabled_publication(): void
+    public function test_ui_explains_disabled_publication_without_commercial_prerequisites(): void
     {
         $root = dirname(__DIR__, 3);
 
         $source = file_get_contents(
             $root
-            . '/resources/js/pages/Admin/DiagnosisRequests/DetailedRoadmap.vue'
+            .'/resources/js/pages/Admin/DiagnosisRequests/'
+            .'DetailedRoadmap.vue'
         );
 
         foreach ([
             'Estado del Roadmap',
-            'Roadmap solicitado',
-            'Factura Roadmap',
-            'Pago Roadmap',
+            'Diagnóstico publicado',
+            'Informe publicado',
             'ya generado',
             'Publicar para cliente todavía no está disponible',
-            ':disabled="commercial?.paid_access !== true"',
             'publicationReady.value',
+            'Los requisitos de contenido y revisión están',
         ] as $token) {
             $this->assertStringContainsString(
                 $token,
                 $source
             );
         }
+
+        foreach ([
+            'Roadmap solicitado',
+            'Factura Roadmap',
+            'Pago Roadmap',
+            'commercial?.paid_access',
+        ] as $token) {
+            $this->assertStringNotContainsString(
+                $token,
+                $source
+            );
+        }
     }
 
-    public function test_backend_paid_gate_is_preserved(): void
+    public function test_backend_paid_gate_is_removed(): void
     {
         $root = dirname(__DIR__, 3);
 
         $source = file_get_contents(
             $root
-            . '/app/Http/Controllers/Admin/AdminDiagnosisDetailedRoadmapController.php'
+            .'/app/Http/Controllers/Admin/'
+            .'AdminDiagnosisDetailedRoadmapController.php'
         );
 
-        $this->assertStringContainsString(
+        foreach ([
             '$commercialService->hasPaidAccess(',
-            $source
-        );
-
-        $this->assertStringContainsString(
             'solo puede publicarse después de confirmar el pago',
-            $source
-        );
+        ] as $token) {
+            $this->assertStringNotContainsString(
+                $token,
+                $source
+            );
+        }
     }
 }

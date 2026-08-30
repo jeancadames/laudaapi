@@ -6,80 +6,42 @@ use PHPUnit\Framework\TestCase;
 
 class DiagnosisExpandedReportPublicationPaymentGateContractTest extends TestCase
 {
-    public function test_admin_publication_requires_paid_entitlement(): void
+    private function root(): string
     {
-        $root = dirname(__DIR__, 3);
+        return dirname(__DIR__, 3);
+    }
 
+    public function test_admin_publication_no_longer_requires_paid_entitlement(): void
+    {
         $source = file_get_contents(
-            $root
-            . '/app/Http/Controllers/Admin/AdminDiagnosisExpandedReportController.php'
+            $this->root()
+            .'/app/Http/Controllers/Admin/'
+            .'AdminDiagnosisExpandedReportController.php'
         );
 
         foreach ([
             'DiagnosisExpandedReportCommercialService',
             'hasPaidAccess(',
-            'El Informe Ampliado solo puede publicarse después de confirmar el pago.',
-            '$reportService->publish(',
+            'solo puede publicarse después de confirmar el pago',
         ] as $token) {
-            $this->assertStringContainsString(
+            $this->assertStringNotContainsString(
                 $token,
                 $source
             );
         }
-    }
 
-    public function test_payment_gate_executes_before_report_publication(): void
-    {
-        $root = dirname(__DIR__, 3);
-
-        $source = file_get_contents(
-            $root
-            . '/app/Http/Controllers/Admin/AdminDiagnosisExpandedReportController.php'
-        );
-
-        $publishStart = strpos(
-            $source,
-            'public function publish('
-        );
-
-        $gate = strpos(
-            $source,
-            '$commercialService->hasPaidAccess(',
-            $publishStart
-        );
-
-        $publish = strpos(
-            $source,
+        $this->assertStringContainsString(
             '$reportService->publish(',
-            $publishStart
-        );
-
-        $this->assertNotFalse(
-            $publishStart
-        );
-
-        $this->assertNotFalse(
-            $gate
-        );
-
-        $this->assertNotFalse(
-            $publish
-        );
-
-        $this->assertLessThan(
-            $publish,
-            $gate,
-            'El gate de pago debe ejecutarse antes de publicar.'
+            $source
         );
     }
 
-    public function test_gate_does_not_create_billing_or_subscription(): void
+    public function test_publication_still_does_not_create_billing_or_subscription(): void
     {
-        $root = dirname(__DIR__, 3);
-
         $source = file_get_contents(
-            $root
-            . '/app/Http/Controllers/Admin/AdminDiagnosisExpandedReportController.php'
+            $this->root()
+            .'/app/Http/Controllers/Admin/'
+            .'AdminDiagnosisExpandedReportController.php'
         );
 
         foreach ([
@@ -94,5 +56,14 @@ class DiagnosisExpandedReportPublicationPaymentGateContractTest extends TestCase
                 $source
             );
         }
+    }
+
+    public function test_historical_commercial_service_remains_available(): void
+    {
+        $this->assertFileExists(
+            $this->root()
+            .'/app/Services/Diagnosis/'
+            .'DiagnosisExpandedReportCommercialService.php'
+        );
     }
 }

@@ -71,8 +71,6 @@ class DiagnosisExpandedReportService
                 $generated =
                     $this->generator->generate($locked);
 
-                $price = $this->commercialSnapshot();
-
                 return DiagnosisExpandedReport::create([
                     'diagnosis_assessment_id' =>
                         $locked->id,
@@ -83,15 +81,15 @@ class DiagnosisExpandedReportService
                     'generated_by_user_id' =>
                         $actor->id,
                     'currency' =>
-                        $price['currency'],
+                        'DOP',
                     'subtotal' =>
-                        $price['subtotal'],
+                        0,
                     'tax_rate' =>
-                        $price['tax_rate'],
+                        0,
                     'tax_amount' =>
-                        $price['tax_amount'],
+                        0,
                     'total' =>
-                        $price['total'],
+                        0,
                     'methodology_version' =>
                         $locked->methodology_version,
                     'source_snapshot' =>

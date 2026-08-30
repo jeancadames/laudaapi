@@ -12,7 +12,7 @@ class DiagnosisDetailedRoadmapLegacyRegenerationContractTest extends TestCase
 
         $source = file_get_contents(
             $root
-            . '/app/Services/Diagnosis/DiagnosisDetailedRoadmapService.php'
+            .'/app/Services/Diagnosis/DiagnosisDetailedRoadmapService.php'
         );
 
         foreach ([
@@ -40,7 +40,7 @@ class DiagnosisDetailedRoadmapLegacyRegenerationContractTest extends TestCase
 
         $source = file_get_contents(
             $root
-            . '/app/Services/Diagnosis/DiagnosisDetailedRoadmapService.php'
+            .'/app/Services/Diagnosis/DiagnosisDetailedRoadmapService.php'
         );
 
         foreach ([
@@ -55,46 +55,58 @@ class DiagnosisDetailedRoadmapLegacyRegenerationContractTest extends TestCase
         }
     }
 
-    public function test_ui_allows_regeneration_while_editable(): void
+    public function test_ui_allows_regeneration_while_editable_without_commercial_state(): void
     {
         $root = dirname(__DIR__, 3);
 
         $source = file_get_contents(
             $root
-            . '/resources/js/pages/Admin/DiagnosisRequests/DetailedRoadmap.vue'
+            .'/resources/js/pages/Admin/DiagnosisRequests/'
+            .'DetailedRoadmap.vue'
         );
 
         foreach ([
             'if (!props.roadmap || !canEdit.value) return;',
             'v-if="canEdit"',
             'Regenerar versión editable',
-            'se conservarán la versión, el estado comercial y las notas internas',
+            'se conservarán la versión y las notas internas',
         ] as $token) {
             $this->assertStringContainsString(
                 $token,
                 $source
             );
         }
+
+        $this->assertStringNotContainsString(
+            'estado comercial',
+            $source
+        );
     }
 
-    public function test_paid_publish_gate_remains_intact(): void
+    public function test_paid_publish_gate_is_removed(): void
     {
         $root = dirname(__DIR__, 3);
 
         $source = file_get_contents(
             $root
-            . '/app/Http/Controllers/Admin/AdminDiagnosisDetailedRoadmapController.php'
+            .'/app/Http/Controllers/Admin/'
+            .'AdminDiagnosisDetailedRoadmapController.php'
         );
 
         foreach ([
             '$commercialService->hasPaidAccess(',
             'solo puede publicarse después de confirmar el pago',
         ] as $token) {
-            $this->assertStringContainsString(
+            $this->assertStringNotContainsString(
                 $token,
                 $source
             );
         }
+
+        $this->assertStringContainsString(
+            '$service->publish(',
+            $source
+        );
     }
 
     public function test_current_methodology_requires_capabilities(): void
@@ -103,12 +115,12 @@ class DiagnosisDetailedRoadmapLegacyRegenerationContractTest extends TestCase
 
         $generator = file_get_contents(
             $root
-            . '/app/Services/Diagnosis/DiagnosisDetailedRoadmapGenerator.php'
+            .'/app/Services/Diagnosis/DiagnosisDetailedRoadmapGenerator.php'
         );
 
         $service = file_get_contents(
             $root
-            . '/app/Services/Diagnosis/DiagnosisDetailedRoadmapService.php'
+            .'/app/Services/Diagnosis/DiagnosisDetailedRoadmapService.php'
         );
 
         $this->assertStringContainsString(

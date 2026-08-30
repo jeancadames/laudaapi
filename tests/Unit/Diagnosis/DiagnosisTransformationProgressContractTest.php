@@ -6,13 +6,14 @@ use PHPUnit\Framework\TestCase;
 
 class DiagnosisTransformationProgressContractTest extends TestCase
 {
-    public function test_progress_service_contains_full_lauda360_sequence(): void
+    public function test_progress_service_contains_free_consultive_sequence(): void
     {
         $root = dirname(__DIR__, 3);
 
         $source = file_get_contents(
             $root
-            . '/app/Services/Diagnosis/DiagnosisTransformationProgressService.php'
+            .'/app/Services/Diagnosis/'
+            .'DiagnosisTransformationProgressService.php'
         );
 
         foreach ([
@@ -24,18 +25,29 @@ class DiagnosisTransformationProgressContractTest extends TestCase
             'diagnosis_submitted',
             'diagnosis_reviewed',
             'diagnosis_published',
+            'expanded_report_preparation',
+            'expanded_report_published',
+            'roadmap_preparation',
+            'roadmap_published',
+            'implementation_plan',
+        ] as $token) {
+            $this->assertStringContainsString(
+                $token,
+                $source
+            );
+        }
+
+        foreach ([
             'expanded_report_requested',
             'expanded_report_invoiced',
             'expanded_report_paid',
-            'expanded_report_published',
             'roadmap_requested',
             'roadmap_invoiced',
             'roadmap_paid',
-            'roadmap_preparation',
-            'roadmap_published',
-            "'execution'",
+            'DiagnosisExpandedReportOrder',
+            'DiagnosisDetailedRoadmapOrder',
         ] as $token) {
-            $this->assertStringContainsString(
+            $this->assertStringNotContainsString(
                 $token,
                 $source
             );
@@ -48,7 +60,8 @@ class DiagnosisTransformationProgressContractTest extends TestCase
 
         $source = file_get_contents(
             $root
-            . '/app/Services/Diagnosis/DiagnosisTransformationProgressService.php'
+            .'/app/Services/Diagnosis/'
+            .'DiagnosisTransformationProgressService.php'
         );
 
         foreach ([

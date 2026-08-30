@@ -11,7 +11,6 @@ use App\Models\DiagnosisDetailedRoadmap;
 use App\Models\DiagnosisExpandedReport;
 use App\Services\Diagnosis\DiagnosisAccessService;
 use App\Services\Diagnosis\DiagnosisCommercialNotificationService;
-use App\Services\Diagnosis\DiagnosisDetailedRoadmapCommercialService;
 use App\Services\Diagnosis\DiagnosisDetailedRoadmapService;
 use App\Services\Diagnosis\DiagnosisTransformationProgressService;
 use Illuminate\Http\RedirectResponse;
@@ -24,7 +23,6 @@ class AdminDiagnosisDetailedRoadmapController extends Controller
     public function show(
         ContactRequest $contact,
         DiagnosisAccessService $accessService,
-        DiagnosisDetailedRoadmapCommercialService $commercialService,
         DiagnosisTransformationProgressService $progressService
     ): Response {
         $assessment = $this->assessmentFor($contact, $accessService);
@@ -45,10 +43,6 @@ class AdminDiagnosisDetailedRoadmapController extends Controller
             ])
             ->orderByDesc('version')
             ->first();
-
-        $commercial = $commercialService->state(
-            $assessment
-        );
 
         $readiness =
             $progressService->roadmapReadiness(
@@ -90,7 +84,6 @@ class AdminDiagnosisDetailedRoadmapController extends Controller
                         $assessment,
                         true
                     ),
-                'commercial' => $commercial,
                 'endpoints' => [
                     'back' => route(
                         'admin.diagnosis_requests.expanded_report.show',
@@ -100,24 +93,6 @@ class AdminDiagnosisDetailedRoadmapController extends Controller
                         'admin.diagnosis_requests.detailed_roadmap.generate',
                         $contact
                     ),
-                    'prepare_invoice' => $commercial
-                        ? route(
-                            'admin.diagnosis_requests.detailed_roadmap.prepare_invoice',
-                            [
-                                'contact' => $contact,
-                                'order' => $commercial['id'],
-                            ]
-                        )
-                        : null,
-                    'record_payment' => $commercial
-                        ? route(
-                            'admin.diagnosis_requests.detailed_roadmap.record_payment',
-                            [
-                                'contact' => $contact,
-                                'order' => $commercial['id'],
-                            ]
-                        )
-                        : null,
                 ],
             ]
         );
@@ -206,19 +181,10 @@ class AdminDiagnosisDetailedRoadmapController extends Controller
         DiagnosisDetailedRoadmap $roadmap,
         DiagnosisAccessService $accessService,
         DiagnosisDetailedRoadmapService $service,
-        DiagnosisDetailedRoadmapCommercialService $commercialService,
         DiagnosisCommercialNotificationService $notificationService
     ): RedirectResponse {
         $assessment = $this->assessmentFor($contact, $accessService);
         $this->assertRoadmap($roadmap, $assessment);
-
-        abort_unless(
-            $commercialService->hasPaidAccess(
-                $assessment
-            ),
-            422,
-            'El Roadmap Detallado solo puede publicarse después de confirmar el pago.'
-        );
 
         $published = $service->publish(
             $roadmap,

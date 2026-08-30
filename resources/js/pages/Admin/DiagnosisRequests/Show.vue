@@ -109,15 +109,6 @@ const props = defineProps<{
     businessProfileOptions: BusinessProfileOptions;
     transformation_progress: Record<string, any> | null;
 
-    expanded_report_commercial: Record<string, any> | null;
-    detailed_roadmap_commercial: Record<string, any> | null;
-
-    commercial_endpoints: {
-        expanded_prepare_invoice: string | null;
-        expanded_record_payment: string | null;
-        roadmap_prepare_invoice: string | null;
-        roadmap_record_payment: string | null;
-    };
 }>();
 
 const breadcrumbs: BreadcrumbItem[] = [
@@ -477,9 +468,6 @@ function publish() {
                 mode="admin"
                 :contact-id="contact.id"
                 :progress="transformation_progress"
-                :expanded-report-commercial="expanded_report_commercial"
-                :roadmap-commercial="detailed_roadmap_commercial"
-                :commercial-endpoints="commercial_endpoints"
             />
 
             <!-- DIAGNOSIS360_ADMIN_TWO_COLUMN_LAYOUT -->

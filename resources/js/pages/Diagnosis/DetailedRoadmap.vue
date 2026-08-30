@@ -16,6 +16,7 @@ import {
 } from '@/components/ui/card';
 
 import DetailedRoadmapTransformationCapabilities from '@/components/diagnosis/DetailedRoadmapTransformationCapabilities.vue';
+import DiagnosisDeliverableValidationCard from '@/components/diagnosis/DiagnosisDeliverableValidationCard.vue';
 
 interface Initiative {
     id: string;
@@ -58,6 +59,18 @@ const props = defineProps<{
     };
     expanded_report_url: string;
     implementation_plan_url: string | null;
+    validation: {
+        status: 'presented' | 'reviewed' | 'validated' | 'adjustment_requested';
+        reviewed_at: string | null;
+        validated_at: string | null;
+        adjustment_requested_at: string | null;
+        adjustment_note: string | null;
+    };
+    validation_endpoints: {
+        review: string;
+        validate: string;
+        request_adjustment: string;
+    };
     diagnosis_url: string;
 }>();
 
@@ -307,6 +320,11 @@ function formatDate(value: string | null) {
                     </p>
                 </CardContent>
             </Card>
+
+            <DiagnosisDeliverableValidationCard
+                :validation="validation"
+                :endpoints="validation_endpoints"
+            />
 
             <div class="flex flex-wrap justify-center gap-3">
                 <Button as-child variant="outline">

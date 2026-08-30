@@ -21,8 +21,6 @@ import {
 } from '@/components/ui/card';
 import { Textarea } from '@/components/ui/textarea';
 
-import DetailedRoadmapAdminCommercialCard from '@/components/diagnosis/DetailedRoadmapAdminCommercialCard.vue';
-
 import DetailedRoadmapTransformationCapabilities from '@/components/diagnosis/DetailedRoadmapTransformationCapabilities.vue';
 
 interface Initiative {
@@ -86,14 +84,11 @@ const props = defineProps<{
     } | null;
     roadmap: Roadmap | null;
     can_generate: boolean;
-    commercial: Record<string, any> | null;
     generation_readiness: Record<string, any>;
     transformation_progress: Record<string, any> | null;
     endpoints: {
         back: string;
         generate: string;
-        prepare_invoice: string | null;
-        record_payment: string | null;
     };
 }>();
 
@@ -136,7 +131,7 @@ function regenerate() {
     if (!props.roadmap || !canEdit.value) return;
     if (
         !window.confirm(
-            '¿Regenerar esta versión editable desde el último Informe Ampliado publicado? Se actualizará el contenido, pero se conservarán la versión, el estado comercial y las notas internas.',
+            '¿Regenerar esta versión editable desde el último Informe Ampliado publicado? Se actualizará el contenido, pero se conservarán la versión y las notas internas.',
         )
     )
         return;
@@ -223,9 +218,6 @@ function statusLabel(status: Roadmap['status']) {
                                             'Diagnóstico publicado',
                                         expanded_report_published:
                                             'Informe publicado',
-                                        roadmap_requested: 'Roadmap solicitado',
-                                        roadmap_invoiced: 'Factura Roadmap',
-                                        roadmap_paid: 'Pago Roadmap',
                                     }[key] || key
                                 }}
                             </p>
@@ -286,18 +278,12 @@ function statusLabel(status: Roadmap['status']) {
                     >
                         <p class="font-bold">✓ Listo para publicar</p>
                         <p class="mt-1 text-sm text-muted-foreground">
-                            Los requisitos comerciales y operativos están
+                            Los requisitos de contenido y revisión están
                             completos.
                         </p>
                     </div>
                 </CardContent>
             </Card>
-
-            <DetailedRoadmapAdminCommercialCard
-                :commercial="commercial"
-                :prepare-invoice-url="endpoints.prepare_invoice"
-                :record-payment-url="endpoints.record_payment"
-            />
 
             <Card v-if="!roadmap">
                 <CardHeader>
@@ -511,7 +497,6 @@ function statusLabel(status: Roadmap['status']) {
 
                     <Button
                         v-if="canEdit"
-                        :disabled="commercial?.paid_access !== true"
                         @click="publish"
                     >
                         <Send class="mr-2 size-4" />

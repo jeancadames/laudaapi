@@ -197,16 +197,6 @@ Route::middleware(['auth', 'verified', 'role:admin'])
             [\App\Http\Controllers\Admin\AdminDiagnosisExpandedReportController::class, 'publish']
         )->name('diagnosis_requests.expanded_report.publish');
 
-        \Illuminate\Support\Facades\Route::post(
-            '/diagnosis-requests/{contact}/expanded-report/order/{order}/prepare-invoice',
-            [\App\Http\Controllers\Admin\AdminDiagnosisExpandedReportCommercialController::class, 'prepareInvoice']
-        )->name('diagnosis_requests.expanded_report.prepare_invoice');
-
-        \Illuminate\Support\Facades\Route::post(
-            '/diagnosis-requests/{contact}/expanded-report/order/{order}/record-payment',
-            [\App\Http\Controllers\Admin\AdminDiagnosisExpandedReportCommercialController::class, 'recordPayment']
-        )->name('diagnosis_requests.expanded_report.record_payment');
-
 
         \Illuminate\Support\Facades\Route::get(
             '/diagnosis-requests/{contact}/detailed-roadmap',
@@ -238,16 +228,6 @@ Route::middleware(['auth', 'verified', 'role:admin'])
             [\App\Http\Controllers\Admin\AdminDiagnosisDetailedRoadmapController::class, 'publish']
         )->name('diagnosis_requests.detailed_roadmap.publish');
 
-
-        \Illuminate\Support\Facades\Route::post(
-            '/diagnosis-requests/{contact}/detailed-roadmap/order/{order}/prepare-invoice',
-            [\App\Http\Controllers\Admin\AdminDiagnosisDetailedRoadmapCommercialController::class, 'prepareInvoice']
-        )->name('diagnosis_requests.detailed_roadmap.prepare_invoice');
-
-        \Illuminate\Support\Facades\Route::post(
-            '/diagnosis-requests/{contact}/detailed-roadmap/order/{order}/record-payment',
-            [\App\Http\Controllers\Admin\AdminDiagnosisDetailedRoadmapCommercialController::class, 'recordPayment']
-        )->name('diagnosis_requests.detailed_roadmap.record_payment');
 
 
         /*
@@ -308,40 +288,9 @@ Route::middleware(['auth', 'verified', 'role:admin'])
         )->name('diagnosis_requests.implementation_plan.phase.store');
 
         \Illuminate\Support\Facades\Route::post(
-            '/diagnosis-requests/{contact}/implementation-plan/commercial-scenarios',
-            [
-                \App\Http\Controllers\Admin\AdminTransformationImplementationPlanController::class,
-                'generateCommercialScenarios'
-            ]
-        )->name(
-            'diagnosis_requests.implementation_plan.commercial.generate'
-        );
-
-
-        \Illuminate\Support\Facades\Route::post(
-            '/diagnosis-requests/{contact}/implementation-plan/modality',
-            [\App\Http\Controllers\Admin\AdminTransformationImplementationPlanController::class, 'selectModality']
-        )->name('diagnosis_requests.implementation_plan.modality.select');
-
-        \Illuminate\Support\Facades\Route::post(
-            '/diagnosis-requests/{contact}/implementation-plan/phases/{phase}/estimate',
-            [\App\Http\Controllers\Admin\AdminTransformationImplementationPlanController::class, 'upsertEstimate']
-        )->name('diagnosis_requests.implementation_plan.estimate.upsert');
-
-        \Illuminate\Support\Facades\Route::post(
-            '/diagnosis-requests/{contact}/implementation-plan/phases/{phase}/milestones',
-            [\App\Http\Controllers\Admin\AdminTransformationImplementationPlanController::class, 'upsertMilestone']
-        )->name('diagnosis_requests.implementation_plan.milestone.upsert');
-
-        \Illuminate\Support\Facades\Route::post(
             '/diagnosis-requests/{contact}/implementation-plan/present',
             [\App\Http\Controllers\Admin\AdminTransformationImplementationPlanController::class, 'present']
         )->name('diagnosis_requests.implementation_plan.present');
-
-        \Illuminate\Support\Facades\Route::post(
-            '/diagnosis-requests/{contact}/implementation-plan/accept',
-            [\App\Http\Controllers\Admin\AdminTransformationImplementationPlanController::class, 'accept']
-        )->name('diagnosis_requests.implementation_plan.accept');
 
 
         \Illuminate\Support\Facades\Route::get(

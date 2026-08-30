@@ -90,11 +90,6 @@ require __DIR__ . '/settings.php';
         \Illuminate\Support\Facades\Route::post('/{assessment}/submit', [\App\Http\Controllers\Diagnosis\DigitalDiagnosisController::class, 'submit'])
             ->name('submit');
 
-        \Illuminate\Support\Facades\Route::post(
-            '/{assessment}/informe-ampliado/solicitar',
-            [\App\Http\Controllers\Diagnosis\DiagnosisExpandedReportCommercialController::class, 'requestPurchase']
-        )->name('expanded_report.request');
-
         \Illuminate\Support\Facades\Route::get(
             '/{assessment}/informe-ampliado',
             [\App\Http\Controllers\Diagnosis\DiagnosisExpandedReportController::class, 'show']
@@ -107,22 +102,26 @@ require __DIR__ . '/settings.php';
         )->name('detailed_roadmap.show');
 
 
-        \Illuminate\Support\Facades\Route::post(
-            '/{assessment}/roadmap-detallado/solicitar',
-            [\App\Http\Controllers\Diagnosis\DiagnosisDetailedRoadmapCommercialController::class, 'requestPurchase']
-        )->name('detailed_roadmap.request');
-
 
         \Illuminate\Support\Facades\Route::get(
             '/{assessment}/plan-implementacion',
             [\App\Http\Controllers\Diagnosis\TransformationImplementationPlanController::class, 'show']
         )->name('implementation_plan.show');
 
+        \Illuminate\Support\Facades\Route::post(
+            '/{assessment}/entregables/{deliverable}/revisar',
+            [\App\Http\Controllers\Diagnosis\DiagnosisDeliverableValidationController::class, 'review']
+        )->name('deliverable.review');
 
         \Illuminate\Support\Facades\Route::post(
-            '/{assessment}/plan-implementacion/aceptar',
-            [\App\Http\Controllers\Diagnosis\TransformationImplementationPlanController::class, 'accept']
-        )->name('implementation_plan.accept');
+            '/{assessment}/entregables/{deliverable}/validar',
+            [\App\Http\Controllers\Diagnosis\DiagnosisDeliverableValidationController::class, 'validateDocument']
+        )->name('deliverable.validate');
+
+        \Illuminate\Support\Facades\Route::post(
+            '/{assessment}/entregables/{deliverable}/solicitar-ajuste',
+            [\App\Http\Controllers\Diagnosis\DiagnosisDeliverableValidationController::class, 'requestAdjustment']
+        )->name('deliverable.adjustment');
 
     });
 // END LAUDA360 DIAGNOSIS ROUTES

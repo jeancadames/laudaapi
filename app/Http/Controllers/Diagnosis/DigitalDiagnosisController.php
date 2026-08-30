@@ -133,27 +133,7 @@ class DigitalDiagnosisController extends Controller
                             'published_at',
                         ])
                     : null,
-            'expanded_report_commercial' =>
-                app(
-                    \App\Services\Diagnosis\DiagnosisExpandedReportCommercialService::class
-                )->state($assessment),
-            'detailed_roadmap_commercial' =>
-                app(
-                    \App\Services\Diagnosis\DiagnosisDetailedRoadmapCommercialService::class
-                )->state($assessment),
-
             'endpoints' => [
-                'request_expanded_report' =>
-                    route(
-                        'diagnosis.expanded_report.request',
-                        $assessment
-                    ),
-                'request_detailed_roadmap' =>
-                    route(
-                        'diagnosis.detailed_roadmap.request',
-                        $assessment
-                    ),
-
                 'update' =>
                     route('diagnosis.update', $assessment),
                 'submit' =>

@@ -3,7 +3,6 @@ import AppLayout from '@/layouts/AppLayout.vue';
 import type { BreadcrumbItem } from '@/types';
 import TransformationProgressChecklist from '@/components/diagnosis/TransformationProgressChecklist.vue';
 import TransformationQuickActions from '@/components/diagnosis/TransformationQuickActions.vue';
-import ExpandedReportCommercialCard from '@/components/diagnosis/ExpandedReportCommercialCard.vue';
 import { computed, reactive, ref } from 'vue';
 import { Head, Link, router } from '@inertiajs/vue3';
 import {
@@ -70,8 +69,6 @@ interface BusinessProfileOptions {
 }
 
 interface Endpoints {
-    request_expanded_report: string;
-    request_detailed_roadmap: string;
     implementation_plan_url: string | null;
 
     update: string;
@@ -88,23 +85,6 @@ const props = defineProps<{
         version: number;
         published_at: string | null;
     } | null;
-    expanded_report_commercial: {
-        id: number;
-        status: 'requested' | 'invoiced' | 'paid' | 'cancelled';
-        currency: string;
-        subtotal: string;
-        tax_rate: string;
-        tax_amount: string;
-        total: string;
-        paid_access: boolean;
-        invoice: {
-            id: number;
-            number: string;
-            status: string;
-            total: string;
-        } | null;
-    } | null;
-    detailed_roadmap_commercial: Record<string, any> | null;
     endpoints: Endpoints;
     businessProfileOptions: BusinessProfileOptions;
     transformation_progress: Record<string, any> | null;
@@ -427,12 +407,6 @@ function submitDiagnosis(payload: {
                     :assessment-id="assessment.id"
                     :progress="transformation_progress"
                     :implementation-plan-url="endpoints.implementation_plan_url"
-                    :expanded-report-commercial="expanded_report_commercial"
-                    :roadmap-commercial="detailed_roadmap_commercial"
-                    :request-expanded-report-url="
-                        endpoints.request_expanded_report
-                    "
-                    :request-roadmap-url="endpoints.request_detailed_roadmap"
                 />
             </div>
 
@@ -892,24 +866,19 @@ function submitDiagnosis(payload: {
                         </CardContent>
                     </Card>
 
-                    <Card class="bg-muted/20">
+                    <Card id="informe-ampliado" class="bg-muted/20">
                         <CardContent
                             class="p-5 text-sm leading-6 text-muted-foreground"
                         >
-                            Este resultado corresponde al diagnóstico inicial
-                            gratuito. El Informe Ampliado profundiza hallazgos,
-                            implicaciones y recomendaciones; el Roadmap
-                            Detallado convierte esas conclusiones en
-                            iniciativas, prioridades, responsables y secuencia
-                            de ejecución.
+                            <p>
+                                Tu Diagnóstico 360 incluye sin costo el Informe
+                                Ampliado, el Roadmap Detallado y el Plan de
+                                Implementación. Estos documentos permiten
+                                comprender las implicaciones del cambio antes
+                                de tomar cualquier decisión comercial.
+                            </p>
 
-                            <div
-                                v-if="
-                                    expanded_report &&
-                                    expanded_report_commercial?.paid_access
-                                "
-                                class="mt-4"
-                            >
+                            <div v-if="expanded_report" class="mt-4">
                                 <Button as-child>
                                     <Link
                                         :href="`/diagnostico/${assessment.id}/informe-ampliado`"
@@ -919,16 +888,13 @@ function submitDiagnosis(payload: {
                                 </Button>
                             </div>
 
-                            <ExpandedReportCommercialCard
-                                id="informe-ampliado"
-                                v-if="
-                                    !expanded_report_commercial?.paid_access ||
-                                    !expanded_report
-                                "
-                                :commercial="expanded_report_commercial"
-                                :request-url="endpoints.request_expanded_report"
-                                :report-available="Boolean(expanded_report)"
-                            />
+                            <div
+                                v-else
+                                class="mt-4 rounded-xl border border-dashed p-4"
+                            >
+                                El Informe Ampliado será preparado y presentado
+                                como parte del Diagnóstico 360.
+                            </div>
                         </CardContent>
                     </Card>
                 </div>

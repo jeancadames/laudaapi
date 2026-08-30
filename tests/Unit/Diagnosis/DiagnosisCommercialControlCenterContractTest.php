@@ -4,112 +4,116 @@ namespace Tests\Unit\Diagnosis;
 
 use PHPUnit\Framework\TestCase;
 
-final class DiagnosisCommercialControlCenterContractTest extends TestCase
+class DiagnosisCommercialControlCenterContractTest extends TestCase
 {
+    private function root(): string
+    {
+        return dirname(__DIR__, 3);
+    }
+
     private function read(string $path): string
     {
         return file_get_contents(
-            dirname(__DIR__, 3).'/'.$path
+            $this->root().'/'.$path
         );
     }
 
-    public function test_admin_show_exposes_existing_commercial_states(): void
+    public function test_active_routes_have_no_report_purchase_or_billing_endpoints(): void
     {
-        $source = $this->read(
-            'app/Http/Controllers/Admin/AdminDiagnosisAccessRequestController.php'
-        );
+        $web = $this->read('routes/web.php');
+        $admin = $this->read('routes/admin.php');
 
         foreach ([
-            'DiagnosisExpandedReportCommercialService::class',
-            'DiagnosisDetailedRoadmapCommercialService::class',
-            "'expanded_report_commercial'",
-            "'detailed_roadmap_commercial'",
-            "'commercial_endpoints'",
+            'expanded_report.request',
+            'detailed_roadmap.request',
         ] as $token) {
-            $this->assertStringContainsString(
+            $this->assertStringNotContainsString(
                 $token,
-                $source
+                $web
+            );
+        }
+
+        foreach ([
+            'expanded_report.prepare_invoice',
+            'expanded_report.record_payment',
+            'detailed_roadmap.prepare_invoice',
+            'detailed_roadmap.record_payment',
+        ] as $token) {
+            $this->assertStringNotContainsString(
+                $token,
+                $admin
             );
         }
     }
 
-    public function test_admin_uses_existing_invoice_and_payment_routes(): void
+    public function test_main_client_and_admin_diagnosis_have_no_commercial_state(): void
     {
-        $source = $this->read(
-            'app/Http/Controllers/Admin/AdminDiagnosisAccessRequestController.php'
-        );
-
-        foreach ([
-            'admin.diagnosis_requests.expanded_report.prepare_invoice',
-            'admin.diagnosis_requests.expanded_report.record_payment',
-            'admin.diagnosis_requests.detailed_roadmap.prepare_invoice',
-            'admin.diagnosis_requests.detailed_roadmap.record_payment',
-        ] as $token) {
-            $this->assertStringContainsString(
-                $token,
-                $source
-            );
-        }
-    }
-
-    public function test_client_main_diagnosis_exposes_both_request_routes(): void
-    {
-        $source = $this->read(
+        $client = $this->read(
             'app/Http/Controllers/Diagnosis/DigitalDiagnosisController.php'
         );
 
+        $admin = $this->read(
+            'app/Http/Controllers/Admin/AdminDiagnosisAccessRequestController.php'
+        );
+
         foreach ([
-            "'request_expanded_report'",
-            "'request_detailed_roadmap'",
-            'diagnosis.expanded_report.request',
-            'diagnosis.detailed_roadmap.request',
-            "'detailed_roadmap_commercial'",
+            'expanded_report_commercial',
+            'detailed_roadmap_commercial',
+            'request_expanded_report',
+            'request_detailed_roadmap',
         ] as $token) {
-            $this->assertStringContainsString(
+            $this->assertStringNotContainsString(
                 $token,
-                $source
+                $client
+            );
+        }
+
+        foreach ([
+            'expanded_report_commercial',
+            'detailed_roadmap_commercial',
+            'commercial_endpoints',
+            '$expandedCommercial',
+            '$roadmapCommercial',
+        ] as $token) {
+            $this->assertStringNotContainsString(
+                $token,
+                $admin
             );
         }
     }
 
-    public function test_control_center_supports_client_requests(): void
+    public function test_quick_actions_are_consultive_not_commercial(): void
     {
         $source = $this->read(
             'resources/js/components/diagnosis/TransformationQuickActions.vue'
         );
 
         foreach ([
-            'Solicitar Informe Ampliado',
-            'Solicitar Roadmap Detallado',
-            'requestExpandedReport',
-            'requestRoadmap',
+            'CommercialState',
+            'AdminCommercialEndpoints',
+            'expandedReportCommercial',
+            'roadmapCommercial',
             'requestExpandedReportUrl',
             'requestRoadmapUrl',
-        ] as $token) {
-            $this->assertStringContainsString(
-                $token,
-                $source
-            );
-        }
-    }
-
-    public function test_control_center_supports_admin_invoice_and_payment(): void
-    {
-        $source = $this->read(
-            'resources/js/components/diagnosis/TransformationQuickActions.vue'
-        );
-
-        foreach ([
+            'commercialEndpoints',
+            'paid_access',
             'Preparar factura',
             'Confirmar pago completo',
-            'expanded_prepare_invoice',
-            'expanded_record_payment',
-            'roadmap_prepare_invoice',
-            'roadmap_record_payment',
-            "method: 'bank_transfer'",
-            "value=\"cash\"",
-            "value=\"check\"",
-            "value=\"other\"",
+            'Factura preparada',
+            'Pago confirmado',
+        ] as $token) {
+            $this->assertStringNotContainsString(
+                $token,
+                $source
+            );
+        }
+
+        foreach ([
+            'Informe Ampliado',
+            'Roadmap Detallado',
+            'Gestionar Informe Ampliado',
+            'Gestionar Roadmap Detallado',
+            'Continuar con mi transformación',
         ] as $token) {
             $this->assertStringContainsString(
                 $token,
@@ -118,21 +122,20 @@ final class DiagnosisCommercialControlCenterContractTest extends TestCase
         }
     }
 
-    public function test_client_does_not_confirm_payments(): void
+    public function test_historical_commercial_code_is_preserved_without_active_routes(): void
     {
-        $source = $this->read(
-            'resources/js/components/diagnosis/TransformationQuickActions.vue'
-        );
-
-        $this->assertStringContainsString(
-            "<!-- ADMIN -->",
-            $source
-        );
-
-        $this->assertStringContainsString(
-            "v-if=\"mode === 'client'\"",
-            $source
-        );
+        foreach ([
+            'app/Services/Diagnosis/DiagnosisExpandedReportCommercialService.php',
+            'app/Services/Diagnosis/DiagnosisDetailedRoadmapCommercialService.php',
+            'app/Http/Controllers/Diagnosis/DiagnosisExpandedReportCommercialController.php',
+            'app/Http/Controllers/Diagnosis/DiagnosisDetailedRoadmapCommercialController.php',
+            'app/Http/Controllers/Admin/AdminDiagnosisExpandedReportCommercialController.php',
+            'app/Http/Controllers/Admin/AdminDiagnosisDetailedRoadmapCommercialController.php',
+        ] as $path) {
+            $this->assertFileExists(
+                $this->root().'/'.$path
+            );
+        }
     }
 
     public function test_implementation_plan_contract_remains_preserved(): void

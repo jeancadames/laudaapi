@@ -1,8 +1,10 @@
 <script setup lang="ts">
 import AppLayout from '@/layouts/AppLayout.vue';
 import type { BreadcrumbItem } from '@/types';
-import { Head, Link, router } from '@inertiajs/vue3';
-import { ArrowLeft } from 'lucide-vue-next';
+import { Head, Link } from '@inertiajs/vue3';
+import { ArrowLeft, CheckCircle2, Clock3, FileText } from 'lucide-vue-next';
+
+import DiagnosisDeliverableValidationCard from '@/components/diagnosis/DiagnosisDeliverableValidationCard.vue';
 
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -14,33 +16,70 @@ import {
     CardTitle,
 } from '@/components/ui/card';
 
+type Initiative = {
+    id: string | number | null;
+    priority: string | null;
+    title: string | null;
+    objective: string | null;
+    actions: string[];
+    owner_role: string | null;
+    dependencies: string[];
+    success_metrics: string[];
+};
+
+type Capability = {
+    id: number;
+    capability_label: string;
+    summary: string | null;
+    kind: 'professional_service';
+    includes: string[];
+};
+
+type Phase = {
+    id: number;
+    sequence: number;
+    name: string;
+    objective: string | null;
+    horizon: string | null;
+    initiatives: Initiative[];
+    dependencies: string[];
+    deliverables: string[];
+    capabilities: Capability[];
+};
+
 const props = defineProps<{
     assessment: {
         id: number;
         organization_name: string;
     };
-    plan: Record<string, any>;
+    plan: {
+        id: number;
+        version: number;
+        status: string;
+        presented_at: string | null;
+        phases: Phase[];
+    };
+    validation: {
+        status: 'presented' | 'reviewed' | 'validated' | 'adjustment_requested';
+        reviewed_at: string | null;
+        validated_at: string | null;
+        adjustment_requested_at: string | null;
+        adjustment_note: string | null;
+    };
+    validation_endpoints: {
+        review: string;
+        validate: string;
+        request_adjustment: string;
+    };
     roadmap_url: string | null;
-    accept_url: string;
     diagnosis_url: string;
 }>();
 
 const breadcrumbs: BreadcrumbItem[] = [
-    {
-        title: 'Inicio',
-        href: '/app',
-    },
-    {
-        title: 'Diagnóstico 360',
-        href: props.diagnosis_url,
-    },
+    { title: 'Inicio', href: '/app' },
+    { title: 'Diagnóstico 360', href: props.diagnosis_url },
     ...(props.roadmap_url
-        ? [
-              {
-                  title: 'Roadmap Detallado',
-                  href: props.roadmap_url,
-              },
-          ]
+        ? [{ title: 'Roadmap Detallado', href: props.roadmap_url }]
         : []),
     {
         title: 'Plan de Implementación',
@@ -48,1083 +87,135 @@ const breadcrumbs: BreadcrumbItem[] = [
     },
 ];
 
-function statusLabel(status: string) {
-    return (
-        {
-            presented: 'Presentado',
-            accepted: 'Aceptado',
-            active: 'En ejecución',
-            completed: 'Completado',
-        }[status] ?? status
-    );
+function statusLabel(status: string): string {
+    return ({
+        presented: 'Presentado',
+        accepted: 'Presentado',
+        active: 'Presentado',
+        completed: 'Completado',
+    } as Record<string, string>)[status] ?? status;
 }
-
-function acceptPlan() {
-    if (
-        !window.confirm(
-            '¿Confirmas que aceptas este Plan de Implementación?'
-        )
-    ) {
-        return;
-    }
-
-    router.post(
-        props.accept_url,
-        {},
-        {
-            preserveScroll: true,
-        },
-    );
-}
-
-
-function money(
-    value: number,
-    currency = 'DOP',
-) {
-    return new Intl.NumberFormat('es-DO', {
-        style: 'currency',
-        currency,
-        minimumFractionDigits: 2,
-    }).format(value ?? 0);
-}
-
-
-function durationLabel(
-    value: number,
-    unit: string,
-) {
-    const labels: Record<string, [string, string]> = {
-        days: ['día', 'días'],
-        weeks: ['semana', 'semanas'],
-        months: ['mes', 'meses'],
-    };
-
-    const pair = labels[unit] ?? [unit, unit];
-
-    return `${value} ${
-        value === 1
-            ? pair[0]
-            : pair[1]
-    }`;
-}
-
-
-function milestoneStatusLabel(
-    status: string,
-) {
-    return (
-        {
-            draft: 'Borrador',
-            ready: 'Listo',
-            invoiced: 'Facturado',
-            paid: 'Pagado',
-        }[status] ?? status
-    );
-}
-
-
-function executionStatusLabel(
-    status: string,
-) {
-    return (
-        {
-            pending: 'Pendiente',
-            in_progress: 'En progreso',
-            blocked: 'Bloqueado',
-            completed: 'Completado',
-            cancelled: 'Cancelado',
-        }[status] ?? status
-    );
-}
-
-
-function progressPercent(
-    value: number | string | null | undefined,
-) {
-    const parsed = Number(value ?? 0);
-
-    if (!Number.isFinite(parsed)) {
-        return 0;
-    }
-
-    return Math.min(
-        100,
-        Math.max(0, parsed),
-    );
-}
-
-
-function goLiveStatusLabel(
-    status: string | null | undefined,
-) {
-    if (!status) {
-        return 'Aún no preparada';
-    }
-
-    return (
-        {
-            draft: 'En preparación',
-            ready: 'Lista para Go-Live',
-            scheduled: 'Go-Live programado',
-            live: 'LIVE',
-            rolled_back: 'Revertida',
-            cancelled: 'Cancelada',
-        }[status] ?? status
-    );
-}
-
-
-function goLiveDateLabel(
-    value: string | null | undefined,
-) {
-    if (!value) {
-        return null;
-    }
-
-    const date = new Date(value);
-
-    if (Number.isNaN(date.getTime())) {
-        return value;
-    }
-
-    return new Intl.DateTimeFormat(
-        'es-DO',
-        {
-            dateStyle: 'medium',
-            timeStyle: 'short',
-        },
-    ).format(date);
-}
-
 </script>
 
 <template>
-    <Head title="Plan de Implementación LAUDA 360" />
-
     <AppLayout :breadcrumbs="breadcrumbs">
-        <main class="min-h-full bg-muted/20 px-4 py-8 sm:px-6">
-        <div class="mx-auto max-w-6xl space-y-6">
-            <div>
-                <Link
-                    v-if="roadmap_url"
-                    :href="roadmap_url"
-                    class="inline-flex items-center gap-2 text-sm text-muted-foreground"
-                >
-                    <ArrowLeft class="size-4" />
-                    Volver al Roadmap Detallado
-                </Link>
+        <Head title="Plan de Implementación" />
 
-                <div class="mt-4 flex flex-wrap gap-2">
-                    <Badge variant="outline">LAUDA 360</Badge>
-                    <Badge variant="secondary">
-                        Plan V{{ plan.version }} · {{ statusLabel(plan.status) }}
-                    </Badge>
+        <div class="mx-auto w-full max-w-7xl space-y-6 p-4 sm:p-6 lg:p-8">
+            <div class="flex flex-wrap items-start justify-between gap-4">
+                <div>
+                    <p class="text-xs font-black tracking-widest text-primary uppercase">Transformación Digital 360</p>
+                    <h1 class="mt-1 text-2xl font-black">Plan de Implementación</h1>
+                    <p class="mt-2 text-sm text-muted-foreground">{{ assessment.organization_name }}</p>
                 </div>
-
-                <h1 class="mt-3 text-3xl font-black">
-                    Plan de Implementación
-                </h1>
-
-                <p class="mt-2 text-sm text-muted-foreground">
-                    {{ assessment.organization_name }}
-                </p>
+                <Button as-child variant="outline">
+                    <Link :href="roadmap_url || diagnosis_url">
+                        <ArrowLeft class="mr-2 size-4" />Volver
+                    </Link>
+                </Button>
             </div>
 
-            <Card>
-                <CardHeader>
-                    <CardTitle>Modalidad</CardTitle>
-                    <CardDescription>
-                        {{ plan.selected_modality_label ?? 'Pendiente' }}
-                    </CardDescription>
-                </CardHeader>
-            </Card>
-
-            <Card
-                v-if="
-                    plan.status === 'presented'
-                    || plan.status === 'accepted'
-                "
-            >
-                <CardHeader>
-                    <CardTitle>
-                        {{
-                            plan.status === 'presented'
-                                ? 'Aceptación del Plan'
-                                : 'Plan aceptado'
-                        }}
-                    </CardTitle>
-
-                    <CardDescription>
-                        <template v-if="plan.status === 'presented'">
-                            Revisa las fases y la modalidad acordada.
-                            Al aceptar confirmas este Plan de Implementación.
-                        </template>
-
-                        <template v-else>
-                            Tu aceptación quedó registrada.
-                        </template>
-                    </CardDescription>
-                </CardHeader>
-
-                <CardContent>
-                    <Button
-                        v-if="plan.status === 'presented'"
-                        type="button"
-                        @click="acceptPlan"
-                    >
-                        Aceptar Plan de Implementación
-                    </Button>
-
-                    <p
-                        v-else
-                        class="text-sm font-medium"
-                    >
-                        Aceptado
-                        <span v-if="plan.accepted_at">
-                            · {{ plan.accepted_at }}
-                        </span>
+            <Card class="border-primary/20 bg-primary/5">
+                <CardContent class="space-y-3 p-5 text-sm leading-6">
+                    <div class="flex flex-wrap items-center gap-2">
+                        <Badge variant="outline">V{{ plan.version }}</Badge>
+                        <Badge variant="outline">{{ statusLabel(plan.status) }}</Badge>
+                    </div>
+                    <p>
+                        Este documento es consultivo y gratuito. Organiza las prioridades de transformación en fases, actividades, responsables, dependencias, entregables y horizontes sugeridos.
+                    </p>
+                    <p class="text-muted-foreground">
+                        No selecciona modalidad, no contiene precios ni hitos de facturación y no constituye contratación de servicios. La validación del documento confirmará su revisión, no una aceptación comercial.
                     </p>
                 </CardContent>
             </Card>
 
-            <Card>
+            <Card v-for="phase in plan.phases" :key="phase.id">
                 <CardHeader>
-                    <CardTitle>
-                        Resumen comercial
-                    </CardTitle>
-                    <CardDescription>
-                        Condiciones de implementación acordadas.
-                        La suscripción recurrente no forma parte de este monto.
-                    </CardDescription>
-                </CardHeader>
-
-                <CardContent
-                    class="grid gap-4 md:grid-cols-3"
-                >
-                    <div class="rounded-xl border p-4">
-                        <p
-                            class="text-xs text-muted-foreground"
-                        >
-                            Modalidad
-                        </p>
-                        <p class="mt-1 font-bold">
-                            {{
-                                plan.selected_modality_label
-                                ?? plan.recommended_modality_label
-                                ?? 'Pendiente'
-                            }}
-                        </p>
-                    </div>
-
-                    <div class="rounded-xl border p-4">
-                        <p
-                            class="text-xs text-muted-foreground"
-                        >
-                            Inversión de implementación
-                        </p>
-                        <p class="mt-1 font-bold">
-                            {{
-                                money(
-                                    plan.commercial_summary
-                                        .total_price_amount,
-                                    plan.commercial_summary
-                                        .currency,
-                                )
-                            }}
-                        </p>
-                    </div>
-
-                    <div class="rounded-xl border p-4">
-                        <p
-                            class="text-xs text-muted-foreground"
-                        >
-                            Alcance comercial
-                        </p>
-                        <p class="mt-1 font-bold">
-                            {{
-                                plan.commercial_summary
-                                    .phases_count
-                            }}
-                            fase(s) ·
-                            {{
-                                plan.commercial_summary
-                                    .milestones_count
-                            }}
-                            hito(s)
-                        </p>
-                    </div>
-                </CardContent>
-            </Card>
-
-            <Card>
-                <CardHeader>
-                    <CardTitle>
-                        Progreso de implementación
-                    </CardTitle>
-
-                    <CardDescription>
-                        Avance operativo del Plan aceptado.
-                        Completar una capacidad no significa
-                        que ya esté en Go-Live.
-                    </CardDescription>
-                </CardHeader>
-
-                <CardContent class="space-y-4">
-                    <div
-                        class="flex flex-wrap items-end justify-between gap-3"
-                    >
+                    <div class="flex flex-wrap items-start justify-between gap-3">
                         <div>
-                            <p
-                                class="text-sm text-muted-foreground"
-                            >
-                                Avance general
-                            </p>
-                            <p class="text-2xl font-bold">
-                                {{
-                                    progressPercent(
-                                        plan.execution_summary
-                                            .progress_percentage,
-                                    )
-                                }}%
-                            </p>
+                            <p class="text-xs font-black tracking-widest text-primary uppercase">Fase {{ phase.sequence }}</p>
+                            <CardTitle class="mt-1">{{ phase.name }}</CardTitle>
+                            <CardDescription v-if="phase.objective" class="mt-2">{{ phase.objective }}</CardDescription>
                         </div>
+                        <Badge v-if="phase.horizon" variant="outline">
+                            <Clock3 class="mr-1 size-3" />{{ phase.horizon }}
+                        </Badge>
+                    </div>
+                </CardHeader>
 
-                        <p
-                            class="text-sm text-muted-foreground"
-                        >
-                            {{
-                                plan.execution_summary
-                                    .completed_count
-                            }}
-                            completadas ·
-                            {{
-                                plan.execution_summary
-                                    .in_progress_count
-                            }}
-                            en progreso ·
-                            {{
-                                plan.execution_summary
-                                    .blocked_count
-                            }}
-                            bloqueadas
+                <CardContent class="space-y-5">
+                    <section v-if="phase.initiatives.length" class="space-y-3">
+                        <h3 class="text-sm font-black">Iniciativas, actividades y responsables</h3>
+                        <article v-for="initiative in phase.initiatives" :key="String(initiative.id ?? initiative.title)" class="rounded-xl border p-4">
+                            <div class="flex flex-wrap items-center gap-2">
+                                <p class="font-bold">{{ initiative.title || 'Iniciativa' }}</p>
+                                <Badge v-if="initiative.priority" variant="outline">{{ initiative.priority }}</Badge>
+                            </div>
+                            <p v-if="initiative.objective" class="mt-2 text-sm text-muted-foreground">{{ initiative.objective }}</p>
+                            <ul v-if="initiative.actions.length" class="mt-3 list-disc space-y-1 pl-5 text-sm">
+                                <li v-for="action in initiative.actions" :key="action">{{ action }}</li>
+                            </ul>
+                            <p v-if="initiative.owner_role" class="mt-3 text-xs text-muted-foreground">
+                                Responsable sugerido: <strong class="text-foreground">{{ initiative.owner_role }}</strong>
+                            </p>
+                            <div v-if="initiative.success_metrics.length" class="mt-3">
+                                <p class="text-xs font-bold">Indicadores de éxito</p>
+                                <ul class="mt-1 list-disc space-y-1 pl-5 text-xs text-muted-foreground">
+                                    <li v-for="metric in initiative.success_metrics" :key="metric">{{ metric }}</li>
+                                </ul>
+                            </div>
+                        </article>
+                    </section>
+
+                    <div class="grid gap-4 md:grid-cols-2">
+                        <section class="rounded-xl bg-muted/30 p-4">
+                            <h3 class="text-sm font-black">Dependencias</h3>
+                            <ul v-if="phase.dependencies.length" class="mt-2 list-disc space-y-1 pl-5 text-sm text-muted-foreground">
+                                <li v-for="dependency in phase.dependencies" :key="dependency">{{ dependency }}</li>
+                            </ul>
+                            <p v-else class="mt-2 text-sm text-muted-foreground">Sin dependencias adicionales registradas.</p>
+                        </section>
+                        <section class="rounded-xl bg-muted/30 p-4">
+                            <h3 class="text-sm font-black">Entregables</h3>
+                            <ul v-if="phase.deliverables.length" class="mt-2 list-disc space-y-1 pl-5 text-sm text-muted-foreground">
+                                <li v-for="deliverable in phase.deliverables" :key="deliverable">{{ deliverable }}</li>
+                            </ul>
+                            <p v-else class="mt-2 text-sm text-muted-foreground">Se concretan a partir de las iniciativas de esta fase.</p>
+                        </section>
+                    </div>
+
+                    <section>
+                        <h3 class="text-sm font-black">Apoyo profesional sugerido</h3>
+                        <div v-if="phase.capabilities.length" class="mt-2 grid gap-3 md:grid-cols-2">
+                            <div v-for="capability in phase.capabilities" :key="capability.id" class="rounded-xl border p-4">
+                                <div class="flex items-center gap-2">
+                                    <FileText class="size-4" />
+                                    <p class="font-bold">{{ capability.capability_label }}</p>
+                                </div>
+                                <p v-if="capability.summary" class="mt-2 text-sm text-muted-foreground">{{ capability.summary }}</p>
+                            </div>
+                        </div>
+                        <p v-else class="mt-2 text-sm text-muted-foreground">
+                            Esta fase no requiere un servicio profesional adicional.
                         </p>
-                    </div>
-
-                    <div
-                        class="h-2 overflow-hidden rounded-full bg-muted"
-                    >
-                        <div
-                            class="h-full bg-primary transition-all"
-                            :style="{
-                                width:
-                                    `${progressPercent(
-                                        plan.execution_summary
-                                            .progress_percentage,
-                                    )}%`,
-                            }"
-                        />
-                    </div>
-
-                    <div
-                        class="grid gap-2 text-sm sm:grid-cols-2 lg:grid-cols-5"
-                    >
-                        <div class="rounded-xl border p-3">
-                            Pendientes:
-                            <strong>
-                                {{
-                                    plan.execution_summary
-                                        .pending_count
-                                }}
-                            </strong>
-                        </div>
-
-                        <div class="rounded-xl border p-3">
-                            En progreso:
-                            <strong>
-                                {{
-                                    plan.execution_summary
-                                        .in_progress_count
-                                }}
-                            </strong>
-                        </div>
-
-                        <div class="rounded-xl border p-3">
-                            Bloqueadas:
-                            <strong>
-                                {{
-                                    plan.execution_summary
-                                        .blocked_count
-                                }}
-                            </strong>
-                        </div>
-
-                        <div class="rounded-xl border p-3">
-                            Completadas:
-                            <strong>
-                                {{
-                                    plan.execution_summary
-                                        .completed_count
-                                }}
-                            </strong>
-                        </div>
-
-                        <div class="rounded-xl border p-3">
-                            Canceladas:
-                            <strong>
-                                {{
-                                    plan.execution_summary
-                                        .cancelled_count
-                                }}
-                            </strong>
-                        </div>
-                    </div>
+                    </section>
                 </CardContent>
             </Card>
+
+            <DiagnosisDeliverableValidationCard
+                :validation="validation"
+                :endpoints="validation_endpoints"
+            />
 
             <Card>
-                <CardHeader>
-                    <CardTitle>
-                        Estado de puesta en marcha
-                    </CardTitle>
-
-                    <CardDescription>
-                        El avance de implementación y el Go-Live
-                        son etapas distintas. Estar LIVE tampoco
-                        activa por sí solo una suscripción o acceso.
-                    </CardDescription>
-                </CardHeader>
-
-                <CardContent
-                    class="grid gap-2 text-sm sm:grid-cols-2 lg:grid-cols-4"
-                >
-                    <div class="rounded-xl border p-3">
-                        Aún no preparadas:
-                        <strong>
-                            {{
-                                plan.go_live_summary
-                                    .without_go_live_count
-                            }}
-                        </strong>
-                    </div>
-
-                    <div class="rounded-xl border p-3">
-                        En preparación:
-                        <strong>
-                            {{
-                                plan.go_live_summary
-                                    .draft_count
-                            }}
-                        </strong>
-                    </div>
-
-                    <div class="rounded-xl border p-3">
-                        Listas:
-                        <strong>
-                            {{
-                                plan.go_live_summary
-                                    .ready_count
-                            }}
-                        </strong>
-                    </div>
-
-                    <div class="rounded-xl border p-3">
-                        Programadas:
-                        <strong>
-                            {{
-                                plan.go_live_summary
-                                    .scheduled_count
-                            }}
-                        </strong>
-                    </div>
-
-                    <div class="rounded-xl border p-3">
-                        LIVE:
-                        <strong>
-                            {{
-                                plan.go_live_summary
-                                    .live_count
-                            }}
-                        </strong>
-                    </div>
-
-                    <div class="rounded-xl border p-3">
-                        Revertidas:
-                        <strong>
-                            {{
-                                plan.go_live_summary
-                                    .rolled_back_count
-                            }}
-                        </strong>
-                    </div>
-
-                    <div class="rounded-xl border p-3">
-                        Canceladas:
-                        <strong>
-                            {{
-                                plan.go_live_summary
-                                    .cancelled_count
-                            }}
-                        </strong>
-                    </div>
+                <CardContent class="flex items-start gap-3 p-5 text-sm text-muted-foreground">
+                    <CheckCircle2 class="mt-0.5 size-5 shrink-0 text-primary" />
+                    <p>
+                        Revisa este Plan junto con el Informe Ampliado y el Roadmap Detallado. La contratación de apoyo para ejecutar estas iniciativas se definirá, si aplica, en un proceso comercial separado.
+                    </p>
                 </CardContent>
             </Card>
-
-            <Card>
-                <CardHeader>
-                    <CardTitle>
-                        Acceso a tus soluciones
-                    </CardTitle>
-
-                    <CardDescription>
-                        El acceso aparece únicamente cuando la
-                        solución recurrente está activada y tu
-                        entitlement actual permite utilizarla.
-                    </CardDescription>
-                </CardHeader>
-
-                <CardContent
-                    class="grid gap-2 text-sm sm:grid-cols-2 lg:grid-cols-4"
-                >
-                    <div class="rounded-xl border p-3">
-                        R2-J activadas:
-                        <strong>
-                            {{
-                                plan.solution_access_summary
-                                    .r2j_activated_count
-                            }}
-                        </strong>
-                    </div>
-
-                    <div class="rounded-xl border p-3">
-                        Con acceso:
-                        <strong>
-                            {{
-                                plan.solution_access_summary
-                                    .entitled_count
-                            }}
-                        </strong>
-                    </div>
-
-                    <div class="rounded-xl border p-3">
-                        Acceso no disponible:
-                        <strong>
-                            {{
-                                plan.solution_access_summary
-                                    .access_unavailable_count
-                            }}
-                        </strong>
-                    </div>
-
-                    <div class="rounded-xl border p-3">
-                        LIVE pendientes de R2-J:
-                        <strong>
-                            {{
-                                plan.solution_access_summary
-                                    .live_without_r2j_count
-                            }}
-                        </strong>
-                    </div>
-
-                    <div
-                        v-if="plan.solution_access_summary.portal_url"
-                        class="sm:col-span-2 lg:col-span-4"
-                    >
-                        <Button as-child>
-                            <a :href="plan.solution_access_summary.portal_url">
-                                Ir a mi portal
-                            </a>
-                        </Button>
-                    </div>
-                </CardContent>
-            </Card>
-
-            <Card v-for="phase in plan.phases ?? []" :key="phase.id">
-                <CardHeader>
-                    <CardTitle>
-                        {{ phase.sequence }}. {{ phase.name }}
-                    </CardTitle>
-                    <CardDescription v-if="phase.objective">
-                        {{ phase.objective }}
-                    </CardDescription>
-                </CardHeader>
-
-                <CardContent>
-                    <div class="grid gap-3 md:grid-cols-2">
-                        <div
-                            v-for="capability in phase.capabilities ?? []"
-                            :key="capability.capability_key"
-                            class="rounded-xl border p-4"
-                        >
-                            <p class="font-semibold">
-                                {{ capability.capability_label }}
-                            </p>
-                            <p class="mt-1 text-xs text-muted-foreground">
-                                {{ capability.capability_key }}
-                            </p>
-                        </div>
-                    </div>
-                
-                    <div
-                        class="mt-5 border-t pt-4"
-                    >
-                    <div
-                        class="mt-5 border-t pt-4"
-                    >
-                        <div
-                            class="flex flex-wrap items-center justify-between gap-2"
-                        >
-                            <div>
-                                <p class="font-bold">
-                                    Avance de esta fase
-                                </p>
-                                <p
-                                    class="text-sm text-muted-foreground"
-                                >
-                                    {{
-                                        executionStatusLabel(
-                                            phase.execution
-                                                ?.status
-                                            ?? 'pending',
-                                        )
-                                    }}
-                                </p>
-                            </div>
-
-                            <strong>
-                                {{
-                                    progressPercent(
-                                        phase.execution
-                                            ?.progress_percentage,
-                                    )
-                                }}%
-                            </strong>
-                        </div>
-
-                        <div
-                            class="mt-3 h-2 overflow-hidden rounded-full bg-muted"
-                        >
-                            <div
-                                class="h-full bg-primary transition-all"
-                                :style="{
-                                    width:
-                                        `${progressPercent(
-                                            phase.execution
-                                                ?.progress_percentage,
-                                        )}%`,
-                                }"
-                            />
-                        </div>
-
-                        <div class="mt-4 space-y-2">
-                            <div
-                                v-for="
-                                    capability
-                                    in phase.capabilities ?? []
-                                "
-                                :key="
-                                    `execution-${phase.id}-${capability.capability_key}`
-                                "
-                                class="rounded-xl border p-3"
-                            >
-                                <div
-                                    class="flex flex-wrap items-center justify-between gap-2"
-                                >
-                                    <span class="font-medium">
-                                        {{
-                                            capability
-                                                .capability_label
-                                        }}
-                                    </span>
-
-                                    <span class="text-sm">
-                                        {{
-                                            executionStatusLabel(
-                                                capability
-                                                    .execution
-                                                    ?.status
-                                                ?? 'pending',
-                                            )
-                                        }}
-                                        ·
-                                        {{
-                                            progressPercent(
-                                                capability
-                                                    .execution
-                                                    ?.progress_percentage,
-                                            )
-                                        }}%
-                                    </span>
-                                </div>
-
-                                <div
-                                    class="mt-2 h-1.5 overflow-hidden rounded-full bg-muted"
-                                >
-                                    <div
-                                        class="h-full bg-primary transition-all"
-                                        :style="{
-                                            width:
-                                                `${progressPercent(
-                                                    capability
-                                                        .execution
-                                                        ?.progress_percentage,
-                                                )}%`,
-                                        }"
-                                    />
-                                </div>
-
-                                <p
-                                    v-if="
-                                        capability.execution
-                                            ?.completed_at
-                                    "
-                                    class="mt-2 text-xs text-muted-foreground"
-                                >
-                                    Completado:
-                                    {{
-                                        capability.execution
-                                            .completed_at
-                                    }}
-                                </p>
-
-                                <p
-                                    v-else-if="
-                                        capability.execution
-                                            ?.started_at
-                                    "
-                                    class="mt-2 text-xs text-muted-foreground"
-                                >
-                                    Iniciado:
-                                    {{
-                                        capability.execution
-                                            .started_at
-                                    }}
-                                </p>
-
-                                <p
-                                    v-if="
-                                        capability.execution
-                                            ?.status
-                                        === 'blocked'
-                                    "
-                                    class="mt-2 text-xs text-muted-foreground"
-                                >
-                                    Esta capacidad está bloqueada.
-                                    El equipo está trabajando en
-                                    resolver la dependencia.
-                                </p>
-
-                                <div
-                                    class="mt-3 border-t pt-3"
-                                >
-                                    <p
-                                        class="text-xs text-muted-foreground"
-                                    >
-                                        Puesta en marcha de esta capacidad
-                                    </p>
-
-                                    <p class="mt-1 text-sm font-medium">
-                                        {{
-                                            goLiveStatusLabel(
-                                                capability
-                                                    .go_live
-                                                    ?.status,
-                                            )
-                                        }}
-                                    </p>
-
-                                    <div
-                                        v-if="capability.go_live"
-                                        class="mt-2 space-y-1 text-xs text-muted-foreground"
-                                    >
-                                        <p
-                                            v-if="
-                                                capability.go_live
-                                                    .ready_at
-                                            "
-                                        >
-                                            Lista:
-                                            {{
-                                                goLiveDateLabel(
-                                                    capability
-                                                        .go_live
-                                                        .ready_at,
-                                                )
-                                            }}
-                                        </p>
-
-                                        <p
-                                            v-if="
-                                                capability.go_live
-                                                    .scheduled_at
-                                            "
-                                        >
-                                            Programada:
-                                            {{
-                                                goLiveDateLabel(
-                                                    capability
-                                                        .go_live
-                                                        .scheduled_at,
-                                                )
-                                            }}
-                                        </p>
-
-                                        <p
-                                            v-if="
-                                                capability.go_live
-                                                    .went_live_at
-                                            "
-                                        >
-                                            LIVE desde:
-                                            {{
-                                                goLiveDateLabel(
-                                                    capability
-                                                        .go_live
-                                                        .went_live_at,
-                                                )
-                                            }}
-                                        </p>
-
-                                        <p
-                                            v-if="
-                                                capability.go_live
-                                                    .rolled_back_at
-                                            "
-                                        >
-                                            Revertida:
-                                            {{
-                                                goLiveDateLabel(
-                                                    capability
-                                                        .go_live
-                                                        .rolled_back_at,
-                                                )
-                                            }}
-                                        </p>
-                                    </div>
-                                </div>
-
-                                <div
-                                    v-if="
-                                        capability
-                                            .recurring_solution
-                                        || capability
-                                            .go_live
-                                            ?.status
-                                            === 'live'
-                                    "
-                                    class="mt-3 border-t pt-3"
-                                >
-                                    <p
-                                        class="text-xs text-muted-foreground"
-                                    >
-                                        Solución recurrente
-                                    </p>
-
-                                    <template
-                                        v-if="
-                                            capability
-                                                .recurring_solution
-                                        "
-                                    >
-                                        <p
-                                            class="mt-1 text-sm font-medium"
-                                        >
-                                            {{
-                                                capability
-                                                    .recurring_solution
-                                                    .service_name
-                                                ?? capability
-                                                    .recurring_solution
-                                                    .service_slug
-                                            }}
-                                        </p>
-
-                                        <p
-                                            class="mt-1 text-xs text-muted-foreground"
-                                        >
-                                            Item:
-                                            {{
-                                                capability
-                                                    .recurring_solution
-                                                    .subscription_item_status
-                                                ?? '—'
-                                            }}
-                                        </p>
-
-                                        <Button
-                                            v-if="
-                                                capability
-                                                    .recurring_solution
-                                                    .entitlement_allowed
-                                                && capability
-                                                    .recurring_solution
-                                                    .access_url
-                                            "
-                                            as-child
-                                            size="sm"
-                                            class="mt-3"
-                                        >
-                                            <a
-                                                :href="
-                                                    capability
-                                                        .recurring_solution
-                                                        .access_url
-                                                "
-                                            >
-                                                Abrir solución
-                                            </a>
-                                        </Button>
-
-                                        <p
-                                            v-else
-                                            class="mt-2 text-xs text-muted-foreground"
-                                        >
-                                            Acceso no disponible
-                                            con el entitlement actual.
-                                        </p>
-                                    </template>
-
-                                    <p
-                                        v-else
-                                        class="mt-2 text-xs text-muted-foreground"
-                                    >
-                                        Go-Live completado.
-                                        La activación recurrente
-                                        todavía está pendiente.
-                                    </p>
-                                </div>
-
-                            </div>
-                        </div>
-                    </div>
-
-                        <p class="font-bold">
-                            Condiciones de esta fase
-                        </p>
-
-                        <div
-                            v-if="phase.estimate"
-                            class="mt-3 grid gap-3 md:grid-cols-2"
-                        >
-                            <div
-                                class="rounded-xl border p-3 text-sm"
-                            >
-                                <p
-                                    class="text-xs text-muted-foreground"
-                                >
-                                    Precio
-                                </p>
-                                <strong>
-                                    {{
-                                        money(
-                                            phase.estimate
-                                                .price_amount,
-                                            phase.estimate
-                                                .currency,
-                                        )
-                                    }}
-                                </strong>
-                            </div>
-
-                            <div
-                                class="rounded-xl border p-3 text-sm"
-                            >
-                                <p
-                                    class="text-xs text-muted-foreground"
-                                >
-                                    Duración estimada
-                                </p>
-                                <strong>
-                                    {{
-                                        durationLabel(
-                                            phase.estimate
-                                                .estimated_duration_value,
-                                            phase.estimate
-                                                .estimated_duration_unit,
-                                        )
-                                    }}
-                                </strong>
-                            </div>
-                        </div>
-
-                        <p
-                            v-else
-                            class="mt-3 text-sm text-muted-foreground"
-                        >
-                            Precio y duración pendientes.
-                        </p>
-
-                        <div
-                            v-if="
-                                phase.milestones
-                                ?.length
-                            "
-                            class="mt-4 space-y-2"
-                        >
-                            <p class="text-sm font-medium">
-                                Hitos de implementación
-                            </p>
-
-                            <div
-                                v-for="
-                                    milestone
-                                    in phase.milestones
-                                "
-                                :key="
-                                    `${phase.id}-${milestone.sequence}`
-                                "
-                                class="flex flex-wrap items-center justify-between gap-2 rounded-xl border p-3 text-sm"
-                            >
-                                <span>
-                                    {{ milestone.sequence }}.
-                                    {{ milestone.name }}
-                                </span>
-
-                                <span class="font-medium">
-                                    {{
-                                        money(
-                                            milestone
-                                                .billing_amount,
-                                            milestone
-                                                .currency,
-                                        )
-                                    }}
-                                    ·
-                                    {{
-                                        milestoneStatusLabel(
-                                            milestone
-                                                .billing_status,
-                                        )
-                                    }}
-                                </span>
-                            </div>
-                        </div>
-                    </div>
-
-</CardContent>
-            </Card>
-
-            <div class="rounded-2xl border bg-muted/20 p-4 text-sm text-muted-foreground">
-                La implementación y la suscripción LAUDAAPI son conceptos separados.
-                La suscripción recurrente comienza únicamente después del Go-Live de
-                la capability correspondiente.
-            </div>
-
-            <div class="flex flex-wrap justify-center gap-3">
-                <Button as-child variant="outline">
-                    <Link v-if="roadmap_url" :href="roadmap_url">
-                        <ArrowLeft class="mr-2 size-4" />
-                        Volver al Roadmap
-                    </Link>
-                </Button>
-
-                <Button as-child variant="ghost">
-                    <Link :href="diagnosis_url">
-                        Volver al Diagnóstico
-                    </Link>
-                </Button>
-            </div>
         </div>
-    </main>
     </AppLayout>
 </template>

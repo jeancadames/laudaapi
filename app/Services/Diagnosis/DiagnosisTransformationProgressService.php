@@ -5,10 +5,10 @@ namespace App\Services\Diagnosis;
 use App\Models\ContactRequest;
 use App\Models\DiagnosisAccessRequest;
 use App\Models\DiagnosisAssessment;
+use App\Models\DiagnosisDeliverableValidation;
 use App\Models\DiagnosisDetailedRoadmap;
-use App\Models\DiagnosisDetailedRoadmapOrder;
 use App\Models\DiagnosisExpandedReport;
-use App\Models\DiagnosisExpandedReportOrder;
+use App\Models\TransformationImplementationPlan;
 
 class DiagnosisTransformationProgressService
 {
@@ -89,37 +89,19 @@ class DiagnosisTransformationProgressService
             ),
             $this->step(
                 'diagnosis_published',
-                'Resultado gratuito publicado',
+                'Resultado oficial publicado',
                 $assessment->published_at !== null,
                 $assessment->published_at,
-                'El resultado oficial gratuito está disponible.',
-                'Dar seguimiento a la decisión sobre Informe Ampliado.'
+                'El resultado oficial del Diagnóstico 360 está disponible.',
+                'Preparar el Informe Ampliado gratuito.'
             ),
             $this->step(
-                'expanded_report_requested',
-                'Informe Ampliado solicitado',
-                $state['expanded_order']?->requested_at !== null,
-                $state['expanded_order']?->requested_at,
-                'La solicitud comercial del Informe Ampliado fue recibida.',
-                'Preparar factura del Informe Ampliado.'
-            ),
-            $this->step(
-                'expanded_report_invoiced',
-                'Factura del Informe preparada',
-                $state['expanded_order']?->invoiced_at !== null
-                    || $state['expanded_order']?->invoice_id !== null,
-                $state['expanded_order']?->invoiced_at,
-                'La facturación del Informe Ampliado fue preparada.',
-                'Dar seguimiento al pago del Informe Ampliado.'
-            ),
-            $this->step(
-                'expanded_report_paid',
-                'Pago del Informe confirmado',
-                $state['expanded_order']?->paid_at !== null
-                    && $state['expanded_order']?->invoice?->status === 'paid',
-                $state['expanded_order']?->paid_at,
-                'El pago del Informe Ampliado fue confirmado.',
-                'Completar revisión y publicación del Informe.'
+                'expanded_report_preparation',
+                'Informe Ampliado en preparación',
+                $state['expanded_report'] !== null,
+                $state['expanded_report']?->created_at,
+                'LAUDA está preparando o revisando el Informe Ampliado gratuito.',
+                'Completar revisión y publicación del Informe Ampliado.'
             ),
             $this->step(
                 'expanded_report_published',
@@ -127,41 +109,31 @@ class DiagnosisTransformationProgressService
                 $state['expanded_report']?->published_at !== null,
                 $state['expanded_report']?->published_at,
                 'El Informe Ampliado está disponible en la cuenta.',
-                'Dar seguimiento a la solicitud del Roadmap Detallado.'
+                'Preparar el Roadmap Detallado gratuito.'
             ),
             $this->step(
-                'roadmap_requested',
-                'Roadmap Detallado solicitado',
-                $state['roadmap_order']?->requested_at !== null,
-                $state['roadmap_order']?->requested_at,
-                'La solicitud comercial del Roadmap fue recibida.',
-                'Preparar factura del Roadmap Detallado.'
+                'expanded_report_reviewed',
+                'Informe Ampliado revisado por tenant',
+                $state['expanded_validation']?->reviewed_at !== null,
+                $state['expanded_validation']?->reviewed_at,
+                'Revisa el Informe Ampliado y confirma que refleja adecuadamente el contexto de tu empresa.',
+                'Dar seguimiento a la revisión del tenant.'
             ),
             $this->step(
-                'roadmap_invoiced',
-                'Factura del Roadmap preparada',
-                $state['roadmap_order']?->invoiced_at !== null
-                    || $state['roadmap_order']?->invoice_id !== null,
-                $state['roadmap_order']?->invoiced_at,
-                'La facturación del Roadmap fue preparada.',
-                'Dar seguimiento al pago del Roadmap.'
-            ),
-            $this->step(
-                'roadmap_paid',
-                'Pago del Roadmap confirmado',
-                $state['roadmap_order']?->paid_at !== null
-                    && $state['roadmap_order']?->invoice?->status === 'paid',
-                $state['roadmap_order']?->paid_at,
-                'El pago del Roadmap fue confirmado.',
-                'Completar preparación y revisión del Roadmap.'
+                'expanded_report_validated',
+                'Informe Ampliado validado',
+                $state['expanded_validation']?->validated_at !== null,
+                $state['expanded_validation']?->validated_at,
+                'El tenant validó el Informe Ampliado sin generar compromiso comercial.',
+                'Registrar cualquier ajuste solicitado o continuar seguimiento.'
             ),
             $this->step(
                 'roadmap_preparation',
                 'Roadmap en preparación',
                 $state['roadmap'] !== null,
                 $state['roadmap']?->created_at,
-                'LAUDA está preparando o revisando el Roadmap Detallado.',
-                'Revisar Roadmap y verificar requisitos de publicación.'
+                'LAUDA está preparando o revisando el Roadmap Detallado gratuito.',
+                'Completar revisión y publicación del Roadmap.'
             ),
             $this->step(
                 'roadmap_published',
@@ -169,15 +141,47 @@ class DiagnosisTransformationProgressService
                 $state['roadmap']?->published_at !== null,
                 $state['roadmap']?->published_at,
                 'El Roadmap Detallado está disponible para el cliente.',
-                'Coordinar la siguiente fase de transformación.'
+                'El Plan de Implementación se genera y presenta automáticamente.'
             ),
             $this->step(
-                'execution',
-                'Transformación / ejecución',
-                false,
-                null,
-                'La ejecución se define y contrata según el Roadmap aprobado.',
-                'Definir alcance, propuesta y puesta en marcha de la ejecución.'
+                'roadmap_reviewed',
+                'Roadmap revisado por tenant',
+                $state['roadmap_validation']?->reviewed_at !== null,
+                $state['roadmap_validation']?->reviewed_at,
+                'Revisa fases, iniciativas, responsables y dependencias del Roadmap.',
+                'Dar seguimiento a la revisión del tenant.'
+            ),
+            $this->step(
+                'roadmap_validated',
+                'Roadmap validado',
+                $state['roadmap_validation']?->validated_at !== null,
+                $state['roadmap_validation']?->validated_at,
+                'El tenant validó el Roadmap sin generar compromiso comercial.',
+                'Registrar cualquier ajuste solicitado o continuar seguimiento.'
+            ),
+            $this->step(
+                'implementation_plan',
+                'Plan de Implementación presentado',
+                $state['plan']?->presented_at !== null,
+                $state['plan']?->presented_at,
+                'El Plan de Implementación gratuito está disponible para revisión.',
+                'Dar seguimiento a la revisión del Plan.'
+            ),
+            $this->step(
+                'implementation_plan_reviewed',
+                'Plan revisado por tenant',
+                $state['plan_validation']?->reviewed_at !== null,
+                $state['plan_validation']?->reviewed_at,
+                'Revisa el Plan consultivo, sus fases, actividades y entregables.',
+                'Dar seguimiento a la revisión del tenant.'
+            ),
+            $this->step(
+                'implementation_plan_validated',
+                'Plan de Implementación validado',
+                $state['plan_validation']?->validated_at !== null,
+                $state['plan_validation']?->validated_at,
+                'El tenant validó el Plan. Esta validación no constituye contratación.',
+                'El flujo consultivo gratuito quedó validado por el tenant.'
             ),
         ];
 
@@ -295,10 +299,6 @@ class DiagnosisTransformationProgressService
                 );
         }
 
-        $paidAccess =
-            $state['roadmap_order']?->paid_at !== null
-            && $state['roadmap_order']?->invoice?->status === 'paid';
-
         $publicationBlockers = [];
 
         if (! $existingRoadmap) {
@@ -318,26 +318,16 @@ class DiagnosisTransformationProgressService
                 'El Roadmap ya no está en un estado editable.';
         }
 
-        if (! $paidAccess) {
-            $commercialStatus =
-                $state['roadmap_order']?->status;
-
-            $publicationBlockers[] =
-                match ($commercialStatus) {
-                    null =>
-                        'El cliente todavía no ha solicitado comercialmente el Roadmap.',
-                    DiagnosisDetailedRoadmapOrder::STATUS_REQUESTED =>
-                        'Solicitud recibida. Falta preparar la factura del Roadmap.',
-                    DiagnosisDetailedRoadmapOrder::STATUS_INVOICED =>
-                        'Factura preparada. Falta confirmar el pago del Roadmap.',
-                    DiagnosisDetailedRoadmapOrder::STATUS_CANCELLED =>
-                        'La solicitud comercial del Roadmap está cancelada.',
-                    DiagnosisDetailedRoadmapOrder::STATUS_PAID =>
-                        'El pago no está completamente conciliado con la factura del Roadmap.',
-                    default =>
-                        'Falta confirmar el acceso comercial del Roadmap.',
-                };
-        }
+        $publicationReady =
+            $existingRoadmap !== null
+            && in_array(
+                $existingRoadmap->status,
+                [
+                    DiagnosisDetailedRoadmap::STATUS_DRAFT,
+                    DiagnosisDetailedRoadmap::STATUS_UNDER_REVIEW,
+                ],
+                true
+            );
 
         return [
             'generation_ready' =>
@@ -349,16 +339,7 @@ class DiagnosisTransformationProgressService
                 $generationBlockers,
 
             'publication_ready' =>
-                $existingRoadmap !== null
-                && in_array(
-                    $existingRoadmap->status,
-                    [
-                        DiagnosisDetailedRoadmap::STATUS_DRAFT,
-                        DiagnosisDetailedRoadmap::STATUS_UNDER_REVIEW,
-                    ],
-                    true
-                )
-                && $paidAccess,
+                $publicationReady,
 
             'publication_blockers' =>
                 $publicationBlockers,
@@ -368,25 +349,6 @@ class DiagnosisTransformationProgressService
                     $diagnosisPublished,
                 'expanded_report_published' =>
                     $expandedPublished,
-                'roadmap_requested' =>
-                    $state['roadmap_order']?->requested_at !== null,
-                'roadmap_invoiced' =>
-                    $state['roadmap_order']?->invoiced_at !== null
-                    || $state['roadmap_order']?->invoice_id !== null,
-                'roadmap_paid' =>
-                    $paidAccess,
-            ],
-
-            'commercial' => [
-                'status' =>
-                    $state['roadmap_order']?->status,
-                'invoice_number' =>
-                    $state['roadmap_order']?->invoice?->number,
-                'invoice_status' =>
-                    $state['roadmap_order']?->invoice?->status,
-                'paid_at' =>
-                    $state['roadmap_order']?->paid_at
-                        ?->toISOString(),
             ],
 
             'existing_roadmap' =>
@@ -435,23 +397,7 @@ class DiagnosisTransformationProgressService
                     'diagnosis_assessment_id',
                     $assessment->id
                 )
-                ->where(
-                    'status',
-                    DiagnosisExpandedReport::STATUS_PUBLISHED
-                )
-                ->whereNotNull('published_at')
                 ->orderByDesc('version')
-                ->first();
-
-        $expandedOrder =
-            DiagnosisExpandedReportOrder::query()
-                ->where(
-                    'diagnosis_assessment_id',
-                    $assessment->id
-                )
-                ->with(
-                    'invoice:id,number,status,total,amount_paid'
-                )
                 ->first();
 
         $roadmap =
@@ -463,16 +409,25 @@ class DiagnosisTransformationProgressService
                 ->orderByDesc('version')
                 ->first();
 
-        $roadmapOrder =
-            DiagnosisDetailedRoadmapOrder::query()
-                ->where(
-                    'diagnosis_assessment_id',
-                    $assessment->id
-                )
-                ->with(
-                    'invoice:id,number,status,total,amount_paid'
-                )
-                ->first();
+        $plan = TransformationImplementationPlan::query()
+            ->where('diagnosis_assessment_id', $assessment->id)
+            ->orderByDesc('version')
+            ->first();
+
+        $expandedValidation = $this->validationFor(
+            DiagnosisDeliverableValidation::TYPE_EXPANDED_REPORT,
+            $expandedReport?->id
+        );
+
+        $roadmapValidation = $this->validationFor(
+            DiagnosisDeliverableValidation::TYPE_DETAILED_ROADMAP,
+            $roadmap?->id
+        );
+
+        $planValidation = $this->validationFor(
+            DiagnosisDeliverableValidation::TYPE_IMPLEMENTATION_PLAN,
+            $plan?->id
+        );
 
         return [
             'workflow' =>
@@ -481,13 +436,31 @@ class DiagnosisTransformationProgressService
                 $contact,
             'expanded_report' =>
                 $expandedReport,
-            'expanded_order' =>
-                $expandedOrder,
             'roadmap' =>
                 $roadmap,
-            'roadmap_order' =>
-                $roadmapOrder,
+            'plan' =>
+                $plan,
+            'expanded_validation' =>
+                $expandedValidation,
+            'roadmap_validation' =>
+                $roadmapValidation,
+            'plan_validation' =>
+                $planValidation,
         ];
+    }
+
+    private function validationFor(
+        string $type,
+        ?int $deliverableId
+    ): ?DiagnosisDeliverableValidation {
+        if (! $deliverableId) {
+            return null;
+        }
+
+        return DiagnosisDeliverableValidation::query()
+            ->where('deliverable_type', $type)
+            ->where('deliverable_id', $deliverableId)
+            ->first();
     }
 
     private function step(
@@ -528,20 +501,6 @@ class DiagnosisTransformationProgressService
             return 'access_approved';
         }
 
-        if (
-            $state['expanded_order']?->status
-            === DiagnosisExpandedReportOrder::STATUS_CANCELLED
-        ) {
-            return 'expanded_report_requested';
-        }
-
-        if (
-            $state['roadmap_order']?->status
-            === DiagnosisDetailedRoadmapOrder::STATUS_CANCELLED
-        ) {
-            return 'roadmap_requested';
-        }
-
         return null;
     }
 
@@ -560,36 +519,12 @@ class DiagnosisTransformationProgressService
                     ? 'Workflow: ' . $state['workflow']->status
                     : null,
 
-            'expanded_report_requested' =>
-                $state['expanded_order']
-                    ? 'Orden Informe #' .
-                        $state['expanded_order']->id .
+            'expanded_report_preparation' =>
+                $state['expanded_report']
+                    ? 'Informe V' .
+                        $state['expanded_report']->version .
                         ' · ' .
-                        $state['expanded_order']->status
-                    : null,
-
-            'expanded_report_invoiced' =>
-                $state['expanded_order']?->invoice
-                    ? 'Factura ' .
-                        $state['expanded_order']->invoice->number .
-                        ' · ' .
-                        $state['expanded_order']->invoice->status
-                    : null,
-
-            'roadmap_requested' =>
-                $state['roadmap_order']
-                    ? 'Orden Roadmap #' .
-                        $state['roadmap_order']->id .
-                        ' · ' .
-                        $state['roadmap_order']->status
-                    : null,
-
-            'roadmap_invoiced' =>
-                $state['roadmap_order']?->invoice
-                    ? 'Factura ' .
-                        $state['roadmap_order']->invoice->number .
-                        ' · ' .
-                        $state['roadmap_order']->invoice->status
+                        $state['expanded_report']->status
                     : null,
 
             'roadmap_preparation' =>
@@ -600,6 +535,41 @@ class DiagnosisTransformationProgressService
                         $this->roadmapStatusLabel(
                             $state['roadmap']->status
                         )
+                    : null,
+
+            'expanded_report_reviewed' =>
+                $state['expanded_validation']?->reviewed_at
+                    ? 'Revisado por tenant'
+                    : null,
+
+            'expanded_report_validated' =>
+                $state['expanded_validation']?->validated_at
+                    ? 'Validado por tenant'
+                    : null,
+
+            'roadmap_reviewed' =>
+                $state['roadmap_validation']?->reviewed_at
+                    ? 'Revisado por tenant'
+                    : null,
+
+            'roadmap_validated' =>
+                $state['roadmap_validation']?->validated_at
+                    ? 'Validado por tenant'
+                    : null,
+
+            'implementation_plan' =>
+                $state['plan']?->presented_at
+                    ? 'Plan V' . $state['plan']->version . ' · presentado'
+                    : null,
+
+            'implementation_plan_reviewed' =>
+                $state['plan_validation']?->reviewed_at
+                    ? 'Revisado por tenant'
+                    : null,
+
+            'implementation_plan_validated' =>
+                $state['plan_validation']?->validated_at
+                    ? 'Validado por tenant'
                     : null,
         ];
 

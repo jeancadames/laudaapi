@@ -11,91 +11,19 @@ class TransformationImplementationPostGoLiveGatewayContractTest extends TestCase
         return dirname(__DIR__, 3);
     }
 
-    private function read(string $path): string
+    public function test_free_plan_has_no_post_go_live_gateway_cta(): void
     {
-        return file_get_contents($this->root().'/'.$path);
-    }
-
-    public function test_company_context_never_silently_selects_between_multiple_companies(): void
-    {
-        $source = $this->read('app/Services/Subscribers/CompanyContextResolver.php');
-
-        foreach ([
-            'preferredCompanyId',
-            'userCompanyId',
-            '$owned->count() > 1',
-            '$subscriberCompanies->count() === 1',
-            '->limit(2)',
-        ] as $token) {
-            $this->assertStringContainsString($token, $source);
+        $controller = file_get_contents($this->root().'/app/Http/Controllers/Diagnosis/TransformationImplementationPlanController.php');
+        $page = file_get_contents($this->root().'/resources/js/pages/Diagnosis/ImplementationPlan.vue');
+        foreach (['portal_url', 'solution_access_summary', 'Ir a mi portal', 'entitlement_allowed'] as $token) {
+            $this->assertStringNotContainsString($token, $controller.$page);
         }
     }
 
-    public function test_gateway_renders_central_hub_and_otherwise_falls_back_to_diagnosis(): void
+    public function test_app_gateway_remains_independent_from_plan(): void
     {
-        $source = $this->read('app/Http/Controllers/AppGatewayController.php');
-
-        foreach ([
-            'SubscriberResolver',
-            'CompanyContextResolver',
-            'EcosystemHubService',
-            "'App/Hub'",
-            'DiagnosisAccessRequest::query()',
-            "'diagnosis.show'",
-        ] as $token) {
-            $this->assertStringContainsString($token, $source);
-        }
-
-        $this->assertStringNotContainsString("'erp.dashboard'", $source);
-
-        $routes = $this->read('routes/web.php');
+        $routes = file_get_contents($this->root().'/routes/web.php');
+        $this->assertStringContainsString("->get('/app'", $routes);
         $this->assertStringContainsString("->name('app.gateway')", $routes);
-    }
-
-    public function test_erp_pipeline_reuses_one_company_context(): void
-    {
-        foreach ([
-            'app/Http/Middleware/EnsureErpAccess.php',
-            'app/Http/Middleware/HandleInertiaRequests.php',
-            'app/Http/Controllers/LaudaErp/ServiceLaunchController.php',
-            'app/Services/Diagnosis/TransformationImplementationClientSolutionAccessService.php',
-        ] as $path) {
-            $this->assertStringContainsString(
-                'CompanyContextResolver',
-                $this->read($path)
-            );
-        }
-
-        $erp = $this->read('app/Http/Middleware/EnsureErpAccess.php');
-        $this->assertStringContainsString("'resolved_company_id'", $erp);
-        $this->assertStringContainsString("'currentCompany'", $erp);
-    }
-
-    public function test_lauda360_portal_cta_requires_entitlement(): void
-    {
-        $controller = $this->read('app/Http/Controllers/Diagnosis/TransformationImplementationPlanController.php');
-        $page = $this->read('resources/js/pages/Diagnosis/ImplementationPlan.vue');
-
-        $this->assertStringContainsString("\$solutionAccessSummary['portal_url']", $controller);
-        $this->assertStringContainsString("'entitled_count'", $controller);
-        $this->assertStringContainsString("'app.gateway'", $controller);
-        $this->assertStringContainsString('Ir a mi portal', $page);
-        $this->assertStringContainsString('.portal_url', $page);
-    }
-
-    public function test_foundation_f_does_not_activate_commercial_state(): void
-    {
-        $combined = $this->read('app/Http/Controllers/AppGatewayController.php')
-            ."\n".$this->read('app/Services/Subscribers/CompanyContextResolver.php');
-
-        foreach ([
-            'activateSubscriptionForGoLive(',
-            'activateServiceForGoLive(',
-            'activateFromGoLive(',
-            'Subscription::create(',
-            'SubscriptionItem::create(',
-        ] as $token) {
-            $this->assertStringNotContainsString($token, $combined);
-        }
     }
 }

@@ -5,10 +5,8 @@ import {
     ArrowLeft,
     CheckCircle2,
     FileText,
-    LockKeyhole,
     RefreshCcw,
     Send,
-    ShieldAlert,
 } from 'lucide-vue-next';
 
 import AppLayout from '@/layouts/AppLayout.vue';
@@ -22,24 +20,6 @@ import {
     CardTitle,
 } from '@/components/ui/card';
 import { Textarea } from '@/components/ui/textarea';
-
-type CommercialState = {
-    id: number;
-    status: 'requested' | 'invoiced' | 'paid' | 'cancelled';
-    currency: string;
-    subtotal: string;
-    tax_rate: string;
-    tax_amount: string;
-    total: string;
-    paid_access: boolean;
-    invoice: {
-        id: number;
-        number: string;
-        status: string;
-        total: string;
-        amount_paid: string;
-    } | null;
-} | null;
 
 interface Report {
     id: number;
@@ -73,23 +53,18 @@ const props = defineProps<{
     };
     report: Report | null;
     can_generate: boolean;
-    commercial_notice: string;
-    commercial: CommercialState;
     endpoints: { back: string; generate: string };
 }>();
 
 const sections = computed(() => props.report?.sections ?? {});
 const reviewForm = useForm({ review_notes: props.report?.review_notes ?? '' });
-const paymentForm = useForm({ method: 'bank_transfer', reference: '' });
 const canEdit = computed(
     () =>
         props.report !== null &&
         ['draft', 'under_review'].includes(props.report.status),
 );
 
-const canPublish = computed(
-    () => canEdit.value && props.commercial?.paid_access === true,
-);
+const canPublish = computed(() => canEdit.value);
 
 function generate() {
     router.post(props.endpoints.generate, {}, { preserveScroll: true });
@@ -135,33 +110,6 @@ function publish() {
             {},
             { preserveScroll: true },
         );
-}
-function prepareInvoice() {
-    if (
-        props.commercial &&
-        window.confirm('¿Preparar la factura one-time del Informe Ampliado?')
-    )
-        router.post(
-            `/admin/diagnosis-requests/${props.contact.id}/expanded-report/order/${props.commercial.id}/prepare-invoice`,
-            {},
-            { preserveScroll: true },
-        );
-}
-function recordPayment() {
-    if (
-        props.commercial &&
-        window.confirm('¿Registrar el pago completo y habilitar el acceso?')
-    )
-        paymentForm.post(
-            `/admin/diagnosis-requests/${props.contact.id}/expanded-report/order/${props.commercial.id}/record-payment`,
-            { preserveScroll: true },
-        );
-}
-function money(value: string | number) {
-    return new Intl.NumberFormat('es-DO', {
-        minimumFractionDigits: 2,
-        maximumFractionDigits: 2,
-    }).format(Number(value ?? 0));
 }
 function statusLabel(status: Report['status']) {
     return {
@@ -214,129 +162,17 @@ function statusLabel(status: Report['status']) {
                 </div>
             </div>
 
-            <div class="flex gap-3 rounded-2xl border bg-muted/20 p-4 text-sm">
-                <ShieldAlert class="mt-0.5 size-5 shrink-0" />
-                <div>
-                    <p class="font-bold">Facturación one-time</p>
-                    <p class="mt-1 text-muted-foreground">
-                        {{ commercial_notice }}
-                    </p>
-                </div>
+            <div
+                class="rounded-2xl border bg-muted/20 p-4 text-sm"
+            >
+                <p class="font-bold">
+                    Entregable gratuito del Diagnóstico 360
+                </p>
+                <p class="mt-1 text-muted-foreground">
+                    El Informe Ampliado se prepara, revisa y publica sin
+                    solicitud comercial, factura ni pago.
+                </p>
             </div>
-
-            <Card>
-                <CardHeader
-                    ><CardTitle>Estado comercial</CardTitle
-                    ><CardDescription
-                        >Solicitud, factura y confirmación de
-                        pago.</CardDescription
-                    ></CardHeader
-                >
-                <CardContent>
-                    <div
-                        v-if="!commercial"
-                        class="rounded-2xl border border-dashed p-4 text-sm text-muted-foreground"
-                    >
-                        El cliente todavía no ha solicitado comercialmente el
-                        Informe Ampliado.
-                    </div>
-                    <div v-else class="space-y-4">
-                        <div class="grid gap-3 sm:grid-cols-3">
-                            <div>
-                                <p class="text-xs text-muted-foreground">
-                                    Subtotal
-                                </p>
-                                <p class="font-bold">
-                                    RD${{ money(commercial.subtotal) }}
-                                </p>
-                            </div>
-                            <div>
-                                <p class="text-xs text-muted-foreground">
-                                    ITBIS
-                                </p>
-                                <p class="font-bold">
-                                    RD${{ money(commercial.tax_amount) }}
-                                </p>
-                            </div>
-                            <div>
-                                <p class="text-xs text-muted-foreground">
-                                    Total
-                                </p>
-                                <p class="font-black">
-                                    RD${{ money(commercial.total) }}
-                                </p>
-                            </div>
-                        </div>
-                        <Button
-                            v-if="commercial.status === 'requested'"
-                            @click="prepareInvoice"
-                            >Preparar factura one-time</Button
-                        >
-                        <div
-                            v-else-if="commercial.status === 'invoiced'"
-                            class="space-y-4"
-                        >
-                            <div class="rounded-2xl border p-4">
-                                <p class="font-bold">
-                                    {{ commercial.invoice?.number }}
-                                </p>
-                                <p class="mt-1 text-sm text-muted-foreground">
-                                    Factura emitida ·
-                                    {{ commercial.invoice?.status }}
-                                </p>
-                            </div>
-                            <div class="grid gap-3 md:grid-cols-2">
-                                <label class="space-y-1"
-                                    ><span class="text-xs font-bold"
-                                        >Método</span
-                                    ><select
-                                        v-model="paymentForm.method"
-                                        class="h-10 w-full rounded-md border bg-background px-3 text-sm"
-                                    >
-                                        <option value="bank_transfer">
-                                            Transferencia
-                                        </option>
-                                        <option value="cash">Efectivo</option>
-                                        <option value="check">Cheque</option>
-                                        <option value="other">Otro</option>
-                                    </select></label
-                                >
-                                <label class="space-y-1"
-                                    ><span class="text-xs font-bold"
-                                        >Referencia</span
-                                    ><input
-                                        v-model="paymentForm.reference"
-                                        type="text"
-                                        class="h-10 w-full rounded-md border bg-background px-3 text-sm"
-                                        placeholder="Referencia bancaria / cheque"
-                                /></label>
-                            </div>
-                            <p
-                                v-if="paymentForm.errors.reference"
-                                class="text-xs text-destructive"
-                            >
-                                {{ paymentForm.errors.reference }}
-                            </p>
-                            <Button
-                                :disabled="paymentForm.processing"
-                                @click="recordPayment"
-                                >Registrar pago completo</Button
-                            >
-                        </div>
-                        <div
-                            v-else-if="commercial.paid_access"
-                            class="rounded-2xl border bg-emerald-50 p-4 text-sm text-emerald-950 dark:bg-emerald-950/20 dark:text-emerald-100"
-                        >
-                            <p class="font-bold">
-                                Pago confirmado · acceso habilitado
-                            </p>
-                            <p class="mt-1">
-                                {{ commercial.invoice?.number }} está pagada.
-                            </p>
-                        </div>
-                    </div>
-                </CardContent>
-            </Card>
 
             <div
                 v-if="!report"
@@ -547,15 +383,9 @@ function statusLabel(status: Report['status']) {
                                 class="inline-flex items-center gap-2 font-semibold text-emerald-700 dark:text-emerald-300"
                                 ><CheckCircle2 class="size-4" />Versión
                                 publicada y bloqueada.</span
-                            ><span v-else-if="commercial?.paid_access">
-                                Revisa el contenido antes de publicar.
-                            </span>
-                            <span
-                                v-else
-                                class="inline-flex items-center gap-2 font-semibold"
                             >
-                                <LockKeyhole class="size-4" />
-                                Publicación bloqueada hasta pago confirmado.
+                            <span v-else>
+                                Revisa el contenido antes de publicar.
                             </span>
                         </div>
                         <div class="flex flex-wrap gap-2">

@@ -18,7 +18,6 @@ type Transformation360Stage = {
     state: 'completed' | 'current' | 'available' | 'pending';
     status_label: string;
     description: string;
-    optional: boolean;
     url: string | null;
     action_label: string | null;
 };
@@ -30,11 +29,6 @@ type Transformation360Journey = {
     organization_name: string | null;
     current_label: string | null;
     plan_public: boolean;
-    execution: {
-        progress_percentage: number;
-        phase_count: number;
-        completed_phase_count: number;
-    };
     stages: Transformation360Stage[];
     primary_action: {
         label: string;
@@ -93,8 +87,8 @@ const breadcrumbs: BreadcrumbItem[] = [
                             >
                                 Sigue el recorrido de
                                 {{ props.company.name }} desde el diagnóstico
-                                inicial hasta la ejecución de su Plan de
-                                Implementación.
+                                inicial hasta sus tres entregables consultivos
+                                gratuitos.
                             </p>
                         </div>
 
@@ -129,29 +123,6 @@ const breadcrumbs: BreadcrumbItem[] = [
                                     'Tu recorrido de transformación'
                                 }}
                             </h2>
-
-                            <p
-                                v-if="
-                                    props.transformation360.execution
-                                        .phase_count > 0
-                                "
-                                class="mt-2 text-sm text-slate-500"
-                            >
-                                {{
-                                    props.transformation360.execution
-                                        .completed_phase_count
-                                }}
-                                de
-                                {{
-                                    props.transformation360.execution
-                                        .phase_count
-                                }}
-                                fases completadas ·
-                                {{
-                                    props.transformation360.execution
-                                        .progress_percentage
-                                }}% de avance
-                            </p>
                         </div>
 
                         <a
@@ -165,7 +136,7 @@ const breadcrumbs: BreadcrumbItem[] = [
                     </div>
 
                     <div
-                        class="grid gap-3 p-5 sm:p-6 md:grid-cols-2 xl:grid-cols-5"
+                        class="grid gap-3 p-5 sm:p-6 md:grid-cols-2 xl:grid-cols-4"
                     >
                         <article
                             v-for="(stage, index) in props.transformation360
@@ -216,9 +187,6 @@ const breadcrumbs: BreadcrumbItem[] = [
                             >
                                 Etapa {{ index + 1 }}
 
-                                <template v-if="stage.optional">
-                                    · Opcional
-                                </template>
                             </p>
 
                             <h3
@@ -257,10 +225,7 @@ const breadcrumbs: BreadcrumbItem[] = [
                     <div
                         class="border-t border-slate-100 px-5 py-4 text-xs leading-5 text-slate-500 sm:px-6 dark:border-slate-800"
                     >
-                        El Informe Ampliado y el Roadmap Detallado son
-                        entregables opcionales. El Plan de Implementación puede
-                        prepararse directamente desde el resultado oficial del
-                        Diagnóstico 360.
+                        Informe Ampliado, Roadmap Detallado y Plan de Implementación son entregables gratuitos del recorrido consultivo. La contratación de apoyo para ejecutar el Plan se gestiona fuera de estas etapas.
                     </div>
                 </section>
             </div>

@@ -43,12 +43,18 @@ final class DiagnosisTransformationDeliverablesUxContractTest extends TestCase
             'diagnosisPublished && adminExpandedReportUrl',
             'expandedReportAvailable &&',
             'adminRoadmapUrl',
-            'Generar / publicar informe',
+            'Informe generado automáticamente',
+            'Roadmap generado automáticamente tras el Informe',
             'Gestionar Informe Ampliado',
             'Gestionar Roadmap Detallado',
         ] as $token) {
             $this->assertStringContainsString($token, $source);
         }
+
+        $this->assertStringNotContainsString(
+            'Generar / publicar informe',
+            $source
+        );
     }
 
     public function test_client_never_opens_unpublished_deliverable_directly(): void

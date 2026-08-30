@@ -174,7 +174,7 @@ function openTransformation360(url: string | null | undefined) {
             <SectionCard
                 v-if="transformation360?.visible"
                 title="Transformación Digital 360"
-                description="Seguimiento de tu recorrido desde el Diagnóstico hasta la ejecución"
+                description="Seguimiento de tu recorrido consultivo y sus tres entregables gratuitos"
             >
                 <div
                     class="mb-5 flex flex-col gap-4 rounded-2xl border bg-muted/20 p-5 lg:flex-row lg:items-center lg:justify-between"
@@ -192,20 +192,6 @@ function openTransformation360(url: string | null | undefined) {
                                 'Transformación Digital 360'
                             }}
                         </h3>
-
-                        <p
-                            v-if="transformation360.execution?.phase_count > 0"
-                            class="mt-1 text-sm text-muted-foreground"
-                        >
-                            {{
-                                transformation360.execution
-                                    .completed_phase_count
-                            }}/{{ transformation360.execution.phase_count }}
-                            fases completadas ·
-                            {{
-                                transformation360.execution.progress_percentage
-                            }}% de avance
-                        </p>
                     </div>
 
                     <Button
@@ -223,7 +209,7 @@ function openTransformation360(url: string | null | undefined) {
                     </Button>
                 </div>
 
-                <div class="grid gap-3 md:grid-cols-2 xl:grid-cols-5">
+                <div class="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
                     <div
                         v-for="(stage, index) in transformation360.stages"
                         :key="stage.key"
@@ -264,9 +250,6 @@ function openTransformation360(url: string | null | undefined) {
                             class="mt-4 text-[10px] font-black tracking-widest text-muted-foreground uppercase"
                         >
                             Etapa {{ index + 1 }}
-                            <template v-if="stage.optional">
-                                · opcional
-                            </template>
                         </p>
 
                         <h4 class="mt-1 font-black">
@@ -302,9 +285,7 @@ function openTransformation360(url: string | null | undefined) {
                 </div>
 
                 <p class="mt-4 text-xs leading-5 text-muted-foreground">
-                    El Informe Ampliado y el Roadmap Detallado son entregables
-                    opcionales. El Plan de Implementación puede prepararse
-                    directamente desde el resultado oficial del Diagnóstico 360.
+                    Informe Ampliado, Roadmap Detallado y Plan de Implementación son entregables gratuitos. La contratación de apoyo para ejecutar el Plan se gestiona en un proceso separado.
                 </p>
             </SectionCard>
 

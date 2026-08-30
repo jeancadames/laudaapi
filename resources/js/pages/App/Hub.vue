@@ -59,23 +59,19 @@ type Transformation360Capability = {
     key: string;
     label: string;
     summary: string | null;
-    execution: {
-        status: string;
-        progress_percentage: number;
-    };
-    go_live: {
-        status: string;
-        ready_at: string | null;
-        scheduled_at: string | null;
-        went_live_at: string | null;
-    } | null;
-    service_activation: {
-        status: string;
-        service_id: number;
-        subscription_item_id: number;
-        activated_at: string | null;
-        price_snapshot: unknown;
-    } | null;
+    kind: 'professional_service';
+    includes: string[];
+};
+
+type Transformation360Initiative = {
+    id: number | string | null;
+    priority: string | null;
+    title: string | null;
+    objective: string | null;
+    owner_role: string | null;
+    actions: string[];
+    dependencies: string[];
+    success_metrics: string[];
 };
 
 type Transformation360Phase = {
@@ -83,35 +79,11 @@ type Transformation360Phase = {
     sequence: number;
     name: string;
     objective: string | null;
-    execution: {
-        status: string;
-        progress_percentage: number;
-    };
-    commercial: {
-        estimate_amount: number | null;
-        currency: string | null;
-        estimated_duration_value: number | null;
-        estimated_duration_unit: string | null;
-        milestone_count: number;
-        milestone_total: number;
-        invoiced_total: number;
-        paid_total: number;
-        billing_status: string;
-        next_due_at: string | null;
-        milestones: Array<{
-            id: number;
-            sequence: number;
-            name: string;
-            billing_amount: number;
-            currency: string | null;
-            billing_status: string | null;
-            due_at: string | null;
-            invoice_reference: string | null;
-            invoice_issued_at: string | null;
-            payment_reference: string | null;
-            paid_at: string | null;
-        }>;
-    };
+    horizon: string | null;
+    initiative_ids: Array<number | string>;
+    initiatives: Transformation360Initiative[];
+    dependencies: string[];
+    deliverables: string[];
     capabilities: Transformation360Capability[];
 };
 
@@ -119,10 +91,8 @@ type Transformation360Plan = {
     id: number;
     status: string;
     version: number;
-    selected_modality: string | null;
-    selected_modality_label: string | null;
     presented_at: string | null;
-    accepted_at: string | null;
+    source_type: string;
     phases: Transformation360Phase[];
 };
 
@@ -132,10 +102,8 @@ type Transformation360ControlPanel = {
         plan_count: number;
         phase_count: number;
         capability_count: number;
-        estimated_total: number;
-        milestone_total: number;
-        paid_total: number;
-        currency: string | null;
+        initiative_count: number;
+        deliverable_count: number;
     };
 };
 
@@ -165,48 +133,12 @@ const hasTransformation360 = computed(
         && (props.transformation360?.plans?.length ?? 0) > 0,
 );
 
-const money = (amount: number | null | undefined, currency?: string | null) => {
-    if (amount === null || amount === undefined) return '—';
-
-    const value = Number(amount);
-    const code = currency || 'DOP';
-
-    try {
-        return new Intl.NumberFormat('es-DO', {
-            style: 'currency',
-            currency: code,
-            minimumFractionDigits: 0,
-            maximumFractionDigits: 2,
-        }).format(value);
-    } catch {
-        return `${code} ${value.toLocaleString('es-DO')}`;
-    }
-};
-
 const planStatusLabel = (status: string) =>
     ({
         presented: 'Presentado',
-        accepted: 'Aceptado',
-        active: 'En ejecución',
+        accepted: 'Presentado',
+        active: 'Presentado',
         completed: 'Completado',
-    })[status] || status;
-
-const executionStatusLabel = (status: string) =>
-    ({
-        pending: 'Pendiente',
-        in_progress: 'En progreso',
-        blocked: 'Bloqueado',
-        completed: 'Completado',
-        cancelled: 'Cancelado',
-    })[status] || status;
-
-const billingStatusLabel = (status: string) =>
-    ({
-        not_scheduled: 'Sin hitos de cobro',
-        scheduled: 'Programado',
-        ready_to_invoice: 'Listo para facturar',
-        invoiced: 'Facturado',
-        paid: 'Pagado',
     })[status] || status;
 
 const allApps = computed<Solution[]>(() =>
@@ -584,26 +516,26 @@ const stateLabel = (app: Solution) => {
                                 Transformación 360
                             </p>
                             <h2 class="mt-1 text-xl font-black text-slate-950 dark:text-white">
-                                Servicios, ejecución y estado comercial
+                                Plan consultivo y prioridades de transformación
                             </h2>
                             <p class="mt-1 max-w-3xl text-sm text-slate-500">
-                                Solo se muestran fases y capacidades incorporadas a un Plan de Implementación real de tu empresa.
+                                Consulta fases, horizonte, iniciativas, dependencias, entregables y apoyo profesional sugerido. La contratación comercial se gestiona fuera del Plan.
                             </p>
                         </div>
 
-                        <div
-                            v-if="transformation360.summary.estimated_total > 0"
-                            class="rounded-2xl border border-slate-200 bg-white px-4 py-3 text-right dark:border-slate-800 dark:bg-slate-950"
-                        >
-                            <p class="text-xs text-slate-500">Estimado T360</p>
-                            <p class="font-black text-slate-950 dark:text-white">
-                                {{
-                                    money(
-                                        transformation360.summary.estimated_total,
-                                        transformation360.summary.currency,
-                                    )
-                                }}
-                            </p>
+                        <div class="grid grid-cols-3 gap-2 text-center">
+                            <div class="rounded-xl border bg-white px-3 py-2 dark:bg-slate-950">
+                                <p class="font-black">{{ transformation360.summary.phase_count }}</p>
+                                <p class="text-[10px] text-slate-500">Fases</p>
+                            </div>
+                            <div class="rounded-xl border bg-white px-3 py-2 dark:bg-slate-950">
+                                <p class="font-black">{{ transformation360.summary.initiative_count }}</p>
+                                <p class="text-[10px] text-slate-500">Iniciativas</p>
+                            </div>
+                            <div class="rounded-xl border bg-white px-3 py-2 dark:bg-slate-950">
+                                <p class="font-black">{{ transformation360.summary.deliverable_count }}</p>
+                                <p class="text-[10px] text-slate-500">Entregables</p>
+                            </div>
                         </div>
                     </div>
 
@@ -612,23 +544,18 @@ const stateLabel = (app: Solution) => {
                         :key="`t360-plan-${plan.id}`"
                         class="overflow-hidden rounded-[2rem] border border-slate-200/70 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-950"
                     >
-                        <div class="flex flex-col gap-3 border-b border-slate-100 p-5 sm:flex-row sm:items-center sm:justify-between dark:border-slate-800">
+                        <div class="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 p-5 dark:border-slate-800">
                             <div>
-                                <div class="flex flex-wrap items-center gap-2">
-                                    <h3 class="font-black text-slate-950 dark:text-white">
-                                        Plan de Implementación V{{ plan.version }}
-                                    </h3>
-                                    <span class="rounded-full bg-red-50 px-2.5 py-1 text-xs font-bold text-red-700 dark:bg-red-950/40 dark:text-red-300">
-                                        {{ planStatusLabel(plan.status) }}
-                                    </span>
-                                </div>
-                                <p
-                                    v-if="plan.selected_modality_label"
-                                    class="mt-1 text-sm text-slate-500"
-                                >
-                                    {{ plan.selected_modality_label }}
+                                <h3 class="font-black text-slate-950 dark:text-white">
+                                    Plan de Implementación V{{ plan.version }}
+                                </h3>
+                                <p class="mt-1 text-sm text-slate-500">
+                                    {{ plan.source_type === 'published_roadmap' ? 'Fuente: Roadmap Detallado' : 'Fuente: Diagnóstico oficial' }}
                                 </p>
                             </div>
+                            <span class="rounded-full bg-red-50 px-2.5 py-1 text-xs font-bold text-red-700 dark:bg-red-950/40 dark:text-red-300">
+                                {{ planStatusLabel(plan.status) }}
+                            </span>
                         </div>
 
                         <div class="divide-y divide-slate-100 dark:divide-slate-800">
@@ -637,158 +564,41 @@ const stateLabel = (app: Solution) => {
                                 :key="`t360-phase-${phase.id}`"
                                 class="p-5"
                             >
-                                <div class="grid gap-5 lg:grid-cols-[1fr_auto]">
-                                    <div class="min-w-0">
-                                        <div class="flex flex-wrap items-center gap-2">
-                                            <span class="text-xs font-black text-red-600">
-                                                FASE {{ phase.sequence }}
-                                            </span>
-                                            <span class="text-xs text-slate-400">
-                                                ·
-                                            </span>
-                                            <span class="text-xs font-semibold text-slate-500">
-                                                {{
-                                                    executionStatusLabel(
-                                                        phase.execution.status,
-                                                    )
-                                                }}
-                                            </span>
-                                        </div>
-
-                                        <h4 class="mt-1 font-black text-slate-950 dark:text-white">
-                                            {{ phase.name }}
-                                        </h4>
-
-                                        <p
-                                            v-if="phase.objective"
-                                            class="mt-1 max-w-3xl text-sm leading-6 text-slate-500"
-                                        >
-                                            {{ phase.objective }}
-                                        </p>
-
-                                        <div
-                                            v-if="phase.capabilities.length"
-                                            class="mt-4 flex flex-wrap gap-2"
-                                        >
-                                            <span
-                                                v-for="capability in phase.capabilities"
-                                                :key="`t360-capability-${capability.id}`"
-                                                class="rounded-full border border-slate-200 bg-slate-50 px-3 py-1.5 text-xs font-semibold text-slate-700 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-200"
-                                            >
-                                                {{ capability.label }}
-                                                <span
-                                                    v-if="capability.execution.progress_percentage > 0"
-                                                    class="ml-1 text-slate-400"
-                                                >
-                                                    {{ capability.execution.progress_percentage }}%
-                                                </span>
-                                            </span>
-                                        </div>
-
-                                        <div class="mt-4 h-2 overflow-hidden rounded-full bg-slate-100 dark:bg-slate-900">
-                                            <div
-                                                class="h-full rounded-full bg-slate-900 transition-all dark:bg-white"
-                                                :style="{
-                                                    width: `${Math.min(
-                                                        100,
-                                                        Math.max(
-                                                            0,
-                                                            phase.execution.progress_percentage,
-                                                        ),
-                                                    )}%`,
-                                                }"
-                                            />
-                                        </div>
+                                <div class="flex flex-wrap items-start justify-between gap-3">
+                                    <div>
+                                        <p class="text-xs font-black text-red-600">FASE {{ phase.sequence }}</p>
+                                        <h4 class="mt-1 font-black text-slate-950 dark:text-white">{{ phase.name }}</h4>
+                                        <p v-if="phase.objective" class="mt-1 max-w-3xl text-sm leading-6 text-slate-500">{{ phase.objective }}</p>
                                     </div>
+                                    <span v-if="phase.horizon" class="rounded-full border px-3 py-1 text-xs font-semibold text-slate-500">{{ phase.horizon }}</span>
+                                </div>
 
-                                    <div class="grid min-w-56 gap-2 sm:grid-cols-2 lg:grid-cols-1">
-                                        <div class="rounded-2xl bg-slate-50 p-4 dark:bg-slate-900">
-                                            <p class="text-xs text-slate-500">
-                                                Estimado de la fase
-                                            </p>
-                                            <p class="mt-1 font-black text-slate-950 dark:text-white">
-                                                {{
-                                                    phase.commercial.estimate_amount !== null
-                                                        ? money(
-                                                            phase.commercial.estimate_amount,
-                                                            phase.commercial.currency,
-                                                        )
-                                                        : 'Pendiente de cotización'
-                                                }}
-                                            </p>
-                                        </div>
-
-                                        <div class="rounded-2xl bg-slate-50 p-4 dark:bg-slate-900">
-                                            <p class="text-xs text-slate-500">
-                                                Estado comercial
-                                            </p>
-                                            <p class="mt-1 font-black text-slate-950 dark:text-white">
-                                                {{
-                                                    billingStatusLabel(
-                                                        phase.commercial.billing_status,
-                                                    )
-                                                }}
-                                            </p>
-                                            <p
-                                                v-if="phase.commercial.milestone_total > 0"
-                                                class="mt-1 text-xs text-slate-500"
-                                            >
-                                                Pagado
-                                                {{
-                                                    money(
-                                                        phase.commercial.paid_total,
-                                                        phase.commercial.currency,
-                                                    )
-                                                }}
-                                                de
-                                                {{
-                                                    money(
-                                                        phase.commercial.milestone_total,
-                                                        phase.commercial.currency,
-                                                    )
-                                                }}
-                                            </p>
-                                        </div>
+                                <div v-if="phase.initiatives.length" class="mt-4 grid gap-2 md:grid-cols-2">
+                                    <div v-for="initiative in phase.initiatives" :key="String(initiative.id ?? initiative.title)" class="rounded-xl bg-slate-50 p-3 dark:bg-slate-900">
+                                        <p class="text-sm font-bold">{{ initiative.title || 'Iniciativa' }}</p>
+                                        <p v-if="initiative.owner_role" class="mt-1 text-xs text-slate-500">Responsable: {{ initiative.owner_role }}</p>
                                     </div>
                                 </div>
 
-                                <div
-                                    v-if="phase.commercial.milestones.length"
-                                    class="mt-4 grid gap-2 md:grid-cols-2 xl:grid-cols-3"
-                                >
-                                    <div
-                                        v-for="milestone in phase.commercial.milestones"
-                                        :key="`t360-milestone-${milestone.id}`"
-                                        class="rounded-xl border border-slate-100 p-3 text-sm dark:border-slate-800"
-                                    >
-                                        <div class="flex items-start justify-between gap-3">
-                                            <p class="font-bold text-slate-900 dark:text-white">
-                                                {{ milestone.name }}
-                                            </p>
-                                            <span class="text-xs font-semibold text-slate-500">
-                                                {{
-                                                    billingStatusLabel(
-                                                        milestone.paid_at
-                                                            ? 'paid'
-                                                            : milestone.invoice_reference
-                                                                ? 'invoiced'
-                                                                : milestone.billing_status || 'scheduled',
-                                                    )
-                                                }}
-                                            </span>
-                                        </div>
-                                        <p class="mt-1 text-xs text-slate-500">
-                                            {{
-                                                money(
-                                                    milestone.billing_amount,
-                                                    milestone.currency,
-                                                )
-                                            }}
-                                            <template v-if="milestone.invoice_reference">
-                                                · Factura {{ milestone.invoice_reference }}
-                                            </template>
-                                        </p>
+                                <div class="mt-4 grid gap-3 md:grid-cols-2">
+                                    <div class="rounded-xl border border-slate-100 p-3 dark:border-slate-800">
+                                        <p class="text-xs font-bold uppercase text-slate-500">Dependencias</p>
+                                        <p class="mt-1 text-sm text-slate-600 dark:text-slate-300">{{ phase.dependencies.length ? phase.dependencies.join(' · ') : 'Sin dependencias adicionales' }}</p>
                                     </div>
+                                    <div class="rounded-xl border border-slate-100 p-3 dark:border-slate-800">
+                                        <p class="text-xs font-bold uppercase text-slate-500">Entregables</p>
+                                        <p class="mt-1 text-sm text-slate-600 dark:text-slate-300">{{ phase.deliverables.length ? phase.deliverables.join(' · ') : 'Definidos por las iniciativas' }}</p>
+                                    </div>
+                                </div>
+
+                                <div v-if="phase.capabilities.length" class="mt-4 flex flex-wrap gap-2">
+                                    <span
+                                        v-for="capability in phase.capabilities"
+                                        :key="`t360-capability-${capability.id}`"
+                                        class="rounded-full border border-slate-200 bg-slate-50 px-3 py-1.5 text-xs font-semibold text-slate-700 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-200"
+                                    >
+                                        {{ capability.label }}
+                                    </span>
                                 </div>
                             </div>
                         </div>

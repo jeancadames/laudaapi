@@ -19,9 +19,7 @@ class AdminDiagnosisExpandedReportController extends Controller
 {
     public function show(
         ContactRequest $contact,
-        DiagnosisAccessService $accessService,
-        \App\Services\Diagnosis\DiagnosisExpandedReportCommercialService
-            $commercialService
+        DiagnosisAccessService $accessService
     ): Response {
         $assessment = $this->assessmentFor(
             $contact,
@@ -73,10 +71,6 @@ class AdminDiagnosisExpandedReportController extends Controller
                 'can_generate' =>
                     $assessment->status === 'reviewed'
                     && $assessment->published_at !== null,
-                'commercial_notice' =>
-                    'El Informe Ampliado es un cargo one-time. No crea suscripción.',
-                'commercial' =>
-                    $commercialService->state($assessment),
                 'endpoints' => [
                     'back' => route(
                         'admin.diagnosis_requests.show',
@@ -204,7 +198,6 @@ class AdminDiagnosisExpandedReportController extends Controller
         DiagnosisExpandedReport $report,
         DiagnosisAccessService $accessService,
         DiagnosisExpandedReportService $reportService,
-        \App\Services\Diagnosis\DiagnosisExpandedReportCommercialService $commercialService,
         \App\Services\Diagnosis\DiagnosisCommercialNotificationService $notificationService
     ): RedirectResponse {
         $assessment = $this->assessmentFor(
@@ -215,14 +208,6 @@ class AdminDiagnosisExpandedReportController extends Controller
         $this->assertReport(
             $report,
             $assessment
-        );
-
-        abort_unless(
-            $commercialService->hasPaidAccess(
-                $assessment
-            ),
-            422,
-            'El Informe Ampliado solo puede publicarse después de confirmar el pago.'
         );
 
         $published = $reportService->publish(

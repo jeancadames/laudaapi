@@ -117,10 +117,10 @@ final class BrandingIdentityProfessionalServiceContractTest
 
         foreach ([
             'professional_service',
-            'Servicio profesional',
-            'Se cotiza dentro del Plan',
-            'no genera',
-            'suscripción recurrente',
+            'Apoyo profesional sugerido',
+            'Las soluciones LAUDAAPI se contratan y activan fuera de este Plan',
+            'no cotiza la ejecución',
+            'no crea hitos de facturación',
         ] as $token) {
             $this->assertStringContainsString(
                 $token,

@@ -192,18 +192,6 @@ class AdminDiagnosisAccessRequestController extends Controller
 
         $assessment = $workflow?->assessment;
 
-        $expandedCommercial = $assessment
-            ? app(
-                \App\Services\Diagnosis\DiagnosisExpandedReportCommercialService::class
-            )->state($assessment)
-            : null;
-
-        $roadmapCommercial = $assessment
-            ? app(
-                \App\Services\Diagnosis\DiagnosisDetailedRoadmapCommercialService::class
-            )->state($assessment)
-            : null;
-
         return Inertia::render('Admin/DiagnosisRequests/Show', [
             'contact' => [
                 'id' => $contact->id,
@@ -272,55 +260,6 @@ class AdminDiagnosisAccessRequestController extends Controller
                     ] : null,
                 ] : null,
             ] : null,
-            'expanded_report_commercial' => $expandedCommercial,
-            'detailed_roadmap_commercial' => $roadmapCommercial,
-
-            'commercial_endpoints' => [
-                'expanded_prepare_invoice' =>
-                    $expandedCommercial
-                        ? route(
-                            'admin.diagnosis_requests.expanded_report.prepare_invoice',
-                            [
-                                'contact' => $contact,
-                                'order' => $expandedCommercial['id'],
-                            ]
-                        )
-                        : null,
-
-                'expanded_record_payment' =>
-                    $expandedCommercial
-                        ? route(
-                            'admin.diagnosis_requests.expanded_report.record_payment',
-                            [
-                                'contact' => $contact,
-                                'order' => $expandedCommercial['id'],
-                            ]
-                        )
-                        : null,
-
-                'roadmap_prepare_invoice' =>
-                    $roadmapCommercial
-                        ? route(
-                            'admin.diagnosis_requests.detailed_roadmap.prepare_invoice',
-                            [
-                                'contact' => $contact,
-                                'order' => $roadmapCommercial['id'],
-                            ]
-                        )
-                        : null,
-
-                'roadmap_record_payment' =>
-                    $roadmapCommercial
-                        ? route(
-                            'admin.diagnosis_requests.detailed_roadmap.record_payment',
-                            [
-                                'contact' => $contact,
-                                'order' => $roadmapCommercial['id'],
-                            ]
-                        )
-                        : null,
-            ],
-
             'statuses' => DiagnosisAccessRequest::STATUSES,
             'businessProfileOptions' => config(
                 'lauda360_business_profile',

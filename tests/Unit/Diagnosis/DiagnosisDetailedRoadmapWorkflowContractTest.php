@@ -9,8 +9,8 @@ class DiagnosisDetailedRoadmapWorkflowContractTest extends TestCase
     public function test_routes_are_present(): void
     {
         $root = dirname(__DIR__, 3);
-        $admin = file_get_contents($root . '/routes/admin.php');
-        $web = file_get_contents($root . '/routes/web.php');
+        $admin = file_get_contents($root.'/routes/admin.php');
+        $web = file_get_contents($root.'/routes/web.php');
 
         foreach ([
             'detailed_roadmap.show',
@@ -20,7 +20,10 @@ class DiagnosisDetailedRoadmapWorkflowContractTest extends TestCase
             'detailed_roadmap.regenerate',
             'detailed_roadmap.publish',
         ] as $token) {
-            $this->assertStringContainsString($token, $admin);
+            $this->assertStringContainsString(
+                $token,
+                $admin
+            );
         }
 
         $this->assertStringContainsString(
@@ -32,31 +35,32 @@ class DiagnosisDetailedRoadmapWorkflowContractTest extends TestCase
     public function test_client_reads_only_published_roadmap(): void
     {
         $root = dirname(__DIR__, 3);
+
         $source = file_get_contents(
             $root
-            . '/app/Http/Controllers/Diagnosis/DiagnosisDetailedRoadmapController.php'
+            .'/app/Http/Controllers/Diagnosis/'
+            .'DiagnosisDetailedRoadmapController.php'
         );
 
-        $this->assertStringContainsString(
+        foreach ([
             'DiagnosisDetailedRoadmap::STATUS_PUBLISHED',
-            $source
-        );
-        $this->assertStringContainsString(
             "whereNotNull('published_at')",
-            $source
-        );
-        $this->assertStringContainsString(
             "Gate::authorize('view',",
-            $source
-        );
+        ] as $token) {
+            $this->assertStringContainsString(
+                $token,
+                $source
+            );
+        }
     }
 
     public function test_service_has_review_publish_workflow(): void
     {
         $root = dirname(__DIR__, 3);
+
         $source = file_get_contents(
             $root
-            . '/app/Services/Diagnosis/DiagnosisDetailedRoadmapService.php'
+            .'/app/Services/Diagnosis/DiagnosisDetailedRoadmapService.php'
         );
 
         foreach ([
@@ -66,16 +70,21 @@ class DiagnosisDetailedRoadmapWorkflowContractTest extends TestCase
             'Una versión publicada no puede editarse.',
             'diagnosis_detailed_roadmap_published',
         ] as $token) {
-            $this->assertStringContainsString($token, $source);
+            $this->assertStringContainsString(
+                $token,
+                $source
+            );
         }
     }
 
-    public function test_admin_ui_contains_workflow(): void
+    public function test_admin_ui_contains_free_workflow(): void
     {
         $root = dirname(__DIR__, 3);
+
         $source = file_get_contents(
             $root
-            . '/resources/js/pages/Admin/DiagnosisRequests/DetailedRoadmap.vue'
+            .'/resources/js/pages/Admin/DiagnosisRequests/'
+            .'DetailedRoadmap.vue'
         );
 
         foreach ([
@@ -84,19 +93,28 @@ class DiagnosisDetailedRoadmapWorkflowContractTest extends TestCase
             '@click="markReview"',
             '@click="publish"',
             'Crear nueva versión',
-            'DetailedRoadmapAdminCommercialCard',
+            'Regenerar versión editable',
             'Iniciativas priorizadas',
         ] as $token) {
-            $this->assertStringContainsString($token, $source);
+            $this->assertStringContainsString(
+                $token,
+                $source
+            );
         }
+
+        $this->assertStringNotContainsString(
+            'DetailedRoadmapAdminCommercialCard',
+            $source
+        );
     }
 
     public function test_client_ui_contains_executable_structure(): void
     {
         $root = dirname(__DIR__, 3);
+
         $source = file_get_contents(
             $root
-            . '/resources/js/pages/Diagnosis/DetailedRoadmap.vue'
+            .'/resources/js/pages/Diagnosis/DetailedRoadmap.vue'
         );
 
         foreach ([
@@ -109,28 +127,32 @@ class DiagnosisDetailedRoadmapWorkflowContractTest extends TestCase
             'Gobierno del Roadmap',
             'Alcance del entregable',
         ] as $token) {
-            $this->assertStringContainsString($token, $source);
+            $this->assertStringContainsString(
+                $token,
+                $source
+            );
         }
     }
 
-    public function test_publication_route_is_now_commercially_guarded(): void
+    public function test_publication_route_is_not_commercially_guarded(): void
     {
         $root = dirname(__DIR__, 3);
 
         $source = file_get_contents(
             $root
-            . '/app/Http/Controllers/Admin/AdminDiagnosisDetailedRoadmapController.php'
+            .'/app/Http/Controllers/Admin/'
+            .'AdminDiagnosisDetailedRoadmapController.php'
         );
 
-        $this->assertStringContainsString(
+        foreach ([
             'hasPaidAccess(',
-            $source
-        );
-
-        $this->assertStringContainsString(
             'solo puede publicarse después de confirmar el pago',
-            $source
-        );
+        ] as $token) {
+            $this->assertStringNotContainsString(
+                $token,
+                $source
+            );
+        }
     }
 
     public function test_workflow_remains_decoupled_from_billing(): void
@@ -140,15 +162,18 @@ class DiagnosisDetailedRoadmapWorkflowContractTest extends TestCase
         $source = implode("\n", [
             file_get_contents(
                 $root
-                . '/app/Http/Controllers/Admin/AdminDiagnosisDetailedRoadmapController.php'
+                .'/app/Http/Controllers/Admin/'
+                .'AdminDiagnosisDetailedRoadmapController.php'
             ),
             file_get_contents(
                 $root
-                . '/app/Http/Controllers/Diagnosis/DiagnosisDetailedRoadmapController.php'
+                .'/app/Http/Controllers/Diagnosis/'
+                .'DiagnosisDetailedRoadmapController.php'
             ),
             file_get_contents(
                 $root
-                . '/app/Services/Diagnosis/DiagnosisDetailedRoadmapService.php'
+                .'/app/Services/Diagnosis/'
+                .'DiagnosisDetailedRoadmapService.php'
             ),
         ]);
 
@@ -158,7 +183,10 @@ class DiagnosisDetailedRoadmapWorkflowContractTest extends TestCase
             'Subscription::create',
             'DiagnosisDetailedRoadmapOrder',
         ] as $forbidden) {
-            $this->assertStringNotContainsString($forbidden, $source);
+            $this->assertStringNotContainsString(
+                $forbidden,
+                $source
+            );
         }
     }
 }

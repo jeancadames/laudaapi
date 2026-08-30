@@ -11,119 +11,22 @@ class TransformationImplementationClientExecutionProgressContractTest extends Te
         return dirname(__DIR__, 3);
     }
 
-    private function read(string $path): string
+    public function test_free_plan_does_not_expose_execution_progress(): void
     {
-        return file_get_contents(
-            $this->root().'/'.$path
-        );
-    }
-
-    public function test_client_controller_reuses_existing_execution_relations(): void
-    {
-        $source = $this->read(
-            'app/Http/Controllers/Diagnosis/TransformationImplementationPlanController.php'
-        );
-
-        foreach ([
-            "'phases.execution'",
-            "'phases.capabilities.execution'",
-            '$clientPhases =',
-            '$executionSummary =',
-            "'execution_summary' => \$executionSummary",
-            "'phases' => \$clientPhases",
-            "'pending_count' =>",
-            "'in_progress_count' =>",
-            "'blocked_count' =>",
-            "'completed_count' =>",
-            "'cancelled_count' =>",
-            "'progress_percentage' =>",
-            "'started_at' =>",
-            "'completed_at' =>",
-        ] as $token) {
-            $this->assertStringContainsString(
-                $token,
-                $source
-            );
+        $controller = file_get_contents($this->root().'/app/Http/Controllers/Diagnosis/TransformationImplementationPlanController.php');
+        $page = file_get_contents($this->root().'/resources/js/pages/Diagnosis/ImplementationPlan.vue');
+        foreach (['execution_summary', "'phases.execution'", "'phases.capabilities.execution'", 'progress_percentage'] as $token) {
+            $this->assertStringNotContainsString($token, $controller);
+        }
+        foreach (['executionStatusLabel', 'phase.execution', 'Gestionar ejecución'] as $token) {
+            $this->assertStringNotContainsString($token, $page);
         }
     }
 
-    public function test_client_execution_payload_blocks_private_operational_fields(): void
+    public function test_execution_domain_is_preserved_outside_free_plan(): void
     {
-        $source = $this->read(
-            'app/Http/Controllers/Diagnosis/TransformationImplementationPlanController.php'
-        );
-
-        foreach ([
-            "'blocking_reason' =>",
-            "'internal_notes' =>",
-            "'evidence_snapshot' =>",
-            "'assigned_user_id' =>",
-            "'source_snapshot' =>",
-        ] as $token) {
-            $this->assertStringNotContainsString(
-                $token,
-                $source
-            );
-        }
-    }
-
-    public function test_client_ui_is_read_only_and_shows_progress(): void
-    {
-        $page = $this->read(
-            'resources/js/pages/Diagnosis/ImplementationPlan.vue'
-        );
-
-        foreach ([
-            'Progreso de implementación',
-            'Avance general',
-            'Avance de esta fase',
-            'function executionStatusLabel(',
-            'function progressPercent(',
-            'phase.execution',
-            '.execution',
-            'Esta capacidad está bloqueada.',
-            'Completar una capacidad no significa',
-            'Go-Live',
-        ] as $token) {
-            $this->assertStringContainsString(
-                $token,
-                $page
-            );
-        }
-
-        foreach ([
-            'blocking_reason',
-            'internal_notes',
-            'evidence_snapshot',
-            'assigned_user_id',
-            'source_snapshot',
-        ] as $token) {
-            $this->assertStringNotContainsString(
-                $token,
-                $page
-            );
-        }
-    }
-
-    public function test_existing_execution_domain_remains_source_of_truth(): void
-    {
-        $service = $this->read(
-            'app/Services/Diagnosis/TransformationImplementationExecutionService.php'
-        );
-
-        foreach ([
-            'public function initializePhase(',
-            'public function startCapability(',
-            'public function updateCapabilityProgress(',
-            'public function blockCapability(',
-            'public function completeCapability(',
-            'public function refreshPhase(',
-            "'progress_percentage' => \$progress",
-        ] as $token) {
-            $this->assertStringContainsString(
-                $token,
-                $service
-            );
-        }
+        $this->assertFileExists($this->root().'/app/Services/Diagnosis/TransformationImplementationExecutionService.php');
+        $adminRoutes = file_get_contents($this->root().'/routes/admin.php');
+        $this->assertStringContainsString('implementation_execution.show', $adminRoutes);
     }
 }

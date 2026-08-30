@@ -65,19 +65,6 @@ class TransformationImplementationPlanService
                     ->max('version')
             ) + 1;
 
-            $recommendedModality =
-                $assessment->final_modality
-                ?: $assessment->recommended_modality;
-
-            $recommendedLabel =
-                $assessment->final_modality_label
-                ?: $assessment->recommended_modality_label
-                ?: (
-                    TransformationImplementationPlan::modalities()[
-                        $recommendedModality
-                    ] ?? null
-                );
-
             $plan = TransformationImplementationPlan::create([
                 'diagnosis_assessment_id' =>
                     $assessment->id,
@@ -88,9 +75,9 @@ class TransformationImplementationPlanService
                 'status' =>
                     TransformationImplementationPlan::STATUS_DRAFT,
                 'recommended_modality' =>
-                    $recommendedModality,
+                    null,
                 'recommended_modality_label' =>
-                    $recommendedLabel,
+                    null,
                 'selected_modality' =>
                     null,
                 'selected_modality_label' =>
@@ -112,10 +99,6 @@ class TransformationImplementationPlanService
                         $roadmap->source_snapshot ?? [],
                     'published_roadmap' =>
                         $roadmap->roadmap ?? [],
-                    'recommended_modality' =>
-                        $recommendedModality,
-                    'recommended_modality_label' =>
-                        $recommendedLabel,
                 ],
                 'created_by_user_id' =>
                     $actor->id,
@@ -135,8 +118,8 @@ class TransformationImplementationPlanService
                         $roadmap->version,
                     'plan_version' =>
                         $plan->version,
-                    'recommended_modality' =>
-                        $recommendedModality,
+                    'commercial_context_attached' =>
+                        false,
                     'actor_user_id' =>
                         $actor->id,
                     'subscription_created' =>
@@ -202,19 +185,6 @@ class TransformationImplementationPlanService
                       ->max('version')
               ) + 1;
 
-              $recommendedModality =
-                  $locked->final_modality
-                  ?: $locked->recommended_modality;
-
-              $recommendedLabel =
-                  $locked->final_modality_label
-                  ?: $locked->recommended_modality_label
-                  ?: (
-                      TransformationImplementationPlan::modalities()[
-                          $recommendedModality
-                      ] ?? null
-                  );
-
               $generated = app(
                   DiagnosisDetailedRoadmapGenerator::class
               )->generateFromAssessment($locked);
@@ -229,9 +199,9 @@ class TransformationImplementationPlanService
                   'status' =>
                       TransformationImplementationPlan::STATUS_DRAFT,
                   'recommended_modality' =>
-                      $recommendedModality,
+                      null,
                   'recommended_modality_label' =>
-                      $recommendedLabel,
+                      null,
                   'selected_modality' =>
                       null,
                   'selected_modality_label' =>
@@ -249,10 +219,6 @@ class TransformationImplementationPlanService
                           $generated['source_snapshot'] ?? [],
                       'internal_roadmap' =>
                           $generated['roadmap'] ?? [],
-                      'recommended_modality' =>
-                          $recommendedModality,
-                      'recommended_modality_label' =>
-                          $recommendedLabel,
                   ],
                   'created_by_user_id' =>
                       $actor->id,
@@ -272,8 +238,8 @@ class TransformationImplementationPlanService
                           null,
                       'plan_version' =>
                           $plan->version,
-                      'recommended_modality' =>
-                          $recommendedModality,
+                      'commercial_context_attached' =>
+                          false,
                       'actor_user_id' =>
                           $actor->id,
                       'subscription_created' =>
@@ -312,7 +278,7 @@ public function markPresented(
                 ]);
             }
 
-            $readiness = $this->commercialReadiness($locked);
+            $readiness = $this->consultiveReadiness($locked);
 
             $locked->forceFill([
                 'status' =>
@@ -326,9 +292,8 @@ public function markPresented(
                 $locked,
                 [
                     'actor_user_id' => $actor->id,
-                    'selected_modality' =>
-                        $locked->selected_modality,
-                    'commercial_readiness' => $readiness,
+                    'consultive_readiness' => $readiness,
+                    'commercial_context_attached' => false,
                     'subscription_created' => false,
                 ]
             );
@@ -388,6 +353,27 @@ public function markPresented(
 
             return $locked->fresh();
         });
+    }
+
+    private function consultiveReadiness(
+        TransformationImplementationPlan $plan
+    ): array {
+        $plan->load('phases.capabilities');
+
+        if ($plan->phases->isEmpty()) {
+            throw ValidationException::withMessages([
+                'phases' =>
+                    'El Plan debe contener al menos una fase antes de presentarse.',
+            ]);
+        }
+
+        return [
+            'phase_count' => $plan->phases->count(),
+            'capability_count' => $plan->phases->sum(
+                fn ($phase): int => $phase->capabilities->count()
+            ),
+            'commercial_requirements' => false,
+        ];
     }
 
     private function commercialReadiness(

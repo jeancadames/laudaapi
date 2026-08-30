@@ -5,6 +5,8 @@ import { computed } from 'vue';
 import { Head, Link } from '@inertiajs/vue3';
 import { ArrowLeft, CheckCircle2, FileText } from 'lucide-vue-next';
 
+import DiagnosisDeliverableValidationCard from '@/components/diagnosis/DiagnosisDeliverableValidationCard.vue';
+
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
@@ -14,8 +16,6 @@ import {
     CardHeader,
     CardTitle,
 } from '@/components/ui/card';
-
-import DetailedRoadmapCommercialCard from '@/components/diagnosis/DetailedRoadmapCommercialCard.vue';
 
 const props = defineProps<{
     assessment: {
@@ -31,14 +31,23 @@ const props = defineProps<{
         sections: Record<string, any>;
         published_at: string | null;
     };
-    detailed_roadmap_commercial: Record<string, any> | null;
-    detailed_roadmap_commercial_preview: Record<string, any> | null;
-    detailed_roadmap_request_url: string;
     detailed_roadmap: {
         id: number;
         version: number;
         published_at: string | null;
     } | null;
+    validation: {
+        status: 'presented' | 'reviewed' | 'validated' | 'adjustment_requested';
+        reviewed_at: string | null;
+        validated_at: string | null;
+        adjustment_requested_at: string | null;
+        adjustment_note: string | null;
+    };
+    validation_endpoints: {
+        review: string;
+        validate: string;
+        request_adjustment: string;
+    };
     diagnosis_url: string;
 }>();
 
@@ -337,12 +346,42 @@ function formatDate(value: string | null) {
                 </CardContent>
             </Card>
 
-            <DetailedRoadmapCommercialCard
-                :commercial="detailed_roadmap_commercial"
-                :preview="detailed_roadmap_commercial_preview"
-                :roadmap="detailed_roadmap"
-                :request-url="detailed_roadmap_request_url"
-                :roadmap-url="`/diagnostico/${assessment.id}/roadmap-detallado`"
+            <Card>
+                <CardHeader>
+                    <CardTitle>Roadmap Detallado</CardTitle>
+                    <CardDescription>
+                        Siguiente entregable gratuito del Diagnóstico 360.
+                    </CardDescription>
+                </CardHeader>
+
+                <CardContent class="space-y-4">
+                    <p class="text-sm leading-6 text-muted-foreground">
+                        El Roadmap transforma los hallazgos de este informe en
+                        fases, prioridades, iniciativas, responsables,
+                        dependencias e indicadores.
+                    </p>
+
+                    <Button v-if="detailed_roadmap" as-child>
+                        <Link
+                            :href="`/diagnostico/${assessment.id}/roadmap-detallado`"
+                        >
+                            Ver Roadmap Detallado
+                        </Link>
+                    </Button>
+
+                    <div
+                        v-else
+                        class="rounded-xl border border-dashed p-4 text-sm text-muted-foreground"
+                    >
+                        El Roadmap Detallado será preparado y presentado como
+                        parte del flujo gratuito del Diagnóstico 360.
+                    </div>
+                </CardContent>
+            </Card>
+
+            <DiagnosisDeliverableValidationCard
+                :validation="validation"
+                :endpoints="validation_endpoints"
             />
 
             <div class="flex justify-center">

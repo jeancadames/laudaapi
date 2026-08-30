@@ -6,19 +6,22 @@ use PHPUnit\Framework\TestCase;
 
 class DiagnosisDetailedRoadmapCommercialUiContractTest extends TestCase
 {
-    public function test_routes_exist_in_code(): void
+    private function root(): string
     {
-        $root = dirname(__DIR__, 3);
+        return dirname(__DIR__, 3);
+    }
 
+    public function test_active_purchase_and_billing_routes_are_removed(): void
+    {
         $web = file_get_contents(
-            $root . '/routes/web.php'
+            $this->root().'/routes/web.php'
         );
 
         $admin = file_get_contents(
-            $root . '/routes/admin.php'
+            $this->root().'/routes/admin.php'
         );
 
-        $this->assertStringContainsString(
+        $this->assertStringNotContainsString(
             'detailed_roadmap.request',
             $web
         );
@@ -27,150 +30,109 @@ class DiagnosisDetailedRoadmapCommercialUiContractTest extends TestCase
             'detailed_roadmap.prepare_invoice',
             'detailed_roadmap.record_payment',
         ] as $token) {
-            $this->assertStringContainsString(
+            $this->assertStringNotContainsString(
                 $token,
                 $admin
             );
         }
     }
 
-    public function test_client_requires_paid_access(): void
+    public function test_client_reads_published_roadmap_without_paid_access(): void
     {
-        $root = dirname(__DIR__, 3);
-
         $source = file_get_contents(
-            $root
-            . '/app/Http/Controllers/Diagnosis/DiagnosisDetailedRoadmapController.php'
+            $this->root()
+            .'/app/Http/Controllers/Diagnosis/'
+            .'DiagnosisDetailedRoadmapController.php'
+        );
+
+        $this->assertStringContainsString(
+            'DiagnosisDetailedRoadmap::STATUS_PUBLISHED',
+            $source
         );
 
         foreach ([
             'hasPaidAccess(',
-            'El Roadmap Detallado requiere pago confirmado.',
-            'DiagnosisDetailedRoadmap::STATUS_PUBLISHED',
+            'requiere pago confirmado',
+            'DiagnosisDetailedRoadmapCommercialService',
         ] as $token) {
-            $this->assertStringContainsString(
+            $this->assertStringNotContainsString(
                 $token,
                 $source
             );
         }
     }
 
-    public function test_admin_publish_requires_paid_access(): void
+    public function test_admin_publication_has_no_paid_access_gate(): void
     {
-        $root = dirname(__DIR__, 3);
-
         $source = file_get_contents(
-            $root
-            . '/app/Http/Controllers/Admin/AdminDiagnosisDetailedRoadmapController.php'
+            $this->root()
+            .'/app/Http/Controllers/Admin/'
+            .'AdminDiagnosisDetailedRoadmapController.php'
+        );
+
+        $this->assertStringContainsString(
+            '$service->publish(',
+            $source
         );
 
         foreach ([
             'DiagnosisDetailedRoadmapCommercialService',
             'hasPaidAccess(',
             'solo puede publicarse después de confirmar el pago',
-            '$service->publish(',
         ] as $token) {
-            $this->assertStringContainsString(
-                $token,
-                $source
-            );
-        }
-    }
-
-    public function test_client_ui_has_commercial_states(): void
-    {
-        $root = dirname(__DIR__, 3);
-
-        $source = file_get_contents(
-            $root
-            . '/resources/js/components/diagnosis/DetailedRoadmapCommercialCard.vue'
-        );
-
-        foreach ([
-            'Solicitar Roadmap Detallado',
-            'Crédito del Informe Ampliado aplicable',
-            'Solicitud recibida',
-            'Facturación preparada',
-            'Pago confirmado · Roadmap en preparación',
-            'Roadmap disponible',
-            'Ver Roadmap Detallado',
-        ] as $token) {
-            $this->assertStringContainsString(
-                $token,
-                $source
-            );
-        }
-    }
-
-    public function test_admin_ui_has_invoice_payment_and_publish_gate(): void
-    {
-        $root = dirname(__DIR__, 3);
-
-        $source = file_get_contents(
-            $root
-            . '/resources/js/components/diagnosis/DetailedRoadmapAdminCommercialCard.vue'
-        );
-
-        /*
-         * Prettier puede envolver texto visible del template
-         * en varias líneas. Normalizamos whitespace para que
-         * el contrato valide contenido, no formato físico.
-         */
-        $normalizedSource = preg_replace(
-            '/\s+/u',
-            ' ',
-            $source
-        ) ?? $source;
-
-        foreach ([
-            'Preparar factura',
-            'Confirmar pago completo',
-            'Acceso comercial habilitado',
-            'Publicación bloqueada hasta pago',
-            'Publicar requiere pago confirmado.',
-        ] as $token) {
-            $this->assertStringContainsString(
-                $token,
-                $normalizedSource
-            );
-        }
-
-        $page = file_get_contents(
-            $root
-            . '/resources/js/pages/Admin/DiagnosisRequests/DetailedRoadmap.vue'
-        );
-
-        $this->assertStringContainsString(
-            ':disabled="commercial?.paid_access !== true"',
-            $page
-        );
-    }
-
-    public function test_controllers_do_not_create_subscription(): void
-    {
-        $root = dirname(__DIR__, 3);
-
-        $source = implode(
-            "\n",
-            [
-                file_get_contents(
-                    $root
-                    . '/app/Http/Controllers/Diagnosis/DiagnosisDetailedRoadmapCommercialController.php'
-                ),
-                file_get_contents(
-                    $root
-                    . '/app/Http/Controllers/Admin/AdminDiagnosisDetailedRoadmapCommercialController.php'
-                ),
-            ]
-        );
-
-        foreach ([
-            'Subscription::create',
-            'ActivationRequest::',
-        ] as $forbidden) {
             $this->assertStringNotContainsString(
-                $forbidden,
+                $token,
                 $source
+            );
+        }
+    }
+
+    public function test_active_admin_ui_has_no_commercial_card_or_payment_gate(): void
+    {
+        $source = file_get_contents(
+            $this->root()
+            .'/resources/js/pages/Admin/DiagnosisRequests/'
+            .'DetailedRoadmap.vue'
+        );
+
+        foreach ([
+            'DetailedRoadmapAdminCommercialCard',
+            'commercial?.paid_access',
+            'prepare_invoice',
+            'record_payment',
+            'Factura Roadmap',
+            'Pago Roadmap',
+            'estado comercial',
+        ] as $token) {
+            $this->assertStringNotContainsString(
+                $token,
+                $source
+            );
+        }
+
+        foreach ([
+            'Estado del Roadmap',
+            'Publicar para cliente',
+            'publicationReady.value',
+        ] as $token) {
+            $this->assertStringContainsString(
+                $token,
+                $source
+            );
+        }
+    }
+
+    public function test_historical_commercial_components_and_controllers_are_preserved(): void
+    {
+        foreach ([
+            '/resources/js/components/diagnosis/DetailedRoadmapCommercialCard.vue',
+            '/resources/js/components/diagnosis/DetailedRoadmapAdminCommercialCard.vue',
+            '/app/Http/Controllers/Diagnosis/DiagnosisDetailedRoadmapCommercialController.php',
+            '/app/Http/Controllers/Admin/AdminDiagnosisDetailedRoadmapCommercialController.php',
+            '/app/Services/Diagnosis/DiagnosisDetailedRoadmapCommercialService.php',
+        ] as $path) {
+            $this->assertFileExists(
+                $this->root().$path
             );
         }
     }

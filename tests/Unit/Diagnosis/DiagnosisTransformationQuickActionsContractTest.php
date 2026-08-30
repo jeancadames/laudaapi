@@ -6,14 +6,23 @@ use PHPUnit\Framework\TestCase;
 
 class DiagnosisTransformationQuickActionsContractTest extends TestCase
 {
+    private function root(): string
+    {
+        return dirname(__DIR__, 3);
+    }
+
+    private function source(): string
+    {
+        return file_get_contents(
+            $this->root()
+            .'/resources/js/components/diagnosis/'
+            .'TransformationQuickActions.vue'
+        );
+    }
+
     public function test_quick_actions_component_has_client_and_admin_modes(): void
     {
-        $root = dirname(__DIR__, 3);
-
-        $source = file_get_contents(
-            $root
-            . '/resources/js/components/diagnosis/TransformationQuickActions.vue'
-        );
+        $source = $this->source();
 
         foreach ([
             "mode: 'client' | 'admin'",
@@ -24,57 +33,55 @@ class DiagnosisTransformationQuickActionsContractTest extends TestCase
             'Gestionar Informe Ampliado',
             'Gestionar Roadmap Detallado',
         ] as $token) {
-            $this->assertStringContainsString($token, $source);
+            $this->assertStringContainsString(
+                $token,
+                $source
+            );
         }
     }
 
     public function test_client_urls_are_derived_from_assessment(): void
     {
-        $root = dirname(__DIR__, 3);
-
-        $source = file_get_contents(
-            $root
-            . '/resources/js/components/diagnosis/TransformationQuickActions.vue'
-        );
+        $source = $this->source();
 
         foreach ([
             '/diagnostico/${props.assessmentId}',
             '/diagnostico/${props.assessmentId}/informe-ampliado',
             '/diagnostico/${props.assessmentId}/roadmap-detallado',
         ] as $token) {
-            $this->assertStringContainsString($token, $source);
+            $this->assertStringContainsString(
+                $token,
+                $source
+            );
         }
     }
 
     public function test_admin_urls_are_derived_from_contact(): void
     {
-        $root = dirname(__DIR__, 3);
-
-        $source = file_get_contents(
-            $root
-            . '/resources/js/components/diagnosis/TransformationQuickActions.vue'
-        );
+        $source = $this->source();
 
         foreach ([
             '/admin/diagnosis-requests/${props.contactId}',
             '/admin/diagnosis-requests/${props.contactId}/expanded-report',
             '/admin/diagnosis-requests/${props.contactId}/detailed-roadmap',
         ] as $token) {
-            $this->assertStringContainsString($token, $source);
+            $this->assertStringContainsString(
+                $token,
+                $source
+            );
         }
     }
 
     public function test_quick_actions_are_integrated_in_main_views(): void
     {
-        $root = dirname(__DIR__, 3);
-
         $client = file_get_contents(
-            $root . '/resources/js/pages/Diagnosis/Show.vue'
+            $this->root()
+            .'/resources/js/pages/Diagnosis/Show.vue'
         );
 
         $admin = file_get_contents(
-            $root
-            . '/resources/js/pages/Admin/DiagnosisRequests/Show.vue'
+            $this->root()
+            .'/resources/js/pages/Admin/DiagnosisRequests/Show.vue'
         );
 
         foreach ([
@@ -83,7 +90,10 @@ class DiagnosisTransformationQuickActionsContractTest extends TestCase
             ':assessment-id="assessment.id"',
             ':progress="transformation_progress"',
         ] as $token) {
-            $this->assertStringContainsString($token, $client);
+            $this->assertStringContainsString(
+                $token,
+                $client
+            );
         }
 
         foreach ([
@@ -92,18 +102,16 @@ class DiagnosisTransformationQuickActionsContractTest extends TestCase
             ':contact-id="contact.id"',
             ':progress="transformation_progress"',
         ] as $token) {
-            $this->assertStringContainsString($token, $admin);
+            $this->assertStringContainsString(
+                $token,
+                $admin
+            );
         }
     }
 
     public function test_client_does_not_unlock_unpublished_deliverables(): void
     {
-        $root = dirname(__DIR__, 3);
-
-        $source = file_get_contents(
-            $root
-            . '/resources/js/components/diagnosis/TransformationQuickActions.vue'
-        );
+        $source = $this->source();
 
         foreach ([
             'expandedReportAvailable',
@@ -111,16 +119,16 @@ class DiagnosisTransformationQuickActionsContractTest extends TestCase
             'Informe Ampliado no disponible',
             'Roadmap Detallado no disponible',
         ] as $token) {
-            $this->assertStringContainsString($token, $source);
+            $this->assertStringContainsString(
+                $token,
+                $source
+            );
         }
     }
 
     public function test_client_exposes_implementation_plan_continuation(): void
     {
-        $source = file_get_contents(
-            dirname(__DIR__, 3)
-            .'/resources/js/components/diagnosis/TransformationQuickActions.vue'
-        );
+        $source = $this->source();
 
         foreach ([
             'implementationPlanUrl?: string | null',
@@ -129,8 +137,37 @@ class DiagnosisTransformationQuickActionsContractTest extends TestCase
             'Continuar con mi transformación',
             'Plan de Implementación en preparación',
         ] as $token) {
-            $this->assertStringContainsString($token, $source);
+            $this->assertStringContainsString(
+                $token,
+                $source
+            );
         }
     }
 
+    public function test_quick_actions_have_no_active_commercial_flow(): void
+    {
+        $source = $this->source();
+
+        foreach ([
+            'CommercialState',
+            'AdminCommercialEndpoints',
+            'expandedReportCommercial',
+            'roadmapCommercial',
+            'requestExpandedReportUrl',
+            'requestRoadmapUrl',
+            'commercialEndpoints',
+            'paid_access',
+            'Preparar factura',
+            'Confirmar pago',
+            'Factura preparada',
+            'Pago confirmado',
+            'useForm(',
+            'router.post(',
+        ] as $forbidden) {
+            $this->assertStringNotContainsString(
+                $forbidden,
+                $source
+            );
+        }
+    }
 }
