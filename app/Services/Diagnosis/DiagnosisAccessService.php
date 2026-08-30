@@ -3,6 +3,7 @@
 namespace App\Services\Diagnosis;
 
 use App\Mail\DiagnosisInvitationMail;
+use App\Models\Company;
 use App\Models\ContactRequest;
 use App\Models\DiagnosisAccessRequest;
 use App\Models\DiagnosisAssessment;
@@ -85,7 +86,46 @@ class DiagnosisAccessService
                 data_get($workflow->meta, 'source')
                 === InitialDiagnosisCommercialService::SOURCE;
 
+            $appHubCompany = null;
+
             if ($isAppHubNative) {
+                $companyId = (int) data_get(
+                    $workflow->meta,
+                    'company_id',
+                    0
+                );
+
+                $subscriberId = (int) data_get(
+                    $workflow->meta,
+                    'subscriber_id',
+                    0
+                );
+
+                if ($companyId <= 0 || $subscriberId <= 0) {
+                    throw ValidationException::withMessages([
+                        'company' => [
+                            'La solicitud App Hub no contiene un contexto de empresa válido.',
+                        ],
+                    ]);
+                }
+
+                $appHubCompany = Company::query()
+                    ->whereKey($companyId)
+                    ->where(
+                        'subscriber_id',
+                        $subscriberId
+                    )
+                    ->where('active', true)
+                    ->first();
+
+                if (! $appHubCompany) {
+                    throw ValidationException::withMessages([
+                        'company' => [
+                            'La empresa de la solicitud App Hub no pertenece al tenant indicado o no está activa.',
+                        ],
+                    ]);
+                }
+
                 $invoiceId = (int) data_get(
                     $workflow->meta,
                     'initial_diagnosis.invoice_id',
@@ -93,7 +133,13 @@ class DiagnosisAccessService
                 );
 
                 $invoice = $invoiceId > 0
-                    ? Invoice::query()->find($invoiceId)
+                    ? Invoice::query()
+                        ->whereKey($invoiceId)
+                        ->where(
+                            'company_id',
+                            $appHubCompany->id
+                        )
+                        ->first()
                     : null;
 
                 if (
@@ -142,8 +188,16 @@ class DiagnosisAccessService
             if (!$assessment) {
                 $assessment = DiagnosisAssessment::create([
                     'user_id' => $user->id,
-                    'organization_id' => null,
-                    'organization_name' => trim((string) ($contact->company ?: 'Empresa por definir')),
+                    'organization_id' =>
+                        $appHubCompany?->id,
+                    'organization_name' =>
+                        $appHubCompany?->name
+                        ?: trim(
+                            (string) (
+                                $contact->company
+                                ?: 'Empresa por definir'
+                            )
+                        ),
                     'methodology_version' => '1.0',
                     'status' => 'draft',
                     'current_step' => 1,
@@ -171,6 +225,7 @@ class DiagnosisAccessService
                 'contact_request_id' => $contact->id,
                 'user_id' => $user->id,
                 'diagnosis_assessment_id' => $assessment->id,
+                'organization_id' => $assessment->organization_id,
                 'reviewed_by_user_id' => $admin->id,
             ]);
 
