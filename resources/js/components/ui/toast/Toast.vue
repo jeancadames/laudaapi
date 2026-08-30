@@ -6,7 +6,7 @@ import { ToastRoot, useForwardPropsEmits } from "reka-ui"
 import { cn } from "@/lib/utils"
 import { toastVariants } from "."
 
-export type ToastVariant = 'default' | 'destructive' | 'success' | 'info'
+export type ToastVariant = 'default' | 'destructive' | 'success' | 'warning' | 'info'
 
 const props = defineProps<ToastProps>()
 

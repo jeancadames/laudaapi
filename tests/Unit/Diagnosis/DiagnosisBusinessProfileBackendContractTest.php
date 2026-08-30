@@ -9,7 +9,7 @@ class DiagnosisBusinessProfileBackendContractTest extends TestCase
     public function test_update_request_accepts_profile_before_answers(): void
     {
         $source = file_get_contents(
-            base_path(
+            dirname(__DIR__, 3) . '/' . (
                 'app/Http/Requests/Diagnosis/UpdateDiagnosisAssessmentRequest.php'
             )
         );
@@ -28,7 +28,7 @@ class DiagnosisBusinessProfileBackendContractTest extends TestCase
     public function test_submit_request_keeps_51_answer_requirement(): void
     {
         $source = file_get_contents(
-            base_path(
+            dirname(__DIR__, 3) . '/' . (
                 'app/Http/Requests/Diagnosis/SubmitDiagnosisAssessmentRequest.php'
             )
         );
@@ -47,7 +47,7 @@ class DiagnosisBusinessProfileBackendContractTest extends TestCase
     public function test_controller_persists_profile_and_keeps_scoring(): void
     {
         $source = file_get_contents(
-            base_path(
+            dirname(__DIR__, 3) . '/' . (
                 'app/Http/Controllers/Diagnosis/DigitalDiagnosisController.php'
             )
         );
@@ -71,7 +71,7 @@ class DiagnosisBusinessProfileBackendContractTest extends TestCase
     public function test_admin_receives_profile_catalog(): void
     {
         $source = file_get_contents(
-            base_path(
+            dirname(__DIR__, 3) . '/' . (
                 'app/Http/Controllers/Admin/AdminDiagnosisAccessRequestController.php'
             )
         );

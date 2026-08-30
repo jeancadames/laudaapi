@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import { Head, Link, useForm, usePage } from '@inertiajs/vue3'
-import { computed, watch } from 'vue'
+import { Head, Link, useForm } from '@inertiajs/vue3'
+import { computed } from 'vue'
 
 // ✅ ERP layout (sidebar + header/breadcrumbs)
 import ErpLayout from '@/layouts/ErpLayout.vue'
@@ -8,11 +8,8 @@ import ErpLayout from '@/layouts/ErpLayout.vue'
 import SectionCard from '@/components/SectionCard.vue'
 import { Button } from '@/components/ui/button'
 import type { BreadcrumbItem } from '@/types'
-import { useToast } from '@/components/ui/toast/use-toast'
 import Textarea from '@/components/ui/textarea/Textarea.vue'
 
-const { toast } = useToast()
-const page = usePage()
 
 const props = defineProps<{
     company: { id: number; name: string; currency: string; timezone: string }
@@ -40,22 +37,6 @@ const breadcrumbs: BreadcrumbItem[] = [
     { title: 'Soporte', href: '/erp/support' },
     { title: props.ticket.number, href: `/erp/support/tickets/${props.ticket.id}` },
 ]
-
-const flashError = computed(() => (page.props.flash as any)?.error ?? null)
-const flashSuccess = computed(() => (page.props.flash as any)?.success ?? null)
-
-let lastFlashKey = ''
-watch(
-    () => [ flashError.value, flashSuccess.value ],
-    ([ err, ok ]) => {
-        const key = `${err ?? ''}||${ok ?? ''}`
-        if (!key.trim() || key === lastFlashKey) return
-        lastFlashKey = key
-        if (err) toast({ title: 'Error', description: err, variant: 'destructive' })
-        else if (ok) toast({ title: 'Listo', description: ok })
-    },
-    { immediate: true },
-)
 
 const form = useForm({ body: '' })
 const isSaving = computed(() => form.processing)

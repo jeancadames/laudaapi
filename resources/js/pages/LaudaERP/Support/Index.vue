@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import { Head, router, useForm, usePage } from '@inertiajs/vue3'
-import { computed, ref, watch } from 'vue'
+import { Head, router, useForm } from '@inertiajs/vue3'
+import { computed, ref } from 'vue'
 
 // ✅ ERP layout (sidebar + header/breadcrumbs)
 import ErpLayout from '@/layouts/ErpLayout.vue'
@@ -19,7 +19,6 @@ import SelectItem from '@/components/ui/select/SelectItem.vue'
 import Textarea from '@/components/ui/textarea/Textarea.vue'
 
 const { toast } = useToast()
-const page = usePage()
 
 /**
  * Tipos
@@ -63,26 +62,6 @@ const breadcrumbs: BreadcrumbItem[] = [
     { title: 'LaudaERP', href: '/erp' },
     { title: 'Soporte', href: '/erp/support' },
 ]
-
-/**
- * Flash toasts
- */
-const flashError = computed(() => (page.props.flash as any)?.error ?? null)
-const flashSuccess = computed(() => (page.props.flash as any)?.success ?? null)
-
-let lastFlashKey = ''
-watch(
-    () => [ flashError.value, flashSuccess.value ],
-    ([ err, ok ]) => {
-        const key = `${err ?? ''}||${ok ?? ''}`
-        if (!key.trim() || key === lastFlashKey) return
-        lastFlashKey = key
-
-        if (err) toast({ title: 'Error', description: err, variant: 'destructive' })
-        else if (ok) toast({ title: 'Listo', description: ok })
-    },
-    { immediate: true },
-)
 
 /**
  * Helpers UI

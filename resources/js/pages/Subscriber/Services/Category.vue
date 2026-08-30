@@ -1,10 +1,10 @@
 <script setup lang="ts">
-import { Head, router, usePage } from '@inertiajs/vue3'
+import { Head, router } from '@inertiajs/vue3'
 import AppLayout from '@/layouts/AppLayout.vue'
 import SectionCard from '@/components/SectionCard.vue'
 import { Button } from '@/components/ui/button'
 import type { BreadcrumbItem } from '@/types'
-import { computed, ref, watch } from 'vue'
+import { computed, ref } from 'vue'
 import { subscriber } from '@/routes'
 import servicesRoutes from '@/routes/subscriber/services'
 import { useToast } from '@/components/ui/toast/use-toast'
@@ -12,7 +12,6 @@ import { Badge } from '@/components/ui/badge'
 import { BadgeCheckIcon } from 'lucide-vue-next'
 
 const { toast } = useToast()
-const page = usePage()
 
 const DEFAULT_CATEGORY = 'api-facturacion-electronica'
 
@@ -59,23 +58,6 @@ const breadcrumbs: BreadcrumbItem[] = [
 ]
 
 const canSelect = computed(() => !!props.can_select_services)
-
-const flashError = computed(() => (page.props.flash as any)?.error ?? null)
-const flashSuccess = computed(() => (page.props.flash as any)?.success ?? null)
-
-let lastFlashKey = ''
-watch(
-    () => [ flashError.value, flashSuccess.value ],
-    ([ err, ok ]) => {
-        const key = `${err ?? ''}||${ok ?? ''}`
-        if (!key.trim() || key === lastFlashKey) return
-        lastFlashKey = key
-
-        if (err) toast({ title: 'Acción no permitida', description: err, variant: 'destructive' })
-        else if (ok) toast({ title: 'Listo', description: ok })
-    },
-    { immediate: true }
-)
 
 function toggleService(serviceId: number) {
     if (!canSelect.value) {

@@ -9,7 +9,7 @@ class DiagnosisInvitationAccessContractTest extends TestCase
     public function test_signature_is_checked_before_login(): void
     {
         $source = file_get_contents(
-            base_path(
+            dirname(__DIR__, 3) . '/' . (
                 'app/Http/Controllers/Diagnosis/DiagnosisInvitationController.php'
             )
         );
@@ -43,7 +43,7 @@ class DiagnosisInvitationAccessContractTest extends TestCase
     public function test_email_documents_policy(): void
     {
         $source = file_get_contents(
-            base_path(
+            dirname(__DIR__, 3) . '/' . (
                 'resources/views/emails/diagnosis-invitation.blade.php'
             )
         );
@@ -62,7 +62,7 @@ class DiagnosisInvitationAccessContractTest extends TestCase
     public function test_expired_page_explains_activation_only_expiry(): void
     {
         $source = file_get_contents(
-            base_path(
+            dirname(__DIR__, 3) . '/' . (
                 'resources/js/pages/Diagnosis/InvitationExpired.vue'
             )
         );
@@ -80,7 +80,7 @@ class DiagnosisInvitationAccessContractTest extends TestCase
     public function test_admin_shows_invitation_state(): void
     {
         $source = file_get_contents(
-            base_path(
+            dirname(__DIR__, 3) . '/' . (
                 'resources/js/pages/Admin/DiagnosisRequests/Show.vue'
             )
         );

@@ -1,13 +1,12 @@
 <script setup lang="ts">
-import { Head, router, useForm, usePage } from '@inertiajs/vue3'
+import { Head, router, useForm } from '@inertiajs/vue3'
 import AppLayout from '@/layouts/AppLayout.vue'
 import SectionCard from '@/components/SectionCard.vue'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import type { BreadcrumbItem } from '@/types'
-import { computed, ref, watch } from 'vue'
+import { computed, ref } from 'vue'
 import { subscriber } from '@/routes'
-import { useToast } from '@/components/ui/toast/use-toast'
 import Select from '@/components/ui/select/Select.vue'
 import SelectTrigger from '@/components/ui/select/SelectTrigger.vue'
 import SelectValue from '@/components/ui/select/SelectValue.vue'
@@ -16,8 +15,6 @@ import SelectGroup from '@/components/ui/select/SelectGroup.vue'
 import SelectItem from '@/components/ui/select/SelectItem.vue'
 import Textarea from '@/components/ui/textarea/Textarea.vue'
 
-const { toast } = useToast()
-const page = usePage()
 
 type CompanyPayload = {
     id: number
@@ -71,23 +68,6 @@ const breadcrumbs: BreadcrumbItem[] = [
 // -------------------------
 // Flash toasts
 // -------------------------
-const flashError = computed(() => (page.props.flash as any)?.error ?? null)
-const flashSuccess = computed(() => (page.props.flash as any)?.success ?? null)
-
-let lastFlashKey = ''
-watch(
-    () => [ flashError.value, flashSuccess.value ],
-    ([ err, ok ]) => {
-        const key = `${err ?? ''}||${ok ?? ''}`
-        if (!key.trim() || key === lastFlashKey) return
-        lastFlashKey = key
-
-        if (err) toast({ title: 'Error', description: err, variant: 'destructive' })
-        else if (ok) toast({ title: 'Listo', description: ok })
-    },
-    { immediate: true }
-)
-
 // -------------------------
 // UI state + filters
 // -------------------------

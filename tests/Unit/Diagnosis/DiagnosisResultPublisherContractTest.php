@@ -9,11 +9,11 @@ class DiagnosisResultPublisherContractTest extends TestCase
     public function test_diagnosis_publication_is_not_gated_by_commercial_modality(): void
     {
         $publisher = file_get_contents(
-            base_path('app/Services/Diagnosis/DiagnosisResultPublisher.php')
+            dirname(__DIR__, 3) . '/' . ('app/Services/Diagnosis/DiagnosisResultPublisher.php')
         );
 
         $request = file_get_contents(
-            base_path('app/Http/Requests/Diagnosis/PublishDiagnosisResultRequest.php')
+            dirname(__DIR__, 3) . '/' . ('app/Http/Requests/Diagnosis/PublishDiagnosisResultRequest.php')
         );
 
         $this->assertStringNotContainsString(

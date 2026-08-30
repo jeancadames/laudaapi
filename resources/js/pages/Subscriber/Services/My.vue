@@ -1,11 +1,11 @@
 <script setup lang="ts">
-import { Head, router, usePage } from '@inertiajs/vue3'
+import { Head, router } from '@inertiajs/vue3'
 import AppLayout from '@/layouts/AppLayout.vue'
 import SectionCard from '@/components/SectionCard.vue'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import type { BreadcrumbItem } from '@/types'
-import { computed, ref, watch } from 'vue'
+import { computed, ref } from 'vue'
 import { subscriber } from '@/routes'
 import { useToast } from '@/components/ui/toast/use-toast'
 import { useDateFormatter } from '@/composables/useDateFormatter'
@@ -13,7 +13,6 @@ import { useDateFormatter } from '@/composables/useDateFormatter'
 const { formatDate, formatDateTime } = useDateFormatter()
 
 const { toast } = useToast()
-const page = usePage()
 
 type ActiveService = {
     subscription_item_id?: number
@@ -122,23 +121,6 @@ const activeCount = computed(() => props.active_services?.length ?? 0)
 // -------------------------
 // Flash toasts
 // -------------------------
-const flashError = computed(() => (page.props.flash as any)?.error ?? null)
-const flashSuccess = computed(() => (page.props.flash as any)?.success ?? null)
-
-let lastFlashKey = ''
-watch(
-    () => [ flashError.value, flashSuccess.value ],
-    ([ err, ok ]) => {
-        const key = `${err ?? ''}||${ok ?? ''}`
-        if (!key.trim() || key === lastFlashKey) return
-        lastFlashKey = key
-
-        if (err) toast({ title: 'Acción no permitida', description: err, variant: 'destructive' })
-        else if (ok) toast({ title: 'Listo', description: ok })
-    },
-    { immediate: true }
-)
-
 // -------------------------
 // Rules: activation (solo pending)
 // -------------------------

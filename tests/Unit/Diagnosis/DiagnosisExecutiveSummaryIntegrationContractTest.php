@@ -9,7 +9,7 @@ class DiagnosisExecutiveSummaryIntegrationContractTest extends TestCase
     public function test_submit_generates_editable_review_draft(): void
     {
         $source = file_get_contents(
-            base_path(
+            dirname(__DIR__, 3) . '/' . (
                 'app/Http/Controllers/Diagnosis/DigitalDiagnosisController.php'
             )
         );
@@ -48,7 +48,7 @@ class DiagnosisExecutiveSummaryIntegrationContractTest extends TestCase
     public function test_r1_a_does_not_publish_result(): void
     {
         $source = file_get_contents(
-            base_path(
+            dirname(__DIR__, 3) . '/' . (
                 'app/Http/Controllers/Diagnosis/DigitalDiagnosisController.php'
             )
         );

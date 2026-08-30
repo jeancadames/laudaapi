@@ -9,7 +9,7 @@ class DiagnosisBusinessProfileUiContractTest extends TestCase
     public function test_client_blocks_wizard_until_profile_is_saved(): void
     {
         $source = file_get_contents(
-            base_path(
+            dirname(__DIR__, 3) . '/' . (
                 'resources/js/pages/Diagnosis/Show.vue'
             )
         );
@@ -33,7 +33,7 @@ class DiagnosisBusinessProfileUiContractTest extends TestCase
     public function test_profile_travels_in_save_and_submit(): void
     {
         $source = file_get_contents(
-            base_path(
+            dirname(__DIR__, 3) . '/' . (
                 'resources/js/pages/Diagnosis/Show.vue'
             )
         );
@@ -50,13 +50,13 @@ class DiagnosisBusinessProfileUiContractTest extends TestCase
     public function test_profile_is_explicitly_non_scoring_context(): void
     {
         $client = file_get_contents(
-            base_path(
+            dirname(__DIR__, 3) . '/' . (
                 'resources/js/pages/Diagnosis/Show.vue'
             )
         );
 
         $admin = file_get_contents(
-            base_path(
+            dirname(__DIR__, 3) . '/' . (
                 'resources/js/pages/Admin/DiagnosisRequests/Show.vue'
             )
         );
@@ -75,7 +75,7 @@ class DiagnosisBusinessProfileUiContractTest extends TestCase
     public function test_admin_can_review_logistics_context(): void
     {
         $source = file_get_contents(
-            base_path(
+            dirname(__DIR__, 3) . '/' . (
                 'resources/js/pages/Admin/DiagnosisRequests/Show.vue'
             )
         );

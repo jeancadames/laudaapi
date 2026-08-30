@@ -12,7 +12,7 @@ class DiagnosisFreeStageModalityDecouplingContractTest extends TestCase
             'app/Http/Requests/Diagnosis/PublishDiagnosisResultRequest.php',
             'app/Http/Requests/Diagnosis/SaveDiagnosisReviewRequest.php',
         ] as $file) {
-            $source = file_get_contents(base_path($file));
+            $source = file_get_contents(dirname(__DIR__, 3) . '/' . ($file));
 
             $this->assertStringNotContainsString(
                 "'final_modality' =>",
@@ -31,7 +31,7 @@ class DiagnosisFreeStageModalityDecouplingContractTest extends TestCase
     public function test_diagnosis_publication_preserves_historical_modality_without_using_it(): void
     {
         $publisher = file_get_contents(
-            base_path('app/Services/Diagnosis/DiagnosisResultPublisher.php')
+            dirname(__DIR__, 3) . '/' . ('app/Services/Diagnosis/DiagnosisResultPublisher.php')
         );
 
         foreach ([
@@ -58,11 +58,11 @@ class DiagnosisFreeStageModalityDecouplingContractTest extends TestCase
     public function test_free_deliverable_generators_are_modality_neutral(): void
     {
         $report = file_get_contents(
-            base_path('app/Services/Diagnosis/DiagnosisExpandedReportGenerator.php')
+            dirname(__DIR__, 3) . '/' . ('app/Services/Diagnosis/DiagnosisExpandedReportGenerator.php')
         );
 
         $roadmap = file_get_contents(
-            base_path('app/Services/Diagnosis/DiagnosisDetailedRoadmapGenerator.php')
+            dirname(__DIR__, 3) . '/' . ('app/Services/Diagnosis/DiagnosisDetailedRoadmapGenerator.php')
         );
 
         $this->assertStringContainsString(
@@ -102,7 +102,7 @@ class DiagnosisFreeStageModalityDecouplingContractTest extends TestCase
         ];
 
         foreach ($files as $file) {
-            $source = file_get_contents(base_path($file));
+            $source = file_get_contents(dirname(__DIR__, 3) . '/' . ($file));
 
             foreach ([
                 'Modalidad final',
@@ -124,11 +124,11 @@ class DiagnosisFreeStageModalityDecouplingContractTest extends TestCase
     public function test_admin_diagnosis_dashboard_does_not_surface_modality(): void
     {
         $controller = file_get_contents(
-            base_path('app/Http/Controllers/Admin/AdminDashboardController.php')
+            dirname(__DIR__, 3) . '/' . ('app/Http/Controllers/Admin/AdminDashboardController.php')
         );
 
         $page = file_get_contents(
-            base_path('resources/js/pages/Admin/Dashboard.vue')
+            dirname(__DIR__, 3) . '/' . ('resources/js/pages/Admin/Dashboard.vue')
         );
 
         foreach ([
@@ -152,7 +152,7 @@ class DiagnosisFreeStageModalityDecouplingContractTest extends TestCase
     public function test_historical_fields_are_not_deleted_from_model(): void
     {
         $model = file_get_contents(
-            base_path('app/Models/DiagnosisAssessment.php')
+            dirname(__DIR__, 3) . '/' . ('app/Models/DiagnosisAssessment.php')
         );
 
         $this->assertStringContainsString(
