@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import AppLayout from '@/layouts/AppLayout.vue';
+import type { BreadcrumbItem } from '@/types';
 import TransformationProgressChecklist from '@/components/diagnosis/TransformationProgressChecklist.vue';
 import TransformationQuickActions from '@/components/diagnosis/TransformationQuickActions.vue';
 import ExpandedReportCommercialCard from '@/components/diagnosis/ExpandedReportCommercialCard.vue';
@@ -107,6 +109,24 @@ const props = defineProps<{
     businessProfileOptions: BusinessProfileOptions;
     transformation_progress: Record<string, any> | null;
 }>();
+
+const breadcrumbs = computed<BreadcrumbItem[]>(() => [
+    {
+        title: 'Inicio',
+        href: '/app',
+    },
+    {
+        title: 'Diagnóstico 360',
+        href: props.endpoints.back,
+    },
+    {
+        title:
+            props.assessment.status === 'reviewed'
+                ? 'Resultado'
+                : 'Evaluación',
+        href: `/diagnostico/${props.assessment.id}`,
+    },
+]);
 
 const saveStatus = ref<'idle' | 'saving' | 'saved' | 'error'>('idle');
 const submitError = ref<string | null>(null);
@@ -325,7 +345,8 @@ function submitDiagnosis(payload: {
 <template>
     <Head title="Diagnóstico LAUDA 360" />
 
-    <div class="min-h-screen bg-muted/20">
+    <AppLayout :breadcrumbs="breadcrumbs">
+        <div class="min-h-full bg-muted/20">
         <header class="border-b bg-background">
             <div
                 class="mx-auto flex w-full max-w-7xl flex-col gap-4 px-4 py-5 sm:px-6 lg:flex-row lg:items-center lg:justify-between lg:px-8"
@@ -943,4 +964,5 @@ function submitDiagnosis(payload: {
             </template>
         </main>
     </div>
+    </AppLayout>
 </template>

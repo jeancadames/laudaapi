@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import AppLayout from '@/layouts/AppLayout.vue';
+import type { BreadcrumbItem } from '@/types';
 import { computed } from 'vue';
 import { Head, Link } from '@inertiajs/vue3';
 import { ArrowLeft, CheckCircle2 } from 'lucide-vue-next';
@@ -59,6 +61,25 @@ const props = defineProps<{
     diagnosis_url: string;
 }>();
 
+const breadcrumbs: BreadcrumbItem[] = [
+    {
+        title: 'Inicio',
+        href: '/app',
+    },
+    {
+        title: 'Diagnóstico 360',
+        href: props.diagnosis_url,
+    },
+    {
+        title: 'Informe Ampliado',
+        href: props.expanded_report_url,
+    },
+    {
+        title: 'Roadmap Detallado',
+        href: `/diagnostico/${props.assessment.id}/roadmap-detallado`,
+    },
+];
+
 const content = computed(() => props.roadmap.content ?? {});
 const initiatives = computed(() => content.value.initiatives ?? []);
 const phases = computed(() => content.value.phases ?? []);
@@ -76,7 +97,8 @@ function formatDate(value: string | null) {
 <template>
     <Head title="Roadmap Detallado LAUDA 360" />
 
-    <main class="min-h-screen bg-muted/20 px-4 py-8 sm:px-6">
+    <AppLayout :breadcrumbs="breadcrumbs">
+        <main class="min-h-full bg-muted/20 px-4 py-8 sm:px-6">
         <div class="mx-auto max-w-6xl space-y-6">
             <div>
                 <Link
@@ -304,4 +326,5 @@ function formatDate(value: string | null) {
             </div>
         </div>
     </main>
+    </AppLayout>
 </template>

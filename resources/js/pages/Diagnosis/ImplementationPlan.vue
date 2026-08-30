@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import AppLayout from '@/layouts/AppLayout.vue';
+import type { BreadcrumbItem } from '@/types';
 import { Head, Link, router } from '@inertiajs/vue3';
 import { ArrowLeft } from 'lucide-vue-next';
 
@@ -12,7 +14,7 @@ import {
     CardTitle,
 } from '@/components/ui/card';
 
-defineProps<{
+const props = defineProps<{
     assessment: {
         id: number;
         organization_name: string;
@@ -22,6 +24,29 @@ defineProps<{
     accept_url: string;
     diagnosis_url: string;
 }>();
+
+const breadcrumbs: BreadcrumbItem[] = [
+    {
+        title: 'Inicio',
+        href: '/app',
+    },
+    {
+        title: 'Diagnóstico 360',
+        href: props.diagnosis_url,
+    },
+    ...(props.roadmap_url
+        ? [
+              {
+                  title: 'Roadmap Detallado',
+                  href: props.roadmap_url,
+              },
+          ]
+        : []),
+    {
+        title: 'Plan de Implementación',
+        href: `/diagnostico/${props.assessment.id}/plan-implementacion`,
+    },
+];
 
 function statusLabel(status: string) {
     return (
@@ -177,7 +202,8 @@ function goLiveDateLabel(
 <template>
     <Head title="Plan de Implementación LAUDA 360" />
 
-    <main class="min-h-screen bg-muted/20 px-4 py-8 sm:px-6">
+    <AppLayout :breadcrumbs="breadcrumbs">
+        <main class="min-h-full bg-muted/20 px-4 py-8 sm:px-6">
         <div class="mx-auto max-w-6xl space-y-6">
             <div>
                 <Link
@@ -1100,4 +1126,5 @@ function goLiveDateLabel(
             </div>
         </div>
     </main>
+    </AppLayout>
 </template>
