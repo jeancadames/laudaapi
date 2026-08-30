@@ -292,6 +292,17 @@ Route::middleware(['auth', 'verified', 'role:admin'])
 
 
         \Illuminate\Support\Facades\Route::post(
+            '/diagnosis-requests/{contact}/implementation-plan/regenerate',
+            [
+                \App\Http\Controllers\Admin\AdminTransformationImplementationPlanController::class,
+                'regenerateStructure'
+            ]
+        )->name(
+            'diagnosis_requests.implementation_plan.regenerate'
+        );
+
+
+        \Illuminate\Support\Facades\Route::post(
             '/diagnosis-requests/{contact}/implementation-plan/phases',
             [\App\Http\Controllers\Admin\AdminTransformationImplementationPlanController::class, 'storePhase']
         )->name('diagnosis_requests.implementation_plan.phase.store');

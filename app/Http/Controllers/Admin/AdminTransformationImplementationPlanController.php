@@ -93,6 +93,10 @@ class AdminTransformationImplementationPlanController extends Controller
                         'admin.diagnosis_requests.implementation_plan.create',
                         $contact
                     ),
+                    'regenerate' => route(
+                        'admin.diagnosis_requests.implementation_plan.regenerate',
+                        $contact
+                    ),
                     'phase_store' => route(
                         'admin.diagnosis_requests.implementation_plan.phase.store',
                         $contact
@@ -178,6 +182,31 @@ class AdminTransformationImplementationPlanController extends Controller
         );
     }
 
+    public function regenerateStructure(
+        Request $request,
+        ContactRequest $contact,
+        DiagnosisAccessService $accessService,
+        TransformationImplementationPlanAutogenerator $autogenerator
+    ): RedirectResponse {
+        $plan =
+            $this->editablePlanFor(
+                $contact,
+                $accessService
+            );
+
+        $generated =
+            $autogenerator->regenerate(
+                $plan,
+                $request->user()?->id
+            );
+
+        return $this->backToPlan(
+            $contact,
+            "Plan de Implementación V{$generated->version} regenerado desde su fuente. Las estimaciones anteriores y la modalidad seleccionada fueron invalidadas."
+        );
+    }
+
+
     public function storePhase(
         Request $request,
         ContactRequest $contact,
@@ -188,7 +217,13 @@ class AdminTransformationImplementationPlanController extends Controller
 
         $options = collect(
             $this->capabilityOptionsFor($plan)
-        )->keyBy('key');
+        )
+            ->filter(
+                fn (array $option): bool =>
+                    ($option['kind'] ?? null)
+                    === 'professional_service'
+            )
+            ->keyBy('key');
 
         $validated = $request->validate([
             'name' => ['required', 'string', 'max:255'],

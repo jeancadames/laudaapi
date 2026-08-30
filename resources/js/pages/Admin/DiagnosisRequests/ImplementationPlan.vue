@@ -128,6 +128,7 @@ const props = defineProps<{
     endpoints: {
         back: string;
         create: string;
+        regenerate: string;
         phase_store: string;
         modality_select: string;
         commercial_generate: string;
@@ -283,6 +284,28 @@ function durationLabel(value: number, unit: string) {
     };
 
     return `${value} ${labels[unit] ?? unit}`;
+}
+
+function regeneratePlanStructure() {
+    if (!props.plan || !isDraft.value || !hasGeneratedPlan.value) {
+        return;
+    }
+
+    if (
+        !window.confirm(
+            '¿Regenerar la estructura desde la fuente? Se eliminarán las estimaciones comerciales actuales y se limpiará la modalidad seleccionada. No afecta facturas, pagos ni suscripciones.',
+        )
+    ) {
+        return;
+    }
+
+    router.post(
+        props.endpoints.regenerate,
+        {},
+        {
+            preserveScroll: true,
+        },
+    );
 }
 
 function createOrGeneratePlan() {
@@ -632,6 +655,31 @@ function presentPlan() {
 
                     <CardContent v-if="hasGeneratedPlan" class="space-y-5">
                         <div
+                            v-if="isDraft"
+                            class="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-dashed p-4"
+                        >
+                            <div>
+                                <p class="font-bold">
+                                    Estructura autogenerada
+                                </p>
+
+                                <p class="mt-1 text-sm text-muted-foreground">
+                                    El Plan contiene procesos, iniciativas y
+                                    servicios profesionales. Las soluciones
+                                    LAUDAAPI se gestionan fuera de
+                                    Transformación 360.
+                                </p>
+                            </div>
+
+                            <Button
+                                variant="outline"
+                                @click="regeneratePlanStructure"
+                            >
+                                <Sparkles class="mr-2 size-4" />
+                                Regenerar estructura desde la fuente
+                            </Button>
+                        </div>
+                        <div
                             v-for="phase in phases"
                             :key="phase.id"
                             class="space-y-4 rounded-2xl border p-4 md:p-5"
@@ -681,10 +729,13 @@ function presentPlan() {
                                 <p
                                     class="text-xs font-black tracking-wide uppercase"
                                 >
-                                    Capacidades
+                                    Servicios profesionales incluidos
                                 </p>
 
-                                <div class="mt-2 grid gap-3 md:grid-cols-2">
+                                <div
+                                    v-if="phase.capabilities.length"
+                                    class="mt-2 grid gap-3 md:grid-cols-2"
+                                >
                                     <div
                                         v-for="capability in phase.capabilities"
                                         :key="capability.id"
@@ -750,6 +801,15 @@ function presentPlan() {
                                         </p>
                                     </div>
                                 </div>
+
+                                <p
+                                    v-else
+                                    class="mt-2 rounded-xl border border-dashed p-3 text-sm text-muted-foreground"
+                                >
+                                    Esta fase no requiere un servicio profesional adicional.
+                                    Su alcance se ejecuta a partir de las iniciativas,
+                                    objetivos y actividades definidas en el Roadmap.
+                                </p>
                             </div>
 
                             <div

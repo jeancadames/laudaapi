@@ -18,6 +18,8 @@ class TransformationImplementationPhaseService
         $name = trim((string) ($data['name'] ?? ''));
         $objective = isset($data['objective']) ? trim((string) $data['objective']) : null;
         $capabilities = $data['capabilities'] ?? [];
+        $allowEmptyCapabilities =
+            (bool) ($data['allow_empty_capabilities'] ?? false);
 
         if ($sequence < 1) {
             throw ValidationException::withMessages([
@@ -31,9 +33,16 @@ class TransformationImplementationPhaseService
             ]);
         }
 
-        if (!is_array($capabilities) || $capabilities === []) {
+        if (
+            ! is_array($capabilities)
+            || (
+                ! $allowEmptyCapabilities
+                && $capabilities === []
+            )
+        ) {
             throw ValidationException::withMessages([
-                'capabilities' => 'La fase debe contener al menos una capacidad del Roadmap.',
+                'capabilities' =>
+                    'La fase debe contener al menos una capacidad del Roadmap.',
             ]);
         }
 

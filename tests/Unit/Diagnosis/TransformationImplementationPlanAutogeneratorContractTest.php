@@ -71,45 +71,50 @@ class TransformationImplementationPlanAutogeneratorContractTest
         }
     }
 
-    public function test_only_high_priority_service_needs_autogenerate(): void
+    public function test_saas_solutions_do_not_autogenerate_into_transformation_plan(): void
     {
         $source = file_get_contents(
-            $this->root()
+            dirname(__DIR__, 3)
             .'/app/Services/Diagnosis/'
             .'TransformationImplementationPlanAutogenerator.php'
         );
 
         $this->assertStringContainsString(
-            "'critical'",
+            'TransformationProfessionalCapabilityCatalog::all()',
             $source
         );
 
-        $this->assertStringContainsString(
-            "'high'",
+        $this->assertStringNotContainsString(
+            'TransformationServiceCapabilityCatalog::all()',
             $source
         );
 
-        $this->assertStringContainsString(
+        $this->assertStringNotContainsString(
             'critical_or_high_linked_initiative',
             $source
         );
     }
 
-    public function test_legacy_laudaone_is_blocked_from_new_plan(): void
+    public function test_legacy_laudaone_is_excluded_because_all_saas_is_outside_transformation_plan(): void
     {
         $source = file_get_contents(
-            $this->root()
+            dirname(__DIR__, 3)
             .'/app/Services/Diagnosis/'
             .'TransformationImplementationPlanAutogenerator.php'
         );
 
         $this->assertStringContainsString(
-            "'laudaone_'",
+            'TransformationProfessionalCapabilityCatalog::all()',
             $source
         );
 
-        $this->assertStringContainsString(
-            'legacy_laudaone_service_key',
+        $this->assertStringNotContainsString(
+            'TransformationServiceCapabilityCatalog::all()',
+            $source
+        );
+
+        $this->assertStringNotContainsString(
+            'critical_or_high_linked_initiative',
             $source
         );
     }

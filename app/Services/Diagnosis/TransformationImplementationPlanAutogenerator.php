@@ -132,8 +132,9 @@ class TransformationImplementationPlanAutogenerator
                 ->values();
 
             /*
-             * Una capacidad se asigna solo a su primera fase aplicable.
-             * Así evitamos duplicar CRM/Social/etc. en varias fases.
+             * Un servicio profesional se asigna solo a su primera fase
+             * aplicable. La existencia de una fase NO depende de que tenga
+             * un servicio profesional adicional.
              */
             $alreadyAssigned = collect($generated)
                 ->flatMap(
@@ -155,10 +156,6 @@ class TransformationImplementationPlanAutogenerator
                         )
                 )
                 ->values();
-
-            if ($phaseCapabilities->isEmpty()) {
-                continue;
-            }
 
             $objective = $phaseInitiatives
                 ->pluck('objective')
@@ -388,6 +385,9 @@ class TransformationImplementationPlanAutogenerator
 
                             'capabilities' =>
                                 $capabilities,
+
+                            'allow_empty_capabilities' =>
+                                true,
                         ],
                         $userId
                     );
@@ -468,15 +468,165 @@ class TransformationImplementationPlanAutogenerator
         }, 3);
     }
 
+    /**
+     * Reconstruye únicamente un draft que todavía no haya iniciado
+     * facturación ni ejecución.
+     *
+     * Los estimates dependen de la estructura y se invalidan por cascade.
+     * La modalidad seleccionada también se limpia.
+     */
+    public function regenerate(
+        TransformationImplementationPlan $plan,
+        ?int $userId = null
+    ): TransformationImplementationPlan {
+        return DB::transaction(function () use (
+            $plan,
+            $userId
+        ) {
+            $locked =
+                TransformationImplementationPlan::query()
+                    ->whereKey($plan->id)
+                    ->lockForUpdate()
+                    ->firstOrFail();
+
+            if (
+                $locked->status
+                !== TransformationImplementationPlan::STATUS_DRAFT
+                || $locked->presented_at !== null
+                || $locked->accepted_at !== null
+            ) {
+                throw ValidationException::withMessages([
+                    'plan' => [
+                        'Solo un Plan borrador nunca presentado puede regenerarse.',
+                    ],
+                ]);
+            }
+
+            $phaseIds =
+                $locked->phases()
+                    ->pluck('id');
+
+            if ($phaseIds->isNotEmpty()) {
+                if (
+                    DB::table(
+                        'transformation_implementation_milestones'
+                    )
+                        ->whereIn(
+                            'transformation_implementation_phase_id',
+                            $phaseIds
+                        )
+                        ->exists()
+                ) {
+                    throw ValidationException::withMessages([
+                        'milestones' => [
+                            'No se puede regenerar un Plan que ya contiene hitos de facturación.',
+                        ],
+                    ]);
+                }
+
+                if (
+                    DB::table(
+                        'transformation_implementation_phase_executions'
+                    )
+                        ->whereIn(
+                            'transformation_implementation_phase_id',
+                            $phaseIds
+                        )
+                        ->exists()
+                ) {
+                    throw ValidationException::withMessages([
+                        'execution' => [
+                            'No se puede regenerar un Plan cuya ejecución ya fue inicializada.',
+                        ],
+                    ]);
+                }
+
+                $capabilityIds =
+                    DB::table(
+                        'transformation_implementation_phase_capabilities'
+                    )
+                        ->whereIn(
+                            'transformation_implementation_phase_id',
+                            $phaseIds
+                        )
+                        ->pluck('id');
+
+                if ($capabilityIds->isNotEmpty()) {
+                    if (
+                        DB::table(
+                            'transformation_implementation_capability_executions'
+                        )
+                            ->whereIn(
+                                'transformation_implementation_phase_capability_id',
+                                $capabilityIds
+                            )
+                            ->exists()
+                    ) {
+                        throw ValidationException::withMessages([
+                            'execution' => [
+                                'No se puede regenerar un Plan con capacidades en ejecución.',
+                            ],
+                        ]);
+                    }
+
+                    if (
+                        DB::table(
+                            'transformation_implementation_capability_go_lives'
+                        )
+                            ->whereIn(
+                                'transformation_implementation_phase_capability_id',
+                                $capabilityIds
+                            )
+                            ->exists()
+                    ) {
+                        throw ValidationException::withMessages([
+                            'go_live' => [
+                                'No se puede regenerar un Plan que ya contiene Go-Live.',
+                            ],
+                        ]);
+                    }
+                }
+
+                /*
+                 * FK cascade elimina capabilities y estimates.
+                 * Milestones / execution ya fueron bloqueados arriba.
+                 */
+                $locked->phases()->delete();
+            }
+
+            $locked->forceFill([
+                'selected_modality' =>
+                    null,
+
+                'selected_modality_label' =>
+                    null,
+
+                'updated_by_user_id' =>
+                    $userId,
+            ])->save();
+
+            return $this->generate(
+                $locked,
+                $userId
+            );
+        }, 3);
+    }
+
+
     private function recommendedCapabilities(
         array $roadmap,
         Collection $initiatives
     ): Collection {
+        /*
+         * Transformación 360 implementa iniciativas, procesos y servicios
+         * profesionales. Las soluciones SaaS permanecen únicamente como
+         * recomendaciones del Diagnóstico/Roadmap y NO forman parte del Plan.
+         */
         $result = collect();
 
-        $transformation = $roadmap[
-            'transformation_capabilities'
-        ] ?? [];
+        $transformation =
+            $roadmap['transformation_capabilities']
+            ?? [];
 
         $professional =
             TransformationProfessionalCapabilityCatalog::all();
@@ -510,115 +660,62 @@ class TransformationImplementationPlanAutogenerator
                         ?? false
                     ),
 
-                default => false,
+                default =>
+                    (bool) (
+                        $roadmapDefinition[
+                            'recommended'
+                        ]
+                        ?? false
+                    ),
             };
 
             if (! $recommended) {
                 continue;
             }
 
-            $result->push(
-                $this->normalizeCapability(
-                    (string) $key,
-                    $definition,
-                    'roadmap_professional_recommendation'
-                )
-            );
+            $result->push([
+                'capability_key' =>
+                    $definition[
+                        'capability_key'
+                    ]
+                    ?? $key,
+
+                'label' =>
+                    $definition['title']
+                    ?? $key,
+
+                'kind' =>
+                    'professional_service',
+
+                'service_key' =>
+                    null,
+
+                'subscription_candidate' =>
+                    false,
+
+                'purpose' =>
+                    $definition['purpose']
+                    ?? null,
+
+                'includes' =>
+                    $definition['includes']
+                    ?? [],
+
+                'linked_initiative_keys' =>
+                    $definition[
+                        'linked_initiative_keys'
+                    ]
+                    ?? [],
+
+                'recommendation_basis' =>
+                    'professional_transformation_capability',
+
+                'excluded' =>
+                    false,
+            ]);
         }
 
-        foreach (
-            TransformationServiceCapabilityCatalog::all()
-            as $key => $definition
-        ) {
-            $serviceKey = (string) (
-                $definition['service_key']
-                ?? ''
-            );
-
-            /*
-             * LaudaOne ya no es una solución válida del ecosistema.
-             * No se utiliza como destino de un Plan nuevo.
-             */
-            if (
-                $serviceKey !== ''
-                && str_starts_with(
-                    $serviceKey,
-                    'laudaone_'
-                )
-            ) {
-                $item = $this->normalizeCapability(
-                    (string) $key,
-                    $definition,
-                    'legacy_service_reference_blocked'
-                );
-
-                $item['excluded'] = true;
-                $item['exclusion_reason'] =
-                    'legacy_laudaone_service_key';
-
-                $result->push($item);
-
-                continue;
-            }
-
-            $linked = collect(
-                $definition[
-                    'linked_initiative_keys'
-                ] ?? []
-            );
-
-            $matched = $linked
-                ->map(
-                    fn (string $initiativeKey) =>
-                        $initiatives->get(
-                            $initiativeKey
-                        )
-                )
-                ->filter(
-                    fn ($initiative) =>
-                        is_array($initiative)
-                );
-
-            /*
-             * Regla automática inicial:
-             * una solución entra al Plan si alguna iniciativa
-             * relacionada tiene prioridad critical/high.
-             *
-             * Las prioridades medium/sustain permanecen en
-             * el Roadmap, pero no activan automáticamente
-             * una solución comercial.
-             */
-            $recommended = $matched
-                ->contains(
-                    fn (array $initiative): bool =>
-                        in_array(
-                            $initiative[
-                                'priority'
-                            ] ?? null,
-                            [
-                                'critical',
-                                'high',
-                            ],
-                            true
-                        )
-                );
-
-            if (! $recommended) {
-                continue;
-            }
-
-            $result->push(
-                $this->normalizeCapability(
-                    (string) $key,
-                    $definition,
-                    'critical_or_high_linked_initiative'
-                )
-            );
-        }
-
-        return $result
-            ->unique('capability_key')
-            ->values();
+        return $result;
     }
 
     private function normalizeCapability(
