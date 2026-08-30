@@ -88,7 +88,7 @@ class TransformationImplementationPlanAutoserviceUiContractTest
             'Cliente',
             'modality_options',
             'Modalidad recomendada',
-            'Modalidad contratada',
+            'Modalidad seleccionada',
         ] as $required) {
             $this->assertStringContainsString(
                 $required,

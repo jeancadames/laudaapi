@@ -297,6 +297,45 @@ function createOrGeneratePlan() {
     router.post(props.endpoints.create, {}, { preserveScroll: true });
 }
 
+function selectCommercialModality(
+    modality: string,
+    label: string,
+) {
+    if (!props.plan || !isDraft.value) {
+        return;
+    }
+
+    const scenario = modalityScenarios.value.find(
+        (item) => item.key === modality,
+    );
+
+    if (!scenario?.complete) {
+        return;
+    }
+
+    if (props.plan.selected_modality === modality) {
+        return;
+    }
+
+    if (
+        !window.confirm(
+            `¿Seleccionar ${label} como modalidad comercial de este Plan? Esta acción no presenta ni acepta el Plan y no genera facturación.`,
+        )
+    ) {
+        return;
+    }
+
+    router.post(
+        props.endpoints.modality_select,
+        {
+            modality,
+        },
+        {
+            preserveScroll: true,
+        },
+    );
+}
+
 function generateCommercialScenarios() {
     if (
         !props.plan ||
@@ -537,7 +576,7 @@ function presentPlan() {
                     <Card>
                         <CardHeader>
                             <CardDescription>
-                                Modalidad contratada
+                                Modalidad seleccionada
                             </CardDescription>
 
                             <CardTitle class="text-lg">
@@ -936,6 +975,20 @@ function presentPlan() {
                     </CardHeader>
 
                     <CardContent class="grid gap-4 lg:grid-cols-3">
+
+                        <div
+                            v-if="
+                                isDraft &&
+                                commercialScenariosComplete
+                            "
+                            class="mb-4 rounded-xl border bg-muted/20 p-3 text-sm text-muted-foreground"
+                        >
+                            La selección define el escenario comercial del
+                            borrador. No presenta ni acepta el Plan, no genera
+                            factura y no crea una suscripción. Los hitos se
+                            prepararán en el siguiente paso.
+                        </div>
+
                         <div
                             v-for="scenario in modalityScenarios"
                             :key="scenario.key"
@@ -1026,6 +1079,47 @@ function presentPlan() {
                                 automáticamente precio y tiempo para esta
                                 modalidad.
                             </div>
+
+                            <div
+                                v-if="isDraft && scenario.complete"
+                                class="mt-4 border-t pt-4"
+                            >
+                                <Button
+                                    class="w-full"
+                                    :variant="
+                                        scenario.key ===
+                                        plan.selected_modality
+                                            ? 'secondary'
+                                            : 'outline'
+                                    "
+                                    :disabled="
+                                        scenario.key ===
+                                        plan.selected_modality
+                                    "
+                                    @click="
+                                        selectCommercialModality(
+                                            scenario.key,
+                                            scenario.label,
+                                        )
+                                    "
+                                >
+                                    <CheckCircle2
+                                        v-if="
+                                            scenario.key ===
+                                            plan.selected_modality
+                                        "
+                                        class="mr-2 size-4"
+                                    />
+
+                                    {{
+                                        scenario.key ===
+                                        plan.selected_modality
+                                            ? 'Modalidad seleccionada'
+                                            : `Seleccionar ${scenario.label}`
+                                    }}
+                                </Button>
+                            </div>
+
                         </div>
                     </CardContent>
                 </Card>
