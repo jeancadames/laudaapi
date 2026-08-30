@@ -3,6 +3,7 @@
 namespace App\Services\Diagnosis;
 
 use App\Models\Company;
+use App\Models\DiagnosisAccessRequest;
 use App\Models\DiagnosisAssessment;
 use App\Models\DiagnosisDetailedRoadmap;
 use App\Models\TransformationCapabilityActivation;
@@ -14,7 +15,8 @@ use Illuminate\Validation\ValidationException;
 class TransformationCapabilityActivationService
 {
     public function __construct(
-        private readonly TransformationCapabilityNeedService $needs
+        private readonly TransformationCapabilityNeedService $needs,
+        private readonly TransformationCapabilityDecisionService $decisions
     ) {
     }
 
@@ -26,19 +28,14 @@ class TransformationCapabilityActivationService
         User $actor
     ): TransformationCapabilityActivation {
         $capabilityKey = trim($capabilityKey);
+        $definition = $this->professionalDefinition($capabilityKey);
 
-        $definition = $this->professionalDefinition(
+        $this->assertAssessmentCompany($assessment, $company);
+        $this->assertPublishedRoadmap($assessment, $roadmap);
+
+        $roadmapDefinition = $this->roadmapDefinition(
+            $roadmap,
             $capabilityKey
-        );
-
-        $this->assertAssessmentCompany(
-            $assessment,
-            $company
-        );
-
-        $this->assertPublishedRoadmap(
-            $assessment,
-            $roadmap
         );
 
         return DB::transaction(function () use (
@@ -47,166 +44,241 @@ class TransformationCapabilityActivationService
             $roadmap,
             $capabilityKey,
             $definition,
+            $roadmapDefinition,
             $actor
         ): TransformationCapabilityActivation {
-            $existing =
-                TransformationCapabilityActivation::query()
-                    ->where(
-                        'diagnosis_assessment_id',
-                        $assessment->id
-                    )
-                    ->where(
-                        'capability_key',
-                        $capabilityKey
-                    )
-                    ->lockForUpdate()
-                    ->first();
-
-            if ($existing) {
-                if (
-                    (int) $existing->company_id
-                    !== (int) $company->id
-                ) {
-                    throw ValidationException::withMessages([
-                        'capability' => [
-                            'La activación existente no pertenece a la empresa indicada.',
-                        ],
-                    ]);
-                }
-
-                $this->needs->syncForActivation(
-                    $existing
-                );
-
-                return $existing->fresh();
-            }
-
-            $roadmapDefinition =
-                $this->roadmapDefinition(
-                    $roadmap,
-                    $capabilityKey
-                );
-
-            if (
-                ($roadmapDefinition['recommended'] ?? false)
-                !== true
-            ) {
-                throw ValidationException::withMessages([
-                    'capability' => [
-                        'La capacidad debe estar recomendada en el Roadmap publicado antes de activarse.',
-                    ],
-                ]);
-            }
-
-            $activation =
-                TransformationCapabilityActivation::create([
-                    'company_id' =>
-                        $company->id,
-                    'diagnosis_assessment_id' =>
-                        $assessment->id,
-                    'capability_key' =>
-                        $capabilityKey,
-                    'source_type' =>
-                        TransformationCapabilityActivation::SOURCE_DETAILED_ROADMAP,
-                    'source_id' =>
-                        $roadmap->id,
-                    'source_version' =>
-                        $roadmap->version,
-                    'source_snapshot' => [
-                        'catalog' => [
-                            'capability_key' =>
-                                $definition['capability_key']
-                                ?? $capabilityKey,
-                            'title' =>
-                                $definition['title']
-                                ?? $capabilityKey,
-                            'kind' =>
-                                'professional_service',
-                            'category' =>
-                                $definition['category']
-                                ?? null,
-                            'purpose' =>
-                                $definition['purpose']
-                                ?? null,
-                            'includes' =>
-                                array_values(
-                                    $definition['includes']
-                                    ?? []
-                                ),
-                            'requires_lauda_review' =>
-                                (bool) (
-                                    $definition[
-                                        'requires_lauda_review'
-                                    ]
-                                    ?? false
-                                ),
-                            'service_key' => null,
-                            'subscription_candidate' =>
-                                false,
-                        ],
-                        'roadmap' =>
-                            $roadmapDefinition,
-                        'free_activation_contract' => [
-                            'free' => true,
-                            'commercial_acceptance' =>
-                                false,
-                            'requires_modality' =>
-                                false,
-                            'requires_payment' =>
-                                false,
-                            'creates_order' =>
-                                false,
-                            'creates_invoice' =>
-                                false,
-                            'creates_payment' =>
-                                false,
-                            'creates_subscription' =>
-                                false,
-                            'creates_subscription_item' =>
-                                false,
-                            'creates_go_live' =>
-                                false,
-                        ],
-                    ],
-                    'status' =>
-                        TransformationCapabilityActivation::STATUS_ACTIVATED,
-                    'activated_by_user_id' =>
-                        $actor->id,
-                    'activated_at' =>
-                        now(),
-                ]);
-
-            AuditService::log(
-                'transformation_capability_activated_free',
-                $activation,
-                [
-                    'company_id' =>
-                        $company->id,
-                    'assessment_id' =>
-                        $assessment->id,
-                    'capability_key' =>
-                        $capabilityKey,
-                    'source_type' =>
-                        TransformationCapabilityActivation::SOURCE_DETAILED_ROADMAP,
-                    'source_id' =>
-                        $roadmap->id,
-                    'source_version' =>
-                        $roadmap->version,
-                    'commercial_acceptance' =>
-                        false,
-                    'subscription_created' =>
-                        false,
-                    'subscription_item_created' =>
-                        false,
-                ]
+            $activation = $this->persistActivation(
+                $company,
+                $capabilityKey,
+                $definition,
+                $actor,
+                $assessment,
+                $roadmap,
+                $roadmapDefinition,
+                TransformationCapabilityActivation::SOURCE_DETAILED_ROADMAP
             );
 
-            $this->needs->syncForActivation(
-                $activation
+            $this->decisions->acceptFromRoadmap(
+                $company,
+                $assessment,
+                $roadmap,
+                $capabilityKey,
+                $actor
             );
 
             return $activation->fresh();
         }, 3);
+    }
+
+    public function activateManually(
+        Company $company,
+        string $capabilityKey,
+        User $actor
+    ): TransformationCapabilityActivation {
+        $capabilityKey = trim($capabilityKey);
+        $definition = $this->professionalDefinition($capabilityKey);
+
+        return DB::transaction(function () use (
+            $company,
+            $capabilityKey,
+            $definition,
+            $actor
+        ): TransformationCapabilityActivation {
+            return $this->persistActivation(
+                $company,
+                $capabilityKey,
+                $definition,
+                $actor,
+                null,
+                null,
+                null,
+                TransformationCapabilityActivation::SOURCE_MANUAL
+            );
+        }, 3);
+    }
+
+    private function persistActivation(
+        Company $company,
+        string $capabilityKey,
+        array $definition,
+        User $actor,
+        ?DiagnosisAssessment $assessment,
+        ?DiagnosisDetailedRoadmap $roadmap,
+        ?array $roadmapDefinition,
+        string $sourceType
+    ): TransformationCapabilityActivation {
+        $existing = TransformationCapabilityActivation::query()
+            ->where('company_id', $company->id)
+            ->where('capability_key', $capabilityKey)
+            ->lockForUpdate()
+            ->first();
+
+        if ($existing) {
+            if (
+                (int) $existing->company_id
+                    !== (int) $company->id
+            ) {
+                throw ValidationException::withMessages([
+                    'capability' => [
+                        'La activación existente no pertenece a la empresa indicada.',
+                    ],
+                ]);
+            }
+
+            if (
+                $existing->status
+                    === TransformationCapabilityActivation::STATUS_CANCELLED
+            ) {
+                $existing->forceFill([
+                    'diagnosis_assessment_id' => $assessment?->id,
+                    'source_type' => $sourceType,
+                    'source_id' => $roadmap?->id,
+                    'source_version' => $roadmap?->version,
+                    'source_snapshot' => $this->activationSnapshot(
+                        $definition,
+                        $capabilityKey,
+                        $sourceType,
+                        $roadmapDefinition
+                    ),
+                    'status' =>
+                        TransformationCapabilityActivation::STATUS_ACTIVATED,
+                    'activated_by_user_id' => $actor->id,
+                    'activated_at' => now(),
+                    'started_at' => null,
+                    'ready_for_review_at' => null,
+                    'validated_at' => null,
+                    'completed_at' => null,
+                    'cancelled_at' => null,
+                ])->save();
+
+                AuditService::log(
+                    'transformation_capability_reactivated_free',
+                    $existing,
+                    $this->auditContext(
+                        $company,
+                        $capabilityKey,
+                        $assessment,
+                        $roadmap,
+                        $sourceType,
+                        $actor
+                    )
+                );
+            }
+
+            $this->needs->syncForActivation($existing);
+
+            return $existing->fresh();
+        }
+
+        $activation = TransformationCapabilityActivation::create([
+            'company_id' => $company->id,
+            'diagnosis_assessment_id' => $assessment?->id,
+            'capability_key' => $capabilityKey,
+            'source_type' => $sourceType,
+            'source_id' => $roadmap?->id,
+            'source_version' => $roadmap?->version,
+            'source_snapshot' => $this->activationSnapshot(
+                $definition,
+                $capabilityKey,
+                $sourceType,
+                $roadmapDefinition
+            ),
+            'status' =>
+                TransformationCapabilityActivation::STATUS_ACTIVATED,
+            'activated_by_user_id' => $actor->id,
+            'activated_at' => now(),
+        ]);
+
+        AuditService::log(
+            'transformation_capability_activated_free',
+            $activation,
+            $this->auditContext(
+                $company,
+                $capabilityKey,
+                $assessment,
+                $roadmap,
+                $sourceType,
+                $actor
+            )
+        );
+
+        $this->needs->syncForActivation($activation);
+
+        return $activation->fresh();
+    }
+
+    private function activationSnapshot(
+        array $definition,
+        string $capabilityKey,
+        string $sourceType,
+        ?array $roadmapDefinition
+    ): array {
+        return [
+            'catalog' => [
+                'capability_key' =>
+                    $definition['capability_key'] ?? $capabilityKey,
+                'title' => $definition['title'] ?? $capabilityKey,
+                'kind' => 'professional_service',
+                'category' => $definition['category'] ?? null,
+                'purpose' => $definition['purpose'] ?? null,
+                'includes' => array_values(
+                    $definition['includes'] ?? []
+                ),
+                'requires_lauda_review' => (bool) (
+                    $definition['requires_lauda_review'] ?? false
+                ),
+                'service_key' => null,
+                'subscription_candidate' => false,
+            ],
+            'activation_origin' => [
+                'type' => $sourceType,
+                'manual' =>
+                    $sourceType
+                        === TransformationCapabilityActivation::SOURCE_MANUAL,
+            ],
+            'roadmap' => $roadmapDefinition ?? [],
+            'recommendation_context' => [
+                'recommended' => (bool) (
+                    $roadmapDefinition['recommended'] ?? false
+                ),
+                'basis' =>
+                    $roadmapDefinition['recommendation_basis'] ?? null,
+            ],
+            'free_activation_contract' => [
+                'free' => true,
+                'commercial_acceptance' => false,
+                'requires_modality' => false,
+                'requires_payment' => false,
+                'creates_order' => false,
+                'creates_invoice' => false,
+                'creates_payment' => false,
+                'creates_subscription' => false,
+                'creates_subscription_item' => false,
+                'creates_go_live' => false,
+            ],
+        ];
+    }
+
+    private function auditContext(
+        Company $company,
+        string $capabilityKey,
+        ?DiagnosisAssessment $assessment,
+        ?DiagnosisDetailedRoadmap $roadmap,
+        string $sourceType,
+        User $actor
+    ): array {
+        return [
+            'company_id' => $company->id,
+            'assessment_id' => $assessment?->id,
+            'capability_key' => $capabilityKey,
+            'source_type' => $sourceType,
+            'source_id' => $roadmap?->id,
+            'source_version' => $roadmap?->version,
+            'actor_user_id' => $actor->id,
+            'commercial_acceptance' => false,
+            'subscription_created' => false,
+            'subscription_item_created' => false,
+        ];
     }
 
     public function start(
@@ -307,23 +379,16 @@ class TransformationCapabilityActivationService
             $timestampColumn,
             $auditEvent
         ): TransformationCapabilityActivation {
-            $locked =
-                TransformationCapabilityActivation::query()
-                    ->whereKey($activation->id)
-                    ->lockForUpdate()
-                    ->firstOrFail();
+            $locked = TransformationCapabilityActivation::query()
+                ->whereKey($activation->id)
+                ->lockForUpdate()
+                ->firstOrFail();
 
             if ($locked->status === $targetStatus) {
                 return $locked->fresh();
             }
 
-            if (
-                ! in_array(
-                    $locked->status,
-                    $allowedFrom,
-                    true
-                )
-            ) {
+            if (! in_array($locked->status, $allowedFrom, true)) {
                 throw ValidationException::withMessages([
                     'capability' => [
                         'La capacidad no puede pasar de '
@@ -336,28 +401,21 @@ class TransformationCapabilityActivationService
             }
 
             $locked->forceFill([
-                'status' =>
-                    $targetStatus,
-                $timestampColumn =>
-                    now(),
+                'status' => $targetStatus,
+                $timestampColumn => now(),
             ])->save();
 
             AuditService::log(
                 $auditEvent,
                 $locked,
                 [
-                    'company_id' =>
-                        $locked->company_id,
+                    'company_id' => $locked->company_id,
                     'assessment_id' =>
                         $locked->diagnosis_assessment_id,
-                    'capability_key' =>
-                        $locked->capability_key,
-                    'actor_user_id' =>
-                        $actor->id,
-                    'status' =>
-                        $targetStatus,
-                    'commercial_acceptance' =>
-                        false,
+                    'capability_key' => $locked->capability_key,
+                    'actor_user_id' => $actor->id,
+                    'status' => $targetStatus,
+                    'commercial_acceptance' => false,
                 ]
             );
 
@@ -368,19 +426,15 @@ class TransformationCapabilityActivationService
     private function professionalDefinition(
         string $capabilityKey
     ): array {
-        $definition =
-            TransformationProfessionalCapabilityCatalog::get(
-                $capabilityKey
-            );
+        $definition = TransformationProfessionalCapabilityCatalog::get(
+            $capabilityKey
+        );
 
         if (
             ! $definition
-            || ($definition['kind'] ?? null)
-                !== 'professional_service'
-            || ($definition['service_key'] ?? null)
-                !== null
-            || ($definition['subscription_candidate'] ?? true)
-                !== false
+            || ($definition['kind'] ?? null) !== 'professional_service'
+            || ($definition['service_key'] ?? null) !== null
+            || ($definition['subscription_candidate'] ?? true) !== false
         ) {
             throw ValidationException::withMessages([
                 'capability' => [
@@ -398,14 +452,25 @@ class TransformationCapabilityActivationService
     ): void {
         if (
             (int) ($assessment->organization_id ?? 0)
-            !== (int) $company->id
+                === (int) $company->id
         ) {
-            throw ValidationException::withMessages([
-                'assessment' => [
-                    'El Diagnóstico 360 no pertenece a la empresa indicada.',
-                ],
-            ]);
+            return;
         }
+
+        $historicalCompanyLink = DiagnosisAccessRequest::query()
+            ->where('diagnosis_assessment_id', $assessment->id)
+            ->where('meta->company_id', $company->id)
+            ->exists();
+
+        if ($historicalCompanyLink) {
+            return;
+        }
+
+        throw ValidationException::withMessages([
+            'assessment' => [
+                'El Diagnóstico 360 no pertenece a la empresa indicada.',
+            ],
+        ]);
     }
 
     private function assertPublishedRoadmap(
@@ -429,22 +494,17 @@ class TransformationCapabilityActivationService
         DiagnosisDetailedRoadmap $roadmap,
         string $capabilityKey
     ): array {
-        $content =
-            is_array($roadmap->roadmap)
-                ? $roadmap->roadmap
-                : [];
+        $content = is_array($roadmap->roadmap)
+            ? $roadmap->roadmap
+            : [];
 
-        $transformation =
-            is_array(
-                $content['transformation_capabilities']
-                ?? null
-            )
-                ? $content['transformation_capabilities']
-                : [];
+        $transformation = is_array(
+            $content['transformation_capabilities'] ?? null
+        )
+            ? $content['transformation_capabilities']
+            : [];
 
-        $definition =
-            $transformation[$capabilityKey]
-            ?? null;
+        $definition = $transformation[$capabilityKey] ?? null;
 
         if (! is_array($definition)) {
             throw ValidationException::withMessages([

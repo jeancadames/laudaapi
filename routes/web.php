@@ -106,6 +106,11 @@ require __DIR__ . '/settings.php';
             [\App\Http\Controllers\Diagnosis\BrandingIdentityActivationController::class, 'store']
         )->name('capabilities.branding_identity.activate');
 
+        \Illuminate\Support\Facades\Route::post(
+            '/{assessment}/capacidades/branding-identidad/ahora-no',
+            [\App\Http\Controllers\Diagnosis\BrandingIdentityDecisionController::class, 'decline']
+        )->name('capabilities.branding_identity.decline');
+
 
 
         \Illuminate\Support\Facades\Route::get(
@@ -182,6 +187,13 @@ Route::middleware(['auth', 'verified'])
         \App\Http\Controllers\AppHubTransformationController::class
     )
     ->name('app.transformation.show');
+
+Route::middleware(['auth', 'verified'])
+    ->post(
+        '/app/transformacion-360/capacidades/branding-identidad/activar',
+        [\App\Http\Controllers\AppHubBrandingActivationController::class, 'store']
+    )
+    ->name('app.transformation.capabilities.branding_identity.activate');
 
 Route::middleware(['auth', 'verified'])
     ->get(

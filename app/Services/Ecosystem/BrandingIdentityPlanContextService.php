@@ -17,6 +17,12 @@ final class BrandingIdentityPlanContextService
     public function forActivation(
         TransformationCapabilityActivation $activation
     ): array {
+        if (! $activation->diagnosis_assessment_id) {
+            return $this->unavailable(
+                'Esta activación fue seleccionada manualmente y no tiene un Plan consultivo de origen.'
+            );
+        }
+
         $plan =
             TransformationImplementationPlan::query()
                 ->where(

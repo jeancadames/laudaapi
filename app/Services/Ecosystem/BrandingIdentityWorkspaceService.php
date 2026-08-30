@@ -48,6 +48,24 @@ final class BrandingIdentityWorkspaceService
 
         $status = (string) $activation->status;
 
+        $assessmentId = $activation->diagnosis_assessment_id !== null
+            ? (int) $activation->diagnosis_assessment_id
+            : null;
+
+        $sourceId = $activation->source_id !== null
+            ? (int) $activation->source_id
+            : null;
+
+        $roadmapUrl = $assessmentId !== null
+            && $activation->source_type
+                === TransformationCapabilityActivation::SOURCE_DETAILED_ROADMAP
+            ? route(
+                'diagnosis.detailed_roadmap.show',
+                $assessmentId,
+                false
+            )
+            : null;
+
         return [
             'capability_key' =>
                 'branding_identity',
@@ -109,23 +127,19 @@ final class BrandingIdentityWorkspaceService
 
             'source' => [
                 'assessment_id' =>
-                    (int) $activation->diagnosis_assessment_id,
+                    $assessmentId,
 
                 'type' =>
                     $activation->source_type,
 
                 'id' =>
-                    (int) $activation->source_id,
+                    $sourceId,
 
                 'version' =>
                     $activation->source_version,
 
                 'roadmap_url' =>
-                    route(
-                        'diagnosis.detailed_roadmap.show',
-                        $activation->diagnosis_assessment_id,
-                        false
-                    ),
+                    $roadmapUrl,
             ],
 
             'timestamps' => [

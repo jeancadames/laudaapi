@@ -31,12 +31,25 @@ final class SubscriberTransformation360DashboardService
         $access = $this->latestAccessForCompany($company);
         $assessmentIds = $this->assessmentIdsForCompany($company, $access);
 
-        $assessment = $assessmentIds->isNotEmpty()
-            ? DB::table('diagnosis_assessments')
-                ->whereIn('id', $assessmentIds->all())
+        $assessment = null;
+
+        if ($assessmentIds->isNotEmpty()) {
+            $assessmentQuery = DB::table('diagnosis_assessments')
+                ->whereIn('id', $assessmentIds->all());
+
+            if (
+                Schema::hasColumn(
+                    'diagnosis_assessments',
+                    'is_active'
+                )
+            ) {
+                $assessmentQuery->where('is_active', true);
+            }
+
+            $assessment = $assessmentQuery
                 ->orderByDesc('id')
-                ->first()
-            : null;
+                ->first();
+        }
 
         if (! $assessment) {
             return $this->availablePayload($access, $company);
@@ -71,6 +84,12 @@ final class SubscriberTransformation360DashboardService
         $planIsPublic = $plan
             && in_array((string) $plan->status, self::PUBLIC_PLAN_STATUSES, true)
             && $plan->presented_at !== null;
+
+        $optionalCapabilities = $this->optionalCapabilities(
+            $company,
+            $assessment,
+            $roadmap
+        );
 
         $stages = [
             [
@@ -157,6 +176,7 @@ final class SubscriberTransformation360DashboardService
                 (bool) $planIsPublic
             ),
             'plan_public' => (bool) $planIsPublic,
+            'optional_capabilities' => $optionalCapabilities,
             'stages' => $stages,
             'primary_action' => $this->primaryAction($stages),
         ];
@@ -305,6 +325,11 @@ final class SubscriberTransformation360DashboardService
                 ? 'Preparando Diagnóstico 360'
                 : 'Diagnóstico 360 disponible',
             'plan_public' => false,
+            'optional_capabilities' => $this->optionalCapabilities(
+                $company,
+                null,
+                null
+            ),
             'stages' => [
                 [
                     'key' => 'diagnosis',
@@ -363,8 +388,110 @@ final class SubscriberTransformation360DashboardService
             'organization_name' => null,
             'current_label' => null,
             'plan_public' => false,
+            'optional_capabilities' => [],
             'stages' => [],
             'primary_action' => null,
+        ];
+    }
+
+    private function optionalCapabilities(
+        Company $company,
+        ?object $assessment,
+        ?object $roadmap
+    ): array {
+        $activation = null;
+
+        if (Schema::hasTable('transformation_capability_activations')) {
+            $activation = DB::table('transformation_capability_activations')
+                ->where('company_id', $company->id)
+                ->where('capability_key', 'branding_identity')
+                ->where('status', '!=', 'cancelled')
+                ->orderByDesc('activated_at')
+                ->orderByDesc('id')
+                ->first();
+        }
+
+        $content = [];
+
+        if ($roadmap && isset($roadmap->roadmap)) {
+            if (is_array($roadmap->roadmap)) {
+                $content = $roadmap->roadmap;
+            } elseif (is_string($roadmap->roadmap)) {
+                $decoded = json_decode($roadmap->roadmap, true);
+                $content = is_array($decoded) ? $decoded : [];
+            }
+        }
+
+        $branding = data_get(
+            $content,
+            'transformation_capabilities.branding_identity',
+            []
+        );
+
+        $branding = is_array($branding) ? $branding : [];
+        $recommended = ($branding['recommended'] ?? false) === true;
+
+        $decisionRecord = null;
+
+        if (
+            $assessment
+            && Schema::hasTable('transformation_capability_decisions')
+        ) {
+            $decisionRecord = DB::table('transformation_capability_decisions')
+                ->where('diagnosis_assessment_id', $assessment->id)
+                ->where('capability_key', 'branding_identity')
+                ->first();
+        }
+
+        $decision = $decisionRecord?->decision;
+
+        if ($decision === null && $recommended) {
+            $decision = 'pending';
+        }
+
+        $activated = $activation !== null;
+
+        return [
+            'branding_identity' => [
+                'capability_key' => 'branding_identity',
+                'title' => 'Branding e Identidad Digital',
+                'optional' => true,
+                'recommended' => $recommended,
+                'recommendation_basis' =>
+                    $branding['recommendation_basis'] ?? null,
+                'decision' => $decision,
+                'activated' => $activated,
+                'status' => $activation?->status,
+                'can_activate' => ! $activated,
+                'activation_endpoint' => ! $activated
+                    ? route(
+                        'app.transformation.capabilities.branding_identity.activate',
+                        [],
+                        false
+                    )
+                    : null,
+                'decline_endpoint' =>
+                    ! $activated
+                    && $assessment
+                    && $recommended
+                    && $decision !== 'declined'
+                        ? route(
+                            'diagnosis.capabilities.branding_identity.decline',
+                            $assessment->id,
+                            false
+                        )
+                        : null,
+                'workspace_url' => $activated
+                    ? route('app.branding.show', [], false)
+                    : null,
+                'roadmap_url' => $roadmap && $assessment
+                    ? route(
+                        'diagnosis.detailed_roadmap.show',
+                        $assessment->id,
+                        false
+                    )
+                    : null,
+            ],
         ];
     }
 

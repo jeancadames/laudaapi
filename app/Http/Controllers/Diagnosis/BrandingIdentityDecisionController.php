@@ -5,7 +5,7 @@ namespace App\Http\Controllers\Diagnosis;
 use App\Http\Controllers\Controller;
 use App\Models\DiagnosisAssessment;
 use App\Models\DiagnosisDetailedRoadmap;
-use App\Services\Diagnosis\TransformationCapabilityActivationService;
+use App\Services\Diagnosis\TransformationCapabilityDecisionService;
 use App\Services\Subscribers\CompanyContextResolver;
 use App\Services\Subscribers\SubscriberResolver;
 use App\Services\Subscribers\TenantAccessService;
@@ -13,26 +13,22 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
 
-class BrandingIdentityActivationController extends Controller
+final class BrandingIdentityDecisionController extends Controller
 {
-    public function store(
+    public function decline(
         Request $request,
         DiagnosisAssessment $assessment,
         SubscriberResolver $subscriberResolver,
         CompanyContextResolver $companyResolver,
         TenantAccessService $tenantAccessService,
-        TransformationCapabilityActivationService $activations
+        TransformationCapabilityDecisionService $decisions
     ): RedirectResponse {
         Gate::authorize('view', $assessment);
 
         $user = $request->user();
 
         abort_unless($user, 403);
-        abort_if(
-            $user->isAdmin(),
-            403,
-            'La activación gratuita corresponde al tenant.'
-        );
+        abort_if($user->isAdmin(), 403);
 
         $subscriberId = (int) (
             $subscriberResolver->resolve($user)
@@ -51,7 +47,7 @@ class BrandingIdentityActivationController extends Controller
                 === TenantAccessService::SUBSCRIBER_ADMIN
             && (bool) ($tenantAccess['tenant_admin'] ?? false),
             403,
-            'Solo un owner o administrador del tenant puede activar esta capacidad.'
+            'Solo un owner o administrador del tenant puede decidir sobre esta capacidad.'
         );
 
         $company = $companyResolver->resolve(
@@ -62,10 +58,7 @@ class BrandingIdentityActivationController extends Controller
         abort_unless($company, 404);
 
         $roadmap = DiagnosisDetailedRoadmap::query()
-            ->where(
-                'diagnosis_assessment_id',
-                $assessment->id
-            )
+            ->where('diagnosis_assessment_id', $assessment->id)
             ->where(
                 'status',
                 DiagnosisDetailedRoadmap::STATUS_PUBLISHED
@@ -74,7 +67,7 @@ class BrandingIdentityActivationController extends Controller
             ->orderByDesc('version')
             ->firstOrFail();
 
-        $activations->activateFromRoadmap(
+        $decisions->declineFromRoadmap(
             $company,
             $assessment,
             $roadmap,
@@ -84,7 +77,7 @@ class BrandingIdentityActivationController extends Controller
 
         return back()->with(
             'success',
-            'Branding e Identidad Digital activado gratuitamente. Ya forma parte de su recorrido de Transformación 360.'
+            'Registramos “Ahora no”. Branding seguirá disponible para activarlo más adelante si lo deseas.'
         );
     }
 }

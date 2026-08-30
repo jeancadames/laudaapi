@@ -3,9 +3,11 @@
 namespace App\Http\Controllers\Diagnosis;
 
 use App\Http\Controllers\Controller;
+use App\Models\DiagnosisAccessRequest;
 use App\Models\DiagnosisAssessment;
 use App\Models\DiagnosisDetailedRoadmap;
 use App\Models\TransformationCapabilityActivation;
+use App\Models\TransformationCapabilityDecision;
 use App\Models\TransformationImplementationPlan;
 use App\Services\Diagnosis\DiagnosisDeliverableValidationService;
 use Illuminate\Support\Facades\Gate;
@@ -33,41 +35,74 @@ class DiagnosisDetailedRoadmapController extends Controller
             ->orderByDesc('version')
             ->firstOrFail();
 
-        $implementationPlan =
-            TransformationImplementationPlan::query()
-                ->where(
-                    'diagnosis_assessment_id',
-                    $assessment->id
-                )
-                ->whereIn('status', [
-                    TransformationImplementationPlan::STATUS_PRESENTED,
-                    TransformationImplementationPlan::STATUS_ACCEPTED,
-                    TransformationImplementationPlan::STATUS_ACTIVE,
-                    TransformationImplementationPlan::STATUS_COMPLETED,
-                ])
-                ->whereNotNull('presented_at')
-                ->orderByDesc('version')
-                ->first();
-
-        $brandingRecommended = (bool) (
-            data_get(
-                $roadmap->roadmap ?? [],
-                'transformation_capabilities.branding_identity.recommended',
-                false
+        $implementationPlan = TransformationImplementationPlan::query()
+            ->where(
+                'diagnosis_assessment_id',
+                $assessment->id
             )
+            ->whereIn('status', [
+                TransformationImplementationPlan::STATUS_PRESENTED,
+                TransformationImplementationPlan::STATUS_ACCEPTED,
+                TransformationImplementationPlan::STATUS_ACTIVE,
+                TransformationImplementationPlan::STATUS_COMPLETED,
+            ])
+            ->whereNotNull('presented_at')
+            ->orderByDesc('version')
+            ->first();
+
+        $brandingRecommended = (bool) data_get(
+            $roadmap->roadmap ?? [],
+            'transformation_capabilities.branding_identity.recommended',
+            false
         );
 
-        $brandingActivation =
-            TransformationCapabilityActivation::query()
+        $companyId = (int) ($assessment->organization_id ?? 0);
+
+        if ($companyId <= 0) {
+            $access = DiagnosisAccessRequest::query()
+                ->where('diagnosis_assessment_id', $assessment->id)
+                ->latest('id')
+                ->first();
+
+            $companyId = (int) data_get(
+                $access?->meta,
+                'company_id',
+                0
+            );
+        }
+
+        $brandingActivation = $companyId > 0
+            ? TransformationCapabilityActivation::query()
+                ->where('company_id', $companyId)
+                ->where('capability_key', 'branding_identity')
                 ->where(
-                    'diagnosis_assessment_id',
-                    $assessment->id
+                    'status',
+                    '!=',
+                    TransformationCapabilityActivation::STATUS_CANCELLED
                 )
+                ->first()
+            : TransformationCapabilityActivation::query()
+                ->where('diagnosis_assessment_id', $assessment->id)
+                ->where('capability_key', 'branding_identity')
                 ->where(
-                    'capability_key',
-                    'branding_identity'
+                    'status',
+                    '!=',
+                    TransformationCapabilityActivation::STATUS_CANCELLED
                 )
                 ->first();
+
+        $brandingDecision = TransformationCapabilityDecision::query()
+            ->where('diagnosis_assessment_id', $assessment->id)
+            ->where('capability_key', 'branding_identity')
+            ->first();
+
+        $decision = $brandingDecision?->decision;
+
+        if ($decision === null && $brandingRecommended) {
+            $decision = TransformationCapabilityDecision::DECISION_PENDING;
+        }
+
+        $available = $brandingActivation === null;
 
         return Inertia::render(
             'Diagnosis/DetailedRoadmap',
@@ -86,8 +121,7 @@ class DiagnosisDetailedRoadmapController extends Controller
                 'roadmap' => [
                     'id' => $roadmap->id,
                     'version' => $roadmap->version,
-                    'content' =>
-                        $roadmap->roadmap ?? [],
+                    'content' => $roadmap->roadmap ?? [],
                     'published_at' =>
                         $roadmap->published_at?->toISOString(),
                 ],
@@ -103,23 +137,27 @@ class DiagnosisDetailedRoadmapController extends Controller
                         )
                         : null,
                 'branding_activation' => [
-                    'recommended' =>
-                        $brandingRecommended,
-                    'available' =>
-                        $brandingRecommended
-                        && $brandingActivation === null,
-                    'activated' =>
-                        $brandingActivation !== null,
-                    'status' =>
-                        $brandingActivation?->status,
-                    'activated_at' =>
-                        $brandingActivation
-                            ?->activated_at
-                            ?->toISOString(),
-                    'endpoint' =>
-                        $brandingRecommended
+                    'recommended' => $brandingRecommended,
+                    'decision' => $decision,
+                    'available' => $available,
+                    'activated' => $brandingActivation !== null,
+                    'status' => $brandingActivation?->status,
+                    'activated_at' => $brandingActivation
+                        ?->activated_at
+                        ?->toISOString(),
+                    'endpoint' => $available
+                        ? route(
+                            'diagnosis.capabilities.branding_identity.activate',
+                            $assessment
+                        )
+                        : null,
+                    'decline_endpoint' =>
+                        $available
+                        && $brandingRecommended
+                        && $decision
+                            !== TransformationCapabilityDecision::DECISION_DECLINED
                             ? route(
-                                'diagnosis.capabilities.branding_identity.activate',
+                                'diagnosis.capabilities.branding_identity.decline',
                                 $assessment
                             )
                             : null,

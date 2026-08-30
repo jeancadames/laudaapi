@@ -97,11 +97,11 @@ const props = defineProps<{
             basis: string | null;
         };
         source: {
-            assessment_id: number;
-            type: string;
-            id: number;
+            assessment_id: number | null;
+            type: string | null;
+            id: number | null;
             version: number | null;
-            roadmap_url: string;
+            roadmap_url: string | null;
         };
         timestamps: {
             activated_at: string | null;
@@ -329,21 +329,24 @@ function startBranding(): void {
 
                             <div>
                                 <dt class="text-slate-400">
-                                    Roadmap de origen
+                                    Fuente de activación
                                 </dt>
                                 <dd
                                     class="mt-1 font-bold text-slate-950 dark:text-white"
                                 >
                                     {{
-                                        props.branding.source.version
-                                            ? `V${props.branding.source.version}`
-                                            : 'Roadmap publicado'
+                                        props.branding.source.type === 'manual'
+                                            ? 'Selección opcional del tenant'
+                                            : props.branding.source.version
+                                              ? `Roadmap V${props.branding.source.version}`
+                                              : 'Roadmap publicado'
                                     }}
                                 </dd>
                             </div>
                         </dl>
 
                         <Link
+                            v-if="props.branding.source.roadmap_url"
                             :href="props.branding.source.roadmap_url"
                             class="mt-5 inline-flex items-center gap-2 text-sm font-bold text-red-600 transition hover:text-red-500"
                         >
@@ -825,10 +828,18 @@ function startBranding(): void {
                         <p
                             class="mt-4 text-sm leading-6 text-slate-600 dark:text-slate-300"
                         >
-                            {{
-                                props.branding.recommendation.basis ??
-                                'Esta capacidad fue recomendada en el Roadmap publicado antes de su activación.'
-                            }}
+                            <template v-if="props.branding.recommendation.recommended">
+                                {{
+                                    props.branding.recommendation.basis ??
+                                    'Esta capacidad fue recomendada por el Diagnóstico 360.'
+                                }}
+                            </template>
+                            <template v-else-if="props.branding.source.type === 'manual'">
+                                Branding fue activado por selección opcional del tenant, sin requerir una recomendación del Diagnóstico 360.
+                            </template>
+                            <template v-else>
+                                El Diagnóstico 360 no marcó Branding como recomendado; el tenant decidió activarlo de forma opcional.
+                            </template>
                         </p>
 
                         <div

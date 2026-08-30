@@ -1,14 +1,18 @@
 <script setup lang="ts">
-import { Head } from '@inertiajs/vue3';
+import { Head, router } from '@inertiajs/vue3';
 import {
     ArrowLeft,
     ArrowUpRight,
     CheckCircle2,
     Circle,
     Clock3,
+    LoaderCircle,
+    Palette,
     Sparkles,
 } from 'lucide-vue-next';
+import { computed, ref } from 'vue';
 
+import { Button } from '@/components/ui/button';
 import AppLayout from '@/layouts/AppLayout.vue';
 import type { BreadcrumbItem } from '@/types';
 
@@ -22,6 +26,22 @@ type Transformation360Stage = {
     action_label: string | null;
 };
 
+type OptionalBrandingCapability = {
+    capability_key: 'branding_identity';
+    title: string;
+    optional: true;
+    recommended: boolean;
+    recommendation_basis: string | null;
+    decision: 'pending' | 'accepted' | 'declined' | null;
+    activated: boolean;
+    status: string | null;
+    can_activate: boolean;
+    activation_endpoint: string | null;
+    decline_endpoint: string | null;
+    workspace_url: string | null;
+    roadmap_url: string | null;
+};
+
 type Transformation360Journey = {
     visible: boolean;
     has_workflow: boolean;
@@ -29,6 +49,9 @@ type Transformation360Journey = {
     organization_name: string | null;
     current_label: string | null;
     plan_public: boolean;
+    optional_capabilities: {
+        branding_identity?: OptionalBrandingCapability;
+    };
     stages: Transformation360Stage[];
     primary_action: {
         label: string;
@@ -52,6 +75,86 @@ const breadcrumbs: BreadcrumbItem[] = [
         href: '/app/transformacion-360',
     },
 ];
+
+const activatingBranding = ref(false);
+const decliningBranding = ref(false);
+
+const optionalBranding = computed(
+    () => props.transformation360.optional_capabilities?.branding_identity ?? null,
+);
+
+function activateBranding(): void {
+    const branding = optionalBranding.value;
+
+    if (
+        !branding
+        || branding.activated
+        || !branding.can_activate
+        || !branding.activation_endpoint
+        || activatingBranding.value
+    ) {
+        return;
+    }
+
+    if (
+        !window.confirm(
+            '¿Activar gratis Branding e Identidad Digital? Es una capacidad opcional y no genera compra, pago ni suscripción.',
+        )
+    ) {
+        return;
+    }
+
+    router.post(
+        branding.activation_endpoint,
+        {},
+        {
+            preserveScroll: true,
+            onStart: () => {
+                activatingBranding.value = true;
+            },
+            onFinish: () => {
+                activatingBranding.value = false;
+            },
+        },
+    );
+}
+
+function declineBranding(): void {
+    const branding = optionalBranding.value;
+
+    if (
+        !branding
+        || !branding.recommended
+        || branding.activated
+        || branding.decision === 'declined'
+        || !branding.decline_endpoint
+        || decliningBranding.value
+    ) {
+        return;
+    }
+
+    if (
+        !window.confirm(
+            '¿Marcar esta recomendación como “Ahora no”? Branding seguirá disponible para activarlo después.',
+        )
+    ) {
+        return;
+    }
+
+    router.post(
+        branding.decline_endpoint,
+        {},
+        {
+            preserveScroll: true,
+            onStart: () => {
+                decliningBranding.value = true;
+            },
+            onFinish: () => {
+                decliningBranding.value = false;
+            },
+        },
+    );
+}
 </script>
 
 <template>
@@ -186,7 +289,6 @@ const breadcrumbs: BreadcrumbItem[] = [
                                 class="mt-4 text-[10px] font-black tracking-widest text-slate-400 uppercase"
                             >
                                 Etapa {{ index + 1 }}
-
                             </p>
 
                             <h3
@@ -225,7 +327,115 @@ const breadcrumbs: BreadcrumbItem[] = [
                     <div
                         class="border-t border-slate-100 px-5 py-4 text-xs leading-5 text-slate-500 sm:px-6 dark:border-slate-800"
                     >
-                        Informe Ampliado, Roadmap Detallado y Plan de Implementación son entregables gratuitos del recorrido consultivo. La contratación de apoyo para ejecutar el Plan se gestiona fuera de estas etapas.
+                        Informe Ampliado, Roadmap Detallado y Plan de
+                        Implementación son entregables gratuitos del recorrido
+                        consultivo. La contratación de apoyo para ejecutar el
+                        Plan se gestiona fuera de estas etapas.
+                    </div>
+                </section>
+
+                <section
+                    v-if="optionalBranding"
+                    class="rounded-[2rem] border border-slate-200/70 bg-white p-5 shadow-sm sm:p-6 dark:border-slate-800 dark:bg-slate-950"
+                >
+                    <div
+                        class="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between"
+                    >
+                        <div class="max-w-3xl">
+                            <div class="flex flex-wrap items-center gap-2">
+                                <Palette class="h-5 w-5 text-red-600" />
+                                <p
+                                    class="text-lg font-black text-slate-950 dark:text-white"
+                                >
+                                    {{ optionalBranding.title }}
+                                </p>
+                                <span
+                                    class="rounded-full border border-slate-200 px-2.5 py-1 text-[10px] font-black text-slate-600 uppercase dark:border-slate-800 dark:text-slate-300"
+                                >
+                                    Opcional
+                                </span>
+                                <span
+                                    v-if="optionalBranding.recommended"
+                                    class="rounded-full bg-red-50 px-2.5 py-1 text-[10px] font-black text-red-700 uppercase dark:bg-red-950/30 dark:text-red-300"
+                                >
+                                    Recomendado por tu evaluación
+                                </span>
+                            </div>
+
+                            <p
+                                class="mt-3 text-sm leading-6 text-slate-500 dark:text-slate-400"
+                            >
+                                <template v-if="optionalBranding.recommended">
+                                    {{
+                                        optionalBranding.recommendation_basis ??
+                                        'Tu Diagnóstico 360 recomienda revisar Branding e Identidad Digital.'
+                                    }}
+                                    La recomendación no es obligatoria: tú
+                                    decides si activarlo.
+                                </template>
+                                <template v-else>
+                                    Branding e Identidad Digital está disponible
+                                    para seleccionarlo manualmente aunque tu
+                                    evaluación no lo recomiende.
+                                </template>
+                            </p>
+
+                            <p
+                                v-if="optionalBranding.decision === 'declined'"
+                                class="mt-3 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs font-semibold text-slate-600 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-300"
+                            >
+                                Marcaste “Ahora no”. Esta decisión quedó
+                                registrada, pero puedes activar Branding cuando
+                                quieras.
+                            </p>
+                        </div>
+
+                        <div class="flex shrink-0 flex-wrap gap-2">
+                            <a
+                                v-if="optionalBranding.activated && optionalBranding.workspace_url"
+                                :href="optionalBranding.workspace_url"
+                                class="inline-flex h-10 items-center justify-center gap-2 rounded-xl bg-slate-950 px-4 text-sm font-bold text-white transition hover:bg-slate-800 dark:bg-white dark:text-slate-950 dark:hover:bg-slate-200"
+                            >
+                                <CheckCircle2 class="h-4 w-4" />
+                                Abrir Branding
+                            </a>
+
+                            <Button
+                                v-else-if="optionalBranding.can_activate"
+                                type="button"
+                                :disabled="activatingBranding"
+                                @click="activateBranding"
+                            >
+                                <LoaderCircle
+                                    v-if="activatingBranding"
+                                    class="mr-2 h-4 w-4 animate-spin"
+                                />
+                                <Palette
+                                    v-else
+                                    class="mr-2 h-4 w-4"
+                                />
+                                Activar gratis
+                            </Button>
+
+                            <Button
+                                v-if="
+                                    optionalBranding.recommended
+                                    && !optionalBranding.activated
+                                    && optionalBranding.decision !== 'declined'
+                                    && optionalBranding.decline_endpoint
+                                "
+                                variant="outline"
+                                type="button"
+                                :disabled="decliningBranding"
+                                @click="declineBranding"
+                            >
+                                <LoaderCircle
+                                    v-if="decliningBranding"
+                                    class="mr-2 h-4 w-4 animate-spin"
+                                />
+                                Ahora no
+                            </Button>
+                        </div>
                     </div>
                 </section>
             </div>

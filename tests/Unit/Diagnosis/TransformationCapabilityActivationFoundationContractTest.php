@@ -76,6 +76,7 @@ final class TransformationCapabilityActivationFoundationContractTest
 
         foreach ([
             "SOURCE_DETAILED_ROADMAP = 'detailed_roadmap'",
+            "SOURCE_MANUAL = 'manual'",
             "STATUS_ACTIVATED = 'activated'",
             "STATUS_IN_PROGRESS = 'in_progress'",
             "STATUS_READY_FOR_REVIEW = 'ready_for_review'",
@@ -131,12 +132,12 @@ final class TransformationCapabilityActivationFoundationContractTest
         }
     }
 
-    public function test_activation_is_idempotent_per_assessment_and_capability(): void
+    public function test_activation_is_idempotent_per_company_and_capability(): void
     {
         $migration = file_get_contents(
             $this->root()
             .'/database/migrations/'
-            .'2026_08_30_190000_create_transformation_capability_activations_table.php'
+            .'2026_08_30_220000_make_capability_activation_company_owned.php'
         );
 
         $service = file_get_contents(
@@ -145,30 +146,31 @@ final class TransformationCapabilityActivationFoundationContractTest
             .'TransformationCapabilityActivationService.php'
         );
 
-        $this->assertStringContainsString(
-            "'diagnosis_assessment_id',",
-            $migration
-        );
-
-        $this->assertStringContainsString(
-            "'capability_key',",
-            $migration
-        );
-
-        $this->assertStringContainsString(
+        foreach ([
             "'tca_assessment_capability_uq'",
-            $migration
-        );
+            "'company_id',",
+            "'capability_key',",
+            "'tca_company_capability_uq'",
+            "->nullable()",
+            "->nullOnDelete()",
+        ] as $token) {
+            $this->assertStringContainsString(
+                $token,
+                $migration
+            );
+        }
 
-        $this->assertStringContainsString(
+        foreach ([
+            "->where('company_id', \$company->id)",
+            "->where('capability_key', \$capabilityKey)",
             'if ($existing)',
-            $service
-        );
-
-        $this->assertStringContainsString(
             'return $existing->fresh();',
-            $service
-        );
+        ] as $token) {
+            $this->assertStringContainsString(
+                $token,
+                $service
+            );
+        }
     }
 
     public function test_existing_domain_models_expose_activation_relationships(): void

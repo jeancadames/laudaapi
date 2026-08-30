@@ -93,7 +93,7 @@ class DiagnosisTransformationCapabilitiesContractTest extends TestCase
             'Capacidades de Transformación Detallada',
             'Estructural',
             'Opcional',
-            'Recomendado para revisión',
+            'Recomendado por tu evaluación',
         ] as $token) {
             $this->assertStringContainsString(
                 $token,

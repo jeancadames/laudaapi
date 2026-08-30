@@ -1,6 +1,11 @@
 <script setup lang="ts">
 import { router } from '@inertiajs/vue3';
-import { BookOpenCheck, CheckCircle2, LoaderCircle, Palette } from 'lucide-vue-next';
+import {
+    BookOpenCheck,
+    CheckCircle2,
+    LoaderCircle,
+    Palette,
+} from 'lucide-vue-next';
 import { ref } from 'vue';
 
 import { Badge } from '@/components/ui/badge';
@@ -17,22 +22,24 @@ const props = defineProps<{
     capabilities: Record<string, any> | null;
     brandingActivation: {
         recommended: boolean;
+        decision?: 'pending' | 'accepted' | 'declined' | null;
         available: boolean;
         activated: boolean;
         status: string | null;
         activated_at: string | null;
         endpoint: string | null;
+        decline_endpoint?: string | null;
     } | null;
 }>();
 
 const activatingBranding = ref(false);
+const decliningBranding = ref(false);
 
 function activateBranding(): void {
     const activation = props.brandingActivation;
 
     if (
         !activation
-        || !activation.recommended
         || !activation.available
         || activation.activated
         || !activation.endpoint
@@ -43,7 +50,7 @@ function activateBranding(): void {
 
     if (
         !window.confirm(
-            '¿Activar gratis Branding e Identidad Digital para esta empresa? Esta activación no genera compra, pago ni contratación.'
+            '¿Activar gratis Branding e Identidad Digital para esta empresa? Esta activación no genera compra, pago ni contratación.',
         )
     ) {
         return;
@@ -60,7 +67,44 @@ function activateBranding(): void {
             onFinish: () => {
                 activatingBranding.value = false;
             },
-        }
+        },
+    );
+}
+
+function declineBranding(): void {
+    const activation = props.brandingActivation;
+
+    if (
+        !activation
+        || !activation.recommended
+        || activation.activated
+        || activation.decision === 'declined'
+        || !activation.decline_endpoint
+        || decliningBranding.value
+    ) {
+        return;
+    }
+
+    if (
+        !window.confirm(
+            '¿Marcar Branding e Identidad Digital como “Ahora no”? Podrás activarlo manualmente más adelante.',
+        )
+    ) {
+        return;
+    }
+
+    router.post(
+        activation.decline_endpoint,
+        {},
+        {
+            preserveScroll: true,
+            onStart: () => {
+                decliningBranding.value = true;
+            },
+            onFinish: () => {
+                decliningBranding.value = false;
+            },
+        },
     );
 }
 </script>
@@ -122,10 +166,10 @@ function activateBranding(): void {
                     <Badge variant="outline"> Opcional </Badge>
 
                     <Badge
-                        v-if="capabilities.branding_identity?.recommended"
+                        v-if="brandingActivation?.recommended"
                         variant="secondary"
                     >
-                        Recomendado para revisión
+                        Recomendado por tu evaluación
                     </Badge>
 
                     <Badge
@@ -162,36 +206,75 @@ function activateBranding(): void {
 
                 <div
                     v-if="
-                        brandingActivation?.recommended
-                        && brandingActivation?.available
+                        brandingActivation?.available
+                        && !brandingActivation?.activated
                     "
                     class="mt-5 rounded-xl border bg-muted/30 p-4"
                 >
                     <p class="text-sm font-bold">
-                        Activación gratuita disponible
-                    </p>
-                    <p class="mt-1 text-xs leading-5 text-muted-foreground">
-                        Activa esta capacidad para incorporarla al recorrido de
-                        Transformación 360. No genera compra, pago, suscripción
-                        ni aceptación comercial.
+                        {{
+                            brandingActivation?.recommended
+                                ? 'Recomendado por tu Diagnóstico 360'
+                                : 'Activación gratuita disponible'
+                        }}
                     </p>
 
-                    <Button
-                        class="mt-3"
-                        type="button"
-                        :disabled="activatingBranding"
-                        @click="activateBranding"
+                    <p class="mt-1 text-xs leading-5 text-muted-foreground">
+                        <template v-if="brandingActivation?.recommended">
+                            La evaluación recomienda esta capacidad, pero la
+                            decisión sigue siendo tuya.
+                        </template>
+                        <template v-else>
+                            Branding es opcional y puedes activarlo aunque la
+                            evaluación no lo haya recomendado.
+                        </template>
+                        No genera compra, pago, suscripción ni aceptación
+                        comercial.
+                    </p>
+
+                    <div class="mt-3 flex flex-wrap gap-2">
+                        <Button
+                            type="button"
+                            :disabled="activatingBranding"
+                            @click="activateBranding"
+                        >
+                            <LoaderCircle
+                                v-if="activatingBranding"
+                                class="mr-2 size-4 animate-spin"
+                            />
+                            <Palette
+                                v-else
+                                class="mr-2 size-4"
+                            />
+                            Activar gratis
+                        </Button>
+
+                        <Button
+                            v-if="
+                                brandingActivation?.recommended
+                                && brandingActivation?.decision !== 'declined'
+                                && brandingActivation?.decline_endpoint
+                            "
+                            variant="outline"
+                            type="button"
+                            :disabled="decliningBranding"
+                            @click="declineBranding"
+                        >
+                            <LoaderCircle
+                                v-if="decliningBranding"
+                                class="mr-2 size-4 animate-spin"
+                            />
+                            Ahora no
+                        </Button>
+                    </div>
+
+                    <p
+                        v-if="brandingActivation?.decision === 'declined'"
+                        class="mt-3 text-xs font-semibold text-muted-foreground"
                     >
-                        <LoaderCircle
-                            v-if="activatingBranding"
-                            class="mr-2 size-4 animate-spin"
-                        />
-                        <Palette
-                            v-else
-                            class="mr-2 size-4"
-                        />
-                        Activar gratis
-                    </Button>
+                        Marcaste “Ahora no”. La recomendación queda registrada,
+                        pero puedes activar Branding cuando decidas.
+                    </p>
                 </div>
 
                 <div

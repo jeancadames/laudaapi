@@ -90,7 +90,9 @@ final class TransformationCapabilityNeedService
                         'type' =>
                             $activation->source_type,
                         'id' =>
-                            (int) $activation->source_id,
+                            $activation->source_id !== null
+                                ? (int) $activation->source_id
+                                : null,
                         'version' =>
                             $activation->source_version,
                     ],

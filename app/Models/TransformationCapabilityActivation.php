@@ -9,6 +9,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 class TransformationCapabilityActivation extends Model
 {
     public const SOURCE_DETAILED_ROADMAP = 'detailed_roadmap';
+    public const SOURCE_MANUAL = 'manual';
 
     public const STATUS_ACTIVATED = 'activated';
     public const STATUS_IN_PROGRESS = 'in_progress';
@@ -47,6 +48,8 @@ class TransformationCapabilityActivation extends Model
     protected function casts(): array
     {
         return [
+            'diagnosis_assessment_id' => 'integer',
+            'source_id' => 'integer',
             'source_version' => 'integer',
             'source_snapshot' => 'array',
             'activated_at' => 'datetime',
