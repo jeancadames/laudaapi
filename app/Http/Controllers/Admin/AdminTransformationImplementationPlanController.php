@@ -9,6 +9,7 @@ use App\Models\DiagnosisAssessment;
 use App\Models\DiagnosisDetailedRoadmap;
 use App\Models\TransformationImplementationPlan;
 use App\Services\Diagnosis\DiagnosisAccessService;
+use App\Services\Diagnosis\DiagnosisDeliverableValidationService;
 use App\Services\Diagnosis\TransformationImplementationPhaseService;
 use App\Services\Diagnosis\TransformationImplementationPlanAutogenerator;
 use App\Services\Diagnosis\TransformationImplementationPlanService;
@@ -23,7 +24,8 @@ class AdminTransformationImplementationPlanController extends Controller
 {
     public function show(
         ContactRequest $contact,
-        DiagnosisAccessService $accessService
+        DiagnosisAccessService $accessService,
+        DiagnosisDeliverableValidationService $validations
     ): Response {
         $assessment = $this->assessmentFor($contact, $accessService);
         $roadmap = $this->publishedRoadmap($assessment);
@@ -58,6 +60,10 @@ class AdminTransformationImplementationPlanController extends Controller
                     'published_at' => $roadmap->published_at?->toISOString(),
                 ] : null,
                 'plan' => $plan ? $this->serializePlan($plan) : null,
+                'tenant_validation' =>
+                    $validations->closureForAssessment(
+                        $assessment
+                    )['implementation_plan'],
                 'capability_options' => $plan
                     ? $this->capabilityOptionsFor($plan)
                     : [],

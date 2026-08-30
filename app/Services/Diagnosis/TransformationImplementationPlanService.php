@@ -14,6 +14,11 @@ use Illuminate\Validation\ValidationException;
 
 class TransformationImplementationPlanService
 {
+    public function __construct(
+        private readonly DiagnosisDeliverableValidationService $validations
+    ) {
+    }
+
     public function createDraftFromPublishedRoadmap(
         DiagnosisDetailedRoadmap $roadmap,
         User $actor
@@ -251,10 +256,12 @@ class TransformationImplementationPlanService
           });
       }
 
-public function markPresented(
+    public function markPresented(
         TransformationImplementationPlan $plan,
         User $actor
     ): TransformationImplementationPlan {
+        $this->validations->assertNotValidated($plan);
+
         return DB::transaction(function () use ($plan, $actor) {
             $locked = TransformationImplementationPlan::query()
                 ->lockForUpdate()

@@ -10,6 +10,7 @@ use App\Models\ContactRequest;
 use App\Models\DiagnosisAccessRequest;
 use App\Services\AuditService;
 use App\Services\Diagnosis\DiagnosisAccessService;
+use App\Services\Diagnosis\DiagnosisDeliverableValidationService;
 use App\Services\Diagnosis\DiagnosisResultPublisher;
 use App\Services\Diagnosis\DiagnosisTransformationProgressService;
 use Illuminate\Http\RedirectResponse;
@@ -176,7 +177,8 @@ class AdminDiagnosisAccessRequestController extends Controller
     public function show(
         ContactRequest $contact,
         DiagnosisAccessService $service,
-        DiagnosisTransformationProgressService $progressService
+        DiagnosisTransformationProgressService $progressService,
+        DiagnosisDeliverableValidationService $validations
     ): Response {
         if (!$service->isDiagnosisContact($contact)) {
             abort(404);
@@ -264,6 +266,10 @@ class AdminDiagnosisAccessRequestController extends Controller
                         $assessment,
                         true
                     )
+                    : null,
+            'document_closure' =>
+                $assessment
+                    ? $validations->closureForAssessment($assessment)
                     : null,
         ]);
     }

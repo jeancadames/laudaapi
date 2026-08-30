@@ -11,7 +11,8 @@ use Illuminate\Validation\ValidationException;
 class DiagnosisResultPublisher
 {
     public function __construct(
-        private readonly DiagnosisFreeDeliverablesOrchestrator $deliverables
+        private readonly DiagnosisFreeDeliverablesOrchestrator $deliverables,
+        private readonly DiagnosisDeliverableValidationService $validations
     ) {
     }
 
@@ -72,6 +73,10 @@ class DiagnosisResultPublisher
                 ->whereKey($assessment->getKey())
                 ->lockForUpdate()
                 ->firstOrFail();
+
+            $this->validations->assertAssessmentOpenForPublication(
+                $locked
+            );
 
             if (!in_array($locked->status, ['submitted', 'reviewed'], true)) {
                 throw ValidationException::withMessages([

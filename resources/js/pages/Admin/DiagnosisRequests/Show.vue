@@ -104,6 +104,10 @@ const props = defineProps<{
     statuses: string[];
     businessProfileOptions: BusinessProfileOptions;
     transformation_progress: Record<string, any> | null;
+    document_closure: {
+        all_validated: boolean;
+        closed_at: string | null;
+    } | null;
 
 }>();
 
@@ -117,6 +121,9 @@ const breadcrumbs: BreadcrumbItem[] = [
 ];
 
 const assessment = computed(() => props.workflow?.assessment ?? null);
+const documentCycleClosed = computed(
+    () => props.document_closure?.all_validated === true,
+);
 
 const invitationExpired = computed(() => {
     if (
@@ -302,6 +309,8 @@ function saveReviewDraft() {
 }
 
 function publish() {
+    if (documentCycleClosed.value) return;
+
     const action =
         assessment.value?.status === 'reviewed'
             ? 'actualizar y republicar'
@@ -926,6 +935,17 @@ function publish() {
                                 class="space-y-4"
                                 id="informe-diagnostico"
                             >
+                                <div
+                                    v-if="documentCycleClosed"
+                                    class="rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-900"
+                                >
+                                    <p class="font-black">
+                                        Ciclo documental validado por el tenant
+                                    </p>
+                                    <p class="mt-1 leading-5">
+                                        Informe Ampliado, Roadmap Detallado y Plan de Implementación están validados. La republicación del Diagnóstico queda bloqueada; para cambios, crea una nueva versión del entregable correspondiente.
+                                    </p>
+                                </div>
                                 <div>
                                     <label class="text-xs font-bold">
                                         Conclusión ejecutiva
@@ -1001,6 +1021,7 @@ function publish() {
                                     </Button>
 
                                     <Button
+                                        v-if="!documentCycleClosed"
                                         :class="[
                                             'bg-[#F53003] text-white hover:bg-[#D92A03]',
                                             assessment.status === 'reviewed'

@@ -11,6 +11,7 @@ use App\Models\DiagnosisDetailedRoadmap;
 use App\Models\DiagnosisExpandedReport;
 use App\Services\Diagnosis\DiagnosisAccessService;
 use App\Services\Diagnosis\DiagnosisCommercialNotificationService;
+use App\Services\Diagnosis\DiagnosisDeliverableValidationService;
 use App\Services\Diagnosis\DiagnosisDetailedRoadmapService;
 use App\Services\Diagnosis\DiagnosisTransformationProgressService;
 use Illuminate\Http\RedirectResponse;
@@ -23,7 +24,8 @@ class AdminDiagnosisDetailedRoadmapController extends Controller
     public function show(
         ContactRequest $contact,
         DiagnosisAccessService $accessService,
-        DiagnosisTransformationProgressService $progressService
+        DiagnosisTransformationProgressService $progressService,
+        DiagnosisDeliverableValidationService $validations
     ): Response {
         $assessment = $this->assessmentFor($contact, $accessService);
 
@@ -75,6 +77,10 @@ class AdminDiagnosisDetailedRoadmapController extends Controller
                 'roadmap' => $roadmap
                     ? $this->serializeRoadmap($roadmap, $contact)
                     : null,
+                'tenant_validation' =>
+                    $validations->closureForAssessment(
+                        $assessment
+                    )['detailed_roadmap'],
                 'can_generate' =>
                     $readiness['generation_ready'],
                 'generation_readiness' =>
@@ -122,10 +128,12 @@ class AdminDiagnosisDetailedRoadmapController extends Controller
         ContactRequest $contact,
         DiagnosisDetailedRoadmap $roadmap,
         DiagnosisAccessService $accessService,
-        DiagnosisDetailedRoadmapService $service
+        DiagnosisDetailedRoadmapService $service,
+        DiagnosisDeliverableValidationService $validations
     ): RedirectResponse {
         $assessment = $this->assessmentFor($contact, $accessService);
         $this->assertRoadmap($roadmap, $assessment);
+        $validations->assertNotValidated($roadmap);
 
         $service->saveReviewNotes(
             $roadmap,
@@ -141,10 +149,12 @@ class AdminDiagnosisDetailedRoadmapController extends Controller
         ContactRequest $contact,
         DiagnosisDetailedRoadmap $roadmap,
         DiagnosisAccessService $accessService,
-        DiagnosisDetailedRoadmapService $service
+        DiagnosisDetailedRoadmapService $service,
+        DiagnosisDeliverableValidationService $validations
     ): RedirectResponse {
         $assessment = $this->assessmentFor($contact, $accessService);
         $this->assertRoadmap($roadmap, $assessment);
+        $validations->assertNotValidated($roadmap);
 
         $service->markUnderReview(
             $roadmap,
@@ -159,10 +169,12 @@ class AdminDiagnosisDetailedRoadmapController extends Controller
         ContactRequest $contact,
         DiagnosisDetailedRoadmap $roadmap,
         DiagnosisAccessService $accessService,
-        DiagnosisDetailedRoadmapService $service
+        DiagnosisDetailedRoadmapService $service,
+        DiagnosisDeliverableValidationService $validations
     ): RedirectResponse {
         $assessment = $this->assessmentFor($contact, $accessService);
         $this->assertRoadmap($roadmap, $assessment);
+        $validations->assertNotValidated($roadmap);
 
         $service->regenerateDraft(
             $roadmap,
@@ -181,10 +193,12 @@ class AdminDiagnosisDetailedRoadmapController extends Controller
         DiagnosisDetailedRoadmap $roadmap,
         DiagnosisAccessService $accessService,
         DiagnosisDetailedRoadmapService $service,
-        DiagnosisCommercialNotificationService $notificationService
+        DiagnosisCommercialNotificationService $notificationService,
+        DiagnosisDeliverableValidationService $validations
     ): RedirectResponse {
         $assessment = $this->assessmentFor($contact, $accessService);
         $this->assertRoadmap($roadmap, $assessment);
+        $validations->assertNotValidated($roadmap);
 
         $published = $service->publish(
             $roadmap,

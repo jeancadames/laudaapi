@@ -9,6 +9,7 @@ use App\Models\DiagnosisAccessRequest;
 use App\Models\DiagnosisAssessment;
 use App\Models\DiagnosisExpandedReport;
 use App\Services\Diagnosis\DiagnosisAccessService;
+use App\Services\Diagnosis\DiagnosisDeliverableValidationService;
 use App\Services\Diagnosis\DiagnosisExpandedReportService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -19,7 +20,8 @@ class AdminDiagnosisExpandedReportController extends Controller
 {
     public function show(
         ContactRequest $contact,
-        DiagnosisAccessService $accessService
+        DiagnosisAccessService $accessService,
+        DiagnosisDeliverableValidationService $validations
     ): Response {
         $assessment = $this->assessmentFor(
             $contact,
@@ -68,6 +70,10 @@ class AdminDiagnosisExpandedReportController extends Controller
                         $contact
                     )
                     : null,
+                'tenant_validation' =>
+                    $validations->closureForAssessment(
+                        $assessment
+                    )['expanded_report'],
                 'can_generate' =>
                     $assessment->status === 'reviewed'
                     && $assessment->published_at !== null,
@@ -112,7 +118,8 @@ class AdminDiagnosisExpandedReportController extends Controller
         ContactRequest $contact,
         DiagnosisExpandedReport $report,
         DiagnosisAccessService $accessService,
-        DiagnosisExpandedReportService $reportService
+        DiagnosisExpandedReportService $reportService,
+        DiagnosisDeliverableValidationService $validations
     ): RedirectResponse {
         $assessment = $this->assessmentFor(
             $contact,
@@ -123,6 +130,8 @@ class AdminDiagnosisExpandedReportController extends Controller
             $report,
             $assessment
         );
+
+        $validations->assertNotValidated($report);
 
         $reportService->saveReviewNotes(
             $report,
@@ -141,7 +150,8 @@ class AdminDiagnosisExpandedReportController extends Controller
         ContactRequest $contact,
         DiagnosisExpandedReport $report,
         DiagnosisAccessService $accessService,
-        DiagnosisExpandedReportService $reportService
+        DiagnosisExpandedReportService $reportService,
+        DiagnosisDeliverableValidationService $validations
     ): RedirectResponse {
         $assessment = $this->assessmentFor(
             $contact,
@@ -152,6 +162,8 @@ class AdminDiagnosisExpandedReportController extends Controller
             $report,
             $assessment
         );
+
+        $validations->assertNotValidated($report);
 
         $reportService->markUnderReview(
             $report,
@@ -169,7 +181,8 @@ class AdminDiagnosisExpandedReportController extends Controller
         ContactRequest $contact,
         DiagnosisExpandedReport $report,
         DiagnosisAccessService $accessService,
-        DiagnosisExpandedReportService $reportService
+        DiagnosisExpandedReportService $reportService,
+        DiagnosisDeliverableValidationService $validations
     ): RedirectResponse {
         $assessment = $this->assessmentFor(
             $contact,
@@ -180,6 +193,8 @@ class AdminDiagnosisExpandedReportController extends Controller
             $report,
             $assessment
         );
+
+        $validations->assertNotValidated($report);
 
         $reportService->regenerateDraft(
             $report,
@@ -198,7 +213,8 @@ class AdminDiagnosisExpandedReportController extends Controller
         DiagnosisExpandedReport $report,
         DiagnosisAccessService $accessService,
         DiagnosisExpandedReportService $reportService,
-        \App\Services\Diagnosis\DiagnosisCommercialNotificationService $notificationService
+        \App\Services\Diagnosis\DiagnosisCommercialNotificationService $notificationService,
+        DiagnosisDeliverableValidationService $validations
     ): RedirectResponse {
         $assessment = $this->assessmentFor(
             $contact,
@@ -209,6 +225,8 @@ class AdminDiagnosisExpandedReportController extends Controller
             $report,
             $assessment
         );
+
+        $validations->assertNotValidated($report);
 
         $published = $reportService->publish(
             $report,

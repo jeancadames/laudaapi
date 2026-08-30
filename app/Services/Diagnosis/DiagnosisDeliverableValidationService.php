@@ -2,6 +2,7 @@
 
 namespace App\Services\Diagnosis;
 
+use App\Models\DiagnosisAssessment;
 use App\Models\DiagnosisDeliverableValidation;
 use App\Models\DiagnosisDetailedRoadmap;
 use App\Models\DiagnosisExpandedReport;
@@ -41,6 +42,97 @@ class DiagnosisDeliverableValidationService
                 $validation?->adjustment_requested_at?->toISOString(),
             'adjustment_note' => $validation?->adjustment_note,
         ];
+    }
+
+
+    /**
+     * Estado administrativo de cierre de la versión activa de cada entregable.
+     * No crea validaciones ni altera estados.
+     */
+    public function closureForAssessment(
+        DiagnosisAssessment $assessment
+    ): array {
+        $report = DiagnosisExpandedReport::query()
+            ->where('diagnosis_assessment_id', $assessment->id)
+            ->orderByDesc('version')
+            ->first();
+
+        $roadmap = DiagnosisDetailedRoadmap::query()
+            ->where('diagnosis_assessment_id', $assessment->id)
+            ->orderByDesc('version')
+            ->first();
+
+        $plan = TransformationImplementationPlan::query()
+            ->where('diagnosis_assessment_id', $assessment->id)
+            ->orderByDesc('version')
+            ->first();
+
+        $entries = [
+            'expanded_report' => $this->closureEntry(
+                DiagnosisDeliverableValidation::TYPE_EXPANDED_REPORT,
+                $report?->id,
+                $report?->version
+            ),
+            'detailed_roadmap' => $this->closureEntry(
+                DiagnosisDeliverableValidation::TYPE_DETAILED_ROADMAP,
+                $roadmap?->id,
+                $roadmap?->version
+            ),
+            'implementation_plan' => $this->closureEntry(
+                DiagnosisDeliverableValidation::TYPE_IMPLEMENTATION_PLAN,
+                $plan?->id,
+                $plan?->version
+            ),
+        ];
+
+        $allValidated = collect($entries)->every(
+            fn (array $entry): bool =>
+                $entry['deliverable_id'] !== null
+                && $entry['validated'] === true
+        );
+
+        $closedAt = collect($entries)
+            ->pluck('validated_at')
+            ->filter()
+            ->sort()
+            ->last();
+
+        return [
+            ...$entries,
+            'all_validated' => $allValidated,
+            'closed_at' => $allValidated ? $closedAt : null,
+        ];
+    }
+
+    public function assertAssessmentOpenForPublication(
+        DiagnosisAssessment $assessment
+    ): void {
+        if ($this->closureForAssessment($assessment)['all_validated']) {
+            throw ValidationException::withMessages([
+                'assessment' => [
+                    'El ciclo documental fue validado por el tenant y está cerrado. Para cambios, crea una nueva versión del entregable correspondiente.',
+                ],
+            ]);
+        }
+    }
+
+    public function assertNotValidated(Model $deliverable): void
+    {
+        $identity = $this->validationIdentity($deliverable);
+
+        $validated = DiagnosisDeliverableValidation::query()
+            ->where('deliverable_type', $identity['type'])
+            ->where('deliverable_id', $identity['id'])
+            ->whereNotNull('validated_at')
+            ->exists();
+
+        if ($validated) {
+            throw ValidationException::withMessages([
+                'deliverable' => [
+                    'Esta versión fue validada por el tenant y quedó cerrada. Crea una nueva versión para realizar cambios.',
+                ],
+            ]);
+        }
     }
 
     public function markReviewed(
@@ -178,6 +270,63 @@ class DiagnosisDeliverableValidationService
 
             return $validation->fresh();
         });
+    }
+
+    private function closureEntry(
+        string $type,
+        ?int $deliverableId,
+        mixed $version
+    ): array {
+        $validation = $deliverableId
+            ? DiagnosisDeliverableValidation::query()
+                ->where('deliverable_type', $type)
+                ->where('deliverable_id', $deliverableId)
+                ->first()
+            : null;
+
+        return [
+            'deliverable_type' => $type,
+            'deliverable_id' => $deliverableId,
+            'version' => $version !== null ? (int) $version : null,
+            'reviewed' => $validation?->reviewed_at !== null,
+            'validated' => $validation?->validated_at !== null,
+            'adjustment_requested' =>
+                $validation?->adjustment_requested_at !== null,
+            'reviewed_at' => $validation?->reviewed_at?->toISOString(),
+            'validated_at' => $validation?->validated_at?->toISOString(),
+            'adjustment_requested_at' =>
+                $validation?->adjustment_requested_at?->toISOString(),
+        ];
+    }
+
+    private function validationIdentity(Model $deliverable): array
+    {
+        if ($deliverable instanceof DiagnosisExpandedReport) {
+            return [
+                'type' => DiagnosisDeliverableValidation::TYPE_EXPANDED_REPORT,
+                'id' => $deliverable->id,
+            ];
+        }
+
+        if ($deliverable instanceof DiagnosisDetailedRoadmap) {
+            return [
+                'type' => DiagnosisDeliverableValidation::TYPE_DETAILED_ROADMAP,
+                'id' => $deliverable->id,
+            ];
+        }
+
+        if ($deliverable instanceof TransformationImplementationPlan) {
+            return [
+                'type' => DiagnosisDeliverableValidation::TYPE_IMPLEMENTATION_PLAN,
+                'id' => $deliverable->id,
+            ];
+        }
+
+        throw ValidationException::withMessages([
+            'deliverable' => [
+                'El tipo de entregable no admite cierre documental.',
+            ],
+        ]);
     }
 
     private function lockedValidation(array $descriptor): DiagnosisDeliverableValidation

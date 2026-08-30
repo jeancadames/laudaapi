@@ -74,6 +74,12 @@ const props = defineProps<{
         version: number;
         published_at: string | null;
     } | null;
+    tenant_validation: {
+        deliverable_id: number | null;
+        version: number | null;
+        validated: boolean;
+        validated_at: string | null;
+    };
     plan: {
         id: number;
         version: number;
@@ -99,7 +105,15 @@ const page = usePage();
 const errors = computed(
     () => (page.props.errors ?? {}) as Record<string, string>,
 );
-const isDraft = computed(() => props.plan?.status === 'draft');
+const planValidated = computed(
+    () =>
+        props.plan !== null &&
+        props.tenant_validation?.deliverable_id === props.plan.id &&
+        props.tenant_validation?.validated === true,
+);
+const isDraft = computed(
+    () => props.plan?.status === 'draft' && !planValidated.value,
+);
 const phases = computed(() => props.plan?.phases ?? []);
 
 const breadcrumbs: BreadcrumbItem[] = [
@@ -167,6 +181,15 @@ function presentPlan(): void {
             <Card v-if="Object.keys(errors).length" class="border-destructive/30 bg-destructive/5">
                 <CardContent class="space-y-1 p-5 text-sm text-destructive">
                     <p v-for="(message, key) in errors" :key="key">{{ message }}</p>
+                </CardContent>
+            </Card>
+
+            <Card v-if="planValidated" class="border-emerald-200 bg-emerald-50">
+                <CardContent class="p-5 text-sm text-emerald-900">
+                    <p class="font-black">Versión validada por el tenant y cerrada</p>
+                    <p class="mt-1">
+                        Este Plan no puede regenerarse ni volver a presentarse como la misma versión. Cualquier cambio debe gestionarse mediante una nueva versión documental.
+                    </p>
                 </CardContent>
             </Card>
 
@@ -312,7 +335,7 @@ function presentPlan(): void {
                     <CardHeader>
                         <CardTitle>4. Presentación</CardTitle>
                         <CardDescription>
-                            Presenta el documento al tenant para lectura y revisión. La validación formal del tenant se incorporará en la siguiente fase.
+                            Presenta el documento al tenant para lectura y revisión. Una vez validada la versión, queda cerrada y no puede volver a presentarse.
                         </CardDescription>
                     </CardHeader>
                     <CardContent class="flex flex-wrap gap-3">

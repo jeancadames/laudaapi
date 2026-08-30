@@ -52,6 +52,12 @@ const props = defineProps<{
         urgency_score: number | null;
     };
     report: Report | null;
+    tenant_validation: {
+        deliverable_id: number | null;
+        version: number | null;
+        validated: boolean;
+        validated_at: string | null;
+    };
     can_generate: boolean;
     endpoints: { back: string; generate: string };
 }>();
@@ -64,7 +70,13 @@ const canEdit = computed(
         ['draft', 'under_review'].includes(props.report.status),
 );
 
-const canPublish = computed(() => canEdit.value);
+const reportValidated = computed(
+    () =>
+        props.report !== null &&
+        props.tenant_validation?.deliverable_id === props.report.id &&
+        props.tenant_validation?.validated === true,
+);
+const canPublish = computed(() => canEdit.value && !reportValidated.value);
 
 function generate() {
     router.post(props.endpoints.generate, {}, { preserveScroll: true });
@@ -171,6 +183,16 @@ function statusLabel(status: Report['status']) {
                 <p class="mt-1 text-muted-foreground">
                     El Informe Ampliado se prepara, revisa y publica sin
                     solicitud comercial, factura ni pago.
+                </p>
+            </div>
+
+            <div
+                v-if="reportValidated"
+                class="rounded-2xl border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-900"
+            >
+                <p class="font-black">Versión validada por el tenant y cerrada</p>
+                <p class="mt-1">
+                    Esta versión no puede regenerarse ni republicarse. Si necesitas cambiar el contenido, crea una nueva versión.
                 </p>
             </div>
 

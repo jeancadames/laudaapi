@@ -17,7 +17,12 @@ class DiagnosisExpandedReportVisualPaymentGateContractTest extends TestCase
         );
 
         $this->assertStringContainsString(
-            'const canPublish = computed(() => canEdit.value);',
+            'const canPublish = computed(() => canEdit.value && !reportValidated.value);',
+            $source
+        );
+
+        $this->assertStringContainsString(
+            'const reportValidated = computed(',
             $source
         );
 

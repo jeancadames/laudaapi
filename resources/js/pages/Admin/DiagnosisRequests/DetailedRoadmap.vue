@@ -83,6 +83,12 @@ const props = defineProps<{
         published_at: string | null;
     } | null;
     roadmap: Roadmap | null;
+    tenant_validation: {
+        deliverable_id: number | null;
+        version: number | null;
+        validated: boolean;
+        validated_at: string | null;
+    };
     can_generate: boolean;
     generation_readiness: Record<string, any>;
     transformation_progress: Record<string, any> | null;
@@ -100,9 +106,17 @@ const reviewForm = useForm({
     review_notes: props.roadmap?.review_notes ?? '',
 });
 
+const roadmapValidated = computed(
+    () =>
+        props.roadmap !== null &&
+        props.tenant_validation?.deliverable_id === props.roadmap.id &&
+        props.tenant_validation?.validated === true,
+);
+
 const canEdit = computed(
     () =>
         props.roadmap !== null &&
+        !roadmapValidated.value &&
         ['draft', 'under_review'].includes(props.roadmap.status),
 );
 
@@ -190,6 +204,16 @@ function statusLabel(status: Roadmap['status']) {
                         Volver al Informe
                     </Link>
                 </Button>
+            </div>
+
+            <div
+                v-if="roadmapValidated"
+                class="rounded-2xl border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-900"
+            >
+                <p class="font-black">Versión validada por el tenant y cerrada</p>
+                <p class="mt-1">
+                    Esta versión no puede regenerarse ni republicarse. Si necesitas cambiar el contenido, crea una nueva versión.
+                </p>
             </div>
 
             <Card>
