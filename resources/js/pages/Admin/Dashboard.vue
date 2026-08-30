@@ -36,11 +36,6 @@ type DashboardStats = {
         completed: number;
         results_to_review: number;
     };
-    modalities: {
-        guided: number;
-        assisted: number;
-        managed: number;
-    };
 };
 
 type RecentRequest = {
@@ -51,8 +46,6 @@ type RecentRequest = {
     status: string;
     assessment_status: string | null;
     maturity_score: number | null;
-    recommended_modality: string | null;
-    recommended_modality_label: string | null;
     created_at: string | null;
     href: string;
 };
@@ -610,10 +603,7 @@ const flowItems = [
                                         <p
                                             class="mt-0.5 text-[10px] text-slate-400"
                                         >
-                                            {{
-                                                item.recommended_modality_label ||
-                                                'Modalidad por definir'
-                                            }}
+                                            Madurez digital
                                         </p>
                                     </template>
                                     <span v-else class="text-xs text-slate-400">

@@ -3,7 +3,6 @@
 namespace App\Http\Requests\Diagnosis;
 
 use Illuminate\Foundation\Http\FormRequest;
-use Illuminate\Validation\Rule;
 
 class SaveDiagnosisReviewRequest extends FormRequest
 {
@@ -30,10 +29,6 @@ class SaveDiagnosisReviewRequest extends FormRequest
                 'string',
                 'max:500',
             ],
-            'final_modality' => [
-                'nullable',
-                Rule::in(['guided', 'assisted', 'managed']),
-            ],
         ];
     }
 
@@ -41,7 +36,6 @@ class SaveDiagnosisReviewRequest extends FormRequest
     {
         $summary = $this->input('review_summary');
         $priorities = $this->input('review_priorities');
-        $modality = $this->input('final_modality');
 
         $this->merge([
             'review_summary' => is_string($summary)
@@ -60,9 +54,6 @@ class SaveDiagnosisReviewRequest extends FormRequest
                         : $item !== null
                 ))
                 : [],
-            'final_modality' => is_string($modality)
-                ? trim($modality)
-                : $modality,
         ]);
     }
 }

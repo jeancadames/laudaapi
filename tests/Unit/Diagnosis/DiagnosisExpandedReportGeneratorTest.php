@@ -38,9 +38,6 @@ class DiagnosisExpandedReportGeneratorTest extends TestCase
                 'Estandarizar la operación.',
                 'Conectar información comercial y operativa.',
             ],
-            'final_modality' => 'managed',
-            'final_modality_label' =>
-                'LAUDA 360 Gestionado',
             'business_activity_type' =>
                 'services',
             'business_sector' =>
@@ -85,7 +82,7 @@ class DiagnosisExpandedReportGeneratorTest extends TestCase
             'relative_strengths',
             'business_implications',
             'recommended_focus',
-            'modality_and_capacity',
+            'execution_capacity',
             'next_step_note',
         ] as $key) {
             $this->assertArrayHasKey(
@@ -114,10 +111,30 @@ class DiagnosisExpandedReportGeneratorTest extends TestCase
         );
 
         $this->assertSame(
-            'LAUDA 360 Gestionado',
+            38,
             $sections[
-                'modality_and_capacity'
-            ]['recommended_modality_label']
+                'execution_capacity'
+            ]['capacity_score']
+        );
+
+        $this->assertArrayNotHasKey(
+            'recommended_modality',
+            $sections['execution_capacity']
+        );
+
+        $this->assertArrayNotHasKey(
+            'recommended_modality_label',
+            $sections['execution_capacity']
+        );
+
+        $this->assertArrayNotHasKey(
+            'modality',
+            $result['source_snapshot']['official_result']
+        );
+
+        $this->assertArrayNotHasKey(
+            'modality_label',
+            $result['source_snapshot']['official_result']
         );
     }
 

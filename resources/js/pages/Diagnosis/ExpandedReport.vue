@@ -309,17 +309,22 @@ function formatDate(value: string | null) {
 
             <Card>
                 <CardHeader>
-                    <CardTitle> Modalidad y capacidad de ejecución </CardTitle>
+                    <CardTitle> Capacidad interna para ejecutar el cambio </CardTitle>
                     <CardDescription>
+                        Puntaje de capacidad:
                         {{
-                            sections.modality_and_capacity
-                                ?.recommended_modality_label || '—'
-                        }}
+                            sections.execution_capacity?.capacity_score ??
+                            sections.modality_and_capacity?.capacity_score ??
+                            '—'
+                        }}/100
                     </CardDescription>
                 </CardHeader>
                 <CardContent>
                     <p class="leading-7">
-                        {{ sections.modality_and_capacity?.body }}
+                        Este indicador ayuda a dimensionar la capacidad interna
+                        disponible para convertir los hallazgos en acciones.
+                        No define una modalidad comercial ni implica
+                        contratación.
                     </p>
                 </CardContent>
             </Card>

@@ -47,13 +47,9 @@ type Assessment = {
     dimension_scores: Record<string, number>;
     maturity_level: string | null;
     urgency_level: string | null;
-    recommended_modality: string | null;
-    recommended_modality_label: string | null;
     review_required: boolean;
     review_summary: string | null;
     review_priorities: string[];
-    final_modality: string | null;
-    final_modality_label: string | null;
     submitted_at: string | null;
     reviewed_at: string | null;
     published_at: string | null;
@@ -164,10 +160,6 @@ const rejectForm = useForm({
 const publishForm = useForm({
     review_summary: assessment.value?.review_summary ?? '',
     review_priorities: assessment.value?.review_priorities?.join('\n') ?? '',
-    final_modality:
-        assessment.value?.final_modality ??
-        assessment.value?.recommended_modality ??
-        'assisted',
 });
 
 const reviewSubmitting = ref(false);
@@ -297,7 +289,6 @@ function reject() {
 function reviewPayload() {
     return {
         review_summary: publishForm.review_summary.trim(),
-        final_modality: publishForm.final_modality,
         review_priorities: publishForm.review_priorities
             .split(/\r?\n/)
             .map((item) => item.trim())
@@ -809,13 +800,12 @@ function publish() {
                                     <p
                                         class="text-xs font-bold text-muted-foreground"
                                     >
-                                        Modalidad automática
+                                        Lectura de capacidad
                                     </p>
-                                    <p class="mt-1 font-black">
-                                        {{
-                                            assessment.recommended_modality_label ||
-                                            'Pendiente'
-                                        }}
+                                    <p class="mt-1 text-sm leading-6 text-muted-foreground">
+                                        Use capacidad, urgencia, brechas y prioridades
+                                        para revisar el resultado. La modalidad comercial
+                                        se define fuera del Diagnóstico 360.
                                     </p>
                                 </div>
                             </CardContent>
@@ -1072,32 +1062,6 @@ function publish() {
                                         {{
                                             publishForm.errors.review_priorities
                                         }}
-                                    </p>
-                                </div>
-
-                                <div>
-                                    <label class="text-xs font-bold">
-                                        Modalidad final
-                                    </label>
-                                    <select
-                                        v-model="publishForm.final_modality"
-                                        class="mt-2 h-10 w-full rounded-xl border bg-background px-3 text-sm"
-                                    >
-                                        <option value="guided">
-                                            LAUDA 360 Guiado
-                                        </option>
-                                        <option value="assisted">
-                                            LAUDA 360 Asistido
-                                        </option>
-                                        <option value="managed">
-                                            LAUDA 360 Gestionado
-                                        </option>
-                                    </select>
-                                    <p
-                                        v-if="publishForm.errors.final_modality"
-                                        class="mt-1 text-xs text-destructive"
-                                    >
-                                        {{ publishForm.errors.final_modality }}
                                     </p>
                                 </div>
 

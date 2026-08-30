@@ -62,14 +62,6 @@ class AdminDashboardController extends Controller
             ->map(fn ($value): int => (int) $value)
             ->all();
 
-        $modalities = DiagnosisAssessment::query()
-            ->whereNotNull('recommended_modality')
-            ->select('recommended_modality', DB::raw('COUNT(*) as aggregate'))
-            ->groupBy('recommended_modality')
-            ->pluck('aggregate', 'recommended_modality')
-            ->map(fn ($value): int => (int) $value)
-            ->all();
-
         $underReview = (int) ($workflowByStatus[DiagnosisAccessRequest::STATUS_UNDER_REVIEW] ?? 0);
         $moreInfo = (int) ($workflowByStatus[DiagnosisAccessRequest::STATUS_MORE_INFO_REQUIRED] ?? 0);
         $approved = (int) ($workflowByStatus[DiagnosisAccessRequest::STATUS_APPROVED] ?? 0);
@@ -106,12 +98,6 @@ class AdminDashboardController extends Controller
                 'reviewed' => $reviewed,
                 'completed' => $submitted + $reviewed,
                 'results_to_review' => $submitted,
-            ],
-
-            'modalities' => [
-                'guided' => (int) ($modalities['guided'] ?? 0),
-                'assisted' => (int) ($modalities['assisted'] ?? 0),
-                'managed' => (int) ($modalities['managed'] ?? 0),
             ],
         ];
     }
@@ -153,8 +139,6 @@ class AdminDashboardController extends Controller
                 'dar.status as workflow_status',
                 'da.status as assessment_status',
                 'da.maturity_score',
-                'da.recommended_modality',
-                'da.recommended_modality_label',
             ])
             ->map(function ($row): array {
                 return [
@@ -171,12 +155,6 @@ class AdminDashboardController extends Controller
                         : null,
                     'maturity_score' => $row->maturity_score !== null
                         ? (float) $row->maturity_score
-                        : null,
-                    'recommended_modality' => $row->recommended_modality
-                        ? (string) $row->recommended_modality
-                        : null,
-                    'recommended_modality_label' => $row->recommended_modality_label
-                        ? (string) $row->recommended_modality_label
                         : null,
                     'created_at' => $row->created_at
                         ? (string) $row->created_at

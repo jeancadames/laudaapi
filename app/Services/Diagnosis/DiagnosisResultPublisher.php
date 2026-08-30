@@ -15,12 +15,6 @@ class DiagnosisResultPublisher
     ) {
     }
 
-    public const MODALITY_LABELS = [
-        'guided' => 'LAUDA 360 Guiado',
-        'assisted' => 'LAUDA 360 Asistido',
-        'managed' => 'LAUDA 360 Gestionado',
-    ];
-
     public function saveDraft(
         DiagnosisAssessment $assessment,
         User $reviewer,
@@ -44,23 +38,6 @@ class DiagnosisResultPublisher
                 ]);
             }
 
-            $modality = isset($data['final_modality'])
-                && $data['final_modality'] !== ''
-                ? (string) $data['final_modality']
-                : null;
-
-            $label = $modality !== null
-                ? self::labelForModality($modality)
-                : null;
-
-            if ($modality !== null && $label === null) {
-                throw ValidationException::withMessages([
-                    'final_modality' => [
-                        'La modalidad seleccionada no es válida.',
-                    ],
-                ]);
-            }
-
             $locked->forceFill([
                 'reviewed_by_user_id' => $reviewer->id,
                 'review_summary' => isset($data['review_summary'])
@@ -69,15 +46,12 @@ class DiagnosisResultPublisher
                 'review_priorities' => array_values(
                     $data['review_priorities'] ?? []
                 ),
-                'final_modality' => $modality,
-                'final_modality_label' => $label,
             ])->save();
 
             AuditService::log('diagnosis_result_review_saved', $locked, [
                 'assessment_id' => $locked->id,
                 'reviewed_by_user_id' => $reviewer->id,
-                'automatic_modality' => $locked->recommended_modality,
-                'draft_modality' => $locked->final_modality,
+                'commercial_modality_changed' => false,
             ]);
 
             return $locked->fresh(['user', 'reviewedBy']);
@@ -107,22 +81,11 @@ class DiagnosisResultPublisher
                 ]);
             }
 
-            $modality = (string) $data['final_modality'];
-            $label = self::labelForModality($modality);
-
-            if ($label === null) {
-                throw ValidationException::withMessages([
-                    'final_modality' => ['La modalidad seleccionada no es válida.'],
-                ]);
-            }
-
             $locked->forceFill([
                 'status' => 'reviewed',
                 'reviewed_by_user_id' => $reviewer->id,
                 'review_summary' => trim((string) $data['review_summary']),
                 'review_priorities' => array_values($data['review_priorities']),
-                'final_modality' => $modality,
-                'final_modality_label' => $label,
                 'reviewed_at' => now(),
                 'published_at' => now(),
             ])->save();
@@ -135,9 +98,9 @@ class DiagnosisResultPublisher
             AuditService::log('diagnosis_result_published', $locked, [
                 'assessment_id' => $locked->id,
                 'reviewed_by_user_id' => $reviewer->id,
-                'automatic_modality' => $locked->recommended_modality,
-                'final_modality' => $locked->final_modality,
                 'review_required' => (bool) $locked->review_required,
+                'commercial_modality_required' => false,
+                'commercial_modality_changed' => false,
                 'free_deliverables_generated' => [
                     'expanded_report_id' =>
                         $deliverables['expanded_report']->id,
@@ -150,10 +113,5 @@ class DiagnosisResultPublisher
 
             return $locked->fresh(['user', 'reviewedBy']);
         });
-    }
-
-    public static function labelForModality(string $modality): ?string
-    {
-        return self::MODALITY_LABELS[$modality] ?? null;
     }
 }

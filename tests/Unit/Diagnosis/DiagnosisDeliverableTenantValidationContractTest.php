@@ -18,7 +18,8 @@ class DiagnosisDeliverableTenantValidationContractTest extends TestCase
         );
 
         foreach ([
-            "Schema::create('diagnosis_deliverable_validations'",
+            'Schema::create(',
+            "'diagnosis_deliverable_validations'",
             "'diagnosis_assessment_id'",
             "'deliverable_type'",
             "'deliverable_id'",

@@ -66,8 +66,8 @@ class DiagnosisExpandedReportGenerator
                     ),
                 'recommended_focus' =>
                     $this->recommendedFocus($assessment),
-                'modality_and_capacity' =>
-                    $this->modalityAndCapacity(
+                'execution_capacity' =>
+                    $this->executionCapacity(
                         $assessment
                     ),
                 'next_step_note' => [
@@ -154,14 +154,6 @@ class DiagnosisExpandedReportGenerator
                     $assessment->review_summary,
                 'priorities' =>
                     $assessment->review_priorities ?? [],
-                'modality' =>
-                    $assessment->final_modality
-                        ?? $assessment
-                            ->recommended_modality,
-                'modality_label' =>
-                    $assessment->final_modality_label
-                        ?? $assessment
-                            ->recommended_modality_label,
             ],
             'business_profile' => [
                 'business_activity_type' =>
@@ -510,24 +502,16 @@ class DiagnosisExpandedReportGenerator
         ];
     }
 
-    private function modalityAndCapacity(
+    private function executionCapacity(
         DiagnosisAssessment $assessment
     ): array {
         return [
             'title' =>
-                'Modalidad y capacidad de ejecución',
-            'recommended_modality' =>
-                $assessment->final_modality
-                    ?? $assessment
-                        ->recommended_modality,
-            'recommended_modality_label' =>
-                $assessment->final_modality_label
-                    ?? $assessment
-                        ->recommended_modality_label,
+                'Capacidad interna para ejecutar el cambio',
             'capacity_score' =>
                 $assessment->capacity_score,
             'body' =>
-                'La modalidad recomendada define cuánto acompañamiento necesita la empresa para convertir los hallazgos en decisiones y ejecución. No modifica el scoring original y debe interpretarse junto con la capacidad interna, la urgencia y el contexto del negocio.',
+                'Este indicador ayuda a dimensionar la capacidad interna disponible para convertir los hallazgos en acciones. Debe interpretarse junto con la urgencia, las dependencias, los responsables y el contexto del negocio; no define una modalidad comercial ni implica contratación.',
         ];
     }
 

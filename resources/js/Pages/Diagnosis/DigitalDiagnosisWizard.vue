@@ -129,22 +129,25 @@ function band<T extends { min: number; max: number }>(value: number, options: T[
 }
 
 const maturityBand = computed(() => band(maturity.value, recommendationRules.maturityLevels))
-const capacityBand = computed(() => band(capacity.value, recommendationRules.capacityRecommendation))
 const urgencyBand = computed(() => band(urgency.value, recommendationRules.urgencyLevels))
 
+const capacityLabel = computed(() => {
+  if (capacity.value >= 70) return 'Capacidad interna alta'
+  if (capacity.value >= 45) return 'Capacidad interna media'
+  return 'Capacidad interna limitada'
+})
+
 const automaticRecommendation = computed(() => {
-  // Seguridad comercial: una urgencia crítica debe pasar por revisión humana
-  // y nunca salir automáticamente como Guiado.
-  if (urgencyBand.value?.label === 'Crítica' && capacityBand.value?.modality === 'guided') {
+  if (urgencyBand.value?.label === 'Crítica') {
     return {
-      label: 'LAUDA 360 Asistido — revisión recomendada',
-      note: 'La capacidad interna es alta, pero la urgencia crítica aconseja acompañamiento activo durante la etapa inicial.',
+      label: 'Revisión humana prioritaria',
+      note: 'La urgencia crítica requiere revisar prioridades, dependencias y capacidad interna antes de definir cómo ejecutar los cambios.',
     }
   }
 
   return {
-    label: capacityBand.value?.label ?? 'Pendiente de evaluación',
-    note: capacityBand.value?.note ?? 'Complete la evaluación para obtener una recomendación preliminar.',
+    label: capacityLabel.value,
+    note: 'Esta lectura describe capacidad interna y nivel de atención recomendado. No define una modalidad comercial ni implica contratación.',
   }
 })
 
@@ -348,7 +351,7 @@ function submitDiagnosis() {
               <div class="rounded-2xl border p-5">
                 <p class="text-xs font-semibold uppercase tracking-widest text-muted-foreground">Capacidad interna</p>
                 <p class="mt-2 text-3xl font-black">{{ capacity }}/100</p>
-                <p class="mt-1 text-sm text-muted-foreground">{{ capacityBand?.label }}</p>
+                <p class="mt-1 text-sm text-muted-foreground">{{ capacityLabel }}</p>
               </div>
               <div class="rounded-2xl border p-5">
                 <p class="text-xs font-semibold uppercase tracking-widest text-muted-foreground">Urgencia</p>
@@ -361,7 +364,7 @@ function submitDiagnosis() {
               <div class="flex items-start gap-3">
                 <CheckCircle2 class="mt-0.5 h-5 w-5 shrink-0 text-primary" />
                 <div>
-                  <p class="font-bold">Recomendación preliminar</p>
+                  <p class="font-bold">Lectura preliminar de capacidad</p>
                   <p class="mt-1 text-lg font-black">{{ automaticRecommendation.label }}</p>
                   <p class="mt-2 text-sm leading-6 text-muted-foreground">
                     {{ automaticRecommendation.note }}

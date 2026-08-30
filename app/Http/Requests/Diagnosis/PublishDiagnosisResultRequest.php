@@ -3,7 +3,6 @@
 namespace App\Http\Requests\Diagnosis;
 
 use Illuminate\Foundation\Http\FormRequest;
-use Illuminate\Validation\Rule;
 
 class PublishDiagnosisResultRequest extends FormRequest
 {
@@ -32,10 +31,6 @@ class PublishDiagnosisResultRequest extends FormRequest
                 'string',
                 'min:5',
                 'max:500',
-            ],
-            'final_modality' => [
-                'required',
-                Rule::in(['guided', 'assisted', 'managed']),
             ],
         ];
     }

@@ -44,8 +44,6 @@ class DiagnosisDetailedRoadmapGeneratorTest extends TestCase
             'Estandarizar procesos.',
             'Mejorar trazabilidad.',
         ];
-        $assessment->final_modality = 'assisted';
-        $assessment->final_modality_label = 'LAUDA 360 Asistido';
         $assessment->business_activity_type = $activity;
         $assessment->business_sector = $sector;
         $assessment->customer_market = 'both';
@@ -149,6 +147,17 @@ class DiagnosisDetailedRoadmapGeneratorTest extends TestCase
         $this->assertSame(7, $source['id']);
         $this->assertSame(2, $source['version']);
         $this->assertSame('published', $source['status']);
+
+        $assessmentSource = $result['source_snapshot']['assessment'];
+        $direction = $result['roadmap']['executive_direction'];
+
+        $this->assertArrayNotHasKey('modality', $assessmentSource);
+        $this->assertArrayNotHasKey('modality_label', $assessmentSource);
+        $this->assertArrayNotHasKey('recommended_modality', $direction);
+        $this->assertArrayNotHasKey(
+            'recommended_modality_label',
+            $direction
+        );
     }
 
     public function test_execution_is_separate_from_roadmap_deliverable(): void

@@ -48,8 +48,6 @@ interface Result {
     urgency_score: number | null;
     urgency_level: string | null;
     dimension_scores: Record<string, number>;
-    modality: string | null;
-    modality_label: string | null;
     summary: string | null;
     priorities: string[];
     published_at: string | null;
@@ -815,17 +813,18 @@ function submitDiagnosis(payload: {
                                 <p
                                     class="text-[10px] font-black tracking-[0.16em] text-[#F53003] uppercase"
                                 >
-                                    Modalidad recomendada
+                                    Capacidad interna
                                 </p>
                                 <p class="mt-3 text-xl font-black">
-                                    {{ result.modality_label || '—' }}
+                                    {{ result.capacity_score ?? '—' }}/100
                                 </p>
                                 <p
                                     class="mt-3 text-sm leading-6 text-muted-foreground"
                                 >
-                                    Esta modalidad refleja la revisión final de
-                                    LAUDA sobre su capacidad, urgencia y
-                                    contexto.
+                                    Este indicador ayuda a dimensionar la
+                                    capacidad disponible para ejecutar cambios.
+                                    No define una modalidad comercial ni implica
+                                    contratación.
                                 </p>
                             </CardContent>
                         </Card>

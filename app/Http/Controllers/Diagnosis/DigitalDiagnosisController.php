@@ -103,12 +103,6 @@ class DigitalDiagnosisController extends Controller
                     $assessment->urgency_level,
                 'dimension_scores' =>
                     $assessment->dimension_scores ?? [],
-                'modality' =>
-                    $assessment->final_modality
-                    ?: $assessment->recommended_modality,
-                'modality_label' =>
-                    $assessment->final_modality_label
-                    ?: $assessment->recommended_modality_label,
                 'summary' =>
                     $assessment->review_summary,
                 'priorities' =>
@@ -258,20 +252,6 @@ class DigitalDiagnosisController extends Controller
                 ) {
                     $assessment->review_priorities =
                         $suggestion['priorities'];
-                }
-
-                if (blank($assessment->final_modality)) {
-                    $assessment->final_modality =
-                        $suggestion['modality'];
-                }
-
-                if (
-                    blank(
-                        $assessment->final_modality_label
-                    )
-                ) {
-                    $assessment->final_modality_label =
-                        $suggestion['modality_label'];
                 }
 
                 $assessment->save();

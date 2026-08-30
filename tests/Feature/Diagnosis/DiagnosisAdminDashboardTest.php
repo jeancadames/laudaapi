@@ -115,7 +115,6 @@ class DiagnosisAdminDashboardTest extends TestCase
                     ->where('stats.assessments.submitted', 1)
                     ->where('stats.assessments.completed', 1)
                     ->where('stats.assessments.results_to_review', 1)
-                    ->where('stats.modalities.assisted', 1)
                     ->has('recentRequests', 2)
                     ->where(
                         'recentRequests.0.id',

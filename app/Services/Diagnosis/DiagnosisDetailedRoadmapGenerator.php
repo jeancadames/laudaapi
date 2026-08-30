@@ -54,10 +54,6 @@ class DiagnosisDetailedRoadmapGenerator
                     'dimension_scores' => $assessment->dimension_scores ?? [],
                     'review_summary' => $assessment->review_summary,
                     'review_priorities' => $assessment->review_priorities ?? [],
-                    'modality' => $assessment->final_modality
-                        ?? $assessment->recommended_modality,
-                    'modality_label' => $assessment->final_modality_label
-                        ?? $assessment->recommended_modality_label,
                     'business_profile' => [
                         'business_activity_type' => $assessment->business_activity_type,
                         'business_sector' => $assessment->business_sector,
@@ -88,10 +84,6 @@ class DiagnosisDetailedRoadmapGenerator
                     'objective' => $report
                         ? 'Convertir los hallazgos del Diagnóstico y del Informe Ampliado en una secuencia ejecutable de iniciativas, responsables, dependencias e indicadores.'
                         : 'Convertir los hallazgos del Diagnóstico oficial en una secuencia ejecutable de iniciativas, responsables, dependencias e indicadores.',
-                    'recommended_modality' => $assessment->final_modality
-                        ?? $assessment->recommended_modality,
-                    'recommended_modality_label' => $assessment->final_modality_label
-                        ?? $assessment->recommended_modality_label,
                 ],
                 'planning_principles' => [
                     'Priorizar impacto de negocio antes que herramientas.',

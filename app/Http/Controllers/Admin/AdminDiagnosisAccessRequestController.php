@@ -236,17 +236,10 @@ class AdminDiagnosisAccessRequestController extends Controller
                     'dimension_scores' => $assessment->dimension_scores ?? [],
                     'maturity_level' => $assessment->maturity_level,
                     'urgency_level' => $assessment->urgency_level,
-                    'recommended_modality' => $assessment
-                        ->recommended_modality,
-                    'recommended_modality_label' => $assessment
-                        ->recommended_modality_label,
                     'review_required' => (bool) $assessment->review_required,
                     'review_summary' => $assessment->review_summary,
                     'review_priorities' => $assessment
                         ->review_priorities ?? [],
-                    'final_modality' => $assessment->final_modality,
-                    'final_modality_label' => $assessment
-                        ->final_modality_label,
                     'submitted_at' => $assessment
                         ->submitted_at?->toISOString(),
                     'reviewed_at' => $assessment

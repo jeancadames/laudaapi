@@ -34,8 +34,13 @@ class DiagnosisExecutiveSummaryIntegrationContractTest extends TestCase
             $source
         );
 
-        $this->assertStringContainsString(
+        $this->assertStringNotContainsString(
             'blank($assessment->final_modality)',
+            $source
+        );
+
+        $this->assertStringNotContainsString(
+            '$assessment->final_modality =',
             $source
         );
     }

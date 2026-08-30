@@ -2,33 +2,48 @@
 
 namespace Tests\Unit\Diagnosis;
 
-use App\Services\Diagnosis\DiagnosisResultPublisher;
 use PHPUnit\Framework\TestCase;
 
 class DiagnosisResultPublisherContractTest extends TestCase
 {
-    public function test_supported_modalities_have_canonical_labels(): void
+    public function test_diagnosis_publication_is_not_gated_by_commercial_modality(): void
     {
-        $this->assertSame(
-            'LAUDA 360 Guiado',
-            DiagnosisResultPublisher::labelForModality('guided')
+        $publisher = file_get_contents(
+            base_path('app/Services/Diagnosis/DiagnosisResultPublisher.php')
         );
 
-        $this->assertSame(
-            'LAUDA 360 Asistido',
-            DiagnosisResultPublisher::labelForModality('assisted')
+        $request = file_get_contents(
+            base_path('app/Http/Requests/Diagnosis/PublishDiagnosisResultRequest.php')
         );
 
-        $this->assertSame(
-            'LAUDA 360 Gestionado',
-            DiagnosisResultPublisher::labelForModality('managed')
+        $this->assertStringNotContainsString(
+            'MODALITY_LABELS',
+            $publisher
         );
-    }
 
-    public function test_unknown_modality_has_no_label(): void
-    {
-        $this->assertNull(
-            DiagnosisResultPublisher::labelForModality('unknown')
+        $this->assertStringNotContainsString(
+            'labelForModality',
+            $publisher
+        );
+
+        $this->assertStringNotContainsString(
+            "['final_modality']",
+            $publisher
+        );
+
+        $this->assertStringNotContainsString(
+            "'final_modality' =>",
+            $request
+        );
+
+        $this->assertStringContainsString(
+            '$this->deliverables->generateAndPresent(',
+            $publisher
+        );
+
+        $this->assertStringContainsString(
+            "'commercial_modality_required' => false",
+            $publisher
         );
     }
 }
