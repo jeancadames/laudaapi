@@ -56,6 +56,12 @@ class DiagnosisInvitationController extends Controller
             abort(404);
         }
 
+        abort_unless(
+            (bool) $access->assessment->is_active,
+            410,
+            'Esta evaluación ya no está activa.'
+        );
+
         if ($access->status === DiagnosisAccessRequest::STATUS_REJECTED) {
             abort(403, 'Este acceso fue rechazado.');
         }
@@ -141,10 +147,30 @@ class DiagnosisInvitationController extends Controller
 
     public function resume(Request $request): RedirectResponse
     {
+        $user = $request->user();
+
         $assessment = DiagnosisAssessment::query()
-            ->where('user_id', $request->user()->id)
+            ->where('user_id', $user->id)
+            ->where('is_active', true)
             ->latest('id')
             ->first();
+
+        if (! $assessment) {
+            $subscriberIds = $user->activeSubscribers()
+                ->wherePivotIn('role', ['owner', 'admin'])
+                ->pluck('subscribers.id');
+
+            $companyIds = \App\Models\Company::query()
+                ->whereIn('subscriber_id', $subscriberIds)
+                ->where('active', true)
+                ->pluck('id');
+
+            $assessment = DiagnosisAssessment::query()
+                ->whereIn('organization_id', $companyIds)
+                ->where('is_active', true)
+                ->latest('id')
+                ->first();
+        }
 
         if (!$assessment) {
             return redirect('/')->with('error', 'No encontramos un diagnóstico asignado a tu usuario.');
@@ -163,5 +189,11 @@ class DiagnosisInvitationController extends Controller
         );
 
         abort_unless($access->assessment, 404);
+
+        abort_unless(
+            (bool) $access->assessment->is_active,
+            410,
+            'Esta evaluación ya no está activa.'
+        );
     }
 }

@@ -20,6 +20,8 @@ type State = {
     exists: boolean;
     historical: boolean;
     needs_initialization: boolean;
+    can_request_new: boolean;
+    reassessment_pending: boolean;
     workflow: {
         public_id: string;
         status: string;
@@ -42,6 +44,7 @@ type State = {
     assessment: {
         id: number;
         status: string;
+        is_active: boolean;
         current_step: number | null;
         submitted_at: string | null;
         published_at: string | null;
@@ -86,20 +89,19 @@ const sending = ref(false);
 const startedAutomatically = ref(false);
 
 const isActive = computed(
-    () =>
-        props.state.workflow?.status === 'active'
-        && !!props.state.assessment,
+    () => !!props.state.assessment && props.state.assessment.is_active,
 );
 
 const isPending = computed(
     () =>
         !!props.state.workflow
-        && !isActive.value
-        && !props.state.historical,
+        && props.state.workflow.status !== 'active',
 );
 
 const stateLabel = computed(() => {
-    if (props.state.historical) return 'Acceso histórico';
+    if (props.state.reassessment_pending) {
+        return 'Nueva evaluación pendiente';
+    }
 
     if (isActive.value) {
         if (props.state.assessment?.status === 'submitted') {
@@ -180,10 +182,10 @@ onMounted(() => {
                     <article class="rounded-2xl border border-slate-200 bg-white p-5 dark:border-slate-800 dark:bg-slate-950">
                         <Gift class="h-6 w-6 text-red-600" />
                         <p class="mt-3 text-sm font-black text-slate-950 dark:text-white">
-                            Primera evaluación gratis
+                            Evaluación sin costo
                         </p>
                         <p class="mt-1 text-sm leading-6 text-slate-500">
-                            El Diagnóstico Inicial tiene tarifa DOP 0.00. Generamos una factura de cortesía para que quede evidencia comercial en tu cuenta.
+                            Cada solicitud se registra en DOP 0.00 con una factura de cortesía para mantener la trazabilidad del ciclo.
                         </p>
                     </article>
 
@@ -215,10 +217,10 @@ onMounted(() => {
                     <div class="flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between">
                         <div>
                             <p class="text-lg font-black text-slate-950 dark:text-white">
-                                Solicita tu primera evaluación
+                                Solicita tu evaluación
                             </p>
                             <p class="mt-1 max-w-2xl text-sm leading-6 text-slate-500">
-                                Al solicitarla se registrará automáticamente una factura por DOP 0.00 con el concepto de evaluación inicial sin costo.
+                                Al solicitarla se registrará automáticamente una factura de cortesía por DOP 0.00.
                             </p>
                         </div>
 
@@ -248,7 +250,12 @@ onMounted(() => {
                                 Pendiente de confirmación
                             </h2>
                             <p class="mt-1 text-sm leading-6 text-slate-600 dark:text-slate-300">
-                                La solicitud fue registrada. No necesitas realizar ningún pago para esta primera evaluación; LAUDA debe confirmar el acceso.
+                                <template v-if="props.state.reassessment_pending">
+                                    La nueva evaluación está pendiente de confirmación. Tu evaluación actual continúa activa hasta que LAUDA habilite el nuevo ciclo.
+                                </template>
+                                <template v-else>
+                                    La solicitud fue registrada. No necesitas realizar ningún pago; LAUDA debe confirmar el acceso.
+                                </template>
                             </p>
 
                             <div
@@ -263,7 +270,7 @@ onMounted(() => {
                                         {{ props.state.invoice.number }} · DOP 0.00
                                     </p>
                                     <p class="mt-1 text-xs text-slate-500">
-                                        Diagnóstico Inicial LAUDA 360 · Evaluación inicial sin costo
+                                        Diagnóstico LAUDA 360 · Evaluación sin costo
                                     </p>
                                 </div>
 
@@ -299,29 +306,24 @@ onMounted(() => {
                             </div>
                         </div>
 
-                        <a
-                            :href="props.state.assessment!.url"
-                            class="inline-flex h-11 shrink-0 items-center justify-center gap-2 rounded-xl bg-slate-950 px-5 text-sm font-bold text-white transition hover:bg-slate-800 dark:bg-white dark:text-slate-950"
-                        >
-                            Abrir diagnóstico
-                            <ArrowRight class="h-4 w-4" />
-                        </a>
-                    </div>
-                </section>
+                        <div class="flex shrink-0 flex-col gap-2 sm:flex-row">
+                            <button
+                                v-if="props.state.can_request_new"
+                                type="button"
+                                :disabled="sending"
+                                class="inline-flex h-11 items-center justify-center rounded-xl border border-slate-300 px-5 text-sm font-bold text-slate-800 transition hover:bg-white disabled:opacity-60 dark:border-slate-700 dark:text-slate-100 dark:hover:bg-slate-900"
+                                @click="requestDiagnosis"
+                            >
+                                {{ sending ? 'Registrando…' : 'Solicitar nueva evaluación' }}
+                            </button>
 
-                <section
-                    v-if="props.state.historical"
-                    class="rounded-2xl border border-slate-200 bg-white p-5 dark:border-slate-800 dark:bg-slate-950"
-                >
-                    <div class="flex items-start gap-3">
-                        <Building2 class="mt-0.5 h-5 w-5 text-slate-500" />
-                        <div>
-                            <p class="font-black text-slate-950 dark:text-white">
-                                Diagnóstico histórico preservado
-                            </p>
-                            <p class="mt-1 text-sm leading-6 text-slate-500">
-                                Este acceso fue creado antes del nuevo flujo de factura de cortesía. No se genera una factura retroactiva.
-                            </p>
+                            <a
+                                :href="props.state.assessment!.url"
+                                class="inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-slate-950 px-5 text-sm font-bold text-white transition hover:bg-slate-800 dark:bg-white dark:text-slate-950"
+                            >
+                                Abrir diagnóstico
+                                <ArrowRight class="h-4 w-4" />
+                            </a>
                         </div>
                     </div>
                 </section>

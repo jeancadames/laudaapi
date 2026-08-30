@@ -49,6 +49,9 @@ class DiagnosisAssessment extends Model
         'started_at',
         'submitted_at',
         'reviewed_at',
+        'is_active',
+        'inactivated_at',
+        'superseded_by_assessment_id',
     ];
 
     protected function casts(): array
@@ -66,7 +69,18 @@ class DiagnosisAssessment extends Model
             'started_at' => 'datetime',
             'submitted_at' => 'datetime',
             'reviewed_at' => 'datetime',
+            'is_active' => 'boolean',
+            'inactivated_at' => 'datetime',
+            'superseded_by_assessment_id' => 'integer',
         ];
+    }
+
+    public function supersededBy(): BelongsTo
+    {
+        return $this->belongsTo(
+            self::class,
+            'superseded_by_assessment_id'
+        );
     }
 
     public function user(): BelongsTo
@@ -177,6 +191,7 @@ class DiagnosisAssessment extends Model
 
     public function isEditable(): bool
     {
-        return in_array($this->status, ['draft', 'in_progress'], true);
+        return (bool) $this->is_active
+            && in_array($this->status, ['draft', 'in_progress'], true);
     }
 }

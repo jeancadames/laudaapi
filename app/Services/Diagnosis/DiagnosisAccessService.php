@@ -204,7 +204,18 @@ class DiagnosisAccessService
                     'answers' => [],
                     'notes' => [],
                     'review_required' => false,
+                    'is_active' => ! $isAppHubNative,
                 ]);
+
+                if ($isAppHubNative && $appHubCompany) {
+                    $this->activateAppHubAssessment(
+                        $workflow,
+                        $assessment,
+                        $appHubCompany,
+                        $user,
+                        $admin
+                    );
+                }
             } elseif ((int) $assessment->user_id !== (int) $user->id) {
                 throw ValidationException::withMessages([
                     'assessment' => ['El diagnóstico ya está vinculado a otro usuario.'],
@@ -282,6 +293,106 @@ class DiagnosisAccessService
         }
 
         return $this->sendInvitation($workflow, $admin);
+    }
+
+
+    private function activateAppHubAssessment(
+        DiagnosisAccessRequest $workflow,
+        DiagnosisAssessment $assessment,
+        Company $company,
+        User $user,
+        User $admin
+    ): void {
+        $linkedAssessmentIds = DiagnosisAccessRequest::query()
+            ->where('meta->source', InitialDiagnosisCommercialService::SOURCE)
+            ->where('meta->company_id', $company->id)
+            ->whereNotNull('diagnosis_assessment_id')
+            ->pluck('diagnosis_assessment_id')
+            ->map(fn ($id): int => (int) $id)
+            ->filter()
+            ->values();
+
+        $supersedesAssessmentId = (int) data_get(
+            $workflow->meta,
+            'supersedes_assessment_id',
+            0
+        );
+
+        if ($supersedesAssessmentId > 0) {
+            $superseded = DiagnosisAssessment::query()
+                ->whereKey($supersedesAssessmentId)
+                ->lockForUpdate()
+                ->first();
+
+            $belongsToCompany = $linkedAssessmentIds->contains(
+                $supersedesAssessmentId
+            );
+
+            $belongsToOrganization = $superseded
+                && (int) ($superseded->organization_id ?? 0)
+                    === (int) $company->id;
+
+            if (
+                ! $superseded
+                || (! $belongsToCompany && ! $belongsToOrganization)
+            ) {
+                throw ValidationException::withMessages([
+                    'assessment' => [
+                        'La evaluación anterior indicada no pertenece al tenant actual.',
+                    ],
+                ]);
+            }
+
+            $linkedAssessmentIds->push($supersedesAssessmentId);
+        }
+
+        $previous = DiagnosisAssessment::query()
+            ->whereIn(
+                'id',
+                $linkedAssessmentIds
+                    ->unique()
+                    ->reject(
+                        fn (int $id): bool => $id === (int) $assessment->id
+                    )
+                    ->values()
+                    ->all()
+            )
+            ->where('is_active', true)
+            ->lockForUpdate()
+            ->get();
+
+        foreach ($previous as $priorAssessment) {
+            $priorAssessment->forceFill([
+                'is_active' => false,
+                'inactivated_at' => now(),
+                'superseded_by_assessment_id' => $assessment->id,
+            ])->save();
+        }
+
+        $assessment->forceFill([
+            'is_active' => true,
+            'inactivated_at' => null,
+            'superseded_by_assessment_id' => null,
+        ])->save();
+
+        if ($previous->isNotEmpty()) {
+            AuditService::log(
+                'diagnosis_assessment_superseded',
+                $assessment,
+                [
+                    'company_id' => $company->id,
+                    'new_assessment_id' => $assessment->id,
+                    'superseded_assessment_ids' => $previous
+                        ->pluck('id')
+                        ->map(fn ($id): int => (int) $id)
+                        ->values()
+                        ->all(),
+                    'requested_by_user_id' => $user->id,
+                    'confirmed_by_user_id' => $admin->id,
+                ],
+                ['user_id' => $admin->id]
+            );
+        }
     }
 
     public function sendInvitation(DiagnosisAccessRequest $workflow, User $actor): DiagnosisAccessRequest

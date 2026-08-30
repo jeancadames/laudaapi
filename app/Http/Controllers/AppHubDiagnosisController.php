@@ -63,6 +63,10 @@ final class AppHubDiagnosisController extends Controller
             $historical = DiagnosisAccessRequest::query()
                 ->where('user_id', $user->id)
                 ->whereNotNull('diagnosis_assessment_id')
+                ->whereHas(
+                    'assessment',
+                    fn ($query) => $query->where('is_active', true)
+                )
                 ->with('assessment')
                 ->latest('id')
                 ->first();
@@ -119,7 +123,7 @@ final class AppHubDiagnosisController extends Controller
         abort_unless($user, 403);
         abort_if(($user->role ?? null) === 'admin', 403);
 
-        $workflow = $commercial->ensure($user);
+        $workflow = $commercial->request($user);
 
         $request->session()->forget('apphub.intent');
 
@@ -131,7 +135,7 @@ final class AppHubDiagnosisController extends Controller
                 ->route('app.diagnosis.show')
                 ->with(
                     'success',
-                    'Tu Diagnóstico 360 ya estaba habilitado.'
+                    'Tu Diagnóstico 360 activo se mantiene disponible.'
                 );
         }
 
@@ -139,7 +143,7 @@ final class AppHubDiagnosisController extends Controller
             ->route('app.diagnosis.show')
             ->with(
                 'success',
-                'Solicitud registrada. Generamos tu factura de cortesía en RD$0.00 y quedó pendiente de confirmación.'
+                'Solicitud registrada. La evaluación activa se mantiene disponible hasta que LAUDA confirme el nuevo ciclo.'
             );
     }
 }
