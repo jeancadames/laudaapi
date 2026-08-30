@@ -39,6 +39,7 @@ import {
   Landmark,
   Book,
   MapPin,
+  Palette,
   Wrench,
 } from 'lucide-vue-next'
 
@@ -82,6 +83,7 @@ export const ICONS: Record<string, Component> = {
   UserCheck,
   Book,
   MapPin,
+  Palette,
 
   // ✅ seeder parents
   ShoppingCart,

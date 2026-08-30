@@ -113,6 +113,14 @@ class DiagnosisAssessment extends Model
         )->latestOfMany('version');
     }
 
+    public function transformationCapabilityActivations(): HasMany
+    {
+        return $this->hasMany(
+            TransformationCapabilityActivation::class,
+            'diagnosis_assessment_id'
+        );
+    }
+
     public function publishedDetailedRoadmap(): HasOne
     {
         return $this->hasOne(

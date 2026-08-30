@@ -35,6 +35,11 @@ type TenantAccess = {
     can_launch_apps?: boolean;
 };
 
+type Lauda360Context = {
+    company_id: number;
+    active_capabilities: string[];
+} | null;
+
 type SidebarSection = {
     title?: string;
     items: NavItem[];
@@ -60,6 +65,13 @@ const activeCompany = computed(
 const companyName = computed(() => activeCompany.value?.name ?? '');
 const companySlug = computed(() => activeCompany.value?.slug ?? '');
 const companyTaxId = computed(() => activeCompany.value?.tax_id ?? '');
+
+const lauda360 = computed(
+    () => ((page.props as any)?.lauda360 ?? null) as Lauda360Context,
+);
+
+const hasActiveCapability = (capabilityKey: string): boolean =>
+    (lauda360.value?.active_capabilities ?? []).includes(capabilityKey);
 
 const adminMain: NavItem[] = mapToNavItems(navigationByRole.admin.main);
 const adminFooter: NavItem[] = mapToNavItems(navigationByRole.admin.footer);
@@ -90,38 +102,46 @@ const adminSections = computed<SidebarSection[]>(() => [
     },
 ]);
 
-const tenantAdminSections = computed<SidebarSection[]>(() => [
-    {
-        title: 'Ecosistema',
-        items: byHrefs(tenantAdminMain, [
-            '/app',
-            '/app#app-store',
-            '/subscriber/users',
-        ]),
-    },
-    {
-        title: 'LAUDA 360',
-        items: byHrefs(tenantAdminMain, [
-            '/app/diagnostico-360',
-            '/app/transformacion-360',
-        ]),
-    },
-    {
-        title: 'Cuenta',
-        items: byHrefs(tenantAdminMain, [
-            '/subscriber/subscription',
-            '/subscriber/invoices',
-            '/subscriber/payments',
-        ]),
-    },
-    {
-        title: 'Empresa',
-        items: byHrefs(tenantAdminMain, [
-            '/subscriber/company',
-            '/subscriber/payment-methods',
-        ]),
-    },
-]);
+const tenantAdminSections = computed<SidebarSection[]>(() => {
+    const lauda360Hrefs = [
+        '/app/diagnostico-360',
+        '/app/transformacion-360',
+    ];
+
+    if (hasActiveCapability('branding_identity')) {
+        lauda360Hrefs.push('/app/branding-identidad');
+    }
+
+    return [
+        {
+            title: 'Ecosistema',
+            items: byHrefs(tenantAdminMain, [
+                '/app',
+                '/app#app-store',
+                '/subscriber/users',
+            ]),
+        },
+        {
+            title: 'LAUDA 360',
+            items: byHrefs(tenantAdminMain, lauda360Hrefs),
+        },
+        {
+            title: 'Cuenta',
+            items: byHrefs(tenantAdminMain, [
+                '/subscriber/subscription',
+                '/subscriber/invoices',
+                '/subscriber/payments',
+            ]),
+        },
+        {
+            title: 'Empresa',
+            items: byHrefs(tenantAdminMain, [
+                '/subscriber/company',
+                '/subscriber/payment-methods',
+            ]),
+        },
+    ];
+});
 
 const tenantUserSections = computed<SidebarSection[]>(() => [
     {

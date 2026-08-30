@@ -59,6 +59,14 @@ const props = defineProps<{
     };
     expanded_report_url: string;
     implementation_plan_url: string | null;
+    branding_activation: {
+        recommended: boolean;
+        available: boolean;
+        activated: boolean;
+        status: string | null;
+        activated_at: string | null;
+        endpoint: string | null;
+    } | null;
     validation: {
         status: 'presented' | 'reviewed' | 'validated' | 'adjustment_requested';
         reviewed_at: string | null;
@@ -152,6 +160,7 @@ function formatDate(value: string | null) {
 
             <DetailedRoadmapTransformationCapabilities
                 :capabilities="content.transformation_capabilities ?? null"
+                :branding-activation="branding_activation"
             />
 
             <Card>

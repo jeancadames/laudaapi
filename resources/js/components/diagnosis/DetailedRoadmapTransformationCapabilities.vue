@@ -1,7 +1,10 @@
 <script setup lang="ts">
-import { BookOpenCheck, Palette } from 'lucide-vue-next';
+import { router } from '@inertiajs/vue3';
+import { BookOpenCheck, CheckCircle2, LoaderCircle, Palette } from 'lucide-vue-next';
+import { ref } from 'vue';
 
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import {
     Card,
     CardContent,
@@ -10,9 +13,56 @@ import {
     CardTitle,
 } from '@/components/ui/card';
 
-defineProps<{
+const props = defineProps<{
     capabilities: Record<string, any> | null;
+    brandingActivation: {
+        recommended: boolean;
+        available: boolean;
+        activated: boolean;
+        status: string | null;
+        activated_at: string | null;
+        endpoint: string | null;
+    } | null;
 }>();
+
+const activatingBranding = ref(false);
+
+function activateBranding(): void {
+    const activation = props.brandingActivation;
+
+    if (
+        !activation
+        || !activation.recommended
+        || !activation.available
+        || activation.activated
+        || !activation.endpoint
+        || activatingBranding.value
+    ) {
+        return;
+    }
+
+    if (
+        !window.confirm(
+            '¿Activar gratis Branding e Identidad Digital para esta empresa? Esta activación no genera compra, pago ni contratación.'
+        )
+    ) {
+        return;
+    }
+
+    router.post(
+        activation.endpoint,
+        {},
+        {
+            preserveScroll: true,
+            onStart: () => {
+                activatingBranding.value = true;
+            },
+            onFinish: () => {
+                activatingBranding.value = false;
+            },
+        }
+    );
+}
 </script>
 
 <template>
@@ -77,6 +127,15 @@ defineProps<{
                     >
                         Recomendado para revisión
                     </Badge>
+
+                    <Badge
+                        v-if="brandingActivation?.activated"
+                        variant="secondary"
+                        class="inline-flex items-center gap-1"
+                    >
+                        <CheckCircle2 class="size-3.5" />
+                        Activado
+                    </Badge>
                 </div>
 
                 <p class="mt-3 text-sm leading-6 text-muted-foreground">
@@ -100,6 +159,54 @@ defineProps<{
                 <p class="mt-3 text-xs leading-5 text-muted-foreground">
                     {{ capabilities.branding_identity?.commercial_note }}
                 </p>
+
+                <div
+                    v-if="
+                        brandingActivation?.recommended
+                        && brandingActivation?.available
+                    "
+                    class="mt-5 rounded-xl border bg-muted/30 p-4"
+                >
+                    <p class="text-sm font-bold">
+                        Activación gratuita disponible
+                    </p>
+                    <p class="mt-1 text-xs leading-5 text-muted-foreground">
+                        Activa esta capacidad para incorporarla al recorrido de
+                        Transformación 360. No genera compra, pago, suscripción
+                        ni aceptación comercial.
+                    </p>
+
+                    <Button
+                        class="mt-3"
+                        type="button"
+                        :disabled="activatingBranding"
+                        @click="activateBranding"
+                    >
+                        <LoaderCircle
+                            v-if="activatingBranding"
+                            class="mr-2 size-4 animate-spin"
+                        />
+                        <Palette
+                            v-else
+                            class="mr-2 size-4"
+                        />
+                        Activar gratis
+                    </Button>
+                </div>
+
+                <div
+                    v-else-if="brandingActivation?.activated"
+                    class="mt-5 rounded-xl border bg-muted/30 p-4"
+                >
+                    <p class="flex items-center gap-2 text-sm font-bold">
+                        <CheckCircle2 class="size-4" />
+                        Branding e Identidad Digital activado
+                    </p>
+                    <p class="mt-1 text-xs leading-5 text-muted-foreground">
+                        Esta capacidad ya forma parte de su recorrido de
+                        Transformación 360.
+                    </p>
+                </div>
             </div>
 
             <p class="text-xs leading-5 text-muted-foreground lg:col-span-2">

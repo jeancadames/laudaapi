@@ -101,6 +101,11 @@ require __DIR__ . '/settings.php';
             [\App\Http\Controllers\Diagnosis\DiagnosisDetailedRoadmapController::class, 'show']
         )->name('detailed_roadmap.show');
 
+        \Illuminate\Support\Facades\Route::post(
+            '/{assessment}/capacidades/branding-identidad/activar',
+            [\App\Http\Controllers\Diagnosis\BrandingIdentityActivationController::class, 'store']
+        )->name('capabilities.branding_identity.activate');
+
 
 
         \Illuminate\Support\Facades\Route::get(
@@ -177,6 +182,20 @@ Route::middleware(['auth', 'verified'])
         \App\Http\Controllers\AppHubTransformationController::class
     )
     ->name('app.transformation.show');
+
+Route::middleware(['auth', 'verified'])
+    ->get(
+        '/app/branding-identidad',
+        \App\Http\Controllers\AppHubBrandingController::class
+    )
+    ->name('app.branding.show');
+
+Route::middleware(['auth', 'verified'])
+    ->post(
+        '/app/branding-identidad/iniciar',
+        [\App\Http\Controllers\AppHubBrandingLifecycleController::class, 'start']
+    )
+    ->name('app.branding.start');
 
 /*
 |--------------------------------------------------------------------------

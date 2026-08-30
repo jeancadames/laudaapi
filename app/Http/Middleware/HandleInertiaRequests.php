@@ -4,10 +4,13 @@ namespace App\Http\Middleware;
 
 use App\Models\Company;
 use App\Models\DgiiCompanySetting;
+use App\Models\DiagnosisAssessment;
+use App\Models\TransformationCapabilityActivation;
 use App\Models\Service;
 use App\Services\Dgii\DgiiCertificateRequirements;
 use App\Services\Dgii\DgiiTokenManager;
 use App\Services\Entitlements\SubscriberEntitlements;
+use App\Services\Subscribers\CompanyContextResolver;
 use App\Services\Subscribers\TenantAccessService;
 use Illuminate\Foundation\Inspiring;
 use Illuminate\Http\Request;
@@ -97,7 +100,7 @@ class HandleInertiaRequests extends Middleware
                     return null;
                 }
 
-                if (! $request->is('subscriber*') && ! $request->is('erp*') && ! $request->is('app')) {
+                if (! $request->is('subscriber*') && ! $request->is('erp*') && ! $request->is('app*')) {
                     return null;
                 }
 
@@ -124,6 +127,13 @@ class HandleInertiaRequests extends Middleware
                 ];
             },
 
+            'lauda360' => fn() => $this->lauda360Payload(
+                $request,
+                $user,
+                $resolvedSubscriberId,
+                $tenantAccess
+            ),
+
             'menu' => ($user && $user->role === 'subscriber')
                 ? fn() => $this->subscriberMenu($user)
                 : null,
@@ -148,6 +158,75 @@ class HandleInertiaRequests extends Middleware
                 'timezone' => $company?->timezone ?? 'America/Santo_Domingo',
             ],
         ]);
+    }
+
+    private function lauda360Payload(
+        Request $request,
+        $user,
+        ?int $resolvedSubscriberId,
+        ?array $tenantAccess
+    ): ?array {
+        if (
+            ! $user
+            || ($user->role ?? null) !== 'subscriber'
+            || ($tenantAccess['mode'] ?? null)
+                !== TenantAccessService::SUBSCRIBER_ADMIN
+            || ! (bool) ($tenantAccess['tenant_admin'] ?? false)
+        ) {
+            return null;
+        }
+
+        $subscriberId = (int) ($resolvedSubscriberId ?? 0);
+
+        if ($subscriberId <= 0) {
+            return null;
+        }
+
+        $preferredCompanyId = (int) $request->attributes->get(
+            'resolved_company_id',
+            0
+        );
+
+        $routeAssessment = $request->route('assessment');
+
+        if (
+            $preferredCompanyId <= 0
+            && $routeAssessment instanceof DiagnosisAssessment
+        ) {
+            $preferredCompanyId = (int) (
+                $routeAssessment->organization_id
+                ?? 0
+            );
+        }
+
+        $company = app(CompanyContextResolver::class)->resolve(
+            $user,
+            $subscriberId,
+            $preferredCompanyId
+        );
+
+        if (! $company) {
+            return null;
+        }
+
+        $activeCapabilities =
+            TransformationCapabilityActivation::query()
+                ->where('company_id', $company->id)
+                ->where(
+                    'status',
+                    '!=',
+                    TransformationCapabilityActivation::STATUS_CANCELLED
+                )
+                ->orderBy('capability_key')
+                ->pluck('capability_key')
+                ->unique()
+                ->values()
+                ->all();
+
+        return [
+            'company_id' => (int) $company->id,
+            'active_capabilities' => $activeCapabilities,
+        ];
     }
 
     private function navPayload(Request $request, $user, ?int $resolvedSubscriberId, ?SubscriberEntitlements $entitlements = null): array

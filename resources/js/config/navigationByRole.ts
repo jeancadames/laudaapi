@@ -27,6 +27,11 @@ export const navigationByRole = {
                 href: '/app/transformacion-360',
                 icon: 'Layers',
             },
+            {
+                title: 'Branding e Identidad Digital',
+                href: '/app/branding-identidad',
+                icon: 'Palette',
+            },
             { title: 'Usuarios', href: '/subscriber/users', icon: 'Users' },
             {
                 title: 'Mi suscripción',

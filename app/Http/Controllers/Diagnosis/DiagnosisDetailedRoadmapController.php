@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Diagnosis;
 use App\Http\Controllers\Controller;
 use App\Models\DiagnosisAssessment;
 use App\Models\DiagnosisDetailedRoadmap;
+use App\Models\TransformationCapabilityActivation;
 use App\Models\TransformationImplementationPlan;
 use App\Services\Diagnosis\DiagnosisDeliverableValidationService;
 use Illuminate\Support\Facades\Gate;
@@ -48,6 +49,26 @@ class DiagnosisDetailedRoadmapController extends Controller
                 ->orderByDesc('version')
                 ->first();
 
+        $brandingRecommended = (bool) (
+            data_get(
+                $roadmap->roadmap ?? [],
+                'transformation_capabilities.branding_identity.recommended',
+                false
+            )
+        );
+
+        $brandingActivation =
+            TransformationCapabilityActivation::query()
+                ->where(
+                    'diagnosis_assessment_id',
+                    $assessment->id
+                )
+                ->where(
+                    'capability_key',
+                    'branding_identity'
+                )
+                ->first();
+
         return Inertia::render(
             'Diagnosis/DetailedRoadmap',
             [
@@ -81,6 +102,28 @@ class DiagnosisDetailedRoadmapController extends Controller
                             $assessment
                         )
                         : null,
+                'branding_activation' => [
+                    'recommended' =>
+                        $brandingRecommended,
+                    'available' =>
+                        $brandingRecommended
+                        && $brandingActivation === null,
+                    'activated' =>
+                        $brandingActivation !== null,
+                    'status' =>
+                        $brandingActivation?->status,
+                    'activated_at' =>
+                        $brandingActivation
+                            ?->activated_at
+                            ?->toISOString(),
+                    'endpoint' =>
+                        $brandingRecommended
+                            ? route(
+                                'diagnosis.capabilities.branding_identity.activate',
+                                $assessment
+                            )
+                            : null,
+                ],
                 'validation' => $validations->stateFor($roadmap),
                 'validation_endpoints' => [
                     'review' => route(
