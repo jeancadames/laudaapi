@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 
 class TransformationCapabilityNeed extends Model
 {
@@ -29,6 +30,15 @@ class TransformationCapabilityNeed extends Model
             'identified_at' => 'datetime',
         ];
     }
+
+    public function evaluation(): HasOne
+    {
+        return $this->hasOne(
+            TransformationCapabilityNeedEvaluation::class,
+            'transformation_capability_need_id'
+        );
+    }
+
 
     public function activation(): BelongsTo
     {

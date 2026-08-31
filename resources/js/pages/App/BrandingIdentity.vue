@@ -38,6 +38,60 @@ type BrandingNeed = {
     identified_at: string | null;
 };
 
+type BrandingFinalArea = {
+    id: number;
+    sequence: number;
+    key: string;
+    title: string;
+    result: string;
+    result_label: string;
+    findings: string | null;
+    recommendation: string | null;
+    priority: string | null;
+    priority_label: string | null;
+    evaluated_at: string | null;
+};
+
+type BrandingFinalPriority = {
+    need_key: string;
+    title: string;
+    priority: string | null;
+    recommendation: string | null;
+};
+
+type BrandingFinalDependency = {
+    before_key: string;
+    before_title: string;
+    after_key: string;
+    after_title: string;
+    reason: string;
+};
+
+type BrandingFinalResult = {
+    status: 'validated' | 'completed';
+    status_label: string;
+    validated_at: string | null;
+    completed_at: string | null;
+    reviewed_at: string | null;
+    counts: {
+        total: number;
+        evaluated: number;
+        requires_attention: number;
+        adequate: number;
+        not_applicable: number;
+    };
+    executive_summary: string | null;
+    overall_recommendation: string | null;
+    priority_order: BrandingFinalPriority[];
+    dependencies: BrandingFinalDependency[];
+    areas: BrandingFinalArea[];
+    commercial_boundary: {
+        evaluation_included: true;
+        follow_up_requires_separate_quote: true;
+        automatic_commercial_execution: false;
+    };
+};
+
 type BrandingPlanPriority = {
     key: string;
     label: string;
@@ -90,6 +144,7 @@ const props = defineProps<{
         purpose: string | null;
         scope: string[];
         needs: BrandingNeed[];
+        final_result: BrandingFinalResult | null;
         plan_context: BrandingPlanContext;
         requires_lauda_review: boolean;
         recommendation: {
@@ -437,6 +492,461 @@ function startBranding(): void {
                 </section>
 
                 <section
+                    v-if="props.branding.final_result"
+                    class="overflow-hidden rounded-[2rem] border border-emerald-200 bg-white shadow-sm dark:border-emerald-900 dark:bg-slate-950"
+                >
+                    <div
+                        class="border-b border-emerald-100 bg-emerald-50/60 p-6 dark:border-emerald-950 dark:bg-emerald-950/20 sm:p-8"
+                    >
+                        <div
+                            class="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between"
+                        >
+                            <div>
+                                <div
+                                    class="inline-flex items-center gap-2 rounded-full bg-emerald-100 px-3 py-1 text-xs font-black text-emerald-800 dark:bg-emerald-950 dark:text-emerald-200"
+                                >
+                                    <CheckCircle2 class="h-4 w-4" />
+                                    {{ props.branding.final_result.status_label }}
+                                </div>
+
+                                <h2
+                                    class="mt-4 text-2xl font-black text-slate-950 dark:text-white"
+                                >
+                                    Resultado profesional de la evaluación
+                                </h2>
+
+                                <p
+                                    class="mt-2 max-w-3xl text-sm leading-6 text-slate-600 dark:text-slate-300"
+                                >
+                                    LAUDA completó la revisión profesional de
+                                    las áreas de Branding e Identidad Digital.
+                                    Este resultado refleja exclusivamente las
+                                    evaluaciones humanas confirmadas y la
+                                    síntesis revisada.
+                                </p>
+                            </div>
+
+                            <div
+                                class="text-xs leading-5 text-slate-500 dark:text-slate-400"
+                            >
+                                <p
+                                    v-if="
+                                        props.branding.final_result
+                                            .validated_at
+                                    "
+                                >
+                                    Validada:
+                                    {{
+                                        formatDate(
+                                            props.branding.final_result
+                                                .validated_at,
+                                        )
+                                    }}
+                                </p>
+
+                                <p
+                                    v-if="
+                                        props.branding.final_result
+                                            .completed_at
+                                    "
+                                >
+                                    Completada:
+                                    {{
+                                        formatDate(
+                                            props.branding.final_result
+                                                .completed_at,
+                                        )
+                                    }}
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="space-y-8 p-6 sm:p-8">
+                        <div
+                            class="grid gap-3 sm:grid-cols-2 xl:grid-cols-5"
+                        >
+                            <article
+                                class="rounded-2xl border border-slate-200 p-4 dark:border-slate-800"
+                            >
+                                <p
+                                    class="text-[10px] font-black tracking-wider text-slate-400 uppercase"
+                                >
+                                    Evaluadas
+                                </p>
+                                <p
+                                    class="mt-2 text-2xl font-black text-slate-950 dark:text-white"
+                                >
+                                    {{
+                                        props.branding.final_result
+                                            .counts.evaluated
+                                    }}
+                                    /
+                                    {{
+                                        props.branding.final_result
+                                            .counts.total
+                                    }}
+                                </p>
+                            </article>
+
+                            <article
+                                class="rounded-2xl border border-slate-200 p-4 dark:border-slate-800"
+                            >
+                                <p
+                                    class="text-[10px] font-black tracking-wider text-slate-400 uppercase"
+                                >
+                                    Requieren atención
+                                </p>
+                                <p
+                                    class="mt-2 text-2xl font-black text-slate-950 dark:text-white"
+                                >
+                                    {{
+                                        props.branding.final_result
+                                            .counts.requires_attention
+                                    }}
+                                </p>
+                            </article>
+
+                            <article
+                                class="rounded-2xl border border-slate-200 p-4 dark:border-slate-800"
+                            >
+                                <p
+                                    class="text-[10px] font-black tracking-wider text-slate-400 uppercase"
+                                >
+                                    Adecuadas
+                                </p>
+                                <p
+                                    class="mt-2 text-2xl font-black text-slate-950 dark:text-white"
+                                >
+                                    {{
+                                        props.branding.final_result
+                                            .counts.adequate
+                                    }}
+                                </p>
+                            </article>
+
+                            <article
+                                class="rounded-2xl border border-slate-200 p-4 dark:border-slate-800"
+                            >
+                                <p
+                                    class="text-[10px] font-black tracking-wider text-slate-400 uppercase"
+                                >
+                                    No aplican
+                                </p>
+                                <p
+                                    class="mt-2 text-2xl font-black text-slate-950 dark:text-white"
+                                >
+                                    {{
+                                        props.branding.final_result
+                                            .counts.not_applicable
+                                    }}
+                                </p>
+                            </article>
+
+                            <article
+                                class="rounded-2xl border border-emerald-200 bg-emerald-50/50 p-4 dark:border-emerald-950 dark:bg-emerald-950/10"
+                            >
+                                <p
+                                    class="text-[10px] font-black tracking-wider text-emerald-700 uppercase dark:text-emerald-300"
+                                >
+                                    Estado
+                                </p>
+                                <p
+                                    class="mt-2 text-sm font-black text-emerald-900 dark:text-emerald-200"
+                                >
+                                    {{
+                                        props.branding.final_result
+                                            .status_label
+                                    }}
+                                </p>
+                            </article>
+                        </div>
+
+                        <div
+                            v-if="
+                                props.branding.final_result
+                                    .executive_summary
+                            "
+                        >
+                            <p
+                                class="text-xs font-black tracking-wide text-red-600 uppercase"
+                            >
+                                Síntesis
+                            </p>
+
+                            <h3
+                                class="mt-1 text-lg font-black text-slate-950 dark:text-white"
+                            >
+                                Resumen ejecutivo
+                            </h3>
+
+                            <p
+                                class="mt-3 whitespace-pre-line text-sm leading-7 text-slate-600 dark:text-slate-300"
+                            >
+                                {{
+                                    props.branding.final_result
+                                        .executive_summary
+                                }}
+                            </p>
+                        </div>
+
+                        <div>
+                            <p
+                                class="text-xs font-black tracking-wide text-red-600 uppercase"
+                            >
+                                Resultado por área
+                            </p>
+
+                            <h3
+                                class="mt-1 text-lg font-black text-slate-950 dark:text-white"
+                            >
+                                Áreas evaluadas
+                            </h3>
+
+                            <div
+                                class="mt-4 grid gap-4 lg:grid-cols-2"
+                            >
+                                <article
+                                    v-for="area in props.branding
+                                        .final_result.areas"
+                                    :key="area.id"
+                                    class="rounded-2xl border border-slate-200 p-5 dark:border-slate-800"
+                                >
+                                    <div
+                                        class="flex flex-wrap items-start justify-between gap-3"
+                                    >
+                                        <div class="flex items-center gap-3">
+                                            <span
+                                                class="flex h-8 w-8 items-center justify-center rounded-full bg-slate-100 text-xs font-black text-slate-600 dark:bg-slate-900 dark:text-slate-300"
+                                            >
+                                                {{
+                                                    String(
+                                                        area.sequence,
+                                                    ).padStart(
+                                                        2,
+                                                        '0',
+                                                    )
+                                                }}
+                                            </span>
+
+                                            <h4
+                                                class="font-black text-slate-950 dark:text-white"
+                                            >
+                                                {{ area.title }}
+                                            </h4>
+                                        </div>
+
+                                        <span
+                                            class="rounded-full border border-slate-200 px-2.5 py-1 text-[10px] font-black text-slate-600 uppercase dark:border-slate-800 dark:text-slate-300"
+                                        >
+                                            {{ area.result_label }}
+                                        </span>
+                                    </div>
+
+                                    <div
+                                        v-if="area.findings"
+                                        class="mt-4"
+                                    >
+                                        <p
+                                            class="text-[10px] font-black tracking-wider text-slate-400 uppercase"
+                                        >
+                                            Hallazgos
+                                        </p>
+
+                                        <p
+                                            class="mt-1 whitespace-pre-line text-sm leading-6 text-slate-600 dark:text-slate-300"
+                                        >
+                                            {{ area.findings }}
+                                        </p>
+                                    </div>
+
+                                    <div
+                                        v-if="area.recommendation"
+                                        class="mt-4"
+                                    >
+                                        <p
+                                            class="text-[10px] font-black tracking-wider text-slate-400 uppercase"
+                                        >
+                                            Recomendación
+                                        </p>
+
+                                        <p
+                                            class="mt-1 whitespace-pre-line text-sm leading-6 text-slate-600 dark:text-slate-300"
+                                        >
+                                            {{ area.recommendation }}
+                                        </p>
+                                    </div>
+
+                                    <div
+                                        v-if="area.priority_label"
+                                        class="mt-4"
+                                    >
+                                        <span
+                                            class="rounded-full bg-slate-100 px-2.5 py-1 text-[10px] font-black text-slate-600 uppercase dark:bg-slate-900 dark:text-slate-300"
+                                        >
+                                            Prioridad
+                                            {{ area.priority_label }}
+                                        </span>
+                                    </div>
+                                </article>
+                            </div>
+                        </div>
+
+                        <div
+                            v-if="
+                                props.branding.final_result
+                                    .priority_order.length
+                            "
+                        >
+                            <p
+                                class="text-xs font-black tracking-wide text-red-600 uppercase"
+                            >
+                                Prioridades
+                            </p>
+
+                            <h3
+                                class="mt-1 text-lg font-black text-slate-950 dark:text-white"
+                            >
+                                Orden recomendado
+                            </h3>
+
+                            <div class="mt-4 grid gap-3">
+                                <article
+                                    v-for="(
+                                        priority,
+                                        index
+                                    ) in props.branding.final_result
+                                        .priority_order"
+                                    :key="priority.need_key"
+                                    class="rounded-2xl border border-slate-200 p-4 dark:border-slate-800"
+                                >
+                                    <div class="flex items-center gap-3">
+                                        <span
+                                            class="flex h-7 w-7 items-center justify-center rounded-full bg-slate-100 text-xs font-black dark:bg-slate-900"
+                                        >
+                                            {{ index + 1 }}
+                                        </span>
+
+                                        <p
+                                            class="font-black text-slate-950 dark:text-white"
+                                        >
+                                            {{ priority.title }}
+                                        </p>
+                                    </div>
+
+                                    <p
+                                        v-if="priority.recommendation"
+                                        class="mt-2 text-sm leading-6 text-slate-500 dark:text-slate-400"
+                                    >
+                                        {{
+                                            priority.recommendation
+                                        }}
+                                    </p>
+                                </article>
+                            </div>
+                        </div>
+
+                        <div
+                            v-if="
+                                props.branding.final_result
+                                    .dependencies.length
+                            "
+                        >
+                            <p
+                                class="text-xs font-black tracking-wide text-red-600 uppercase"
+                            >
+                                Secuencia
+                            </p>
+
+                            <h3
+                                class="mt-1 text-lg font-black text-slate-950 dark:text-white"
+                            >
+                                Dependencias recomendadas
+                            </h3>
+
+                            <div class="mt-4 grid gap-3">
+                                <article
+                                    v-for="dependency in props.branding
+                                        .final_result.dependencies"
+                                    :key="
+                                        `${dependency.before_key}-${dependency.after_key}`
+                                    "
+                                    class="rounded-2xl border border-slate-200 p-4 dark:border-slate-800"
+                                >
+                                    <p
+                                        class="text-sm font-black text-slate-950 dark:text-white"
+                                    >
+                                        {{ dependency.before_title }}
+                                        →
+                                        {{ dependency.after_title }}
+                                    </p>
+
+                                    <p
+                                        class="mt-1 text-sm leading-6 text-slate-500 dark:text-slate-400"
+                                    >
+                                        {{ dependency.reason }}
+                                    </p>
+                                </article>
+                            </div>
+                        </div>
+
+                        <div
+                            v-if="
+                                props.branding.final_result
+                                    .overall_recommendation
+                            "
+                            class="rounded-2xl border border-slate-200 bg-slate-50/60 p-5 dark:border-slate-800 dark:bg-slate-900/20"
+                        >
+                            <p
+                                class="text-xs font-black tracking-wide text-red-600 uppercase"
+                            >
+                                Recomendación general
+                            </p>
+
+                            <p
+                                class="mt-3 whitespace-pre-line text-sm leading-7 text-slate-600 dark:text-slate-300"
+                            >
+                                {{
+                                    props.branding.final_result
+                                        .overall_recommendation
+                                }}
+                            </p>
+                        </div>
+
+                        <div
+                            class="rounded-2xl border border-amber-200 bg-amber-50/60 p-5 dark:border-amber-950 dark:bg-amber-950/20"
+                        >
+                            <div class="flex items-start gap-3">
+                                <ShieldCheck
+                                    class="mt-0.5 h-5 w-5 shrink-0 text-amber-700 dark:text-amber-300"
+                                />
+
+                                <div>
+                                    <p
+                                        class="text-sm font-black text-amber-900 dark:text-amber-200"
+                                    >
+                                        Evaluación incluida
+                                    </p>
+
+                                    <p
+                                        class="mt-1 text-xs leading-5 text-amber-800/80 dark:text-amber-300/80"
+                                    >
+                                        Los trabajos posteriores de diseño,
+                                        desarrollo o implementación se
+                                        definirán y cotizarán por separado.
+                                        Este resultado no crea automáticamente
+                                        orden, factura, pago, suscripción ni
+                                        ejecución comercial.
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+
+                <section
+                    v-if="!props.branding.final_result"
                     class="rounded-[2rem] border border-slate-200/70 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-950"
                 >
                     <div

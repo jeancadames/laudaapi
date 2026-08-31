@@ -4,6 +4,7 @@ namespace App\Services\Diagnosis;
 
 use App\Models\TransformationCapabilityActivation;
 use App\Models\TransformationCapabilityNeed;
+use App\Models\TransformationCapabilityNeedEvaluation;
 use App\Services\AuditService;
 use Illuminate\Database\Eloquent\Collection;
 
@@ -128,6 +129,20 @@ final class TransformationCapabilityNeedService
             }
 
             $need->save();
+
+            TransformationCapabilityNeedEvaluation::query()
+                ->firstOrCreate(
+                    [
+                        'transformation_capability_need_id' =>
+                            $need->id,
+                    ],
+                    [
+                        'status' =>
+                            TransformationCapabilityNeedEvaluation::STATUS_PENDING,
+                        'generation_version' =>
+                            0,
+                    ]
+                );
         }
 
         if ($createdKeys !== []) {

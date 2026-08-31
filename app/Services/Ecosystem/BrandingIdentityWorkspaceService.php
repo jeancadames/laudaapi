@@ -4,6 +4,7 @@ namespace App\Services\Ecosystem;
 
 use App\Models\TransformationCapabilityActivation;
 use App\Models\TransformationCapabilityNeed;
+use App\Models\TransformationCapabilityNeedEvaluation;
 use Illuminate\Validation\ValidationException;
 
 final class BrandingIdentityWorkspaceService
@@ -99,6 +100,11 @@ final class BrandingIdentityWorkspaceService
 
             'needs' =>
                 $this->needs(
+                    $activation
+                ),
+
+            'final_result' =>
+                $this->finalResult(
                     $activation
                 ),
 
@@ -232,6 +238,270 @@ final class BrandingIdentityWorkspaceService
                     false,
             ],
         ];
+    }
+
+    private function finalResult(
+        TransformationCapabilityActivation $activation
+    ): ?array {
+        if (
+            ! in_array(
+                $activation->status,
+                [
+                    TransformationCapabilityActivation::STATUS_VALIDATED,
+                    TransformationCapabilityActivation::STATUS_COMPLETED,
+                ],
+                true
+            )
+        ) {
+            return null;
+        }
+
+        $summary =
+            $activation
+                ->evaluationSummary()
+                ->first();
+
+        if (
+            ! $summary
+            || ! $summary->hasReviewedSummary()
+        ) {
+            return null;
+        }
+
+        /*
+         * El tenant recibe exclusivamente el contenido profesional
+         * revisado. Nunca se expone generated_payload como resultado final.
+         */
+        $reviewed =
+            is_array(
+                $summary->reviewed_payload
+            )
+                ? $summary->reviewed_payload
+                : [];
+
+        $allNeeds =
+            $activation
+                ->needs()
+                ->with('evaluation')
+                ->get();
+
+        $areas =
+            $allNeeds
+                ->map(
+                    function (
+                        TransformationCapabilityNeed $need
+                    ): ?array {
+                        $evaluation =
+                            $need->evaluation;
+
+                        if (
+                            ! $evaluation
+                            || $evaluation->status
+                                !== TransformationCapabilityNeedEvaluation::STATUS_EVALUATED
+                        ) {
+                            return null;
+                        }
+
+                        $result =
+                            (string) $evaluation->result;
+
+                        $priority =
+                            $evaluation->priority !== null
+                                ? (string) $evaluation->priority
+                                : null;
+
+                        return [
+                            'id' =>
+                                (int) $need->id,
+
+                            'sequence' =>
+                                (int) $need->sequence,
+
+                            'key' =>
+                                (string) $need->need_key,
+
+                            'title' =>
+                                (string) $need->title,
+
+                            'result' =>
+                                $result,
+
+                            'result_label' =>
+                                $this->evaluationResultLabel(
+                                    $result
+                                ),
+
+                            'findings' =>
+                                $evaluation->findings,
+
+                            'recommendation' =>
+                                $evaluation->recommendation,
+
+                            'priority' =>
+                                $priority,
+
+                            'priority_label' =>
+                                $this->evaluationPriorityLabel(
+                                    $priority
+                                ),
+
+                            'evaluated_at' =>
+                                $evaluation
+                                    ->evaluated_at
+                                    ?->toISOString(),
+                        ];
+                    }
+                )
+                ->filter()
+                ->values();
+
+        return [
+            'status' =>
+                (string) $activation->status,
+
+            'status_label' =>
+                $activation->status
+                    === TransformationCapabilityActivation::STATUS_COMPLETED
+                        ? 'Evaluación completada'
+                        : 'Evaluación validada',
+
+            'validated_at' =>
+                $activation
+                    ->validated_at
+                    ?->toISOString(),
+
+            'completed_at' =>
+                $activation
+                    ->completed_at
+                    ?->toISOString(),
+
+            'reviewed_at' =>
+                $summary
+                    ->reviewed_at
+                    ?->toISOString(),
+
+            'counts' => [
+                'total' =>
+                    $allNeeds->count(),
+
+                'evaluated' =>
+                    $areas->count(),
+
+                'requires_attention' =>
+                    $areas
+                        ->where(
+                            'result',
+                            'requires_attention'
+                        )
+                        ->count(),
+
+                'adequate' =>
+                    $areas
+                        ->where(
+                            'result',
+                            'adequate'
+                        )
+                        ->count(),
+
+                'not_applicable' =>
+                    $areas
+                        ->where(
+                            'result',
+                            'not_applicable'
+                        )
+                        ->count(),
+            ],
+
+            'executive_summary' =>
+                $reviewed[
+                    'executive_summary'
+                ]
+                ?? null,
+
+            'overall_recommendation' =>
+                $reviewed[
+                    'overall_recommendation'
+                ]
+                ?? null,
+
+            'priority_order' =>
+                is_array(
+                    $reviewed[
+                        'priority_order'
+                    ]
+                    ?? null
+                )
+                    ? array_values(
+                        $reviewed[
+                            'priority_order'
+                        ]
+                    )
+                    : [],
+
+            'dependencies' =>
+                is_array(
+                    $reviewed[
+                        'dependencies'
+                    ]
+                    ?? null
+                )
+                    ? array_values(
+                        $reviewed[
+                            'dependencies'
+                        ]
+                    )
+                    : [],
+
+            'areas' =>
+                $areas->all(),
+
+            'commercial_boundary' => [
+                'evaluation_included' =>
+                    true,
+
+                'follow_up_requires_separate_quote' =>
+                    true,
+
+                'automatic_commercial_execution' =>
+                    false,
+            ],
+        ];
+    }
+
+    private function evaluationResultLabel(
+        string $result
+    ): string {
+        return match ($result) {
+            'requires_attention' =>
+                'Requiere atención',
+
+            'adequate' =>
+                'Adecuado / no requiere intervención',
+
+            'not_applicable' =>
+                'No aplica',
+
+            default =>
+                $result,
+        };
+    }
+
+    private function evaluationPriorityLabel(
+        ?string $priority
+    ): ?string {
+        return match ($priority) {
+            'high' =>
+                'Alta',
+
+            'medium' =>
+                'Media',
+
+            'low' =>
+                'Baja',
+
+            default =>
+                null,
+        };
     }
 
     private function needs(
@@ -417,7 +687,7 @@ final class BrandingIdentityWorkspaceService
                 'Revisión de LAUDA pendiente.',
 
             TransformationCapabilityActivation::STATUS_VALIDATED =>
-                'Cerrar la capacidad cuando los entregables estén concluidos.',
+                'La evaluación fue validada por LAUDA y está pendiente de cierre administrativo.',
 
             TransformationCapabilityActivation::STATUS_COMPLETED =>
                 null,

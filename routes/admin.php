@@ -343,5 +343,101 @@ Route::middleware(['auth', 'verified', 'role:admin'])
             [\App\Http\Controllers\Admin\AdminTransformationImplementationExecutionController::class, 'activateService']
         )->name('diagnosis_requests.implementation_execution.service.activate');
 
+        /*
+        |--------------------------------------------------------------------------
+        | Branding e Identidad Digital · Evaluación Admin
+        |--------------------------------------------------------------------------
+        */
+        \Illuminate\Support\Facades\Route::get(
+            '/branding-evaluations',
+            [
+                \App\Http\Controllers\Admin\AdminBrandingEvaluationController::class,
+                'index'
+            ]
+        )->name(
+            'branding_evaluations.index'
+        );
+
+        \Illuminate\Support\Facades\Route::get(
+            '/branding-evaluations/{activation}',
+            [
+                \App\Http\Controllers\Admin\AdminBrandingEvaluationController::class,
+                'show'
+            ]
+        )->name(
+            'branding_evaluations.show'
+        );
+
+        \Illuminate\Support\Facades\Route::patch(
+            '/branding-evaluations/{activation}/areas/{need}',
+            [
+                \App\Http\Controllers\Admin\AdminBrandingEvaluationController::class,
+                'evaluateNeed'
+            ]
+        )->name(
+            'branding_evaluations.needs.evaluate'
+        );
+
+        \Illuminate\Support\Facades\Route::post(
+            '/branding-evaluations/{activation}/generate-drafts',
+            [
+                \App\Http\Controllers\Admin\AdminBrandingEvaluationController::class,
+                'generateDrafts'
+            ]
+        )->name(
+            'branding_evaluations.generate_drafts'
+        );
+
+        \Illuminate\Support\Facades\Route::post(
+            '/branding-evaluations/{activation}/summary/generate',
+            [
+                \App\Http\Controllers\Admin\AdminBrandingEvaluationController::class,
+                'generateSummary'
+            ]
+        )->name(
+            'branding_evaluations.summary.generate'
+        );
+
+        \Illuminate\Support\Facades\Route::post(
+            '/branding-evaluations/{activation}/ready-for-review',
+            [
+                \App\Http\Controllers\Admin\AdminBrandingEvaluationController::class,
+                'markReadyForReview'
+            ]
+        )->name(
+            'branding_evaluations.ready_for_review'
+        );
+
+        \Illuminate\Support\Facades\Route::patch(
+            '/branding-evaluations/{activation}/summary/review',
+            [
+                \App\Http\Controllers\Admin\AdminBrandingEvaluationController::class,
+                'reviewSummary'
+            ]
+        )->name(
+            'branding_evaluations.summary.review'
+        );
+
+        \Illuminate\Support\Facades\Route::post(
+            '/branding-evaluations/{activation}/validate',
+            [
+                \App\Http\Controllers\Admin\AdminBrandingEvaluationController::class,
+                'validateEvaluation'
+            ]
+        )->name(
+            'branding_evaluations.validate'
+        );
+
+        \Illuminate\Support\Facades\Route::post(
+            '/branding-evaluations/{activation}/complete',
+            [
+                \App\Http\Controllers\Admin\AdminBrandingEvaluationController::class,
+                'completeEvaluation'
+            ]
+        )->name(
+            'branding_evaluations.complete'
+        );
+
+
     });
 // END LAUDA360 DIAGNOSIS ADMIN ROUTES

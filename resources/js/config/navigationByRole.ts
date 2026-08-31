@@ -9,6 +9,11 @@ export const navigationByRole = {
                 href: '/admin/diagnosis-requests',
                 icon: 'Contact',
             },
+            {
+                title: 'Evaluaciones de Branding',
+                href: '/admin/branding-evaluations',
+                icon: 'Contact',
+            },
         ],
         footer: [],
     },

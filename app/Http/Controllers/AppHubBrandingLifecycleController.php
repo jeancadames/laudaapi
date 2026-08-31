@@ -86,7 +86,7 @@ final class AppHubBrandingLifecycleController extends Controller
 
         return back()->with(
             'success',
-            'Branding e Identidad Digital está ahora en progreso.'
+            'Evaluación de Branding e Identidad Digital en progreso.'
         );
     }
 }

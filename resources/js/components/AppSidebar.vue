@@ -98,7 +98,10 @@ const adminSections = computed<SidebarSection[]>(() => [
     { items: byHrefs(adminMain, ['/dashboard']) },
     {
         title: 'LAUDA 360',
-        items: byHrefs(adminMain, ['/admin/diagnosis-requests']),
+        items: byHrefs(adminMain, [
+            '/admin/diagnosis-requests',
+            '/admin/branding-evaluations',
+        ]),
     },
 ]);
 
