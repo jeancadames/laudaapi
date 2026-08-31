@@ -237,7 +237,7 @@ function startBranding(): void {
                             <p
                                 class="mt-2 max-w-3xl text-sm leading-6 text-slate-500 sm:text-base dark:text-slate-400"
                             >
-                                Workspace operacional de
+                                Espacio de evaluación de
                                 {{ props.company.name }} para organizar y seguir
                                 esta capacidad profesional.
                             </p>
@@ -446,19 +446,17 @@ function startBranding(): void {
                             <p
                                 class="text-xs font-black tracking-wide text-red-600 uppercase"
                             >
-                                Necesidades detectadas
+                                Áreas de evaluación
                             </p>
                             <h2
                                 class="mt-1 text-xl font-black text-slate-950 dark:text-white"
                             >
-                                Frentes de Branding identificados
+                                Áreas de Branding a revisar
                             </h2>
                             <p
                                 class="mt-2 max-w-3xl text-sm leading-6 text-slate-500 dark:text-slate-400"
                             >
-                                Estas necesidades se materializan a partir del
-                                alcance de Branding activado y conservan como
-                                fuente el Roadmap que originó la activación.
+                                Estas áreas representan los frentes que se revisarán durante la evaluación. Si existe información relacionada en el Diagnóstico 360, Roadmap o Plan consultivo, se utiliza únicamente como contexto.
                             </p>
                         </div>
 
@@ -466,7 +464,7 @@ function startBranding(): void {
                             class="inline-flex w-fit rounded-full border border-slate-200 bg-slate-50 px-3 py-1.5 text-xs font-black text-slate-600 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-300"
                         >
                             {{ props.branding.needs.length }}
-                            identificadas
+                            áreas a revisar
                         </span>
                     </div>
 
@@ -516,16 +514,16 @@ function startBranding(): void {
                         v-else
                         class="mt-6 rounded-2xl border border-dashed border-slate-300 px-4 py-5 text-sm text-slate-500 dark:border-slate-700 dark:text-slate-400"
                     >
-                        La activación todavía no tiene necesidades
-                        materializadas.
+                        Todavía no hay áreas de evaluación disponibles.
                     </div>
 
                     <p
                         class="mt-5 text-xs leading-5 text-slate-400"
                     >
-                        Las necesidades permanecen como unidades operativas
-                        independientes; el contexto de fase, prioridad y
-                        dependencias se toma del Plan consultivo vigente.
+                        Las áreas se revisan de forma independiente. Cuando exista
+                        contexto relevante en el Plan consultivo vigente,
+                        se utiliza únicamente como referencia para la
+                        evaluación.
                     </p>
                 </section>
 
@@ -544,14 +542,14 @@ function startBranding(): void {
                             <h2
                                 class="mt-1 text-xl font-black text-slate-950 dark:text-white"
                             >
-                                Ubicación en el Plan consultivo
+                                Contexto del Plan consultivo
                             </h2>
                             <p
                                 class="mt-2 max-w-3xl text-sm leading-6 text-slate-500 dark:text-slate-400"
                             >
-                                Esta información se lee del Plan de
-                                Implementación público vigente y no se duplica
-                                dentro de las necesidades de Branding.
+                                Si existe información relevante en el Plan de
+                                Implementación público vigente, se utiliza
+                                únicamente como contexto para esta evaluación.
                             </p>
                         </div>
 
@@ -880,7 +878,7 @@ function startBranding(): void {
                             >
                                 {{
                                     props.branding.progress.next_step_label ??
-                                    'Capacidad completada'
+                                    'Evaluación completada'
                                 }}
                             </h2>
 
@@ -896,7 +894,7 @@ function startBranding(): void {
                                 "
                                 class="mt-2 max-w-3xl text-sm leading-6 text-slate-500 dark:text-slate-400"
                             >
-                                El trabajo ya está iniciado. La siguiente
+                                La evaluación ya está en progreso. La siguiente
                                 transición dependerá de la revisión de LAUDA.
                             </p>
                         </div>

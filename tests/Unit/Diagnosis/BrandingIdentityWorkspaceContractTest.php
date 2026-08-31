@@ -157,7 +157,7 @@ final class BrandingIdentityWorkspaceContractTest extends TestCase
         );
 
         foreach ([
-            'Workspace operacional',
+            'Espacio de evaluación',
             'Resumen',
             'Estado y progreso',
             'Alcance de la evaluación',

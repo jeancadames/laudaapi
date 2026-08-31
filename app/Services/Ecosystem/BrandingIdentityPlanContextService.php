@@ -19,7 +19,7 @@ final class BrandingIdentityPlanContextService
     ): array {
         if (! $activation->diagnosis_assessment_id) {
             return $this->unavailable(
-                'Esta activación fue seleccionada manualmente y no tiene un Plan consultivo de origen.'
+                'La evaluación fue iniciada de forma opcional por el tenant y no depende de un Plan consultivo de origen.'
             );
         }
 

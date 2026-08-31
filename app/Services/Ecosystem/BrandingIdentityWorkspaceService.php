@@ -283,7 +283,7 @@ final class BrandingIdentityWorkspaceService
     ): string {
         return match ($status) {
             TransformationCapabilityNeed::STATUS_IDENTIFIED =>
-                'Identificada',
+                'Pendiente de evaluación',
 
             default =>
                 $status,
@@ -408,7 +408,7 @@ final class BrandingIdentityWorkspaceService
     ): ?string {
         return match ($status) {
             TransformationCapabilityActivation::STATUS_ACTIVATED =>
-                'Iniciar el trabajo operativo de Branding.',
+                'Iniciar la Evaluación de Branding e Identidad Digital.',
 
             TransformationCapabilityActivation::STATUS_IN_PROGRESS =>
                 'Preparar el trabajo para revisión de LAUDA.',

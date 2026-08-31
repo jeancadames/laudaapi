@@ -229,15 +229,15 @@ final class BrandingIdentityDetectedNeedsContractTest
         foreach ([
             'type BrandingNeed =',
             'needs: BrandingNeed[]',
-            'Necesidades detectadas',
-            'Frentes de Branding identificados',
+            'Áreas de evaluación',
+            'Áreas de Branding a revisar',
             'props.branding.needs.length',
             'v-for="need in props.branding.needs"',
             '{{ need.title }}',
             '{{ need.status_label }}',
-            'Las necesidades permanecen como unidades operativas',
-            'contexto de fase, prioridad y',
-            'dependencias se toma del Plan consultivo vigente',
+            'Las áreas se revisan de forma independiente',
+            'contexto relevante en el Plan consultivo vigente',
+            'se utiliza únicamente como referencia para la',
         ] as $token) {
             $this->assertStringContainsString(
                 $token,

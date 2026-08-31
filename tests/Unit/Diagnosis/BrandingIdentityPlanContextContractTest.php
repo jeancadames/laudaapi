@@ -173,7 +173,7 @@ final class BrandingIdentityPlanContextContractTest
         foreach ([
             'type BrandingPlanContext =',
             'plan_context: BrandingPlanContext',
-            'Ubicación en el Plan consultivo',
+            'Contexto del Plan consultivo',
             'Fase sugerida',
             'Horizonte',
             'Prioridad',

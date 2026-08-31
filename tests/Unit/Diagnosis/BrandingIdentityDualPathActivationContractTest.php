@@ -234,8 +234,8 @@ final class BrandingIdentityDualPathActivationContractTest extends TestCase
 
         foreach ([
             'if (! $activation->diagnosis_assessment_id)',
-            'seleccionada manualmente',
-            'no tiene un Plan consultivo de origen',
+            'iniciada de forma opcional por el tenant',
+            'no depende de un Plan consultivo de origen',
         ] as $token) {
             $this->assertStringContainsString($token, $plan);
         }
