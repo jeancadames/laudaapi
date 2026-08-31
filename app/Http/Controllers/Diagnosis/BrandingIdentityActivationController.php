@@ -31,7 +31,7 @@ class BrandingIdentityActivationController extends Controller
         abort_if(
             $user->isAdmin(),
             403,
-            'La activación gratuita corresponde al tenant.'
+            'El inicio de la evaluación de Branding e Identidad Digital corresponde al tenant.'
         );
 
         $subscriberId = (int) (
@@ -84,7 +84,7 @@ class BrandingIdentityActivationController extends Controller
 
         return back()->with(
             'success',
-            'Branding e Identidad Digital activado gratuitamente. Ya forma parte de su recorrido de Transformación 360.'
+            'Evaluación de Branding e Identidad Digital iniciada. Ya está disponible en su recorrido de Transformación 360.'
         );
     }
 }

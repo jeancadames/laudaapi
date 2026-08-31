@@ -180,7 +180,7 @@ final class BrandingIdentityWorkspaceService
                                 'start',
 
                             'label' =>
-                                'Iniciar Branding',
+                                'Continuar evaluación',
 
                             'method' =>
                                 'post',
@@ -193,7 +193,7 @@ final class BrandingIdentityWorkspaceService
                                 ),
 
                             'description' =>
-                                'Inicia formalmente el trabajo operativo de Branding dentro del recorrido gratuito.',
+                                'Continúa con la evaluación de Branding e Identidad Digital. Cualquier trabajo posterior de diseño, desarrollo o implementación se definirá y cotizará por separado.',
                         ]
                         : null,
 

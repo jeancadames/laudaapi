@@ -484,7 +484,7 @@ class TransformationCapabilityActivationService
         ) {
             throw ValidationException::withMessages([
                 'roadmap' => [
-                    'La activación gratuita requiere un Roadmap Detallado publicado del mismo diagnóstico.',
+                    'La evaluación iniciada desde el Roadmap requiere un Roadmap Detallado publicado del mismo diagnóstico.',
                 ],
             ]);
         }

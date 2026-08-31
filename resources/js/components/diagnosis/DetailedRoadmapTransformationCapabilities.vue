@@ -50,7 +50,7 @@ function activateBranding(): void {
 
     if (
         !window.confirm(
-            '¿Activar gratis Branding e Identidad Digital para esta empresa? Esta activación no genera compra, pago ni contratación.',
+            '¿Iniciar la evaluación de Branding e Identidad Digital para esta empresa? La evaluación está incluida. Los trabajos posteriores de diseño, desarrollo o implementación se definirán y cotizarán por separado.',
         )
     ) {
         return;
@@ -169,7 +169,7 @@ function declineBranding(): void {
                         v-if="brandingActivation?.recommended"
                         variant="secondary"
                     >
-                        Recomendado por tu evaluación
+                        Recomendado por tu Diagnóstico 360
                     </Badge>
 
                     <Badge
@@ -215,7 +215,7 @@ function declineBranding(): void {
                         {{
                             brandingActivation?.recommended
                                 ? 'Recomendado por tu Diagnóstico 360'
-                                : 'Activación gratuita disponible'
+                                : 'Evaluación incluida'
                         }}
                     </p>
 
@@ -246,7 +246,7 @@ function declineBranding(): void {
                                 v-else
                                 class="mr-2 size-4"
                             />
-                            Activar gratis
+                            Iniciar evaluación
                         </Button>
 
                         <Button
@@ -283,7 +283,7 @@ function declineBranding(): void {
                 >
                     <p class="flex items-center gap-2 text-sm font-bold">
                         <CheckCircle2 class="size-4" />
-                        Branding e Identidad Digital activado
+                        Evaluación de Branding e Identidad Digital iniciada
                     </p>
                     <p class="mt-1 text-xs leading-5 text-muted-foreground">
                         Esta capacidad ya forma parte de su recorrido de

@@ -133,8 +133,8 @@ final class BrandingIdentityDynamicSidebarContractTest extends TestCase
         foreach ([
             'Branding e Identidad Digital',
             'Workspace operacional',
-            'Activación gratuita',
-            'Alcance activado',
+            'Evaluación incluida',
+            'Alcance de la evaluación',
             'Estado y progreso',
             'Próximo paso',
             'no constituye compra',

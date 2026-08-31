@@ -104,7 +104,7 @@ final class AppHubBrandingActivationController extends Controller
 
         return back()->with(
             'success',
-            'Branding e Identidad Digital activado gratuitamente.'
+            'Evaluación de Branding e Identidad Digital iniciada.'
         );
     }
 }

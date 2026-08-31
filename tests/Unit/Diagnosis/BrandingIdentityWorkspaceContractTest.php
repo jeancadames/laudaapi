@@ -160,7 +160,7 @@ final class BrandingIdentityWorkspaceContractTest extends TestCase
             'Workspace operacional',
             'Resumen',
             'Estado y progreso',
-            'Alcance activado',
+            'Alcance de la evaluación',
             'Origen',
             'Recomendación del Roadmap',
             'Próximo paso',

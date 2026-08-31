@@ -166,9 +166,9 @@ final class BrandingIdentityDualPathActivationContractTest extends TestCase
         foreach ([
             'OptionalBrandingCapability',
             'optional_capabilities',
-            'Recomendado por tu evaluación',
+            'Recomendado por tu Diagnóstico 360',
             'Opcional',
-            'Activar gratis',
+            'Iniciar evaluación',
             'Ahora no',
             'puedes activar Branding cuando',
             'router.post(',

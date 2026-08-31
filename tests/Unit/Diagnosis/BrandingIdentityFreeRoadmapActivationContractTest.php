@@ -122,13 +122,13 @@ final class BrandingIdentityFreeRoadmapActivationContractTest
             'brandingActivation?.activated',
             "brandingActivation?.decision !== 'declined'",
             'brandingActivation?.decline_endpoint',
-            'Activación gratuita disponible',
+            'Evaluación incluida',
             'Recomendado por tu Diagnóstico 360',
-            'Activar gratis',
+            'Iniciar evaluación',
             'Ahora no',
             'puedes activar Branding cuando decidas',
             'router.post(',
-            'no genera compra, pago ni contratación',
+            'La evaluación está incluida',
         ] as $token) {
             $this->assertStringContainsString($token, $component);
         }

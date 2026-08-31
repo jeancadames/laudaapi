@@ -225,7 +225,7 @@ function startBranding(): void {
                                 class="inline-flex items-center gap-2 rounded-full border border-red-100 bg-red-50 px-3 py-1 text-xs font-semibold text-red-700 dark:border-red-950 dark:bg-red-950/40 dark:text-red-300"
                             >
                                 <Palette class="h-3.5 w-3.5" />
-                                LAUDA 360 · Capacidad activada
+                                LAUDA 360 · Evaluación de Branding
                             </div>
 
                             <h1
@@ -265,7 +265,7 @@ function startBranding(): void {
                         <h2
                             class="mt-2 text-xl font-black text-slate-950 dark:text-white"
                         >
-                            Capacidad profesional activa
+                            Evaluación de Branding activa
                         </h2>
 
                         <p
@@ -288,7 +288,7 @@ function startBranding(): void {
                                     <p
                                         class="text-sm font-black text-emerald-900 dark:text-emerald-200"
                                     >
-                                        Activación gratuita
+                                        Evaluación incluida
                                     </p>
                                     <p
                                         class="mt-1 text-xs leading-5 text-emerald-800/80 dark:text-emerald-300/80"
@@ -790,13 +790,13 @@ function startBranding(): void {
                         <p
                             class="text-xs font-black tracking-wide text-red-600 uppercase"
                         >
-                            Alcance activado
+                            Alcance de la evaluación
                         </p>
 
                         <h2
                             class="mt-1 text-xl font-black text-slate-950 dark:text-white"
                         >
-                            Qué cubre esta capacidad
+                            Qué cubre esta evaluación
                         </h2>
 
                         <ul

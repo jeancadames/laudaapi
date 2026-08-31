@@ -98,7 +98,7 @@ function activateBranding(): void {
 
     if (
         !window.confirm(
-            '¿Activar gratis Branding e Identidad Digital? Es una capacidad opcional y no genera compra, pago ni suscripción.',
+            '¿Iniciar la evaluación de Branding e Identidad Digital? La evaluación está incluida. Los trabajos posteriores de diseño, desarrollo o implementación se definirán y cotizarán por separado.',
         )
     ) {
         return;
@@ -358,7 +358,7 @@ function declineBranding(): void {
                                     v-if="optionalBranding.recommended"
                                     class="rounded-full bg-red-50 px-2.5 py-1 text-[10px] font-black text-red-700 uppercase dark:bg-red-950/30 dark:text-red-300"
                                 >
-                                    Recomendado por tu evaluación
+                                    Recomendado por tu Diagnóstico 360
                                 </span>
                             </div>
 
@@ -414,7 +414,7 @@ function declineBranding(): void {
                                     v-else
                                     class="mr-2 h-4 w-4"
                                 />
-                                Activar gratis
+                                Iniciar evaluación
                             </Button>
 
                             <Button
