@@ -237,6 +237,182 @@ function priorityLabel(value: string | null): string {
     );
 }
 
+type ManualResultAssistance = {
+    recommendation: string;
+    priority: 'high' | 'medium' | 'low';
+    findingsPrompt: string;
+};
+
+const manualResultAssistance: Record<
+    string,
+    ManualResultAssistance
+> = {
+    positioning_refinement: {
+        recommendation:
+            'Revisar y definir la propuesta de valor, la diferenciación y los mensajes prioritarios de la marca para establecer un posicionamiento claro y consistente.',
+        priority: 'medium',
+        findingsPrompt:
+            'Describe la evidencia real observada sobre propuesta de valor, diferenciación, posicionamiento o mensajes de marca.',
+    },
+
+    visual_identity_update: {
+        recommendation:
+            'Revisar y actualizar los elementos de identidad visual para asegurar coherencia, reconocimiento y aplicación consistente de la marca.',
+        priority: 'medium',
+        findingsPrompt:
+            'Describe la evidencia real observada en logotipo, colores, tipografías, recursos gráficos o consistencia visual.',
+    },
+
+    brand_kit: {
+        recommendation:
+            'Desarrollar y documentar un Brand Kit que establezca los elementos visuales, criterios de uso y lineamientos básicos para la aplicación consistente de la marca.',
+        priority: 'medium',
+        findingsPrompt:
+            'Describe qué elementos, lineamientos o recursos de marca existen actualmente y cuáles están ausentes o no documentados.',
+    },
+
+    social_normalization: {
+        recommendation:
+            'Definir e implementar lineamientos de normalización para las redes sociales de la empresa, incluyendo nombres y descripciones de perfiles, imágenes, identidad visual, estilo de publicaciones, portadas y criterios de consistencia entre canales.',
+        priority: 'medium',
+        findingsPrompt:
+            'Describe la evidencia real observada en perfiles, nombres, biografías, imágenes, publicaciones, portadas o consistencia entre redes sociales.',
+    },
+
+    commercial_documents: {
+        recommendation:
+            'Estandarizar la aplicación de la identidad de marca en los documentos comerciales utilizados por la empresa y definir criterios consistentes para sus formatos.',
+        priority: 'medium',
+        findingsPrompt:
+            'Describe la evidencia observada en cotizaciones, propuestas, facturas, presentaciones u otros documentos comerciales.',
+    },
+
+    web_application: {
+        recommendation:
+            'Definir y aplicar criterios de identidad de marca en la presencia web para asegurar coherencia visual, mensajes consistentes y una experiencia alineada con la identidad definida.',
+        priority: 'medium',
+        findingsPrompt:
+            'Describe la evidencia real observada en sitio web, landing pages, contenidos, recursos visuales o consistencia de marca en canales web.',
+    },
+};
+
+function findingsPlaceholder(need: BrandingNeed): string {
+    if (
+        need.evaluation.suggested_result
+        === 'insufficient_information'
+    ) {
+        return (
+            manualResultAssistance[need.need_key]
+                ?.findingsPrompt
+            ?? 'Documenta la evidencia real que sustenta el resultado seleccionado.'
+        );
+    }
+
+    return 'Documenta la evidencia y los hallazgos que sustentan el resultado.';
+}
+
+function assistFromSelectedResult(
+    need: BrandingNeed,
+): void {
+    if (
+        !props.branding.can_edit
+        || need.evaluation.status === 'evaluated'
+        || need.evaluation.suggested_result
+            !== 'insufficient_information'
+    ) {
+        return;
+    }
+
+    const form = forms[need.id];
+    const assistance =
+        manualResultAssistance[need.need_key];
+
+    if (!form || !assistance) {
+        return;
+    }
+
+    const genericDraftFinding =
+        need.evaluation.suggested_findings?.trim()
+        ?? '';
+
+    /*
+     * Un mensaje automático de "información insuficiente"
+     * no es evidencia profesional.
+     */
+    if (
+        genericDraftFinding
+        && form.findings.trim()
+            === genericDraftFinding
+    ) {
+        form.findings = '';
+    }
+
+    if (form.result === 'requires_attention') {
+        if (!form.recommendation.trim()) {
+            form.recommendation =
+                assistance.recommendation;
+        }
+
+        if (!form.priority) {
+            form.priority =
+                assistance.priority;
+        }
+
+        toast({
+            title: 'Campos de apoyo completados',
+            description:
+                'Se propusieron recomendación y prioridad. '
+                + 'Documenta los hallazgos reales y revisa '
+                + 'todos los campos antes de guardar.',
+            variant: 'success',
+        });
+
+        return;
+    }
+
+    /*
+     * Si anteriormente LAUDA autocompletó estos campos
+     * para "Requiere atención" y el Admin cambia el
+     * resultado, retiramos SOLO los valores automáticos.
+     * Nunca borramos contenido humano diferente.
+     */
+    if (
+        form.recommendation.trim()
+        === assistance.recommendation
+    ) {
+        form.recommendation = '';
+    }
+
+    if (
+        form.priority
+        === assistance.priority
+    ) {
+        form.priority = '';
+    }
+
+    if (form.result === 'adequate') {
+        toast({
+            title: 'Resultado seleccionado',
+            description:
+                'Documenta los hallazgos reales que permiten '
+                + 'considerar esta área adecuada antes de guardar.',
+            variant: 'warning',
+        });
+
+        return;
+    }
+
+    if (form.result === 'not_applicable') {
+        toast({
+            title: 'Resultado seleccionado',
+            description:
+                'Documenta por qué esta área no aplica '
+                + 'antes de guardar la evaluación.',
+            variant: 'warning',
+        });
+    }
+}
+
 function useSuggestion(need: BrandingNeed): void {
     if (!props.branding.can_edit) {
         return;
@@ -836,6 +1012,7 @@ function completeEvaluation(): void {
                             <select
                                 v-model="forms[need.id].result"
                                 :disabled="!branding.can_edit"
+                                @change="assistFromSelectedResult(need)"
                                 class="h-11 rounded-xl border border-slate-200 bg-white px-3 text-sm dark:border-slate-800 dark:bg-slate-950"
                             >
                                 <option value="">
@@ -864,7 +1041,7 @@ function completeEvaluation(): void {
                                 rows="5"
                                 maxlength="5000"
                                 class="rounded-xl border border-slate-200 bg-white p-3 text-sm dark:border-slate-800 dark:bg-slate-950"
-                                placeholder="Documenta la evidencia y los hallazgos que sustentan el resultado."
+                                :placeholder="findingsPlaceholder(need)"
                             />
                         </label>
 
