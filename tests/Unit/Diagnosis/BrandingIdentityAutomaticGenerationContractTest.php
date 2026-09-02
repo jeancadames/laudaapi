@@ -129,7 +129,7 @@ final class BrandingIdentityAutomaticGenerationContractTest extends TestCase
             'BrandingIdentityAutomaticEvaluationService',
             'public function generateDrafts(',
             'generatePending(',
-            'Borradores automáticos generados',
+            'Borradores automáticos generados o regenerados',
         ] as $token) {
             $this->assertStringContainsString(
                 $token,
@@ -166,6 +166,10 @@ final class BrandingIdentityAutomaticGenerationContractTest extends TestCase
             'Fuentes consideradas',
             'Borrador automático',
             'Usar como punto de partida',
+            'Regenerar borradores automáticos',
+            'useToast',
+            'Borrador aplicado',
+            'Borrador aplicado parcialmente',
             'Información insuficiente',
         ] as $token) {
             $this->assertStringContainsString(

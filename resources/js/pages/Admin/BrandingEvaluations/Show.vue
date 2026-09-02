@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { useToast } from '@/components/ui/toast';
 import { computed, reactive, ref, watch } from 'vue';
 import { Head, Link, router, usePage } from '@inertiajs/vue3';
 import {
@@ -145,8 +146,21 @@ const props = defineProps<{
 
 const page = usePage();
 
+const { toast } = useToast();
+
 const errors = computed(
     () => (page.props.errors ?? {}) as Record<string, string>,
+);
+
+const hasAutomaticDrafts = computed(() =>
+    props.branding.needs.some(
+        (need) =>
+            Boolean(need.evaluation.suggested_result)
+            || Boolean(need.evaluation.suggested_findings)
+            || Boolean(need.evaluation.suggested_recommendation)
+            || Boolean(need.evaluation.suggested_priority)
+            || need.evaluation.suggested_questions.length > 0,
+    ),
 );
 
 const saving = reactive<Record<number, boolean>>({});
@@ -234,9 +248,13 @@ function useSuggestion(need: BrandingNeed): void {
         return;
     }
 
+    const insufficientInformation =
+        need.evaluation.suggested_result
+        === 'insufficient_information';
+
     const suggestedResult =
         need.evaluation.suggested_result
-        && need.evaluation.suggested_result !== 'insufficient_information'
+        && !insufficientInformation
             ? need.evaluation.suggested_result
             : current.result;
 
@@ -252,6 +270,26 @@ function useSuggestion(need: BrandingNeed): void {
             need.evaluation.suggested_priority
             ?? current.priority,
     };
+
+    if (insufficientInformation) {
+        toast({
+            title: 'Borrador aplicado parcialmente',
+            description:
+                'La información disponible no permite confirmar un resultado. '
+                + 'Se copiaron los campos disponibles; completa la evaluación '
+                + 'con criterio profesional antes de guardar.',
+            variant: 'warning',
+        });
+
+        return;
+    }
+
+    toast({
+        title: 'Borrador aplicado',
+        description:
+            'Los campos sugeridos fueron copiados. Revísalos antes de guardar.',
+        variant: 'success',
+    });
 }
 
 function saveEvaluation(needId: number): void {
@@ -496,8 +534,16 @@ function completeEvaluation(): void {
                                 <Sparkles class="mr-2 h-4 w-4" />
                                 {{
                                     generatingDrafts
-                                        ? 'Generando...'
-                                        : 'Generar borradores automáticos'
+                                        ? (
+                                            hasAutomaticDrafts
+                                                ? 'Regenerando...'
+                                                : 'Generando...'
+                                        )
+                                        : (
+                                            hasAutomaticDrafts
+                                                ? 'Regenerar borradores automáticos'
+                                                : 'Generar borradores automáticos'
+                                        )
                                 }}
                             </Button>
                         </div>

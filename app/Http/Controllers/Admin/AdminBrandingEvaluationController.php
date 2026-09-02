@@ -401,7 +401,7 @@ final class AdminBrandingEvaluationController extends Controller
 
         return back()->with(
             'success',
-            'Borradores automáticos generados: '
+            'Borradores automáticos generados o regenerados: '
             .$result['generated']
             .'. Las evaluaciones profesionales ya confirmadas no fueron modificadas.'
         );
