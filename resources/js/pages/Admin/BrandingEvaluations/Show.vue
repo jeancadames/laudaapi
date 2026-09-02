@@ -656,15 +656,14 @@ function completeEvaluation(): void {
                                 </p>
                             </div>
 
-                            <Button
+                            <button
                                 v-if="branding.can_edit"
                                 type="button"
-                                variant="outline"
-                                size="sm"
-                                @click.prevent.stop="useSuggestion(need)"
+                                class="inline-flex h-8 shrink-0 items-center justify-center gap-1.5 whitespace-nowrap rounded-md border bg-background px-3 text-sm font-medium shadow-xs transition-all hover:bg-accent hover:text-accent-foreground"
+                                @click="useSuggestion(need)"
                             >
                                 Usar como punto de partida
-                            </Button>
+                            </button>
                         </div>
 
                         <div class="mt-4 grid gap-4 lg:grid-cols-2">
