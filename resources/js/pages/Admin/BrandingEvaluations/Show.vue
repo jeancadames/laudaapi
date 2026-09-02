@@ -224,29 +224,34 @@ function priorityLabel(value: string | null): string {
 }
 
 function useSuggestion(need: BrandingNeed): void {
-    const form = forms[need.id];
-
-    if (!form) return;
-
-    if (
-        need.evaluation.suggested_result
-        && need.evaluation.suggested_result !== 'insufficient_information'
-    ) {
-        form.result =
-            need.evaluation.suggested_result;
+    if (!props.branding.can_edit) {
+        return;
     }
 
-    form.findings =
-        need.evaluation.suggested_findings
-        ?? form.findings;
+    const current = forms[need.id];
 
-    form.recommendation =
-        need.evaluation.suggested_recommendation
-        ?? form.recommendation;
+    if (!current) {
+        return;
+    }
 
-    form.priority =
-        need.evaluation.suggested_priority
-        ?? form.priority;
+    const suggestedResult =
+        need.evaluation.suggested_result
+        && need.evaluation.suggested_result !== 'insufficient_information'
+            ? need.evaluation.suggested_result
+            : current.result;
+
+    forms[need.id] = {
+        result: suggestedResult,
+        findings:
+            need.evaluation.suggested_findings
+            ?? current.findings,
+        recommendation:
+            need.evaluation.suggested_recommendation
+            ?? current.recommendation,
+        priority:
+            need.evaluation.suggested_priority
+            ?? current.priority,
+    };
 }
 
 function saveEvaluation(needId: number): void {
@@ -656,7 +661,7 @@ function completeEvaluation(): void {
                                 type="button"
                                 variant="outline"
                                 size="sm"
-                                @click="useSuggestion(need)"
+                                @click.prevent.stop="useSuggestion(need)"
                             >
                                 Usar como punto de partida
                             </Button>
