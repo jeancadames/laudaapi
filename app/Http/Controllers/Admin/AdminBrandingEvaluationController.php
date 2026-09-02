@@ -367,6 +367,51 @@ final class AdminBrandingEvaluationController extends Controller
     }
 
 
+    public function resetNeed(
+        Request $request,
+        TransformationCapabilityActivation $activation,
+        TransformationCapabilityNeed $need,
+        TransformationCapabilityNeedEvaluationService $evaluations
+    ): RedirectResponse {
+        $this->assertBrandingActivation(
+            $activation
+        );
+
+        abort_unless(
+            $need->transformation_capability_activation_id
+                === $activation->id,
+            404
+        );
+
+        if (
+            $activation->status
+            !== TransformationCapabilityActivation::STATUS_IN_PROGRESS
+        ) {
+            return back()->withErrors([
+                'evaluation' =>
+                    'La evaluación solo puede restablecerse mientras Branding está en progreso.',
+            ]);
+        }
+
+        $actor = $request->user();
+
+        abort_unless(
+            $actor,
+            403
+        );
+
+        $evaluations->resetHumanEvaluation(
+            $need,
+            $actor
+        );
+
+        return back()->with(
+            'success',
+            'Evaluación del área restablecida. El borrador automático se conservó cuando estaba disponible.'
+        );
+    }
+
+
     public function generateDrafts(
         Request $request,
         TransformationCapabilityActivation $activation,

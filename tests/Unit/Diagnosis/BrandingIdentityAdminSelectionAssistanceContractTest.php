@@ -14,20 +14,53 @@ final class BrandingIdentityAdminSelectionAssistanceContractTest extends TestCas
         );
     }
 
-    public function test_insufficient_information_has_area_specific_assistance(): void
+    public function test_all_six_areas_have_all_result_assistance(): void
     {
         $source = $this->source();
 
         foreach ([
-            'manualResultAssistance',
             'positioning_refinement',
             'visual_identity_update',
             'brand_kit',
             'social_normalization',
             'commercial_documents',
             'web_application',
-            'findingsPlaceholder',
-            'assistFromSelectedResult',
+        ] as $area) {
+            $this->assertStringContainsString(
+                $area,
+                $source
+            );
+        }
+
+        foreach ([
+            'requires_attention',
+            'adequate',
+            'not_applicable',
+            'findings:',
+            'recommendation:',
+            'priority:',
+        ] as $token) {
+            $this->assertStringContainsString(
+                $token,
+                $source
+            );
+        }
+    }
+
+    public function test_selecting_result_fills_support_fields(): void
+    {
+        $source = $this->source();
+
+        foreach ([
+            'function assistFromSelectedResult',
+            'canUseAutomaticSuggestion',
+            'suggested_findings',
+            'suggested_recommendation',
+            'suggested_priority',
+            'fallback.findings',
+            'fallback.recommendation',
+            'fallback.priority',
+            'Campos completados automáticamente',
             '@change="assistFromSelectedResult(need)"',
         ] as $token) {
             $this->assertStringContainsString(
@@ -37,18 +70,39 @@ final class BrandingIdentityAdminSelectionAssistanceContractTest extends TestCas
         }
     }
 
-    public function test_requires_attention_only_proposes_support_fields(): void
+    public function test_generation_clears_only_unsaved_editable_forms(): void
+    {
+        $source = $this->source();
+
+        foreach ([
+            'function resetFormsAfterDraftGeneration',
+            "need.evaluation.status === 'evaluated'",
+            "result: ''",
+            "findings: ''",
+            "recommendation: ''",
+            "priority: ''",
+            'onSuccess: () => {',
+            'resetFormsAfterDraftGeneration();',
+        ] as $token) {
+            $this->assertStringContainsString(
+                $token,
+                $source
+            );
+        }
+    }
+
+    public function test_confirmed_human_evaluations_are_preserved(): void
     {
         $source = $this->source();
 
         $start = strpos(
             $source,
-            'function assistFromSelectedResult'
+            'function resetFormsAfterDraftGeneration'
         );
 
         $end = strpos(
             $source,
-            'function useSuggestion',
+            'function assistFromSelectedResult',
             $start
         );
 
@@ -62,65 +116,20 @@ final class BrandingIdentityAdminSelectionAssistanceContractTest extends TestCas
         );
 
         foreach ([
-            "form.result === 'requires_attention'",
-            'form.recommendation =',
-            'form.priority =',
-            'Campos de apoyo completados',
-            'Documenta los hallazgos reales',
+            "need.evaluation.status === 'evaluated'",
+            'need.evaluation.result',
+            'need.evaluation.findings',
+            'need.evaluation.recommendation',
+            'need.evaluation.priority',
         ] as $token) {
             $this->assertStringContainsString(
                 $token,
                 $block
             );
         }
-
-        $this->assertStringNotContainsString(
-            'router.post(',
-            $block
-        );
-
-        $this->assertStringNotContainsString(
-            'router.patch(',
-            $block
-        );
     }
 
-    public function test_generic_insufficient_finding_is_not_used_as_human_evidence(): void
-    {
-        $source = $this->source();
-
-        foreach ([
-            'genericDraftFinding',
-            "form.findings = '';",
-            'no es evidencia profesional',
-        ] as $token) {
-            $this->assertStringContainsString(
-                $token,
-                $source
-            );
-        }
-    }
-
-    public function test_changing_result_only_removes_automatic_support_values(): void
-    {
-        $source = $this->source();
-
-        foreach ([
-            'form.recommendation.trim()',
-            '=== assistance.recommendation',
-            'form.priority',
-            '=== assistance.priority',
-            "form.result === 'adequate'",
-            "form.result === 'not_applicable'",
-        ] as $token) {
-            $this->assertStringContainsString(
-                $token,
-                $source
-            );
-        }
-    }
-
-    public function test_selection_assistance_never_saves_automatically(): void
+    public function test_selection_assistance_never_autosaves(): void
     {
         $source = $this->source();
 
@@ -142,9 +151,9 @@ final class BrandingIdentityAdminSelectionAssistanceContractTest extends TestCas
         );
 
         foreach ([
-            'router.',
+            'router.post(',
+            'router.patch(',
             'saveEvaluation(',
-            '/areas/',
         ] as $forbidden) {
             $this->assertStringNotContainsString(
                 $forbidden,

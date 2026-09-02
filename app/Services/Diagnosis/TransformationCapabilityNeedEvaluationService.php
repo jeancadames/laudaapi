@@ -393,6 +393,132 @@ final class TransformationCapabilityNeedEvaluationService
         );
     }
 
+    /*
+     * Restablece exclusivamente la decisión profesional humana.
+     *
+     * Conserva cualquier borrador automático existente para que
+     * pueda reutilizarse o regenerarse posteriormente.
+     */
+    public function resetHumanEvaluation(
+        TransformationCapabilityNeed $need,
+        User $actor
+    ): TransformationCapabilityNeedEvaluation {
+        return DB::transaction(
+            function () use (
+                $need,
+                $actor
+            ): TransformationCapabilityNeedEvaluation {
+                $evaluation =
+                    TransformationCapabilityNeedEvaluation::query()
+                        ->where(
+                            'transformation_capability_need_id',
+                            $need->id
+                        )
+                        ->lockForUpdate()
+                        ->first();
+
+                if (
+                    ! $evaluation
+                    || ! $evaluation->isEvaluated()
+                ) {
+                    throw ValidationException::withMessages([
+                        'evaluation' => [
+                            'Esta área no tiene una evaluación profesional confirmada para restablecer.',
+                        ],
+                    ]);
+                }
+
+                $previousResult =
+                    $evaluation->result;
+
+                $previousPriority =
+                    $evaluation->priority;
+
+                $hasGeneratedDraft =
+                    ((int) $evaluation->generation_version) > 0
+                    || $evaluation->generated_at !== null
+                    || $evaluation->suggested_result !== null
+                    || $evaluation->suggested_findings !== null
+                    || $evaluation->suggested_recommendation !== null
+                    || $evaluation->suggested_priority !== null;
+
+                $newStatus =
+                    $hasGeneratedDraft
+                        ? TransformationCapabilityNeedEvaluation::STATUS_DRAFT_GENERATED
+                        : TransformationCapabilityNeedEvaluation::STATUS_PENDING;
+
+                $evaluation->forceFill([
+                    'status' =>
+                        $newStatus,
+
+                    'result' =>
+                        null,
+
+                    'findings' =>
+                        null,
+
+                    'recommendation' =>
+                        null,
+
+                    'priority' =>
+                        null,
+
+                    'evaluated_by_user_id' =>
+                        null,
+
+                    'evaluated_at' =>
+                        null,
+                ])->save();
+
+                AuditService::log(
+                    'transformation_capability_need_evaluation_reset',
+                    $evaluation,
+                    [
+                        'company_id' =>
+                            $need->activation?->company_id,
+
+                        'activation_id' =>
+                            $need->transformation_capability_activation_id,
+
+                        'need_id' =>
+                            $need->id,
+
+                        'need_key' =>
+                            $need->need_key,
+
+                        'actor_user_id' =>
+                            $actor->id,
+
+                        'previous_result' =>
+                            $previousResult,
+
+                        'previous_priority' =>
+                            $previousPriority,
+
+                        'new_status' =>
+                            $newStatus,
+
+                        'generated_draft_preserved' =>
+                            $hasGeneratedDraft,
+
+                        'generation_version' =>
+                            (int) $evaluation->generation_version,
+
+                        'commercial_acceptance' =>
+                            false,
+
+                        'activation_status_changed' =>
+                            false,
+                    ]
+                );
+
+                return $evaluation->fresh();
+            },
+            3
+        );
+    }
+
+
     public function summaryForActivation(
         TransformationCapabilityActivation $activation
     ): array {

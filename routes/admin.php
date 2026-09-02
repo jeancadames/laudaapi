@@ -378,6 +378,16 @@ Route::middleware(['auth', 'verified', 'role:admin'])
             'branding_evaluations.needs.evaluate'
         );
 
+        \Illuminate\Support\Facades\Route::delete(
+            '/branding-evaluations/{activation}/areas/{need}/reset',
+            [
+                \App\Http\Controllers\Admin\AdminBrandingEvaluationController::class,
+                'resetNeed'
+            ]
+        )->name(
+            'branding_evaluations.needs.reset'
+        );
+
         \Illuminate\Support\Facades\Route::post(
             '/branding-evaluations/{activation}/generate-drafts',
             [

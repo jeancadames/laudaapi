@@ -164,6 +164,7 @@ const hasAutomaticDrafts = computed(() =>
 );
 
 const saving = reactive<Record<number, boolean>>({});
+const resetting = reactive<Record<number, boolean>>({});
 const markingReady = ref(false);
 const generatingDrafts = ref(false);
 const generatingSummary = ref(false);
@@ -237,78 +238,195 @@ function priorityLabel(value: string | null): string {
     );
 }
 
-type ManualResultAssistance = {
+type ResultAssistanceDraft = {
+    findings: string;
     recommendation: string;
-    priority: 'high' | 'medium' | 'low';
-    findingsPrompt: string;
+    priority: '' | 'high' | 'medium' | 'low';
+};
+
+type AreaResultAssistance = {
+    requires_attention: ResultAssistanceDraft;
+    adequate: ResultAssistanceDraft;
+    not_applicable: ResultAssistanceDraft;
 };
 
 const manualResultAssistance: Record<
     string,
-    ManualResultAssistance
+    AreaResultAssistance
 > = {
     positioning_refinement: {
-        recommendation:
-            'Revisar y definir la propuesta de valor, la diferenciación y los mensajes prioritarios de la marca para establecer un posicionamiento claro y consistente.',
-        priority: 'medium',
-        findingsPrompt:
-            'Describe la evidencia real observada sobre propuesta de valor, diferenciación, posicionamiento o mensajes de marca.',
+        requires_attention: {
+            findings:
+                'La revisión profesional determinó que el posicionamiento requiere atención. Deben validarse la propuesta de valor, la diferenciación y los mensajes prioritarios de la marca.',
+            recommendation:
+                'Revisar y definir la propuesta de valor, la diferenciación y los mensajes prioritarios de la marca para establecer un posicionamiento claro y consistente.',
+            priority: 'medium',
+        },
+        adequate: {
+            findings:
+                'La revisión profesional considera que el posicionamiento actual es adecuado y no requiere una intervención prioritaria en este momento.',
+            recommendation:
+                'Mantener los criterios actuales de posicionamiento y revisar periódicamente su consistencia con la propuesta de valor y el mercado.',
+            priority: '',
+        },
+        not_applicable: {
+            findings:
+                'La revisión profesional determinó que el refinamiento de posicionamiento no aplica dentro del alcance actual de la empresa.',
+            recommendation:
+                'No se propone intervención en esta área mientras se mantenga fuera del alcance definido.',
+            priority: '',
+        },
     },
 
     visual_identity_update: {
-        recommendation:
-            'Revisar y actualizar los elementos de identidad visual para asegurar coherencia, reconocimiento y aplicación consistente de la marca.',
-        priority: 'medium',
-        findingsPrompt:
-            'Describe la evidencia real observada en logotipo, colores, tipografías, recursos gráficos o consistencia visual.',
+        requires_attention: {
+            findings:
+                'La revisión profesional determinó que la identidad visual requiere atención para mejorar su coherencia y aplicación consistente.',
+            recommendation:
+                'Revisar y actualizar los elementos de identidad visual para asegurar coherencia, reconocimiento y aplicación consistente de la marca.',
+            priority: 'medium',
+        },
+        adequate: {
+            findings:
+                'La revisión profesional considera que la identidad visual actual es adecuada y mantiene un nivel suficiente de coherencia.',
+            recommendation:
+                'Mantener los lineamientos visuales actuales y revisar periódicamente su correcta aplicación.',
+            priority: '',
+        },
+        not_applicable: {
+            findings:
+                'La revisión profesional determinó que una actualización de identidad visual no aplica dentro del alcance actual.',
+            recommendation:
+                'No se propone intervención visual mientras se mantengan las condiciones actuales.',
+            priority: '',
+        },
     },
 
     brand_kit: {
-        recommendation:
-            'Desarrollar y documentar un Brand Kit que establezca los elementos visuales, criterios de uso y lineamientos básicos para la aplicación consistente de la marca.',
-        priority: 'medium',
-        findingsPrompt:
-            'Describe qué elementos, lineamientos o recursos de marca existen actualmente y cuáles están ausentes o no documentados.',
+        requires_attention: {
+            findings:
+                'La revisión profesional determinó que la documentación y estandarización de los elementos de marca requiere atención.',
+            recommendation:
+                'Desarrollar y documentar un Brand Kit que establezca los elementos visuales, criterios de uso y lineamientos básicos para la aplicación consistente de la marca.',
+            priority: 'medium',
+        },
+        adequate: {
+            findings:
+                'La revisión profesional considera que los lineamientos y recursos actuales de marca son suficientes para su aplicación consistente.',
+            recommendation:
+                'Mantener actualizado el Brand Kit y verificar periódicamente su aplicación en los distintos canales.',
+            priority: '',
+        },
+        not_applicable: {
+            findings:
+                'La revisión profesional determinó que la creación o actualización de un Brand Kit no aplica dentro del alcance actual.',
+            recommendation:
+                'No se propone intervención en esta área mientras se mantenga fuera del alcance definido.',
+            priority: '',
+        },
     },
 
     social_normalization: {
-        recommendation:
-            'Definir e implementar lineamientos de normalización para las redes sociales de la empresa, incluyendo nombres y descripciones de perfiles, imágenes, identidad visual, estilo de publicaciones, portadas y criterios de consistencia entre canales.',
-        priority: 'medium',
-        findingsPrompt:
-            'Describe la evidencia real observada en perfiles, nombres, biografías, imágenes, publicaciones, portadas o consistencia entre redes sociales.',
+        requires_attention: {
+            findings:
+                'La revisión profesional determinó que la normalización de redes sociales requiere atención para asegurar consistencia entre perfiles, identidad visual y comunicación.',
+            recommendation:
+                'Definir e implementar lineamientos de normalización para las redes sociales de la empresa, incluyendo nombres y descripciones de perfiles, imágenes, identidad visual, estilo de publicaciones, portadas y criterios de consistencia entre canales.',
+            priority: 'medium',
+        },
+        adequate: {
+            findings:
+                'La revisión profesional considera que las redes sociales mantienen actualmente un nivel adecuado de normalización y consistencia.',
+            recommendation:
+                'Mantener los criterios actuales y revisar periódicamente la consistencia entre perfiles, recursos visuales y publicaciones.',
+            priority: '',
+        },
+        not_applicable: {
+            findings:
+                'La revisión profesional determinó que la normalización de redes sociales no aplica dentro del alcance actual.',
+            recommendation:
+                'No se propone intervención en esta área mientras las redes sociales permanezcan fuera del alcance definido.',
+            priority: '',
+        },
     },
 
     commercial_documents: {
-        recommendation:
-            'Estandarizar la aplicación de la identidad de marca en los documentos comerciales utilizados por la empresa y definir criterios consistentes para sus formatos.',
-        priority: 'medium',
-        findingsPrompt:
-            'Describe la evidencia observada en cotizaciones, propuestas, facturas, presentaciones u otros documentos comerciales.',
+        requires_attention: {
+            findings:
+                'La revisión profesional determinó que la aplicación de identidad de marca en los documentos comerciales requiere atención y mayor estandarización.',
+            recommendation:
+                'Estandarizar la aplicación de la identidad de marca en los documentos comerciales utilizados por la empresa y definir criterios consistentes para sus formatos.',
+            priority: 'medium',
+        },
+        adequate: {
+            findings:
+                'La revisión profesional considera que los documentos comerciales actuales presentan una aplicación adecuada de la identidad de marca.',
+            recommendation:
+                'Mantener los criterios actuales y revisar periódicamente su aplicación en nuevos documentos y formatos.',
+            priority: '',
+        },
+        not_applicable: {
+            findings:
+                'La revisión profesional determinó que la adaptación de documentos comerciales no aplica dentro del alcance actual.',
+            recommendation:
+                'No se propone intervención documental mientras se mantenga fuera del alcance definido.',
+            priority: '',
+        },
     },
 
     web_application: {
-        recommendation:
-            'Definir y aplicar criterios de identidad de marca en la presencia web para asegurar coherencia visual, mensajes consistentes y una experiencia alineada con la identidad definida.',
-        priority: 'medium',
-        findingsPrompt:
-            'Describe la evidencia real observada en sitio web, landing pages, contenidos, recursos visuales o consistencia de marca en canales web.',
+        requires_attention: {
+            findings:
+                'La revisión profesional determinó que la aplicación de la identidad de marca en la presencia web requiere atención para mejorar su coherencia.',
+            recommendation:
+                'Definir y aplicar criterios de identidad de marca en la presencia web para asegurar coherencia visual, mensajes consistentes y una experiencia alineada con la identidad definida.',
+            priority: 'medium',
+        },
+        adequate: {
+            findings:
+                'La revisión profesional considera que la presencia web aplica actualmente la identidad de marca de forma adecuada.',
+            recommendation:
+                'Mantener los criterios actuales y revisar periódicamente la consistencia visual y comunicacional de la presencia web.',
+            priority: '',
+        },
+        not_applicable: {
+            findings:
+                'La revisión profesional determinó que la aplicación de identidad en presencia web no aplica dentro del alcance actual.',
+            recommendation:
+                'No se propone intervención web mientras esta área permanezca fuera del alcance definido.',
+            priority: '',
+        },
     },
 };
 
-function findingsPlaceholder(need: BrandingNeed): string {
-    if (
-        need.evaluation.suggested_result
-        === 'insufficient_information'
-    ) {
-        return (
-            manualResultAssistance[need.need_key]
-                ?.findingsPrompt
-            ?? 'Documenta la evidencia real que sustenta el resultado seleccionado.'
-        );
-    }
+function resetFormsAfterDraftGeneration(): void {
+    for (const need of props.branding.needs) {
+        /*
+         * Las evaluaciones humanas confirmadas se conservan.
+         * Solo limpiamos selecciones editables/no guardadas.
+         */
+        if (need.evaluation.status === 'evaluated') {
+            forms[need.id] = {
+                result:
+                    need.evaluation.result ?? '',
+                findings:
+                    need.evaluation.findings ?? '',
+                recommendation:
+                    need.evaluation.recommendation ?? '',
+                priority:
+                    need.evaluation.priority ?? '',
+            };
 
-    return 'Documenta la evidencia y los hallazgos que sustentan el resultado.';
+            continue;
+        }
+
+        forms[need.id] = {
+            result: '',
+            findings: '',
+            recommendation: '',
+            priority: '',
+        };
+    }
 }
 
 function assistFromSelectedResult(
@@ -317,100 +435,88 @@ function assistFromSelectedResult(
     if (
         !props.branding.can_edit
         || need.evaluation.status === 'evaluated'
-        || need.evaluation.suggested_result
-            !== 'insufficient_information'
     ) {
         return;
     }
 
     const form = forms[need.id];
-    const assistance =
-        manualResultAssistance[need.need_key];
 
-    if (!form || !assistance) {
+    if (!form) {
         return;
     }
 
-    const genericDraftFinding =
-        need.evaluation.suggested_findings?.trim()
-        ?? '';
-
-    /*
-     * Un mensaje automático de "información insuficiente"
-     * no es evidencia profesional.
-     */
     if (
-        genericDraftFinding
-        && form.findings.trim()
-            === genericDraftFinding
+        form.result !== 'requires_attention'
+        && form.result !== 'adequate'
+        && form.result !== 'not_applicable'
     ) {
         form.findings = '';
-    }
-
-    if (form.result === 'requires_attention') {
-        if (!form.recommendation.trim()) {
-            form.recommendation =
-                assistance.recommendation;
-        }
-
-        if (!form.priority) {
-            form.priority =
-                assistance.priority;
-        }
-
-        toast({
-            title: 'Campos de apoyo completados',
-            description:
-                'Se propusieron recomendación y prioridad. '
-                + 'Documenta los hallazgos reales y revisa '
-                + 'todos los campos antes de guardar.',
-            variant: 'success',
-        });
+        form.recommendation = '';
+        form.priority = '';
 
         return;
     }
+
+    const result =
+        form.result as
+            | 'requires_attention'
+            | 'adequate'
+            | 'not_applicable';
+
+    const areaAssistance =
+        manualResultAssistance[need.need_key];
+
+    if (!areaAssistance) {
+        return;
+    }
+
+    const fallback =
+        areaAssistance[result];
+
+    const canUseAutomaticSuggestion =
+        need.evaluation.suggested_result === result;
 
     /*
-     * Si anteriormente LAUDA autocompletó estos campos
-     * para "Requiere atención" y el Admin cambia el
-     * resultado, retiramos SOLO los valores automáticos.
-     * Nunca borramos contenido humano diferente.
+     * Si el generador ya produjo una sugerencia compatible
+     * con la decisión seleccionada, se aprovecha.
+     *
+     * De lo contrario se utiliza el borrador determinístico
+     * específico del área.
      */
-    if (
-        form.recommendation.trim()
-        === assistance.recommendation
-    ) {
-        form.recommendation = '';
-    }
+    forms[need.id] = {
+        result,
 
-    if (
-        form.priority
-        === assistance.priority
-    ) {
-        form.priority = '';
-    }
+        findings:
+            canUseAutomaticSuggestion
+                && need.evaluation.suggested_findings
+                ? need.evaluation.suggested_findings
+                : fallback.findings,
 
-    if (form.result === 'adequate') {
-        toast({
-            title: 'Resultado seleccionado',
-            description:
-                'Documenta los hallazgos reales que permiten '
-                + 'considerar esta área adecuada antes de guardar.',
-            variant: 'warning',
-        });
+        recommendation:
+            canUseAutomaticSuggestion
+                && need.evaluation.suggested_recommendation
+                ? need.evaluation.suggested_recommendation
+                : fallback.recommendation,
 
-        return;
-    }
+        priority:
+            result === 'requires_attention'
+                ? (
+                    canUseAutomaticSuggestion
+                        && need.evaluation.suggested_priority
+                        ? need.evaluation.suggested_priority
+                        : fallback.priority
+                )
+                : '',
+    };
 
-    if (form.result === 'not_applicable') {
-        toast({
-            title: 'Resultado seleccionado',
-            description:
-                'Documenta por qué esta área no aplica '
-                + 'antes de guardar la evaluación.',
-            variant: 'warning',
-        });
-    }
+    toast({
+        title: 'Campos completados automáticamente',
+        description:
+            'Hallazgos, recomendación y prioridad fueron '
+            + 'preparados como borrador de apoyo. '
+            + 'Revísalos antes de guardar la evaluación.',
+        variant: 'success',
+    });
 }
 
 function useSuggestion(need: BrandingNeed): void {
@@ -468,6 +574,77 @@ function useSuggestion(need: BrandingNeed): void {
     });
 }
 
+function clearNeedForm(
+    need: BrandingNeed,
+): void {
+    if (
+        !props.branding.can_edit
+        || need.evaluation.status === 'evaluated'
+    ) {
+        return;
+    }
+
+    forms[need.id] = {
+        result: '',
+        findings: '',
+        recommendation: '',
+        priority: '',
+    };
+
+    toast({
+        title: 'Campos limpiados',
+        description:
+            'La sección quedó lista para volver a usar el borrador automático o seleccionar un resultado.',
+        variant: 'success',
+    });
+}
+
+function resetEvaluation(
+    need: BrandingNeed,
+): void {
+    if (
+        !props.branding.can_edit
+        || need.evaluation.status !== 'evaluated'
+        || resetting[need.id]
+    ) {
+        return;
+    }
+
+    const confirmed = window.confirm(
+        '¿Restablecer esta evaluación? '
+        + 'Se eliminará la decisión profesional guardada de esta área, '
+        + 'pero se conservará el borrador automático disponible. '
+        + 'La acción quedará registrada en auditoría.',
+    );
+
+    if (!confirmed) {
+        return;
+    }
+
+    resetting[need.id] = true;
+
+    router.delete(
+        `${props.branding.endpoints.base}/areas/${need.id}/reset`,
+        {
+            preserveScroll: true,
+
+            onSuccess: () => {
+                forms[need.id] = {
+                    result: '',
+                    findings: '',
+                    recommendation: '',
+                    priority: '',
+                };
+            },
+
+            onFinish: () => {
+                resetting[need.id] = false;
+            },
+        },
+    );
+}
+
+
 function saveEvaluation(needId: number): void {
     if (!props.branding.can_edit || saving[needId]) {
         return;
@@ -503,6 +680,11 @@ function generateDrafts(): void {
         {},
         {
             preserveScroll: true,
+
+            onSuccess: () => {
+                resetFormsAfterDraftGeneration();
+            },
+
             onFinish: () => {
                 generatingDrafts.value = false;
             },
@@ -879,7 +1061,10 @@ function completeEvaluation(): void {
                             </div>
 
                             <button
-                                v-if="branding.can_edit"
+                                v-if="
+                                    branding.can_edit
+                                    && need.evaluation.status !== 'evaluated'
+                                "
                                 type="button"
                                 class="inline-flex h-8 shrink-0 items-center justify-center gap-1.5 whitespace-nowrap rounded-md border bg-background px-3 text-sm font-medium shadow-xs transition-all hover:bg-accent hover:text-accent-foreground"
                                 @click="useSuggestion(need)"
@@ -1011,7 +1196,7 @@ function completeEvaluation(): void {
 
                             <select
                                 v-model="forms[need.id].result"
-                                :disabled="!branding.can_edit"
+                                :disabled="!branding.can_edit || need.evaluation.status === 'evaluated'"
                                 @change="assistFromSelectedResult(need)"
                                 class="h-11 rounded-xl border border-slate-200 bg-white px-3 text-sm dark:border-slate-800 dark:bg-slate-950"
                             >
@@ -1037,7 +1222,7 @@ function completeEvaluation(): void {
 
                             <textarea
                                 v-model="forms[need.id].findings"
-                                :disabled="!branding.can_edit"
+                                :disabled="!branding.can_edit || need.evaluation.status === 'evaluated'"
                                 rows="5"
                                 maxlength="5000"
                                 class="rounded-xl border border-slate-200 bg-white p-3 text-sm dark:border-slate-800 dark:bg-slate-950"
@@ -1052,7 +1237,7 @@ function completeEvaluation(): void {
 
                             <textarea
                                 v-model="forms[need.id].recommendation"
-                                :disabled="!branding.can_edit"
+                                :disabled="!branding.can_edit || need.evaluation.status === 'evaluated'"
                                 rows="4"
                                 maxlength="5000"
                                 class="rounded-xl border border-slate-200 bg-white p-3 text-sm dark:border-slate-800 dark:bg-slate-950"
@@ -1067,7 +1252,7 @@ function completeEvaluation(): void {
 
                             <select
                                 v-model="forms[need.id].priority"
-                                :disabled="!branding.can_edit"
+                                :disabled="!branding.can_edit || need.evaluation.status === 'evaluated'"
                                 class="h-11 rounded-xl border border-slate-200 bg-white px-3 text-sm dark:border-slate-800 dark:bg-slate-950"
                             >
                                 <option value="">
@@ -1105,9 +1290,39 @@ function completeEvaluation(): void {
 
                     <div
                         v-if="branding.can_edit"
-                        class="flex justify-end"
+                        class="flex flex-wrap justify-end gap-2"
                     >
                         <Button
+                            v-if="
+                                need.evaluation.status !== 'evaluated'
+                            "
+                            type="button"
+                            variant="outline"
+                            @click="clearNeedForm(need)"
+                        >
+                            Limpiar campos
+                        </Button>
+
+                        <Button
+                            v-if="
+                                need.evaluation.status === 'evaluated'
+                            "
+                            type="button"
+                            variant="destructive"
+                            :disabled="resetting[need.id]"
+                            @click="resetEvaluation(need)"
+                        >
+                            {{
+                                resetting[need.id]
+                                    ? 'Restableciendo...'
+                                    : 'Restablecer evaluación'
+                            }}
+                        </Button>
+
+                        <Button
+                            v-if="
+                                need.evaluation.status !== 'evaluated'
+                            "
                             type="button"
                             :disabled="saving[need.id]"
                             @click="saveEvaluation(need.id)"
