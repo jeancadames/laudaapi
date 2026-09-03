@@ -399,6 +399,26 @@ const manualResultAssistance: Record<
     },
 };
 
+function findingsPlaceholder(
+    need: BrandingNeed,
+): string {
+    if (
+        need.evaluation.suggested_result
+        === 'insufficient_information'
+    ) {
+        return (
+            'Selecciona un resultado para preparar automáticamente '
+            + 'un borrador de hallazgos, o documenta directamente '
+            + 'la evidencia profesional observada en esta área.'
+        );
+    }
+
+    return (
+        'Documenta la evidencia y los hallazgos '
+        + 'que sustentan el resultado.'
+    );
+}
+
 function resetFormsAfterDraftGeneration(): void {
     for (const need of props.branding.needs) {
         /*

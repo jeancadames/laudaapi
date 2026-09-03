@@ -61,6 +61,8 @@ final class BrandingIdentityAdminSelectionAssistanceContractTest extends TestCas
             'fallback.recommendation',
             'fallback.priority',
             'Campos completados automáticamente',
+            'function findingsPlaceholder(',
+            ':placeholder="findingsPlaceholder(need)"',
             '@change="assistFromSelectedResult(need)"',
         ] as $token) {
             $this->assertStringContainsString(
