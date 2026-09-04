@@ -91,6 +91,12 @@ final class SubscriberTransformation360DashboardService
             $roadmap
         );
 
+        $professionalCapabilities = $this->professionalCapabilities(
+            $assessment,
+            $roadmap,
+            $plan
+        );
+
         $stages = [
             [
                 'key' => 'diagnosis',
@@ -177,6 +183,7 @@ final class SubscriberTransformation360DashboardService
             ),
             'plan_public' => (bool) $planIsPublic,
             'optional_capabilities' => $optionalCapabilities,
+            'professional_capabilities' => $professionalCapabilities,
             'stages' => $stages,
             'primary_action' => $this->primaryAction($stages),
         ];
@@ -330,6 +337,7 @@ final class SubscriberTransformation360DashboardService
                 null,
                 null
             ),
+            'professional_capabilities' => [],
             'stages' => [
                 [
                     'key' => 'diagnosis',
@@ -389,6 +397,7 @@ final class SubscriberTransformation360DashboardService
             'current_label' => null,
             'plan_public' => false,
             'optional_capabilities' => [],
+            'professional_capabilities' => [],
             'stages' => [],
             'primary_action' => null,
         ];
@@ -493,6 +502,209 @@ final class SubscriberTransformation360DashboardService
                     : null,
             ],
         ];
+    }
+
+    private function professionalCapabilities(
+        ?object $assessment,
+        ?object $roadmap,
+        ?object $plan
+    ): array {
+        if (! $assessment || ! $roadmap) {
+            return [];
+        }
+
+        $content = [];
+
+        if (isset($roadmap->roadmap)) {
+            if (is_array($roadmap->roadmap)) {
+                $content = $roadmap->roadmap;
+            } elseif (is_string($roadmap->roadmap)) {
+                $decoded = json_decode(
+                    $roadmap->roadmap,
+                    true
+                );
+
+                $content = is_array($decoded)
+                    ? $decoded
+                    : [];
+            }
+        }
+
+        $definitions = data_get(
+            $content,
+            'transformation_capabilities',
+            []
+        );
+
+        if (! is_array($definitions)) {
+            return [];
+        }
+
+        $result = [];
+
+        foreach (
+            $definitions
+            as $capabilityKey => $definition
+        ) {
+            if (
+                ! is_array($definition)
+                || data_get(
+                    $definition,
+                    'activation_policy'
+                ) !== 'implementation_only'
+            ) {
+                continue;
+            }
+
+            $planCapability = null;
+
+            if (
+                $plan
+                && Schema::hasTable(
+                    'transformation_implementation_phases'
+                )
+                && Schema::hasTable(
+                    'transformation_implementation_phase_capabilities'
+                )
+            ) {
+                $planCapability = DB::table(
+                    'transformation_implementation_phase_capabilities as capability'
+                )
+                    ->join(
+                        'transformation_implementation_phases as phase',
+                        'phase.id',
+                        '=',
+                        'capability.transformation_implementation_phase_id'
+                    )
+                    ->where(
+                        'phase.transformation_implementation_plan_id',
+                        $plan->id
+                    )
+                    ->where(
+                        'capability.capability_key',
+                        $capabilityKey
+                    )
+                    ->select([
+                        'capability.id',
+                        'phase.sequence as phase_sequence',
+                        'phase.name as phase_name',
+                    ])
+                    ->first();
+            }
+
+            $planIsPublic =
+                $plan
+                && in_array(
+                    (string) $plan->status,
+                    self::PUBLIC_PLAN_STATUSES,
+                    true
+                )
+                && $plan->presented_at !== null;
+
+            $result[$capabilityKey] = [
+                'capability_key' =>
+                    (string) $capabilityKey,
+
+                'title' =>
+                    (string) (
+                        data_get(
+                            $definition,
+                            'title'
+                        )
+                        ?: $capabilityKey
+                    ),
+
+                'kind' =>
+                    (string) (
+                        data_get(
+                            $definition,
+                            'type'
+                        )
+                        ?: 'professional_service'
+                    ),
+
+                'recommended' =>
+                    data_get(
+                        $definition,
+                        'recommended'
+                    ) === true,
+
+                'recommendation_basis' =>
+                    data_get(
+                        $definition,
+                        'recommendation_basis'
+                    ),
+
+                'data_dimension_score' =>
+                    data_get(
+                        $definition,
+                        'data_dimension_score'
+                    ),
+
+                'data_priority' =>
+                    data_get(
+                        $definition,
+                        'data_priority'
+                    ),
+
+                'purpose' =>
+                    data_get(
+                        $definition,
+                        'purpose'
+                    ),
+
+                'includes' =>
+                    is_array(
+                        data_get(
+                            $definition,
+                            'includes'
+                        )
+                    )
+                        ? data_get(
+                            $definition,
+                            'includes'
+                        )
+                        : [],
+
+                'activation_policy' =>
+                    'implementation_only',
+
+                'commercial_note' =>
+                    data_get(
+                        $definition,
+                        'commercial_note'
+                    ),
+
+                'included_in_plan' =>
+                    $planCapability !== null,
+
+                'phase_sequence' =>
+                    $planCapability
+                        ? (int) $planCapability->phase_sequence
+                        : null,
+
+                'phase_name' =>
+                    $planCapability?->phase_name,
+
+                'roadmap_url' =>
+                    route(
+                        'diagnosis.detailed_roadmap.show',
+                        $assessment->id,
+                        false
+                    ),
+
+                'plan_url' =>
+                    $planIsPublic
+                        ? route(
+                            'diagnosis.implementation_plan.show',
+                            $assessment->id,
+                            false
+                        )
+                        : null,
+            ];
+        }
+
+        return $result;
     }
 
     private function schemaReady(): bool

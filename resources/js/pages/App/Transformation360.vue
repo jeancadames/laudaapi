@@ -42,6 +42,25 @@ type OptionalBrandingCapability = {
     roadmap_url: string | null;
 };
 
+type ImplementationProfessionalCapability = {
+    capability_key: string;
+    title: string;
+    kind: 'professional_service';
+    recommended: boolean;
+    recommendation_basis: string | null;
+    data_dimension_score: number | null;
+    data_priority: string | null;
+    purpose: string | null;
+    includes: string[];
+    activation_policy: 'implementation_only';
+    commercial_note: string | null;
+    included_in_plan: boolean;
+    phase_sequence: number | null;
+    phase_name: string | null;
+    roadmap_url: string | null;
+    plan_url: string | null;
+};
+
 type Transformation360Journey = {
     visible: boolean;
     has_workflow: boolean;
@@ -52,6 +71,10 @@ type Transformation360Journey = {
     optional_capabilities: {
         branding_identity?: OptionalBrandingCapability;
     };
+    professional_capabilities?: Record<
+        string,
+        ImplementationProfessionalCapability
+    >;
     stages: Transformation360Stage[];
     primary_action: {
         label: string;
@@ -81,6 +104,13 @@ const decliningBranding = ref(false);
 
 const optionalBranding = computed(
     () => props.transformation360.optional_capabilities?.branding_identity ?? null,
+);
+
+const implementationOnlyCapabilities = computed(
+    () =>
+        Object.values(
+            props.transformation360.professional_capabilities ?? {},
+        ),
 );
 
 function activateBranding(): void {
@@ -436,6 +466,209 @@ function declineBranding(): void {
                                 Ahora no
                             </Button>
                         </div>
+                    </div>
+                </section>
+
+                <!-- IMPLEMENTATION-ONLY PROFESSIONAL CAPABILITIES -->
+                <section
+                    v-if="implementationOnlyCapabilities.length"
+                    class="rounded-[2rem] border border-slate-200/70 bg-white p-5 shadow-sm sm:p-6 dark:border-slate-800 dark:bg-slate-950"
+                >
+                    <div class="space-y-5">
+                        <div>
+                            <p
+                                class="text-xs font-black tracking-wide text-red-600 uppercase"
+                            >
+                                Capacidades profesionales
+                            </p>
+
+                            <h2
+                                class="mt-1 text-xl font-black text-slate-950 dark:text-white"
+                            >
+                                Recomendaciones para la Etapa de Implementación
+                            </h2>
+
+                            <p
+                                class="mt-2 max-w-3xl text-sm leading-6 text-slate-500 dark:text-slate-400"
+                            >
+                                Estas capacidades pueden ser identificadas por
+                                tu Diagnóstico 360. No se activan
+                                automáticamente: su alcance, tiempo y precio se
+                                definen durante la Etapa de Implementación.
+                            </p>
+                        </div>
+
+                        <article
+                            v-for="capability in implementationOnlyCapabilities"
+                            :key="capability.capability_key"
+                            class="rounded-2xl border border-slate-200/70 bg-slate-50/40 p-5 dark:border-slate-800 dark:bg-slate-900/20"
+                        >
+                            <div
+                                class="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between"
+                            >
+                                <div class="max-w-4xl">
+                                    <div
+                                        class="flex flex-wrap items-center gap-2"
+                                    >
+                                        <Sparkles
+                                            class="h-5 w-5 text-blue-600"
+                                        />
+
+                                        <p
+                                            class="text-lg font-black text-slate-950 dark:text-white"
+                                        >
+                                            {{ capability.title }}
+                                        </p>
+
+                                        <span
+                                            class="rounded-full border border-blue-200 bg-blue-50 px-2.5 py-1 text-[10px] font-black text-blue-700 uppercase dark:border-blue-900 dark:bg-blue-950/30 dark:text-blue-300"
+                                        >
+                                            Servicio profesional
+                                        </span>
+
+                                        <span
+                                            v-if="capability.recommended"
+                                            class="rounded-full bg-red-50 px-2.5 py-1 text-[10px] font-black text-red-700 uppercase dark:bg-red-950/30 dark:text-red-300"
+                                        >
+                                            Recomendado por tu Diagnóstico 360
+                                        </span>
+
+                                        <span
+                                            v-if="capability.included_in_plan"
+                                            class="rounded-full bg-emerald-50 px-2.5 py-1 text-[10px] font-black text-emerald-700 uppercase dark:bg-emerald-950/30 dark:text-emerald-300"
+                                        >
+                                            Incluido en tu Plan
+                                        </span>
+                                    </div>
+
+                                    <div
+                                        v-if="
+                                            capability.data_dimension_score !==
+                                                null ||
+                                            capability.data_priority
+                                        "
+                                        class="mt-4 inline-flex flex-wrap items-center gap-1 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-bold text-slate-700 dark:border-slate-800 dark:bg-slate-950 dark:text-slate-200"
+                                    >
+                                        <span>
+                                            Datos e Inteligencia:
+                                        </span>
+
+                                        <span
+                                            v-if="
+                                                capability.data_dimension_score !==
+                                                null
+                                            "
+                                        >
+                                            {{
+                                                capability.data_dimension_score
+                                            }}/100
+                                        </span>
+
+                                        <span
+                                            v-if="capability.data_priority"
+                                        >
+                                            · prioridad
+                                            {{ capability.data_priority }}
+                                        </span>
+                                    </div>
+
+                                    <p
+                                        v-if="capability.purpose"
+                                        class="mt-4 text-sm leading-6 text-slate-600 dark:text-slate-300"
+                                    >
+                                        {{ capability.purpose }}
+                                    </p>
+
+                                    <p
+                                        v-if="capability.recommendation_basis"
+                                        class="mt-3 rounded-xl border border-slate-200 bg-white px-4 py-3 text-xs leading-5 text-slate-600 dark:border-slate-800 dark:bg-slate-950 dark:text-slate-300"
+                                    >
+                                        {{
+                                            capability.recommendation_basis
+                                        }}
+                                    </p>
+
+                                    <div
+                                        v-if="capability.includes.length"
+                                        class="mt-5"
+                                    >
+                                        <p
+                                            class="text-[10px] font-black tracking-widest text-slate-400 uppercase"
+                                        >
+                                            Alcance considerado
+                                        </p>
+
+                                        <ul
+                                            class="mt-3 grid gap-2 text-xs leading-5 text-slate-600 sm:grid-cols-2 dark:text-slate-300"
+                                        >
+                                            <li
+                                                v-for="item in capability.includes.slice(
+                                                    0,
+                                                    6,
+                                                )"
+                                                :key="item"
+                                                class="flex gap-2"
+                                            >
+                                                <CheckCircle2
+                                                    class="mt-0.5 h-3.5 w-3.5 shrink-0 text-emerald-600"
+                                                />
+                                                <span>{{ item }}</span>
+                                            </li>
+                                        </ul>
+                                    </div>
+
+                                    <div
+                                        class="mt-5 rounded-xl border border-blue-100 bg-blue-50/60 px-4 py-3 dark:border-blue-950 dark:bg-blue-950/20"
+                                    >
+                                        <p
+                                            class="text-xs font-black text-blue-800 dark:text-blue-300"
+                                        >
+                                            Se define y cotiza en
+                                            Implementación.
+                                        </p>
+
+                                        <p
+                                            v-if="capability.phase_name"
+                                            class="mt-1 text-xs text-blue-700/80 dark:text-blue-300/80"
+                                        >
+                                            {{ capability.phase_name }}
+                                        </p>
+
+                                        <p
+                                            v-if="capability.commercial_note"
+                                            class="mt-2 text-xs leading-5 text-blue-700/80 dark:text-blue-300/80"
+                                        >
+                                            {{ capability.commercial_note }}
+                                        </p>
+                                    </div>
+                                </div>
+
+                                <div
+                                    class="flex shrink-0 flex-wrap gap-2 lg:max-w-48 lg:flex-col"
+                                >
+                                    <a
+                                        v-if="
+                                            capability.included_in_plan &&
+                                            capability.plan_url
+                                        "
+                                        :href="capability.plan_url"
+                                        class="inline-flex h-10 items-center justify-center gap-2 rounded-xl bg-slate-950 px-4 text-sm font-bold text-white transition hover:bg-slate-800 dark:bg-white dark:text-slate-950 dark:hover:bg-slate-200"
+                                    >
+                                        Ver Plan
+                                        <ArrowUpRight class="h-4 w-4" />
+                                    </a>
+
+                                    <a
+                                        v-if="capability.roadmap_url"
+                                        :href="capability.roadmap_url"
+                                        class="inline-flex h-10 items-center justify-center gap-2 rounded-xl border border-slate-200 px-4 text-sm font-bold text-slate-800 transition hover:bg-white dark:border-slate-800 dark:text-slate-100 dark:hover:bg-slate-900"
+                                    >
+                                        Ver Roadmap
+                                        <ArrowUpRight class="h-4 w-4" />
+                                    </a>
+                                </div>
+                            </div>
+                        </article>
                     </div>
                 </section>
             </div>
