@@ -435,6 +435,8 @@ class TransformationCapabilityActivationService
             || ($definition['kind'] ?? null) !== 'professional_service'
             || ($definition['service_key'] ?? null) !== null
             || ($definition['subscription_candidate'] ?? true) !== false
+            || ($definition['activation_policy'] ?? null)
+                === 'implementation_only'
         ) {
             throw ValidationException::withMessages([
                 'capability' => [

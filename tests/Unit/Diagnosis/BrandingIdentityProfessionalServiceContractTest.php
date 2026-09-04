@@ -173,9 +173,9 @@ final class BrandingIdentityProfessionalServiceContractTest
 
         foreach ([
             'function isProfessionalCapability(',
-            "capability.capability_key === 'branding_identity'",
+            "return capability.kind === 'professional_service';",
             '!isProfessionalCapability(capability)',
-            'Branding e Identidad Digital',
+            'servicio profesional dentro del',
             'Subscription ni SubscriptionItem',
         ] as $token) {
             $this->assertStringContainsString(

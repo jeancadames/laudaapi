@@ -126,6 +126,23 @@ final class TransformationControlPanelService
                     'summary' => $capability->capability_summary ?: null,
                     'kind' => 'professional_service',
                     'includes' => data_get($snapshot, 'includes', []),
+                    'requires_lauda_review' => (bool) data_get(
+                        $snapshot,
+                        'requires_lauda_review',
+                        false
+                    ),
+                    'commercial_readiness' => data_get(
+                        $snapshot,
+                        'commercial_readiness'
+                    ),
+                    'activation_policy' => data_get(
+                        $snapshot,
+                        'activation_policy'
+                    ),
+                    'recommendation_basis' => data_get(
+                        $snapshot,
+                        'recommendation_basis'
+                    ),
                 ];
             })
             ->filter()

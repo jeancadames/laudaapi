@@ -88,6 +88,73 @@ class TransformationProfessionalCapabilityCatalog
                 ],
             ],
 
+            'data_transformation_bi' => [
+                'capability_key' =>
+                    'data_transformation_bi',
+
+                'title' =>
+                    'Transformación e Inteligencia de Datos para BI',
+
+                'kind' =>
+                    'professional_service',
+
+                'category' =>
+                    'data',
+
+                /*
+                 * No existe todavía como Service comercial.
+                 * La futura definición comercial pertenece a
+                 * la Etapa de Implementación.
+                 */
+                'service_key' =>
+                    null,
+
+                'subscription_candidate' =>
+                    false,
+
+                'requires_lauda_review' =>
+                    true,
+
+                'linked_initiative_keys' => [
+                    'DAT-01',
+                ],
+
+                'commercial_readiness' =>
+                    'implementation_plan_estimate_required',
+
+                /*
+                 * Contrato S13:
+                 * esta capability NO puede utilizar el flujo
+                 * gratuito de activación profesional.
+                 */
+                'activation_policy' =>
+                    'implementation_only',
+
+                'purpose' =>
+                    'Preparar, organizar, transformar y estructurar los datos del tenant para convertirlos en una base analítica confiable y reutilizable por BI y por las capacidades operativas e inteligentes de LAUDA.',
+
+                'includes' => [
+                    'Maestro, calidad, comportamiento histórico, segmentación e industria de clientes.',
+                    'Riesgo, oportunidad, concentración y exposición de clientes y segmentos mediante indicadores explicables.',
+                    'Productos, categorías, existencia, movimientos, costos, precios, rotación, margen, disponibilidad e inventario valorizado.',
+                    'Relación producto ↔ materia prima y exposición a variaciones de costos y precios de mercado.',
+                    'Confiabilidad, riesgo, oportunidad, dependencia y exposición de suplidores.',
+                    'Historial de ventas por fecha, cliente, producto, categoría, sucursal y vendedor.',
+                    'Perfilado, limpieza, normalización, relaciones y preparación del modelo analítico.',
+                    'Identificación de fuentes, calidad, complejidad, alertas y oportunidades de inteligencia futura.',
+                    'Preparación de datos reutilizables para BI, CRM, pricing, inventario, compras, CxC, planificación y alertas.',
+                ],
+
+                'excludes' => [
+                    'Ejecución gratuita de ETL o pipelines de datos.',
+                    'Transformación masiva o limpieza productiva de datos durante el ciclo gratuito LAUDA 360.',
+                    'Construcción gratuita de warehouse, data mart, lakehouse o equivalente.',
+                    'Construcción gratuita de dashboards o reportes BI productivos.',
+                    'Cambio automático de precios por variaciones de materias primas.',
+                    'Creación automática de precio, factura, pago, suscripción o contratación.',
+                ],
+            ],
+
             'branding_identity' => [
                 'capability_key' =>
                     'branding_identity',

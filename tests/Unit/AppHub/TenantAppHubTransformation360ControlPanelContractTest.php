@@ -4,7 +4,8 @@ namespace Tests\Unit\AppHub;
 
 use PHPUnit\Framework\TestCase;
 
-class TenantAppHubTransformation360ControlPanelContractTest extends TestCase
+class TenantAppHubTransformation360ControlPanelContractTest
+    extends TestCase
 {
     private function root(): string
     {
@@ -14,7 +15,8 @@ class TenantAppHubTransformation360ControlPanelContractTest extends TestCase
     public function test_gateway_exposes_transformation_360_snapshot(): void
     {
         $controller = file_get_contents(
-            $this->root().'/app/Http/Controllers/AppGatewayController.php'
+            $this->root()
+            .'/app/Http/Controllers/AppGatewayController.php'
         );
 
         $this->assertStringContainsString(
@@ -33,34 +35,49 @@ class TenantAppHubTransformation360ControlPanelContractTest extends TestCase
         );
     }
 
-    public function test_snapshot_is_company_scoped_and_uses_real_t360_records(): void
+    public function test_snapshot_is_company_scoped_and_uses_real_consultive_t360_records(): void
     {
         $service = file_get_contents(
-            $this->root().'/app/Services/Ecosystem/TransformationControlPanelService.php'
+            $this->root()
+            .'/app/Services/Ecosystem/'
+            .'TransformationControlPanelService.php'
         );
 
         foreach ([
-            "'company_id', \$company->id",
+            'diagnosis_access_requests',
             'diagnosis_detailed_roadmap_orders',
             'diagnosis_expanded_report_orders',
             'transformation_implementation_plans',
             'transformation_implementation_phases',
             'transformation_implementation_phase_capabilities',
+        ] as $token) {
+            $this->assertStringContainsString(
+                $token,
+                $service
+            );
+        }
+
+        foreach ([
             'transformation_implementation_phase_estimates',
             'transformation_implementation_milestones',
             'transformation_implementation_phase_executions',
             'transformation_implementation_capability_executions',
             'transformation_implementation_capability_go_lives',
             'transformation_implementation_subscription_item_activations',
-        ] as $token) {
-            $this->assertStringContainsString($token, $service);
+        ] as $forbidden) {
+            $this->assertStringNotContainsString(
+                $forbidden,
+                $service
+            );
         }
     }
 
-    public function test_catalog_is_not_exposed_and_draft_cancelled_plans_are_hidden(): void
+    public function test_catalog_is_not_exposed_and_private_plans_are_hidden(): void
     {
         $service = file_get_contents(
-            $this->root().'/app/Services/Ecosystem/TransformationControlPanelService.php'
+            $this->root()
+            .'/app/Services/Ecosystem/'
+            .'TransformationControlPanelService.php'
         );
 
         $this->assertStringContainsString(
@@ -68,61 +85,108 @@ class TenantAppHubTransformation360ControlPanelContractTest extends TestCase
             $service
         );
 
+        $this->assertStringContainsString(
+            "->whereNotNull('presented_at')",
+            $service
+        );
+
         $this->assertStringNotContainsString(
             'TransformationServiceCapabilityCatalog',
             $service
         );
-    }
-
-    public function test_commercial_amounts_are_phase_scoped_not_duplicated_per_capability(): void
-    {
-        $service = file_get_contents(
-            $this->root().'/app/Services/Ecosystem/TransformationControlPanelService.php'
-        );
-
-        $this->assertStringContainsString(
-            "'estimate_amount' =>",
-            $service
-        );
-
-        $this->assertStringContainsString(
-            "'milestone_total' =>",
-            $service
-        );
-
-        $this->assertStringContainsString(
-            "'capabilities' => \$capabilities->all()",
-            $service
-        );
 
         $this->assertStringNotContainsString(
-            "'price_amount' => \$capability",
+            'TransformationProfessionalCapabilityCatalog',
             $service
         );
     }
 
-    public function test_hub_renders_t360_as_separate_control_section_not_app_store(): void
+    public function test_capabilities_are_consultive_and_preserve_professional_context(): void
+    {
+        $service = file_get_contents(
+            $this->root()
+            .'/app/Services/Ecosystem/'
+            .'TransformationControlPanelService.php'
+        );
+
+        foreach ([
+            "'capabilities' => \$capabilities->all()",
+            "'kind' => 'professional_service'",
+            "'includes' =>",
+            "'requires_lauda_review' =>",
+            "'commercial_readiness' =>",
+            "'activation_policy' =>",
+            "'recommendation_basis' =>",
+        ] as $token) {
+            $this->assertStringContainsString(
+                $token,
+                $service
+            );
+        }
+
+        foreach ([
+            "'estimate_amount' =>",
+            "'milestone_total' =>",
+            "'paid_total' =>",
+            "'billing_status' =>",
+            "'subscription_item_id' =>",
+            "'commercial' =>",
+            "'execution' =>",
+        ] as $forbidden) {
+            $this->assertStringNotContainsString(
+                $forbidden,
+                $service
+            );
+        }
+    }
+
+    public function test_hub_renders_t360_as_separate_consultive_control_section(): void
     {
         $hub = file_get_contents(
-            $this->root().'/resources/js/pages/App/Hub.vue'
+            $this->root()
+            .'/resources/js/pages/App/Hub.vue'
         );
 
         foreach ([
             'type Transformation360ControlPanel =',
             'const hasTransformation360 = computed',
             'Transformación 360',
-            'Servicios, ejecución y estado comercial',
+            'Plan consultivo y prioridades de transformación',
             'v-for="phase in plan.phases"',
             'v-for="capability in phase.capabilities"',
             '{{ capability.label }}',
+            'Dependencias',
+            'Entregables',
+            'La contratación comercial se gestiona fuera del Plan.',
+        ] as $token) {
+            $this->assertStringContainsString(
+                $token,
+                $hub
+            );
+        }
+
+        foreach ([
+            'Servicios, ejecución y estado comercial',
             'Estimado de la fase',
             'Estado comercial',
-        ] as $token) {
-            $this->assertStringContainsString($token, $hub);
+            'estimated_total',
+            'milestone_total',
+            'paid_total',
+            'billingStatusLabel',
+        ] as $forbidden) {
+            $this->assertStringNotContainsString(
+                $forbidden,
+                $hub
+            );
         }
 
         $this->assertStringNotContainsString(
             "capability.key === 'branding_identity'",
+            $hub
+        );
+
+        $this->assertStringNotContainsString(
+            "capability.key === 'data_transformation_bi'",
             $hub
         );
     }
@@ -130,7 +194,8 @@ class TenantAppHubTransformation360ControlPanelContractTest extends TestCase
     public function test_b7_managed_visibility_contract_remains_intact(): void
     {
         $hub = file_get_contents(
-            $this->root().'/resources/js/pages/App/Hub.vue'
+            $this->root()
+            .'/resources/js/pages/App/Hub.vue'
         );
 
         $this->assertStringContainsString(

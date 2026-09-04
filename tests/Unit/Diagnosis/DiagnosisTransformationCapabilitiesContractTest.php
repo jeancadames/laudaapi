@@ -6,7 +6,7 @@ use PHPUnit\Framework\TestCase;
 
 class DiagnosisTransformationCapabilitiesContractTest extends TestCase
 {
-    public function test_generator_has_procedures_and_branding_capabilities(): void
+    public function test_generator_has_all_professional_transformation_capabilities(): void
     {
         $root = dirname(__DIR__, 3);
 
@@ -21,12 +21,14 @@ class DiagnosisTransformationCapabilitiesContractTest extends TestCase
             'Guía de Procesos y Procedimientos LAUDA 360',
             "'branding_identity' =>",
             'Branding e Identidad Digital',
+            "'data_transformation_bi' =>",
+            'Transformación e Inteligencia de Datos para BI',
             "'type' =>",
             "'structural'",
             "'optional'",
             "'requires_lauda_review'",
             'no modifican la puntuación',
-            'se cotizan y planifican por separado',
+            'se cotizan por separado',
         ] as $token) {
             $this->assertStringContainsString(
                 $token,
@@ -72,6 +74,7 @@ class DiagnosisTransformationCapabilitiesContractTest extends TestCase
         foreach ([
             'transformation_capabilities.procedures_guide.title',
             'transformation_capabilities.branding_identity.title',
+            'transformation_capabilities.data_transformation_bi.title',
         ] as $token) {
             $this->assertStringContainsString(
                 $token,
@@ -93,7 +96,9 @@ class DiagnosisTransformationCapabilitiesContractTest extends TestCase
             'Capacidades de Transformación Detallada',
             'Estructural',
             'Opcional',
-            'Recomendado por tu evaluación',
+            'Recomendado por tu Diagnóstico 360',
+            'capabilities.data_transformation_bi',
+            'Implementación',
         ] as $token) {
             $this->assertStringContainsString(
                 $token,

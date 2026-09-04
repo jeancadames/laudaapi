@@ -99,6 +99,7 @@ class TransformationServiceCapabilityCatalogContractTest extends TestCase
 
         $this->assertNotContains('procedures_guide', $keys);
         $this->assertNotContains('branding_identity', $keys);
+        $this->assertNotContains('data_transformation_bi', $keys);
     }
 
     public function test_generator_embeds_service_capabilities_in_published_roadmap_payload(): void

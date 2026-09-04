@@ -24,6 +24,9 @@ type Capability = {
     id: number;
     sequence: number;
     capability_key: string;
+    kind: string | null;
+    activation_policy: string | null;
+    commercial_readiness: string | null;
     capability_label: string;
     execution: {
         id: number;
@@ -205,7 +208,7 @@ function statusLabel(status: string) {
 }
 
 function isProfessionalCapability(capability: Capability): boolean {
-    return capability.capability_key === 'branding_identity';
+    return capability.kind === 'professional_service';
 }
 
 function initializePhase(phaseId: number) {
@@ -793,11 +796,10 @@ function readinessComplete(goLiveId: number) {
                                         Servicio profesional
                                     </p>
                                     <p class="mt-1">
-                                        Branding e Identidad Digital se ejecuta
-                                        y entrega dentro del Plan. Puede tener
-                                        Go-Live como cierre de implantación,
-                                        pero no genera Subscription ni
-                                        SubscriptionItem.
+                                        Esta capability se ejecuta y entrega
+                                        como servicio profesional dentro del
+                                        Plan de Implementación. No genera
+                                        Subscription ni SubscriptionItem.
                                     </p>
                                 </div>
                             </div>

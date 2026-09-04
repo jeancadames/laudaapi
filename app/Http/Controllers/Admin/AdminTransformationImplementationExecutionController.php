@@ -639,6 +639,18 @@ class AdminTransformationImplementationExecutionController extends Controller
                         $capability->capability_key,
                     'capability_label' =>
                         $capability->capability_label,
+                    'kind' => data_get(
+                        $capability->source_snapshot,
+                        'kind'
+                    ),
+                    'activation_policy' => data_get(
+                        $capability->source_snapshot,
+                        'activation_policy'
+                    ),
+                    'commercial_readiness' => data_get(
+                        $capability->source_snapshot,
+                        'commercial_readiness'
+                    ),
                     'execution' => $capability->execution ? [
                         'id' => $capability->execution->id,
                         'status' =>

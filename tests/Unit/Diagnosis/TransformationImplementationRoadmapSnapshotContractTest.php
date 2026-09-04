@@ -94,6 +94,11 @@ class TransformationImplementationRoadmapSnapshotContractTest extends TestCase
             "'branding_identity' =>",
             $generator
         );
+
+        $this->assertStringContainsString(
+            "'data_transformation_bi' =>",
+            $generator
+        );
     }
 
     public function test_snapshot_copy_does_not_start_subscription(): void

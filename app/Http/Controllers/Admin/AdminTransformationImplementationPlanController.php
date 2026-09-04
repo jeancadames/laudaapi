@@ -221,6 +221,13 @@ class AdminTransformationImplementationPlanController extends Controller
                         'service_key' => null,
                         'purpose' => $option['purpose'] ?? null,
                         'includes' => $option['includes'] ?? [],
+                        'requires_lauda_review' => (bool) (
+                            $option['requires_lauda_review'] ?? false
+                        ),
+                        'commercial_readiness' =>
+                            $option['commercial_readiness'] ?? null,
+                        'activation_policy' =>
+                            $option['activation_policy'] ?? null,
                     ],
                 ];
             })
@@ -345,6 +352,13 @@ class AdminTransformationImplementationPlanController extends Controller
                     'subscription_candidate' => false,
                     'purpose' => $definition['purpose'] ?? null,
                     'includes' => $definition['includes'] ?? [],
+                    'requires_lauda_review' => (bool) (
+                        $definition['requires_lauda_review'] ?? false
+                    ),
+                    'commercial_readiness' =>
+                        $definition['commercial_readiness'] ?? null,
+                    'activation_policy' =>
+                        $definition['activation_policy'] ?? null,
                 ];
             })
             ->filter(
@@ -433,6 +447,23 @@ class AdminTransformationImplementationPlanController extends Controller
                     $capability->source_snapshot,
                     'includes',
                     []
+                ),
+                'requires_lauda_review' => (bool) data_get(
+                    $capability->source_snapshot,
+                    'requires_lauda_review',
+                    false
+                ),
+                'commercial_readiness' => data_get(
+                    $capability->source_snapshot,
+                    'commercial_readiness'
+                ),
+                'activation_policy' => data_get(
+                    $capability->source_snapshot,
+                    'activation_policy'
+                ),
+                'recommendation_basis' => data_get(
+                    $capability->source_snapshot,
+                    'recommendation_basis'
                 ),
             ])
             ->values();

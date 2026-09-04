@@ -323,7 +323,7 @@ class DiagnosisExpandedReportService
             'critical_gaps.items',
             'business_implications.items',
             'recommended_focus.items',
-            'modality_and_capacity.body',
+            'execution_capacity.body',
             'next_step_note.body',
         ] as $path) {
             $value = data_get($sections, $path);

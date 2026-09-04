@@ -238,13 +238,14 @@ const solutions = [
         id: 'bi',
         name: 'BI',
         category: 'Inteligencia',
-        description: 'Dashboards, métricas, reporting e inteligencia.',
+        description:
+            'Dashboards, métricas, reporting y análisis sobre información conectada y preparada.',
         href: 'https://bi.laudaapi.com',
         icon: TrendingUp,
         iconColor: 'text-blue-600',
         badgeClass:
             'bg-blue-50 text-blue-900 border-blue-200 dark:bg-blue-950/30 dark:text-blue-300 dark:border-blue-900/50',
-        focus: 'Data + decisiones',
+        focus: 'Análisis + decisiones',
         code: 'BI',
     },
 ];
@@ -291,6 +292,33 @@ const serviceModels = [
         badgeClass:
             'bg-red-50 text-red-800 border-red-200 dark:bg-red-950/30 dark:text-red-300 dark:border-red-900/50',
         iconColor: 'text-red-500',
+    },
+];
+
+const transformationProfessionalCapabilities = [
+    {
+        id: 'procedures_guide',
+        title: 'Guía de Procesos y Procedimientos',
+        description:
+            'Documentación, estandarización y mejora de procesos para convertir la operación en una forma de trabajo clara, repetible y medible.',
+        icon: FileText,
+        iconColor: 'text-emerald-600',
+    },
+    {
+        id: 'branding_identity',
+        title: 'Branding e Identidad Digital',
+        description:
+            'Posicionamiento, identidad visual, lineamientos de marca y aplicación consistente en los puntos de contacto prioritarios.',
+        icon: Building2,
+        iconColor: 'text-red-500',
+    },
+    {
+        id: 'data_transformation_bi',
+        title: 'Transformación e Inteligencia de Datos para BI',
+        description:
+            'Extracción, limpieza, normalización, relaciones y modelado de datos para crear una base confiable para BI, análisis e inteligencia empresarial.',
+        icon: TrendingUp,
+        iconColor: 'text-blue-600',
     },
 ];
 
@@ -412,15 +440,8 @@ const transformationChallenges = [
     'Mejorar captación, clientes y ventas',
     'Digitalizar la operación diaria',
     'Integrar administración, fiscalidad y cumplimiento',
-    'Centralizar datos, indicadores y BI',
+    'Centralizar y preparar datos para indicadores y BI',
     'Conectar sistemas que hoy trabajan separados',
-];
-
-const assistanceLevels = [
-    'Quiero que LAUDA me recomiende la modalidad',
-    'LAUDA 360 Guiado — autoservicio + soporte por email',
-    'LAUDA 360 Asistido — trabajo conjunto',
-    'LAUDA 360 Gestionado — LAUDA lidera',
 ];
 
 const contactProcessing = ref(false);
@@ -435,7 +456,6 @@ const contactForm = ref({
     email: '',
     company_size: '',
     main_challenge: 'No sé por dónde comenzar',
-    assistance_level: 'Quiero que LAUDA me recomiende la modalidad',
     message: '',
     terms: true,
 });
@@ -458,7 +478,6 @@ function resetContactForm() {
         email: '',
         company_size: '',
         main_challenge: 'No sé por dónde comenzar',
-        assistance_level: 'Quiero que LAUDA me recomiende la modalidad',
         message: '',
         terms: true,
     };
@@ -557,7 +576,6 @@ function buildContactPayload() {
             intake_type: 'digital_transformation_360',
             company_size: form.company_size,
             main_challenge: form.main_challenge,
-            assistance_level: form.assistance_level,
             diagnosis_access: 'apphub_native',
         },
     };
@@ -662,7 +680,7 @@ onUnmounted(() => {
 <template>
 
     <Head title="LAUDAAPI — Soluciones empresariales y Transformación 360">
-        <meta name="description" content="Ecosistema de soluciones empresariales con App Hub central y Transformación 360 opcional." />
+        <meta name="description" content="Ecosistema de soluciones empresariales con App Hub central, Diagnóstico LAUDA 360 y capacidades profesionales de procesos, branding y transformación de datos para BI." />
     </Head>
 
     <div class="flex min-h-screen w-full flex-col items-center bg-[#FAFAF8] px-4 py-4 text-[#1b1b18] dark:bg-[#0a0a0a]">
@@ -982,64 +1000,126 @@ onUnmounted(() => {
                     </p>
 
                     <h2 class="text-3xl font-black tracking-tight text-slate-900 sm:text-4xl dark:text-white">
-                        Un roadmap. Tres niveles de acompañamiento.
+                        Primero definimos la ruta. Después implementamos.
                     </h2>
 
-                    <p class="mx-auto mt-3 max-w-2xl text-sm text-slate-500 dark:text-slate-400">
-                        El diagnóstico define por dónde comenzar. La modalidad
-                        define cuánto ejecuta tu equipo y cuánto asume LAUDA.
+                    <p class="mx-auto mt-3 max-w-3xl text-sm leading-relaxed text-slate-500 dark:text-slate-400">
+                        El ciclo consultivo identifica brechas, prioridades y capacidades necesarias mediante
+                        el Diagnóstico, Informe Ampliado, Roadmap Detallado y Plan de Implementación.
+                        La ejecución profesional y la modalidad de acompañamiento se definen al comenzar
+                        la Etapa de Implementación.
                     </p>
                 </div>
 
-                <div class="grid gap-4 lg:grid-cols-3">
-                    <article v-for="model in serviceModels" :key="model.id" class="flex h-full flex-col rounded-2xl border border-slate-100 bg-slate-50/50 p-6 dark:border-slate-800 dark:bg-slate-900/20">
-                        <div class="flex items-start justify-between gap-4">
-                            <div class="flex h-11 w-11 items-center justify-center rounded-2xl bg-white shadow-sm dark:bg-slate-900">
-                                <component :is="model.icon" class="h-5 w-5" :class="model.iconColor" />
-                            </div>
-
-                            <span :class="[
-                                'rounded-full border px-2.5 py-1 text-[9px] font-black tracking-widest uppercase',
-                                model.badgeClass,
-                            ]">
-                                {{ model.badge }}
-                            </span>
-                        </div>
-
-                        <p class="mt-5 text-[9px] font-black tracking-widest text-slate-400 uppercase">
-                            {{ model.level }}
+                <div class="rounded-2xl border border-slate-200 bg-slate-50/60 p-6 dark:border-slate-800 dark:bg-slate-900/20">
+                    <div class="max-w-3xl">
+                        <p class="text-[9px] font-black tracking-widest text-red-500 uppercase">
+                            Capacidades profesionales
                         </p>
 
-                        <h3 class="mt-1 text-xl font-black text-slate-900 dark:text-white">
-                            {{ model.title }}
+                        <h3 class="mt-2 text-xl font-black text-slate-900 dark:text-white">
+                            El Diagnóstico puede identificar y recomendar capacidades especializadas.
                         </h3>
 
-                        <p class="mt-3 text-xs leading-relaxed text-slate-500 dark:text-slate-400">
-                            {{ model.description }}
+                        <p class="mt-2 text-xs leading-relaxed text-slate-500 dark:text-slate-400">
+                            La recomendación no activa ni ejecuta automáticamente estos trabajos.
+                            Su alcance técnico, tiempo y precio se definen y cotizan en la Etapa de Implementación.
+                        </p>
+                    </div>
+
+                    <div class="mt-6 grid gap-4 lg:grid-cols-3">
+                        <article
+                            v-for="capability in transformationProfessionalCapabilities"
+                            :key="capability.id"
+                            class="rounded-2xl border border-slate-200 bg-white p-5 dark:border-slate-800 dark:bg-slate-950/40"
+                        >
+                            <div class="flex h-10 w-10 items-center justify-center rounded-xl bg-slate-50 dark:bg-slate-900">
+                                <component
+                                    :is="capability.icon"
+                                    class="h-5 w-5"
+                                    :class="capability.iconColor"
+                                />
+                            </div>
+
+                            <h4 class="mt-4 text-base font-black text-slate-900 dark:text-white">
+                                {{ capability.title }}
+                            </h4>
+
+                            <p class="mt-2 text-xs leading-relaxed text-slate-500 dark:text-slate-400">
+                                {{ capability.description }}
+                            </p>
+                        </article>
+                    </div>
+                </div>
+
+                <div class="mt-10 border-t border-slate-200 pt-8 dark:border-slate-800">
+                    <div class="mb-6 text-center">
+                        <p class="text-[9px] font-black tracking-widest text-slate-400 uppercase">
+                            Modalidades de Implementación
                         </p>
 
-                        <div class="mt-5 rounded-xl border border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-950/40">
-                            <p class="text-[8px] font-black tracking-widest text-slate-400 uppercase">
-                                Ideal para
+                        <h3 class="mt-2 text-2xl font-black text-slate-900 dark:text-white">
+                            Guiado, Asistido o Gestionado.
+                        </h3>
+
+                        <p class="mx-auto mt-2 max-w-2xl text-xs leading-relaxed text-slate-500 dark:text-slate-400">
+                            La modalidad no se selecciona durante el Diagnóstico.
+                            Se elige al iniciar Implementación, cuando ya existe un alcance definido.
+                        </p>
+                    </div>
+
+                    <div class="grid gap-4 lg:grid-cols-3">
+                        <article
+                            v-for="model in serviceModels"
+                            :key="model.id"
+                            class="flex h-full flex-col rounded-2xl border border-slate-100 bg-slate-50/50 p-6 dark:border-slate-800 dark:bg-slate-900/20"
+                        >
+                            <div class="flex items-start justify-between gap-4">
+                                <div class="flex h-11 w-11 items-center justify-center rounded-2xl bg-white shadow-sm dark:bg-slate-900">
+                                    <component
+                                        :is="model.icon"
+                                        class="h-5 w-5"
+                                        :class="model.iconColor"
+                                    />
+                                </div>
+
+                                <span
+                                    :class="[
+                                        'rounded-full border px-2.5 py-1 text-[9px] font-black tracking-widest uppercase',
+                                        model.badgeClass,
+                                    ]"
+                                >
+                                    {{ model.badge }}
+                                </span>
+                            </div>
+
+                            <p class="mt-5 text-[9px] font-black tracking-widest text-slate-400 uppercase">
+                                {{ model.level }}
                             </p>
 
-                            <p class="mt-1.5 text-xs font-semibold leading-relaxed text-slate-600 dark:text-slate-300">
-                                {{ model.ideal }}
-                            </p>
-                        </div>
+                            <h4 class="mt-1 text-xl font-black text-slate-900 dark:text-white">
+                                {{ model.title }}
+                            </h4>
 
-                        <button type="button" class="mt-auto pt-5 text-left text-sm font-black text-red-500" @click="
-                            contactForm.assistance_level =
-                            model.id === 'guided'
-                                ? 'LAUDA 360 Guiado — autoservicio + soporte por email'
-                                : model.id === 'assisted'
-                                    ? 'LAUDA 360 Asistido — trabajo conjunto'
-                                    : 'LAUDA 360 Gestionado — LAUDA lidera';
-                        scrollToId('diagnostico')
-                            ">
-                            Solicitar esta modalidad →
-                        </button>
-                    </article>
+                            <p class="mt-3 text-xs leading-relaxed text-slate-500 dark:text-slate-400">
+                                {{ model.description }}
+                            </p>
+
+                            <div class="mt-5 rounded-xl border border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-950/40">
+                                <p class="text-[8px] font-black tracking-widest text-slate-400 uppercase">
+                                    Ideal para
+                                </p>
+
+                                <p class="mt-1.5 text-xs font-semibold leading-relaxed text-slate-600 dark:text-slate-300">
+                                    {{ model.ideal }}
+                                </p>
+                            </div>
+
+                            <p class="mt-auto pt-5 text-xs font-bold text-slate-400">
+                                Se selecciona al iniciar la Etapa de Implementación.
+                            </p>
+                        </article>
+                    </div>
                 </div>
             </div>
         </section>
@@ -1081,7 +1161,7 @@ onUnmounted(() => {
                             <div class="flex items-start gap-3">
                                 <CheckCircle2 class="mt-0.5 h-4 w-4 shrink-0 text-emerald-400" />
                                 <p class="text-xs text-slate-300">
-                                    Modalidad Guiado, Asistido o Gestionado.
+                                    Informe Ampliado, Roadmap y Plan de Implementación consultivos.
                                 </p>
                             </div>
                         </div>
@@ -1161,16 +1241,6 @@ onUnmounted(() => {
                                 </select>
                             </div>
 
-                            <div class="sm:col-span-2">
-                                <label class="mb-1.5 block text-xs font-black text-slate-700 dark:text-slate-300">
-                                    Nivel de acompañamiento
-                                </label>
-                                <select v-model="contactForm.assistance_level" class="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm outline-none transition focus:border-red-400 focus:bg-white dark:border-slate-800 dark:bg-slate-900/40 dark:text-white">
-                                    <option v-for="level in assistanceLevels" :key="level" :value="level">
-                                        {{ level }}
-                                    </option>
-                                </select>
-                            </div>
 
                             <div class="sm:col-span-2">
                                 <label class="mb-1.5 block text-xs font-black text-slate-700 dark:text-slate-300">

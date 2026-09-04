@@ -292,6 +292,117 @@ function declineBranding(): void {
                 </div>
             </div>
 
+            <div
+                v-if="capabilities.data_transformation_bi"
+                class="rounded-2xl border p-4 lg:col-span-2"
+            >
+                <div class="flex flex-wrap items-center gap-2">
+                    <p class="font-black">
+                        {{
+                            capabilities.data_transformation_bi
+                                ?.title
+                        }}
+                    </p>
+
+                    <Badge variant="outline">
+                        Implementación
+                    </Badge>
+
+                    <Badge
+                        v-if="
+                            capabilities.data_transformation_bi
+                                ?.recommended
+                        "
+                        variant="secondary"
+                    >
+                        Recomendado
+                    </Badge>
+
+                    <Badge
+                        v-else
+                        variant="outline"
+                    >
+                        Para considerar
+                    </Badge>
+                </div>
+
+                <p
+                    class="mt-3 text-sm leading-6 text-muted-foreground"
+                >
+                    {{
+                        capabilities.data_transformation_bi
+                            ?.purpose
+                    }}
+                </p>
+
+                <div
+                    v-if="
+                        capabilities.data_transformation_bi
+                            ?.data_dimension_score !== null &&
+                        capabilities.data_transformation_bi
+                            ?.data_dimension_score !== undefined
+                    "
+                    class="mt-4 rounded-xl border bg-muted/20 p-3 text-sm"
+                >
+                    <span class="font-semibold">
+                        Datos e Inteligencia:
+                    </span>
+
+                    {{
+                        capabilities.data_transformation_bi
+                            ?.data_dimension_score
+                    }}/100
+
+                    <span
+                        v-if="
+                            capabilities.data_transformation_bi
+                                ?.data_priority
+                        "
+                    >
+                        ·
+                        {{
+                            capabilities.data_transformation_bi
+                                ?.data_priority
+                        }}
+                    </span>
+                </div>
+
+                <ul class="mt-4 space-y-2 text-sm">
+                    <li
+                        v-for="item in
+                            capabilities.data_transformation_bi
+                                ?.includes ?? []"
+                        :key="item"
+                    >
+                        • {{ item }}
+                    </li>
+                </ul>
+
+                <p class="mt-4 text-sm leading-6">
+                    {{
+                        capabilities.data_transformation_bi
+                            ?.recommendation_basis
+                    }}
+                </p>
+
+                <p
+                    class="mt-3 text-xs leading-5 text-muted-foreground"
+                >
+                    {{
+                        capabilities.data_transformation_bi
+                            ?.commercial_note
+                    }}
+                </p>
+
+                <p
+                    class="mt-3 rounded-xl border p-3 text-xs leading-5 text-muted-foreground"
+                >
+                    No ejecuta ETL, warehouse, dashboards ni
+                    cambios automáticos de precio dentro del ciclo
+                    gratuito LAUDA 360.
+                </p>
+            </div>
+
             <p class="text-xs leading-5 text-muted-foreground lg:col-span-2">
                 {{ capabilities.score_note }}
             </p>

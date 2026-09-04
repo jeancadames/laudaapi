@@ -77,6 +77,23 @@ class TransformationImplementationPlanController extends Controller
                             'includes',
                             []
                         ),
+                        'requires_lauda_review' => (bool) data_get(
+                            $capability->source_snapshot,
+                            'requires_lauda_review',
+                            false
+                        ),
+                        'commercial_readiness' => data_get(
+                            $capability->source_snapshot,
+                            'commercial_readiness'
+                        ),
+                        'activation_policy' => data_get(
+                            $capability->source_snapshot,
+                            'activation_policy'
+                        ),
+                        'recommendation_basis' => data_get(
+                            $capability->source_snapshot,
+                            'recommendation_basis'
+                        ),
                     ])
                     ->values();
 

@@ -359,6 +359,26 @@ class TransformationImplementationPlanAutogenerator
                                         ]
                                         ?? [],
 
+                                    'requires_lauda_review' =>
+                                        (bool) (
+                                            $item[
+                                                'requires_lauda_review'
+                                            ]
+                                            ?? false
+                                        ),
+
+                                    'commercial_readiness' =>
+                                        $item[
+                                            'commercial_readiness'
+                                        ]
+                                        ?? null,
+
+                                    'activation_policy' =>
+                                        $item[
+                                            'activation_policy'
+                                        ]
+                                        ?? null,
+
                                     'recommendation_basis' =>
                                         $item[
                                             'recommendation_basis'
@@ -707,8 +727,36 @@ class TransformationImplementationPlanAutogenerator
                     ]
                     ?? [],
 
+                'requires_lauda_review' =>
+                    (bool) (
+                        $definition[
+                            'requires_lauda_review'
+                        ]
+                        ?? false
+                    ),
+
+                'commercial_readiness' =>
+                    $definition[
+                        'commercial_readiness'
+                    ]
+                    ?? null,
+
+                'activation_policy' =>
+                    $definition[
+                        'activation_policy'
+                    ]
+                    ?? null,
+
+                /*
+                 * Conserva el fundamento explicable producido por
+                 * el Roadmap. No debe degradarse a una etiqueta
+                 * genérica al pasar al Plan de Implementación.
+                 */
                 'recommendation_basis' =>
-                    'professional_transformation_capability',
+                    $roadmapDefinition[
+                        'recommendation_basis'
+                    ]
+                    ?? 'professional_transformation_capability',
 
                 'excluded' =>
                     false,

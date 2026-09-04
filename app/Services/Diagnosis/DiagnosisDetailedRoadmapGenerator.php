@@ -143,7 +143,7 @@ class DiagnosisDetailedRoadmapGenerator
                 'scope_note' => [
                     'title' => 'Alcance del Roadmap Detallado',
                     'body' =>
-                        'El Roadmap define qué transformar, en qué secuencia, con qué responsables, dependencias, esfuerzo e indicadores. También identifica capacidades de Transformación Detallada como la Guía de Procesos y Procedimientos y, cuando corresponda, Branding e Identidad Digital. La ejecución técnica, elaboración e implantación de procedimientos, branding, parametrización, desarrollo, integración y gestión del cambio se cotizan y planifican por separado.',
+                        'El Roadmap define qué transformar, en qué secuencia, con qué responsables, dependencias, esfuerzo e indicadores. También identifica capacidades de Transformación Detallada como la Guía de Procesos y Procedimientos, Branding e Identidad Digital cuando corresponda y Transformación e Inteligencia de Datos para BI cuando la dimensión de Datos e Inteligencia evidencia esa necesidad. La ejecución técnica, elaboración e implantación de procedimientos, branding, extracción, limpieza, normalización y modelado de datos, parametrización, desarrollo, integración y gestión del cambio se definen y se cotizan por separado, y se planifican en la Etapa de Implementación.',
                 ],
             ],
         ];
@@ -189,6 +189,39 @@ class DiagnosisDetailedRoadmapGenerator
                 break;
             }
         }
+
+        $dataScoreValue =
+            ($assessment->dimension_scores ?? [])['data']
+            ?? null;
+
+        $dataScore =
+            is_numeric($dataScoreValue)
+                ? round((float) $dataScoreValue, 1)
+                : null;
+
+        $dataPriority =
+            $dataScore !== null
+                ? $this->priority($dataScore)
+                : null;
+
+        $dataPriorityLabel = match ($dataPriority) {
+            'critical' => 'crítica',
+            'high' => 'alta',
+            'medium' => 'media',
+            'sustain' => 'sostenimiento',
+            default => 'sin clasificación',
+        };
+
+        /*
+         * Regla S13 inicial y explicable:
+         * Datos e Inteligencia <= 80 requiere considerar
+         * transformación fundacional de datos.
+         *
+         * No altera el scoring oficial.
+         */
+        $dataTransformationBiRecommended =
+            $dataScore !== null
+            && $dataPriority !== 'sustain';
 
         return [
             'title' =>
@@ -252,8 +285,113 @@ class DiagnosisDetailedRoadmapGenerator
                     'Branding no modifica el scoring del diagnóstico. Su ejecución se cotiza como parte de la transformación cuando corresponda.',
             ],
 
+            'data_transformation_bi' => [
+                'title' =>
+                    'Transformación e Inteligencia de Datos para BI',
+
+                'type' =>
+                    'professional_service',
+
+                'recommended' =>
+                    $dataTransformationBiRecommended,
+
+                'requires_lauda_review' =>
+                    true,
+
+                'data_dimension_score' =>
+                    $dataScore,
+
+                'data_priority' =>
+                    $dataPriority,
+
+                'purpose' =>
+                    'Crear una capa fundacional de datos confiable y reutilizable para BI y progresivamente para CRM, pricing, inventario, compras, CxC, planificación, alertas e inteligencia de LAUDA.',
+
+                'includes' => [
+                    'Clientes, calidad de datos, comportamiento, segmentos e industrias.',
+                    'Riesgo y oportunidad de segmentos y clientes mediante scores explicables y señales internas/externas.',
+                    'Productos, categorías, inventario, movimientos, costos, precios, rotación, margen y exposición.',
+                    'Relación producto ↔ materia prima, costos históricos, tendencias de mercado e impacto potencial.',
+                    'Suplidores: confiabilidad, riesgo, oportunidad, concentración, dependencia y exposición.',
+                    'Ventas históricas por fecha, cliente, producto, categoría, sucursal, vendedor, precio, descuento, impuesto y margen.',
+                    'Extracción, perfilado, limpieza, normalización, relaciones y modelo analítico como alcance futuro de implementación.',
+                    'Indicadores, alertas y preparación para inteligencia futura.',
+                ],
+
+                'conceptual_flow' => [
+                    'Fuente tenant',
+                    'Extracción',
+                    'Perfilado',
+                    'Limpieza',
+                    'Normalización',
+                    'Relaciones',
+                    'Modelo analítico',
+                    'Indicadores',
+                    'Inteligencia',
+                    'Datos listos para BI/plataforma',
+                ],
+
+                'target_analytical_model' => [
+                    'dimensions' => [
+                        'DimDate',
+                        'DimCustomer',
+                        'DimCustomerSegment',
+                        'DimProduct',
+                        'DimSupplier',
+                        'DimRawMaterial',
+                        'DimBranch',
+                        'DimSeller',
+                    ],
+
+                    'bridges' => [
+                        'BridgeCustomerSegment',
+                        'BridgeProductRawMaterial',
+                        'BridgeSupplierRawMaterial',
+                    ],
+
+                    'facts' => [
+                        'FactSales',
+                        'FactInventory',
+                        'FactRawMaterialCost',
+                        'FactCommodityMarketPrice',
+                        'FactProductCostExposure',
+                        'FactCustomerRisk',
+                        'FactCustomerOpportunity',
+                        'FactSupplierPerformance',
+                        'FactSupplierRisk',
+                        'FactSupplierOpportunity',
+                    ],
+                ],
+
+                'recommendation_basis' =>
+                    $dataScore === null
+                        ? 'El Diagnóstico no dispone de una puntuación numérica para la dimensión Datos e Inteligencia. LAUDA debe identificar las fuentes y la complejidad antes de recomendar ejecución.'
+                        : (
+                            $dataTransformationBiRecommended
+                                ? sprintf(
+                                    'La dimensión Datos e Inteligencia obtuvo %s/100, con prioridad %s. Esto indica una brecha que justifica estructurar una capa fundacional de datos antes de depender de BI e inteligencia avanzada.',
+                                    $this->number($dataScore),
+                                    $dataPriorityLabel
+                                )
+                                : sprintf(
+                                    'La dimensión Datos e Inteligencia obtuvo %s/100, con prioridad de %s. La capacidad puede considerarse como evolución futura, pero el diagnóstico actual no la marca como brecha prioritaria.',
+                                    $this->number($dataScore),
+                                    $dataPriorityLabel
+                                )
+                        ),
+
+                'commercial_note' =>
+                    'LAUDA 360 únicamente detecta, recomienda y delimita esta necesidad. La extracción, ETL, transformación productiva, warehouse, dashboards, integración de fuentes y ejecución se definen y cotizan únicamente en la Etapa de Implementación. No se crea automáticamente precio, factura, pago, suscripción ni contratación.',
+
+                'automatic_price_changes' =>
+                    false,
+
+                'activation_policy' =>
+                    'implementation_only',
+            ],
+
             'score_note' =>
-                'Las capacidades de procedimientos y branding son contexto de ejecución y no modifican la puntuación del Diagnóstico LAUDA 360.',
+                'Las capacidades de procedimientos, branding y transformación de datos para BI utilizan el diagnóstico como contexto de recomendación y no modifican la puntuación oficial del Diagnóstico LAUDA 360.',
         ];
     }
 

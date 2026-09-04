@@ -131,6 +131,7 @@ class DiagnosisDetailedRoadmapLegacyRegenerationContractTest extends TestCase
         foreach ([
             'transformation_capabilities.procedures_guide.title',
             'transformation_capabilities.branding_identity.title',
+            'transformation_capabilities.data_transformation_bi.title',
         ] as $token) {
             $this->assertStringContainsString(
                 $token,

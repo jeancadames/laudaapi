@@ -42,6 +42,10 @@ type Capability = {
     summary: string | null;
     kind: 'professional_service';
     includes: string[];
+    requires_lauda_review: boolean;
+    commercial_readiness: string | null;
+    activation_policy: string | null;
+    recommendation_basis: string | null;
 };
 
 type Phase = {
@@ -318,9 +322,73 @@ function presentPlan(): void {
                             <div class="mt-5">
                                 <p class="text-xs font-black uppercase">Apoyo profesional sugerido</p>
                                 <div v-if="phase.capabilities.length" class="mt-2 grid gap-3 md:grid-cols-2">
-                                    <div v-for="capability in phase.capabilities" :key="capability.id" class="rounded-xl border p-4">
-                                        <p class="font-bold">{{ capability.capability_label }}</p>
-                                        <p v-if="capability.summary" class="mt-1 text-sm text-muted-foreground">{{ capability.summary }}</p>
+                                    <div
+                                        v-for="capability in phase.capabilities"
+                                        :key="capability.id"
+                                        class="rounded-xl border p-4"
+                                    >
+                                        <div class="flex flex-wrap items-center gap-2">
+                                            <p class="font-bold">
+                                                {{ capability.capability_label }}
+                                            </p>
+
+                                            <Badge variant="secondary">
+                                                Servicio profesional
+                                            </Badge>
+
+                                            <Badge
+                                                v-if="capability.activation_policy === 'implementation_only'"
+                                                variant="outline"
+                                            >
+                                                Se define y cotiza en Implementación
+                                            </Badge>
+                                        </div>
+
+                                        <p
+                                            v-if="capability.summary"
+                                            class="mt-2 text-sm leading-6 text-muted-foreground"
+                                        >
+                                            {{ capability.summary }}
+                                        </p>
+
+                                        <div
+                                            v-if="
+                                                capability.recommendation_basis
+                                                && capability.recommendation_basis !== 'professional_transformation_capability'
+                                            "
+                                            class="mt-4 rounded-lg bg-muted/30 p-3"
+                                        >
+                                            <p class="text-xs font-black uppercase">
+                                                Fundamento de recomendación
+                                            </p>
+                                            <p class="mt-1 text-sm leading-6 text-muted-foreground">
+                                                {{ capability.recommendation_basis }}
+                                            </p>
+                                        </div>
+
+                                        <div
+                                            v-if="capability.includes.length"
+                                            class="mt-4"
+                                        >
+                                            <p class="text-xs font-black uppercase">
+                                                Alcance incluido
+                                            </p>
+                                            <ul class="mt-2 list-disc space-y-1 pl-5 text-sm text-muted-foreground">
+                                                <li
+                                                    v-for="item in capability.includes"
+                                                    :key="item"
+                                                >
+                                                    {{ item }}
+                                                </li>
+                                            </ul>
+                                        </div>
+
+                                        <p
+                                            v-if="capability.activation_policy === 'implementation_only'"
+                                            class="mt-4 text-xs leading-5 text-muted-foreground"
+                                        >
+                                            Esta capacidad no se activa desde el ciclo consultivo gratuito. Su ejecución, alcance final, tiempo y precio se definen en la Etapa de Implementación.
+                                        </p>
                                     </div>
                                 </div>
                                 <p v-else class="mt-2 text-sm text-muted-foreground">

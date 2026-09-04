@@ -61,6 +61,10 @@ type Transformation360Capability = {
     summary: string | null;
     kind: 'professional_service';
     includes: string[];
+    requires_lauda_review: boolean;
+    commercial_readiness: string | null;
+    activation_policy: string | null;
+    recommendation_basis: string | null;
 };
 
 type Transformation360Initiative = {
@@ -591,14 +595,80 @@ const stateLabel = (app: Solution) => {
                                     </div>
                                 </div>
 
-                                <div v-if="phase.capabilities.length" class="mt-4 flex flex-wrap gap-2">
-                                    <span
+                                <div
+                                    v-if="phase.capabilities.length"
+                                    class="mt-4 grid gap-3 md:grid-cols-2"
+                                >
+                                    <div
                                         v-for="capability in phase.capabilities"
                                         :key="`t360-capability-${capability.id}`"
-                                        class="rounded-full border border-slate-200 bg-slate-50 px-3 py-1.5 text-xs font-semibold text-slate-700 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-200"
+                                        class="rounded-xl border border-slate-100 bg-slate-50/70 p-4 dark:border-slate-800 dark:bg-slate-900/60"
                                     >
-                                        {{ capability.label }}
-                                    </span>
+                                        <div class="flex flex-wrap items-center gap-2">
+                                            <p class="text-sm font-black text-slate-900 dark:text-white">
+                                                {{ capability.label }}
+                                            </p>
+
+                                            <span
+                                                class="rounded-full border border-slate-200 bg-white px-2.5 py-1 text-[10px] font-bold text-slate-600 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-300"
+                                            >
+                                                Servicio profesional
+                                            </span>
+
+                                            <span
+                                                v-if="capability.activation_policy === 'implementation_only'"
+                                                class="rounded-full border border-red-200 bg-red-50 px-2.5 py-1 text-[10px] font-bold text-red-700 dark:border-red-950 dark:bg-red-950/20 dark:text-red-300"
+                                            >
+                                                Se define y cotiza en Implementación
+                                            </span>
+                                        </div>
+
+                                        <p
+                                            v-if="capability.summary"
+                                            class="mt-2 text-xs leading-5 text-slate-500"
+                                        >
+                                            {{ capability.summary }}
+                                        </p>
+
+                                        <div
+                                            v-if="
+                                                capability.recommendation_basis
+                                                && capability.recommendation_basis !== 'professional_transformation_capability'
+                                            "
+                                            class="mt-3 rounded-lg border border-slate-100 bg-white p-3 dark:border-slate-800 dark:bg-slate-950"
+                                        >
+                                            <p class="text-[10px] font-black uppercase tracking-wide text-slate-500">
+                                                Fundamento
+                                            </p>
+                                            <p class="mt-1 text-xs leading-5 text-slate-600 dark:text-slate-300">
+                                                {{ capability.recommendation_basis }}
+                                            </p>
+                                        </div>
+
+                                        <div
+                                            v-if="capability.includes.length"
+                                            class="mt-3"
+                                        >
+                                            <p class="text-[10px] font-black uppercase tracking-wide text-slate-500">
+                                                Alcance
+                                            </p>
+                                            <ul class="mt-1 space-y-1 text-xs leading-5 text-slate-600 dark:text-slate-300">
+                                                <li
+                                                    v-for="item in capability.includes.slice(0, 4)"
+                                                    :key="item"
+                                                >
+                                                    • {{ item }}
+                                                </li>
+                                            </ul>
+
+                                            <p
+                                                v-if="capability.includes.length > 4"
+                                                class="mt-1 text-[10px] font-semibold text-slate-500"
+                                            >
+                                                +{{ capability.includes.length - 4 }} elementos adicionales en el Plan
+                                            </p>
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
                         </div>
