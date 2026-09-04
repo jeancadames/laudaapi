@@ -37,6 +37,11 @@ export const navigationByRole = {
                 href: '/app/branding-identidad',
                 icon: 'Palette',
             },
+            {
+                title: 'Transformación e Inteligencia de Datos para BI',
+                href: '/app/transformacion-360/datos-bi',
+                icon: 'Layers',
+            },
             { title: 'Usuarios', href: '/subscriber/users', icon: 'Users' },
             {
                 title: 'Mi suscripción',

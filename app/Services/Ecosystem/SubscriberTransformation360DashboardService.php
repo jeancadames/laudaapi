@@ -10,6 +10,12 @@ use Illuminate\Support\Facades\Schema;
 
 final class SubscriberTransformation360DashboardService
 {
+
+    private const PROFESSIONAL_CAPABILITY_DETAIL_ROUTES = [
+        'data_transformation_bi' =>
+            'app.transformation.data_bi.show',
+    ];
+
     private const PUBLIC_PLAN_STATUSES = [
         'presented',
         'accepted',
@@ -701,10 +707,35 @@ final class SubscriberTransformation360DashboardService
                             false
                         )
                         : null,
+
+                'detail_url' =>
+                    $this->professionalCapabilityDetailUrl(
+                        (string) $capabilityKey
+                    ),
             ];
         }
 
         return $result;
+    }
+
+    private function professionalCapabilityDetailUrl(
+        string $capabilityKey
+    ): ?string {
+        $routeName =
+            self::PROFESSIONAL_CAPABILITY_DETAIL_ROUTES[
+                $capabilityKey
+            ]
+            ?? null;
+
+        if (! $routeName) {
+            return null;
+        }
+
+        return route(
+            $routeName,
+            [],
+            false
+        );
     }
 
     private function schemaReady(): bool

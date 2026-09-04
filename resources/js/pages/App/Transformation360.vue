@@ -59,6 +59,7 @@ type ImplementationProfessionalCapability = {
     phase_name: string | null;
     roadmap_url: string | null;
     plan_url: string | null;
+    detail_url: string | null;
 };
 
 type Transformation360Journey = {
@@ -646,6 +647,15 @@ function declineBranding(): void {
                                 <div
                                     class="flex shrink-0 flex-wrap gap-2 lg:max-w-48 lg:flex-col"
                                 >
+                                    <a
+                                        v-if="capability.detail_url"
+                                        :href="capability.detail_url"
+                                        class="inline-flex h-10 items-center justify-center gap-2 rounded-xl bg-blue-600 px-4 text-sm font-bold text-white transition hover:bg-blue-700"
+                                    >
+                                        Ver capacidad
+                                        <ArrowUpRight class="h-4 w-4" />
+                                    </a>
+
                                     <a
                                         v-if="
                                             capability.recommended_in_plan &&

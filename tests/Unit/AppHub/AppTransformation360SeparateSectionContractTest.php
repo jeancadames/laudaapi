@@ -170,7 +170,7 @@ final class AppTransformation360SeparateSectionContractTest
             'Transformación Digital 360',
             'props.transformation360',
             'Etapa {{ index + 1 }}',
-            'stage.optional',
+            'optionalBranding',
             'Borrador privado de LAUDA',
             'Plan de Implementación',
             'Diagnóstico 360',
@@ -190,8 +190,22 @@ final class AppTransformation360SeparateSectionContractTest
             .'Transformation360.vue'
         );
 
-        foreach ([
+        $this->assertStringContainsString(
             'router.post(',
+            $source
+        );
+
+        $this->assertStringContainsString(
+            'branding.activation_endpoint',
+            $source
+        );
+
+        $this->assertStringContainsString(
+            'branding.decline_endpoint',
+            $source
+        );
+
+        foreach ([
             'axios.post(',
             'checkout',
             'confirmPayment',

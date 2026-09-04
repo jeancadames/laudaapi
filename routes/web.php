@@ -189,6 +189,13 @@ Route::middleware(['auth', 'verified'])
     ->name('app.transformation.show');
 
 Route::middleware(['auth', 'verified'])
+    ->get(
+        '/app/transformacion-360/datos-bi',
+        \App\Http\Controllers\AppHubDataTransformationBiController::class
+    )
+    ->name('app.transformation.data_bi.show');
+
+Route::middleware(['auth', 'verified'])
     ->post(
         '/app/transformacion-360/capacidades/branding-identidad/activar',
         [\App\Http\Controllers\AppHubBrandingActivationController::class, 'store']

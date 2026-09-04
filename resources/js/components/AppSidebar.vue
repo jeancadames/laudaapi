@@ -115,6 +115,10 @@ const tenantAdminSections = computed<SidebarSection[]>(() => {
         lauda360Hrefs.push('/app/branding-identidad');
     }
 
+    lauda360Hrefs.push(
+        '/app/transformacion-360/datos-bi',
+    );
+
     return [
         {
             title: 'Ecosistema',
