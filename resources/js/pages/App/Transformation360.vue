@@ -54,7 +54,7 @@ type ImplementationProfessionalCapability = {
     includes: string[];
     activation_policy: 'implementation_only';
     commercial_note: string | null;
-    included_in_plan: boolean;
+    recommended_in_plan: boolean;
     phase_sequence: number | null;
     phase_name: string | null;
     roadmap_url: string | null;
@@ -534,10 +534,10 @@ function declineBranding(): void {
                                         </span>
 
                                         <span
-                                            v-if="capability.included_in_plan"
+                                            v-if="capability.recommended_in_plan"
                                             class="rounded-full bg-emerald-50 px-2.5 py-1 text-[10px] font-black text-emerald-700 uppercase dark:bg-emerald-950/30 dark:text-emerald-300"
                                         >
-                                            Incluido en tu Plan
+                                            Recomendado en tu Plan de Implementación
                                         </span>
                                     </div>
 
@@ -648,7 +648,7 @@ function declineBranding(): void {
                                 >
                                     <a
                                         v-if="
-                                            capability.included_in_plan &&
+                                            capability.recommended_in_plan &&
                                             capability.plan_url
                                         "
                                         :href="capability.plan_url"

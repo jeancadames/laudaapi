@@ -675,7 +675,7 @@ final class SubscriberTransformation360DashboardService
                         'commercial_note'
                     ),
 
-                'included_in_plan' =>
+                'recommended_in_plan' =>
                     $planCapability !== null,
 
                 'phase_sequence' =>
