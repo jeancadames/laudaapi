@@ -4,28 +4,79 @@ namespace Tests\Unit\Diagnosis;
 
 use PHPUnit\Framework\TestCase;
 
-class TransformationImplementationExecutionUiContractTest extends TestCase
+final class TransformationImplementationExecutionUiContractTest
+    extends TestCase
 {
     private function root(): string
     {
         return dirname(__DIR__, 3);
     }
 
-    public function test_execution_subsystem_is_preserved_but_not_linked_from_free_plan(): void
+    public function test_legacy_execution_routes_remain_preserved(): void
     {
-        $routes = file_get_contents($this->root().'/routes/admin.php');
-        $page = file_get_contents($this->root().'/resources/js/pages/Admin/DiagnosisRequests/ImplementationPlan.vue');
-        foreach (['implementation_execution.show', 'implementation_execution.phase.initialize', 'implementation_execution.go_live.create'] as $token) {
-            $this->assertStringContainsString($token, $routes);
-        }
-        foreach (['Gestionar ejecución y Go-Live', 'implementation_execution', 'execution_url'] as $token) {
-            $this->assertStringNotContainsString($token, $page);
+        $routes =
+            file_get_contents(
+                $this->root()
+                .'/routes/admin.php'
+            );
+
+        foreach ([
+            'implementation_execution.show',
+            'implementation_execution.phase.initialize',
+            'implementation_execution.go_live.create',
+        ] as $token) {
+            $this->assertStringContainsString(
+                $token,
+                $routes
+            );
         }
     }
 
-    public function test_execution_page_and_controller_remain_historical_domain(): void
+    public function test_current_plan_journey_does_not_expose_legacy_execution(): void
     {
-        $this->assertFileExists($this->root().'/app/Http/Controllers/Admin/AdminTransformationImplementationExecutionController.php');
-        $this->assertFileExists($this->root().'/resources/js/pages/Admin/DiagnosisRequests/ImplementationExecution.vue');
+        $controller =
+            file_get_contents(
+                $this->root()
+                .'/app/Http/Controllers/Admin/'
+                .'AdminTransformationImplementationPlanController.php'
+            );
+
+        $page =
+            file_get_contents(
+                $this->root()
+                .'/resources/js/pages/Admin/DiagnosisRequests/'
+                .'ImplementationPlan.vue'
+            );
+
+        foreach ([
+            'Gestionar ejecución y Go-Live',
+            'execution_url',
+            'implementation_execution',
+        ] as $forbidden) {
+            $this->assertStringNotContainsString(
+                $forbidden,
+                $controller.$page
+            );
+        }
+
+        $this->assertStringContainsString(
+            'Definición de Implementación',
+            $page
+        );
+    }
+
+    public function test_execution_remains_a_separate_legacy_surface(): void
+    {
+        $this->assertFileExists(
+            $this->root()
+            .'/resources/js/pages/Admin/DiagnosisRequests/'
+            .'ImplementationExecution.vue'
+        );
+
+        $this->assertFileExists(
+            $this->root()
+            .'/app/Http/Controllers/Admin/'
+            .'AdminTransformationImplementationExecutionController.php'
+        );
     }
 }

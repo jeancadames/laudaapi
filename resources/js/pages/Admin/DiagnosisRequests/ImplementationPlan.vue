@@ -180,6 +180,17 @@ function presentPlan(): void {
                         Volver
                     </Link>
                 </Button>
+
+                <Button
+                    v-if="plan?.status === 'presented'"
+                    as-child
+                >
+                    <Link
+                        :href="`/admin/diagnosis-requests/${props.contact.id}/implementation-plan/${plan.id}/definition`"
+                    >
+                        Definición de Implementación
+                    </Link>
+                </Button>
             </div>
 
             <Card v-if="Object.keys(errors).length" class="border-destructive/30 bg-destructive/5">

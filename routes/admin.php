@@ -293,6 +293,67 @@ Route::middleware(['auth', 'verified', 'role:admin'])
         )->name('diagnosis_requests.implementation_plan.present');
 
 
+
+        /*
+        |--------------------------------------------------------------------------
+        | LAUDA 360 · Definición funcional/técnica de Implementación
+        |--------------------------------------------------------------------------
+        |
+        | Esta capa NO inicia ejecución y NO contiene pricing/comercial.
+        |
+        */
+
+        \Illuminate\Support\Facades\Route::get(
+            '/diagnosis-requests/{contact}/implementation-plan/{plan}/definition',
+            [
+                \App\Http\Controllers\Admin\AdminTransformationImplementationDefinitionController::class,
+                'show'
+            ]
+        )->name(
+            'diagnosis_requests.implementation_definition.show'
+        );
+
+        \Illuminate\Support\Facades\Route::post(
+            '/diagnosis-requests/{contact}/implementation-plan/{plan}/definition',
+            [
+                \App\Http\Controllers\Admin\AdminTransformationImplementationDefinitionController::class,
+                'create'
+            ]
+        )->name(
+            'diagnosis_requests.implementation_definition.create'
+        );
+
+        \Illuminate\Support\Facades\Route::post(
+            '/diagnosis-requests/{contact}/implementation-plan/{plan}/definition/{definition}/regenerate',
+            [
+                \App\Http\Controllers\Admin\AdminTransformationImplementationDefinitionController::class,
+                'regenerate'
+            ]
+        )->name(
+            'diagnosis_requests.implementation_definition.regenerate'
+        );
+
+        \Illuminate\Support\Facades\Route::patch(
+            '/diagnosis-requests/{contact}/implementation-plan/{plan}/definition/{definition}/review',
+            [
+                \App\Http\Controllers\Admin\AdminTransformationImplementationDefinitionController::class,
+                'review'
+            ]
+        )->name(
+            'diagnosis_requests.implementation_definition.review'
+        );
+
+        \Illuminate\Support\Facades\Route::post(
+            '/diagnosis-requests/{contact}/implementation-plan/{plan}/definition/{definition}/ready',
+            [
+                \App\Http\Controllers\Admin\AdminTransformationImplementationDefinitionController::class,
+                'ready'
+            ]
+        )->name(
+            'diagnosis_requests.implementation_definition.ready'
+        );
+
+
         \Illuminate\Support\Facades\Route::get(
             '/diagnosis-requests/{contact}/implementation-plan/execution',
             [\App\Http\Controllers\Admin\AdminTransformationImplementationExecutionController::class, 'show']
