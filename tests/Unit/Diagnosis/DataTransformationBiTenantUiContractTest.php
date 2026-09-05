@@ -78,27 +78,42 @@ final class DataTransformationBiTenantUiContractTest extends TestCase
         );
     }
 
-    public function test_future_request_area_does_not_fake_activation(): void
+    public function test_request_area_is_now_a_real_non_activation_request(): void
     {
         $source = $this->source();
 
         $this->assertStringContainsString(
-            'Preparar la solicitud de implementación',
+            'Solicitar implementación',
             $source
         );
 
         $this->assertStringContainsString(
-            'La solicitud no activará servicios ni generará',
+            'router.post(',
+            $source
+        );
+
+        $this->assertStringContainsString(
+            'implementation_request.request_endpoint',
+            $source
+        );
+
+        $this->assertStringContainsString(
+            'La solicitud no activa el servicio ni genera',
             $source
         );
 
         $this->assertStringNotContainsString(
-            '<Button',
+            'Activar BI',
             $source
         );
 
         $this->assertStringNotContainsString(
-            'Solicitar implementación</',
+            'Comprar',
+            $source
+        );
+
+        $this->assertStringNotContainsString(
+            'Pagar ahora',
             $source
         );
     }

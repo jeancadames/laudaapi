@@ -197,6 +197,46 @@ Route::middleware(['auth', 'verified'])
 
 Route::middleware(['auth', 'verified'])
     ->post(
+        '/app/transformacion-360/datos-bi/solicitar-implementacion',
+        \App\Http\Controllers\AppHubDataTransformationBiRequestController::class
+    )
+    ->name('app.transformation.data_bi.request');
+
+    /*
+    |--------------------------------------------------------------------------
+    | Tenant Definition review · solicitar cambios
+    |--------------------------------------------------------------------------
+    |
+    | Request y Definition se resuelven server-side.
+    | El navegador solo envía la razón.
+    |
+    */
+Route::middleware(['auth', 'verified'])
+    ->post(
+        '/app/transformacion-360/datos-bi/definition/solicitar-cambios',
+        [
+            \App\Http\Controllers\AppHubDataTransformationBiDefinitionReviewController::class,
+            'requestChanges',
+        ]
+    )
+    ->name(
+        'app.transformation.data_bi.definition.request_changes'
+    );
+
+    Route::post(
+        '/app/transformacion-360/datos-bi/definition/acordar',
+        [
+            \App\Http\Controllers\AppHubDataTransformationBiDefinitionReviewController::class,
+            'agree',
+        ]
+    )
+        ->name(
+            'app.transformation.data_bi.definition.agree'
+        );
+
+
+Route::middleware(['auth', 'verified'])
+    ->post(
         '/app/transformacion-360/capacidades/branding-identidad/activar',
         [\App\Http\Controllers\AppHubBrandingActivationController::class, 'store']
     )

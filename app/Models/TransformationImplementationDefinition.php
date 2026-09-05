@@ -27,6 +27,9 @@ final class TransformationImplementationDefinition
         'transformation_implementation_plan_id',
         'diagnosis_assessment_id',
         'company_id',
+        'transformation_implementation_request_id',
+        'transformation_implementation_phase_capability_id',
+        'capability_key',
         'version',
         'status',
         'source_snapshot',
@@ -73,6 +76,23 @@ final class TransformationImplementationDefinition
             'ready_at' =>
                 'datetime',
         ];
+    }
+
+
+    public function implementationRequest(): BelongsTo
+    {
+        return $this->belongsTo(
+            TransformationImplementationRequest::class,
+            'transformation_implementation_request_id'
+        );
+    }
+
+    public function phaseCapability(): BelongsTo
+    {
+        return $this->belongsTo(
+            TransformationImplementationPhaseCapability::class,
+            'transformation_implementation_phase_capability_id'
+        );
     }
 
     public function plan(): BelongsTo

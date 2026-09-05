@@ -260,6 +260,183 @@ Route::middleware(['auth', 'verified', 'role:admin'])
             'transformation360.data_bi'
         );
 
+        /*
+        |--------------------------------------------------------------------------
+        | Transformación 360 · Solicitudes de Implementación
+        |--------------------------------------------------------------------------
+        |
+        | F4B: bandeja y detalle read-only.
+        | Las mutaciones de estado se incorporan en F4C.
+        |
+        */
+        \Illuminate\Support\Facades\Route::get(
+            '/transformation-360/implementation-requests',
+            [
+                \App\Http\Controllers\Admin\AdminTransformationImplementationRequestController::class,
+                'index'
+            ]
+        )->name(
+            'transformation360.implementation_requests.index'
+        );
+
+        \Illuminate\Support\Facades\Route::get(
+            '/transformation-360/implementation-requests/{implementationRequest}',
+            [
+                \App\Http\Controllers\Admin\AdminTransformationImplementationRequestController::class,
+                'show'
+            ]
+        )->name(
+            'transformation360.implementation_requests.show'
+        );
+
+        \Illuminate\Support\Facades\Route::patch(
+            '/transformation-360/implementation-requests/{implementationRequest}/assign',
+            [
+                \App\Http\Controllers\Admin\AdminTransformationImplementationRequestController::class,
+                'assign'
+            ]
+        )->name(
+            'transformation360.implementation_requests.assign'
+        );
+
+        \Illuminate\Support\Facades\Route::post(
+            '/transformation-360/implementation-requests/{implementationRequest}/transition',
+            [
+                \App\Http\Controllers\Admin\AdminTransformationImplementationRequestController::class,
+                'transition'
+            ]
+        )->name(
+            'transformation360.implementation_requests.transition'
+        );
+
+        /*
+        |--------------------------------------------------------------------------
+        | Solicitud de implementación · Definition request-scoped
+        |--------------------------------------------------------------------------
+        |
+        | Acción explícita de Admin LAUDA.
+        | No autogenera contenido y no cambia el lifecycle del Request.
+        |
+        */
+
+        \Illuminate\Support\Facades\Route::post(
+            '/transformation-360/implementation-requests/{implementationRequest}/definition',
+            [
+                \App\Http\Controllers\Admin\AdminTransformationImplementationRequestDefinitionActionController::class,
+                'store'
+            ]
+        )->name(
+            'transformation360.implementation_requests.definition.create'
+        );
+
+        \Illuminate\Support\Facades\Route::post(
+            '/transformation-360/implementation-requests/{implementationRequest}/definition/{definition}/generate',
+            [
+                \App\Http\Controllers\Admin\AdminTransformationImplementationRequestDefinitionActionController::class,
+                'generate'
+            ]
+        )->name(
+            'transformation360.implementation_requests.definition.generate'
+        );
+
+        \Illuminate\Support\Facades\Route::patch(
+            '/transformation-360/implementation-requests/{implementationRequest}/definition/{definition}/review',
+            [
+                \App\Http\Controllers\Admin\AdminTransformationImplementationRequestDefinitionActionController::class,
+                'review'
+            ]
+        )->name(
+            'transformation360.implementation_requests.definition.review'
+        );
+
+        /*
+        |--------------------------------------------------------------------------
+        | Request-scoped Definition → Tenant review
+        |--------------------------------------------------------------------------
+        |
+        | Endpoint dedicado: no se habilita la transición genérica
+        | definition_preparation → awaiting_tenant_review.
+        |
+        */
+        \Illuminate\Support\Facades\Route::post(
+            '/transformation-360/implementation-requests/{implementationRequest}/definition/{definition}/submit-tenant-review',
+            [
+                \App\Http\Controllers\Admin\AdminTransformationImplementationRequestDefinitionActionController::class,
+                'submitForTenantReview'
+            ]
+        )->name(
+            'transformation360.implementation_requests.definition.submit_tenant_review'
+        );
+
+        /*
+        |--------------------------------------------------------------------------
+        | Request-scoped Definition · nueva versión por cambios del tenant
+        |--------------------------------------------------------------------------
+        |
+        | El navegador no selecciona la Definition anterior.
+        | El controller resuelve la última versión request-scoped.
+        |
+        */
+        \Illuminate\Support\Facades\Route::post(
+            '/transformation-360/implementation-requests/{implementationRequest}/definition/revision',
+            [
+                \App\Http\Controllers\Admin\AdminTransformationImplementationRequestDefinitionActionController::class,
+                'createRevision'
+            ]
+        )->name(
+            'transformation360.implementation_requests.definition.revision.create'
+        );
+
+        /*
+        |--------------------------------------------------------------------------
+        | Definition acordada · cierre funcional explícito LAUDA
+        |--------------------------------------------------------------------------
+        |
+        | Request-only. El navegador no selecciona Definition.
+        | La versión exacta acordada se recupera desde el evento
+        | definition_agreed_by_tenant.
+        |
+        */
+        \Illuminate\Support\Facades\Route::post(
+            '/transformation-360/implementation-requests/{implementationRequest}/definition/finalize-functional',
+            [
+                \App\Http\Controllers\Admin\AdminTransformationImplementationRequestDefinitionActionController::class,
+                'finalizeFunctional'
+            ]
+        )->name(
+            'transformation360.implementation_requests.definition.functional_finalize'
+        );
+
+        /*
+        |--------------------------------------------------------------------------
+        | Cierre de ciclo funcional · listo para etapa comercial
+        |--------------------------------------------------------------------------
+        |
+        | Request-only.
+        |
+        | Este gate NO crea ni acepta elementos comerciales.
+        | Solo marca que la Definition funcional acordada ya terminó.
+        |
+        */
+        \Illuminate\Support\Facades\Route::post(
+            '/transformation-360/implementation-requests/{implementationRequest}/ready-for-commercial',
+            [
+                \App\Http\Controllers\Admin\AdminTransformationImplementationRequestDefinitionActionController::class,
+                'readyForCommercial'
+            ]
+        )->name(
+            'transformation360.implementation_requests.ready_for_commercial'
+        );
+
+
+
+
+
+
+
+
+
+
 
         /*
         |--------------------------------------------------------------------------

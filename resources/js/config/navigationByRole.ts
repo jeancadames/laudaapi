@@ -14,6 +14,12 @@ export const navigationByRole = {
                 href: '/admin/transformation-360',
                 icon: 'Layers',
             },
+
+            {
+                title: 'Solicitudes de Implementación',
+                href: '/admin/transformation-360/implementation-requests',
+                icon: 'Contact',
+            },
             {
                 title: 'Datos e Inteligencia BI',
                 href: '/admin/transformation-360/data-bi',

@@ -203,42 +203,45 @@ final class DataTransformationBiAppHubWorkspaceContractTest
 
     public function test_bi_page_is_informational_and_non_commercial(): void
     {
-        $page = file_get_contents(
-            $this->root()
-            .'/resources/js/pages/App/'
-            .'DataTransformationBi.vue'
-        );
+        $page =
+            file_get_contents(
+                dirname(__DIR__, 3)
+                .'/resources/js/pages/App/DataTransformationBi.vue'
+            );
 
+        /*
+         * Contrato vigente S14:
+         *
+         * - BI es servicio profesional;
+         * - la solicitud de implementación es explícita;
+         * - solicitar no activa ni genera cargos;
+         * - Definition es funcional/técnica;
+         * - no hay pricing ni contratación en esta etapa;
+         * - no existe CTA directo a Roadmap/Plan desde esta vista.
+         */
         foreach ([
-            'Transformación e Inteligencia',
-            'de Datos para BI',
             'Servicio profesional',
-            'Recomendado por tu Diagnóstico 360',
-            'No recomendado actualmente',
-            'Pendiente de Diagnóstico 360',
-            'Datos e Inteligencia',
-            'Alcance considerado',
-            'Recomendado en tu Plan de Implementación',
-            'Se define y cotiza en',
-            'Implementación.',
-            'Ver Plan de Implementación',
-            'Ver Roadmap Detallado',
-        ] as $token) {
+            'Solicitar implementación',
+            'La solicitud no activa el servicio ni genera',
+            'cargos. LAUDA revisará el alcance antes de',
+            'Definition funcional presentada',
+            'No contiene precios',
+        ] as $required) {
             $this->assertStringContainsString(
-                $token,
+                $required,
                 $page
             );
         }
 
         foreach ([
-            'router.post(',
-            'axios.post(',
-            'Activar',
-            'Contratar',
-            'checkout',
-            'Subscription',
-            'selected_modality',
-            'recommended_modality',
+            'Se define y cotiza en',
+            'Ver Plan de Implementación',
+            'Ver Roadmap Detallado',
+            'Aceptar precio',
+            'Comprar ahora',
+            'Pagar ahora',
+            'Activar servicio ahora',
+            'Crear suscripción',
         ] as $forbidden) {
             $this->assertStringNotContainsString(
                 $forbidden,
