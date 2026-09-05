@@ -17,7 +17,7 @@ export const navigationByRole = {
             {
                 title: 'Datos e Inteligencia BI',
                 href: '/admin/transformation-360/data-bi',
-                icon: 'Boxes',
+                icon: 'Database',
             },
             {
                 title: 'Evaluaciones de Branding',
@@ -50,7 +50,7 @@ export const navigationByRole = {
             {
                 title: 'Transformación e Inteligencia de Datos para BI',
                 href: '/app/transformacion-360/datos-bi',
-                icon: 'Layers',
+                icon: 'Database',
             },
             { title: 'Usuarios', href: '/subscriber/users', icon: 'Users' },
             {
