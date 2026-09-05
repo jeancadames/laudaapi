@@ -10,6 +10,16 @@ export const navigationByRole = {
                 icon: 'Contact',
             },
             {
+                title: 'Transformación 360',
+                href: '/admin/transformation-360',
+                icon: 'Layers',
+            },
+            {
+                title: 'Datos e Inteligencia BI',
+                href: '/admin/transformation-360/data-bi',
+                icon: 'Boxes',
+            },
+            {
                 title: 'Evaluaciones de Branding',
                 href: '/admin/branding-evaluations',
                 icon: 'Contact',

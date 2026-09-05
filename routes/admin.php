@@ -232,6 +232,37 @@ Route::middleware(['auth', 'verified', 'role:admin'])
 
         /*
         |--------------------------------------------------------------------------
+        | Transformación 360 · Supervisor funcional
+        |--------------------------------------------------------------------------
+        |
+        | Superficie administrativa transversal.
+        | Termina en Definición de Implementación.
+        |
+        */
+
+        \Illuminate\Support\Facades\Route::get(
+            '/transformation-360',
+            [
+                \App\Http\Controllers\Admin\AdminTransformation360OverviewController::class,
+                'index'
+            ]
+        )->name(
+            'transformation360.index'
+        );
+
+        \Illuminate\Support\Facades\Route::get(
+            '/transformation-360/data-bi',
+            [
+                \App\Http\Controllers\Admin\AdminTransformation360OverviewController::class,
+                'dataBi'
+            ]
+        )->name(
+            'transformation360.data_bi'
+        );
+
+
+        /*
+        |--------------------------------------------------------------------------
         | Transformación 360 · Matriz comercial de implementación
         |--------------------------------------------------------------------------
         |
