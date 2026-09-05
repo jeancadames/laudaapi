@@ -131,7 +131,7 @@ class TransformationProfessionalCapabilityCatalog
                     'implementation_only',
 
                 'purpose' =>
-                    'Preparar, organizar, transformar y estructurar los datos del tenant para convertirlos en una base analítica confiable y reutilizable por BI y por las capacidades operativas e inteligentes de LAUDA.',
+                    'Preparar, organizar, transformar y estructurar los datos de la empresa para convertirlos en una base analítica confiable y reutilizable por BI y por las capacidades operativas e inteligentes de LAUDA.',
 
                 'includes' => [
                     'Maestro, calidad, comportamiento histórico, segmentación e industria de clientes.',

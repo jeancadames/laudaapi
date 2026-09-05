@@ -3,7 +3,6 @@ import AppLayout from '@/layouts/AppLayout.vue';
 import { Head, Link } from '@inertiajs/vue3';
 import {
     ArrowLeft,
-    ArrowUpRight,
     CheckCircle2,
     Database,
     Layers3,
@@ -386,23 +385,7 @@ const priorityLabel = computed(() => {
                             </p>
                         </div>
 
-                        <Link
-                            v-if="capability.plan_url"
-                            :href="capability.plan_url"
-                            class="inline-flex h-11 w-full items-center justify-center gap-2 rounded-xl bg-slate-950 px-4 text-sm font-bold text-white transition hover:bg-slate-800 dark:bg-white dark:text-slate-950 dark:hover:bg-slate-200"
-                        >
-                            Ver Plan de Implementación
-                            <ArrowUpRight class="h-4 w-4" />
-                        </Link>
 
-                        <Link
-                            v-if="capability.roadmap_url"
-                            :href="capability.roadmap_url"
-                            class="inline-flex h-11 w-full items-center justify-center gap-2 rounded-xl border border-slate-200 px-4 text-sm font-bold text-slate-800 transition hover:bg-slate-50 dark:border-slate-800 dark:text-slate-100 dark:hover:bg-slate-900"
-                        >
-                            Ver Roadmap Detallado
-                            <ArrowUpRight class="h-4 w-4" />
-                        </Link>
                     </aside>
                 </div>
             </section>

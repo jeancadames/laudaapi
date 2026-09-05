@@ -197,8 +197,7 @@ function definitionLabel(row: Row): string {
                     </CardTitle>
 
                     <CardDescription>
-                        Solo aparecen Planes que contienen la capacidad
-                        data_transformation_bi.
+                        Solo aparecen Planes que incluyen la capacidad de Datos e Inteligencia BI.
                     </CardDescription>
                 </CardHeader>
 
