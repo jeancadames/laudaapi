@@ -345,7 +345,7 @@ const priorityLabel = computed(() => {
 
                     <aside class="space-y-4">
                         <div
-                            class="rounded-2xl border border-slate-200/70 bg-slate-50/50 p-5 dark:border-slate-800 dark:bg-slate-900/20"
+                            class="flex w-full flex-col items-start gap-2.5 rounded-2xl border border-slate-200/70 bg-slate-50/50 p-5 dark:border-slate-800 dark:bg-slate-900/20"
                         >
                             <p
                                 class="text-[10px] font-black tracking-widest text-slate-400 uppercase"
@@ -359,7 +359,7 @@ const priorityLabel = computed(() => {
                                 "
                             >
                                 <p
-                                    class="mt-2 text-base font-black text-slate-950 dark:text-white"
+                                    class="text-left text-base font-black leading-6 text-slate-950 dark:text-white"
                                 >
                                     Recomendado en tu Plan de
                                     Implementación
@@ -367,7 +367,7 @@ const priorityLabel = computed(() => {
 
                                 <p
                                     v-if="capability.phase_name"
-                                    class="mt-2 text-sm font-bold text-blue-700 dark:text-blue-300"
+                                    class="text-left text-sm font-bold leading-5 text-blue-700 dark:text-blue-300"
                                 >
                                     {{
                                         capability.phase_name
