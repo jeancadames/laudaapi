@@ -60,13 +60,376 @@ final class AdminTransformation360OverviewController extends Controller
 
     public function dataBi(): Response
     {
-        $rows = $this
-            ->buildRows()
-            ->filter(
-                fn (array $row): bool =>
-                    $row['bi_present'] === true
-            )
-            ->values();
+        /*
+         * Supervisor BI request-aware.
+         *
+         * El Plan identifica las empresas cuya planificación incluye
+         * data_transformation_bi.
+         *
+         * El ciclo funcional comienza exclusivamente mediante una
+         * TransformationImplementationRequest explícita del tenant.
+         *
+         * Esta vista no expone la vía legacy Plan -> Definition.
+         */
+        $baseRows =
+            $this
+                ->buildRows()
+                ->filter(
+                    fn (array $row): bool =>
+                        $row['bi_present'] === true
+                )
+                ->values();
+
+        $assessmentIds =
+            $baseRows
+                ->pluck('assessment_id')
+                ->map(
+                    fn ($value): int =>
+                        (int) $value
+                )
+                ->filter()
+                ->unique()
+                ->values();
+
+        $planIds =
+            $baseRows
+                ->pluck('plan.id')
+                ->filter(
+                    fn ($value): bool =>
+                        $value !== null
+                )
+                ->map(
+                    fn ($value): int =>
+                        (int) $value
+                )
+                ->filter()
+                ->unique()
+                ->values();
+
+        $requestsByScope =
+            collect();
+
+        if (
+            $assessmentIds->isNotEmpty()
+            && $planIds->isNotEmpty()
+        ) {
+            $requestsByScope =
+                \App\Models\TransformationImplementationRequest::query()
+                    ->where(
+                        'capability_key',
+                        'data_transformation_bi'
+                    )
+                    ->whereIn(
+                        'diagnosis_assessment_id',
+                        $assessmentIds
+                    )
+                    ->whereIn(
+                        'transformation_implementation_plan_id',
+                        $planIds
+                    )
+                    ->orderByDesc('attempt')
+                    ->orderByDesc('id')
+                    ->get()
+                    ->groupBy(
+                        fn (
+                            \App\Models\TransformationImplementationRequest $implementationRequest
+                        ): string =>
+                            (int) $implementationRequest
+                                ->diagnosis_assessment_id
+                            .':'
+                            .(int) $implementationRequest
+                                ->transformation_implementation_plan_id
+                    )
+                    ->map(
+                        fn ($group) =>
+                            $group->first()
+                    );
+        }
+
+        $requestIds =
+            $requestsByScope
+                ->map(
+                    fn (
+                        \App\Models\TransformationImplementationRequest $implementationRequest
+                    ): int =>
+                        (int) $implementationRequest->id
+                )
+                ->filter()
+                ->values();
+
+        $definitionsByRequest =
+            collect();
+
+        $eventsByRequest =
+            collect();
+
+        if ($requestIds->isNotEmpty()) {
+            /*
+             * Solo Definitions request-scoped y bloqueadas a la
+             * capacidad concreta de la solicitud.
+             */
+            $definitionsByRequest =
+                \App\Models\TransformationImplementationDefinition::query()
+                    ->whereIn(
+                        'transformation_implementation_request_id',
+                        $requestIds
+                    )
+                    ->orderByDesc('version')
+                    ->orderByDesc('id')
+                    ->get()
+                    ->filter(
+                        fn (
+                            \App\Models\TransformationImplementationDefinition $definition
+                        ): bool =>
+                            data_get(
+                                $definition->source_snapshot,
+                                'source_type'
+                            ) === 'implementation_request'
+                            && data_get(
+                                $definition->implementation_scope,
+                                'scope_mode'
+                            ) === 'single_capability'
+                            && data_get(
+                                $definition->implementation_scope,
+                                'definition_scope_locked_to_request'
+                            ) === true
+                    )
+                    ->groupBy(
+                        'transformation_implementation_request_id'
+                    );
+
+            /*
+             * Tras el acuerdo, la versión fijada por el evento
+             * específico es la fuente de verdad; no "latest wins".
+             */
+            $eventsByRequest =
+                \App\Models\TransformationImplementationRequestEvent::query()
+                    ->whereIn(
+                        'transformation_implementation_request_id',
+                        $requestIds
+                    )
+                    ->whereIn(
+                        'event_type',
+                        [
+                            'definition_agreed_by_tenant',
+                            'request_ready_for_commercial_by_lauda',
+                        ]
+                    )
+                    ->orderByDesc('id')
+                    ->get()
+                    ->groupBy(
+                        'transformation_implementation_request_id'
+                    );
+        }
+
+        $requestStatusLabel =
+            static function (?string $status): string {
+                return match ($status) {
+                    'requested' =>
+                        'Solicitud recibida',
+
+                    'under_lauda_review' =>
+                        'En revisión por LAUDA',
+
+                    'definition_preparation' =>
+                        'Definición en preparación',
+
+                    'awaiting_tenant_review' =>
+                        'Esperando revisión de la empresa',
+
+                    'changes_requested' =>
+                        'Ajustes solicitados',
+
+                    'definition_agreed' =>
+                        'Definición acordada',
+
+                    'ready_for_commercial' =>
+                        'Lista para etapa comercial',
+
+                    'cancelled' =>
+                        'Solicitud cancelada',
+
+                    default =>
+                        'Sin solicitud',
+                };
+            };
+
+        $rows =
+            $baseRows
+                ->map(
+                    function (array $row) use (
+                        $requestsByScope,
+                        $definitionsByRequest,
+                        $eventsByRequest,
+                        $requestStatusLabel
+                    ): array {
+                        $assessmentId =
+                            (int) (
+                                $row['assessment_id']
+                                ?? 0
+                            );
+
+                        $planId =
+                            (int) data_get(
+                                $row,
+                                'plan.id',
+                                0
+                            );
+
+                        $scopeKey =
+                            $assessmentId
+                            .':'
+                            .$planId;
+
+                        /** @var \App\Models\TransformationImplementationRequest|null $implementationRequest */
+                        $implementationRequest =
+                            $requestsByScope->get(
+                                $scopeKey
+                            );
+
+                        $definition =
+                            null;
+
+                        if ($implementationRequest) {
+                            $definitionCandidates =
+                                collect(
+                                    $definitionsByRequest->get(
+                                        $implementationRequest->id,
+                                        collect()
+                                    )
+                                );
+
+                            $status =
+                                (string) $implementationRequest->status;
+
+                            if (
+                                in_array(
+                                    $status,
+                                    [
+                                        'definition_agreed',
+                                        'ready_for_commercial',
+                                    ],
+                                    true
+                                )
+                            ) {
+                                $eventType =
+                                    $status === 'ready_for_commercial'
+                                        ? 'request_ready_for_commercial_by_lauda'
+                                        : 'definition_agreed_by_tenant';
+
+                                $event =
+                                    collect(
+                                        $eventsByRequest->get(
+                                            $implementationRequest->id,
+                                            collect()
+                                        )
+                                    )->first(
+                                        fn (
+                                            \App\Models\TransformationImplementationRequestEvent $event
+                                        ): bool =>
+                                            $event->event_type
+                                            === $eventType
+                                    );
+
+                                if ($event) {
+                                    $metadata =
+                                        is_array(
+                                            $event->metadata
+                                        )
+                                            ? $event->metadata
+                                            : (
+                                                json_decode(
+                                                    (string) $event->metadata,
+                                                    true
+                                                )
+                                                ?: []
+                                            );
+
+                                    $definitionId =
+                                        (int) (
+                                            $metadata['definition_id']
+                                            ?? 0
+                                        );
+
+                                    $definitionVersion =
+                                        (int) (
+                                            $metadata['definition_version']
+                                            ?? 0
+                                        );
+
+                                    $definition =
+                                        $definitionCandidates
+                                            ->first(
+                                                fn (
+                                                    \App\Models\TransformationImplementationDefinition $candidate
+                                                ): bool =>
+                                                    (int) $candidate->id
+                                                        === $definitionId
+                                                    && (int) $candidate->version
+                                                        === $definitionVersion
+                                            );
+                                }
+                            } else {
+                                /*
+                                 * Antes del acuerdo corresponde la
+                                 * Definition request-scoped más reciente.
+                                 */
+                                $definition =
+                                    $definitionCandidates
+                                        ->first();
+                            }
+                        }
+
+                        $row['implementation_request'] =
+                            $implementationRequest
+                                ? [
+                                    'id' =>
+                                        (int) $implementationRequest->id,
+
+                                    'status' =>
+                                        (string) $implementationRequest->status,
+
+                                    'status_label' =>
+                                        $requestStatusLabel(
+                                            (string) $implementationRequest->status
+                                        ),
+
+                                    'detail_url' =>
+                                        route(
+                                            'admin.transformation360.implementation_requests.show',
+                                            [
+                                                'implementationRequest' =>
+                                                    $implementationRequest->id,
+                                            ],
+                                            false
+                                        ),
+                                ]
+                                : null;
+
+                        $row['definition'] =
+                            $definition
+                                ? [
+                                    'id' =>
+                                        (int) $definition->id,
+
+                                    'version' =>
+                                        (int) $definition->version,
+
+                                    'status' =>
+                                        (string) $definition->status,
+                                ]
+                                : null;
+
+                        /*
+                         * Cuarentena explícita de la navegación legacy.
+                         */
+                        $row['urls']['definition'] =
+                            null;
+
+                        return $row;
+                    }
+                )
+                ->values();
 
         $catalog =
             TransformationProfessionalCapabilityCatalog::get(
@@ -76,27 +439,45 @@ final class AdminTransformation360OverviewController extends Controller
         return Inertia::render(
             'Admin/Transformation360/DataBi',
             [
-                'rows' => $rows,
+                'rows' =>
+                    $rows,
 
                 'stats' => [
-                    'total' => $rows->count(),
+                    'total' =>
+                        $rows->count(),
 
-                    'with_definition' => $rows
-                        ->filter(
-                            fn (array $row): bool =>
-                                $row['definition'] !== null
-                        )
-                        ->count(),
+                    'active_requests' =>
+                        $rows
+                            ->filter(
+                                fn (array $row): bool =>
+                                    data_get(
+                                        $row,
+                                        'implementation_request.id'
+                                    ) !== null
+                                    && ! in_array(
+                                        data_get(
+                                            $row,
+                                            'implementation_request.status'
+                                        ),
+                                        [
+                                            'ready_for_commercial',
+                                            'cancelled',
+                                        ],
+                                        true
+                                    )
+                            )
+                            ->count(),
 
-                    'ready' => $rows
-                        ->filter(
-                            fn (array $row): bool =>
-                                data_get(
-                                    $row,
-                                    'definition.status'
-                                ) === 'ready'
-                        )
-                        ->count(),
+                    'ready' =>
+                        $rows
+                            ->filter(
+                                fn (array $row): bool =>
+                                    data_get(
+                                        $row,
+                                        'definition.status'
+                                    ) === 'ready'
+                            )
+                            ->count(),
                 ],
 
                 'capability' => [
@@ -116,7 +497,7 @@ final class AdminTransformation360OverviewController extends Controller
                         ?? $catalog['includes']
                         ?? [],
                 ],
-            ],
+            ]
         );
     }
 

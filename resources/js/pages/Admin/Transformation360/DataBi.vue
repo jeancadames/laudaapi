@@ -25,6 +25,12 @@ type Row = {
         version: number;
         status: string;
     } | null;
+    implementation_request: {
+        id: number;
+        status: string;
+        status_label: string;
+        detail_url: string;
+    } | null;
     definition: {
         id: number;
         version: number;
@@ -34,7 +40,6 @@ type Row = {
     urls: {
         diagnosis: string;
         implementation_plan: string;
-        definition: string | null;
     };
 };
 
@@ -42,7 +47,7 @@ const props = defineProps<{
     rows: Row[];
     stats: {
         total: number;
-        with_definition: number;
+        active_requests: number;
         ready: number;
     };
     capability: {
@@ -70,7 +75,7 @@ const breadcrumbs: BreadcrumbItem[] = [
 
 function definitionLabel(row: Row): string {
     if (!row.definition) {
-        return 'Sin Definición';
+        return 'Sin Definición aún';
     }
 
     return {
@@ -130,7 +135,7 @@ function definitionLabel(row: Row): string {
                 <Card>
                     <CardHeader class="pb-2">
                         <CardDescription>
-                            Empresas con BI
+                            Empresas con BI en Plan
                         </CardDescription>
                         <CardTitle class="text-3xl">
                             {{ props.stats.total }}
@@ -141,10 +146,10 @@ function definitionLabel(row: Row): string {
                 <Card>
                     <CardHeader class="pb-2">
                         <CardDescription>
-                            Con Definición
+                            Solicitudes activas
                         </CardDescription>
                         <CardTitle class="text-3xl">
-                            {{ props.stats.with_definition }}
+                            {{ props.stats.active_requests }}
                         </CardTitle>
                     </CardHeader>
                 </Card>
@@ -152,7 +157,7 @@ function definitionLabel(row: Row): string {
                 <Card>
                     <CardHeader class="pb-2">
                         <CardDescription>
-                            Definición lista
+                            Definitions listas
                         </CardDescription>
                         <CardTitle class="text-3xl">
                             {{ props.stats.ready }}
@@ -234,6 +239,17 @@ function definitionLabel(row: Row): string {
                                         </Badge>
 
                                         <Badge variant="outline">
+                                            {{
+                                                row.implementation_request
+                                                    ?.status_label
+                                                    ?? 'Sin solicitud'
+                                            }}
+                                        </Badge>
+
+                                        <Badge
+                                            v-if="row.implementation_request"
+                                            variant="outline"
+                                        >
                                             {{ definitionLabel(row) }}
                                         </Badge>
                                     </div>
@@ -280,15 +296,27 @@ function definitionLabel(row: Row): string {
                                     </Button>
 
                                     <Button
-                                        v-if="row.urls.definition"
+                                        v-if="row.implementation_request"
                                         as-child
                                         size="sm"
                                     >
                                         <Link
-                                            :href="row.urls.definition"
+                                            :href="
+                                                row.implementation_request
+                                                    .detail_url
+                                            "
                                         >
-                                            Definición
+                                            Solicitud
                                         </Link>
+                                    </Button>
+
+                                    <Button
+                                        v-else
+                                        size="sm"
+                                        variant="secondary"
+                                        disabled
+                                    >
+                                        Esperando solicitud
                                     </Button>
                                 </div>
                             </div>
