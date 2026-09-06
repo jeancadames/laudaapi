@@ -235,14 +235,14 @@ function definitionLabel(row: Row): string {
                                         </h2>
 
                                         <Badge variant="secondary">
-                                            {{ row.current_stage }}
+                                            BI incluido en Plan
                                         </Badge>
 
                                         <Badge variant="outline">
                                             {{
                                                 row.implementation_request
                                                     ?.status_label
-                                                    ?? 'Sin solicitud'
+                                                    ?? 'Sin solicitud BI'
                                             }}
                                         </Badge>
 
@@ -266,7 +266,7 @@ function definitionLabel(row: Row): string {
                                         v-if="row.plan"
                                         class="mt-2 text-xs text-muted-foreground"
                                     >
-                                        Plan V{{ row.plan.version }}
+                                        Plan 360 V{{ row.plan.version }}
                                         ·
                                         {{ row.plan.status }}
                                     </p>
@@ -279,7 +279,7 @@ function definitionLabel(row: Row): string {
                                         variant="outline"
                                     >
                                         <Link :href="row.urls.diagnosis">
-                                            Diagnóstico
+                                            Ver Diagnóstico 360
                                         </Link>
                                     </Button>
 
@@ -291,7 +291,7 @@ function definitionLabel(row: Row): string {
                                         <Link
                                             :href="row.urls.implementation_plan"
                                         >
-                                            Plan
+                                            Ver Plan 360 completo
                                         </Link>
                                     </Button>
 
@@ -306,7 +306,7 @@ function definitionLabel(row: Row): string {
                                                     .detail_url
                                             "
                                         >
-                                            Solicitud
+                                            Ver solicitud BI
                                         </Link>
                                     </Button>
 
@@ -316,7 +316,7 @@ function definitionLabel(row: Row): string {
                                         variant="secondary"
                                         disabled
                                     >
-                                        Esperando solicitud
+                                        Esperando solicitud de BI
                                     </Button>
                                 </div>
                             </div>
