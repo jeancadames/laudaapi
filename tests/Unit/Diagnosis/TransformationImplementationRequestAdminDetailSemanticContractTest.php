@@ -21,9 +21,15 @@ it('presents implementation request administrative detail without internal stage
         ->toContain(
             'inician implementación, contratación, facturación o'
         )
+        ->toContain('Alcance de la capacidad solicitada')
         ->toContain(
-            'Esta solicitud no tiene acciones administrativas disponibles'
+            'No hay cambios de estado administrativos disponibles en este'
         )
+        ->toContain(
+            'momento. El siguiente paso se gestiona desde la'
+        )
+        ->toContain('Definición funcional')
+        ->not->toContain('Alcance de la capability solicitada')
         ->toContain('Recibir e iniciar revisión')
         ->toContain('Iniciar preparación de definición')
         ->not->toContain("· {{ assessment.status ?? '—' }}")

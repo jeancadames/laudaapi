@@ -1017,8 +1017,9 @@ function markRequestReadyForCommercial(): void {
                         v-else
                         class="rounded-[2rem] border border-slate-200/70 bg-slate-50 p-5 text-sm leading-6 text-slate-500 dark:border-slate-800 dark:bg-slate-900/30"
                     >
-                        Esta solicitud no tiene acciones administrativas disponibles
-                        en su estado actual.
+                        No hay cambios de estado administrativos disponibles en este
+                        momento. El siguiente paso se gestiona desde la
+                        Definición funcional.
                     </section>
                 </aside>
             </div>
@@ -1131,7 +1132,7 @@ function markRequestReadyForCommercial(): void {
                         </p>
 
                         <h2 class="mt-2 text-lg font-bold">
-                            Alcance de la capability solicitada
+                            Alcance de la capacidad solicitada
                         </h2>
 
                         <template v-if="props.definition">
