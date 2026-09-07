@@ -1271,7 +1271,7 @@ final class TransformationImplementationDefinitionAutogenerator
                     'El alcance funcional debe ser confirmado por LAUDA.',
 
                 'resolution' =>
-                    'Revisar y confirmar el alcance de la capability solicitada.',
+                    'Revisar y confirmar el alcance de la capacidad solicitada.',
             ],
 
             [
@@ -1282,7 +1282,7 @@ final class TransformationImplementationDefinitionAutogenerator
                     'Los insumos y accesos todavía no han sido validados.',
 
                 'resolution' =>
-                    'Validar los insumos y accesos necesarios para esta capability.',
+                    'Validar los insumos y accesos necesarios para esta capacidad.',
             ],
 
             [
@@ -1305,10 +1305,10 @@ final class TransformationImplementationDefinitionAutogenerator
                     'scope_missing',
 
                 'message' =>
-                    'La capability solicitada no tiene alcance funcional suficiente.',
+                    'La capacidad solicitada no tiene alcance funcional suficiente.',
 
                 'resolution' =>
-                    'Completar el alcance funcional de la capability solicitada.',
+                    'Completar el alcance funcional de la capacidad solicitada.',
             ];
         }
 
@@ -1320,10 +1320,10 @@ final class TransformationImplementationDefinitionAutogenerator
                     'deliverables_missing',
 
                 'message' =>
-                    'La capability solicitada no tiene entregables funcionales preparados.',
+                    'La capacidad solicitada no tiene entregables funcionales preparados.',
 
                 'resolution' =>
-                    'Definir los entregables técnicos o funcionales de esta capability.',
+                    'Definir los entregables técnicos o funcionales de esta capacidad.',
             ];
         }
 

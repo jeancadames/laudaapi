@@ -145,6 +145,20 @@ class TransformationProfessionalCapabilityCatalog
                     'Preparación de datos reutilizables para BI, CRM, pricing, inventario, compras, CxC, planificación y alertas.',
                 ],
 
+                /*
+                 * Prerrequisitos funcionales propios de esta capability.
+                 *
+                 * No representan dependencias generales del Plan 360
+                 * ni activan ejecución. Se validan durante la Definition.
+                 */
+                'dependencies' => [
+                    'Fuentes de datos necesarias para el alcance identificadas y disponibles para evaluación.',
+                    'Acceso autorizado o mecanismo acordado de extracción o entrega para las fuentes requeridas.',
+                    'Responsables o propietarios de datos identificados para validar definiciones, calidad y reglas de negocio.',
+                    'Históricos y granularidad requeridos disponibles según los indicadores y análisis acordados.',
+                    'Reglas de negocio, catálogos y criterios de calidad necesarios para interpretar, relacionar y validar los datos.',
+                ],
+
                 'excludes' => [
                     'Ejecución gratuita de ETL o pipelines de datos.',
                     'Transformación masiva o limpieza productiva de datos durante el ciclo gratuito LAUDA 360.',
