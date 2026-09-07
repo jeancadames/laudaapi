@@ -438,7 +438,13 @@ final class AdminTransformationImplementationRequestController
 
                         'event_label' =>
                             $this->eventLabel(
-                                (string) $event->event_type
+                                (string) $event->event_type,
+                                $event->from_status
+                                    ? (string) $event->from_status
+                                    : null,
+                                $event->to_status
+                                    ? (string) $event->to_status
+                                    : null
                             ),
 
                         'from_status' =>
@@ -2059,24 +2065,92 @@ final class AdminTransformationImplementationRequestController
     }
 
     private function eventLabel(
-        string $eventType
+        string $eventType,
+        ?string $fromStatus = null,
+        ?string $toStatus = null
     ): string {
+        if ($eventType === 'status_transition') {
+            return $this->statusTransitionEventLabel(
+                $fromStatus,
+                $toStatus
+            );
+        }
+
         return match ($eventType) {
             'request_created' =>
                 'Solicitud creada',
 
-            'status_transitioned' =>
-                'Estado actualizado',
-
             'request_assigned' =>
                 'Responsable asignado',
 
+            'definition_agreed_by_tenant' =>
+                'Acuerdo de Definición registrado',
+
+            'definition_functionally_finalized_by_lauda' =>
+                'Definición finalizada funcionalmente por LAUDA',
+
+            'request_ready_for_commercial_by_lauda' =>
+                'Solicitud lista para etapa comercial',
+
             default =>
-                str_replace(
-                    '_',
-                    ' ',
-                    $eventType
-                ),
+                'Actualización de la solicitud',
+        };
+    }
+
+    private function statusTransitionEventLabel(
+        ?string $fromStatus,
+        ?string $toStatus
+    ): string {
+        if (
+            $toStatus
+                === TransformationImplementationRequestContract::STATUS_CANCELLED
+        ) {
+            return 'Solicitud cancelada';
+        }
+
+        $transition =
+            ($fromStatus ?? '')
+            .'|'
+            .($toStatus ?? '');
+
+        return match ($transition) {
+            TransformationImplementationRequestContract::STATUS_REQUESTED
+                .'|'
+                .TransformationImplementationRequestContract::STATUS_UNDER_LAUDA_REVIEW =>
+                    'Revisión iniciada por LAUDA',
+
+            TransformationImplementationRequestContract::STATUS_UNDER_LAUDA_REVIEW
+                .'|'
+                .TransformationImplementationRequestContract::STATUS_DEFINITION_PREPARATION =>
+                    'Preparación de definición iniciada',
+
+            TransformationImplementationRequestContract::STATUS_DEFINITION_PREPARATION
+                .'|'
+                .TransformationImplementationRequestContract::STATUS_AWAITING_TENANT_REVIEW =>
+                    'Definición enviada a revisión de la empresa',
+
+            TransformationImplementationRequestContract::STATUS_AWAITING_TENANT_REVIEW
+                .'|'
+                .TransformationImplementationRequestContract::STATUS_CHANGES_REQUESTED =>
+                    'Ajustes solicitados por la empresa',
+
+            TransformationImplementationRequestContract::STATUS_CHANGES_REQUESTED
+                .'|'
+                .TransformationImplementationRequestContract::STATUS_DEFINITION_PREPARATION =>
+                    'Preparación de ajustes iniciada',
+
+            TransformationImplementationRequestContract::STATUS_AWAITING_TENANT_REVIEW
+                .'|'
+                .TransformationImplementationRequestContract::STATUS_DEFINITION_AGREED =>
+                    'Definición acordada por la empresa',
+
+            TransformationImplementationRequestContract::STATUS_DEFINITION_AGREED
+                .'|'
+                .TransformationImplementationRequestContract::STATUS_READY_FOR_COMMERCIAL =>
+                    'Solicitud lista para etapa comercial',
+
+            default =>
+                'Estado actualizado',
         };
     }
 
