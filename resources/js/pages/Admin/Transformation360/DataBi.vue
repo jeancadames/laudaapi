@@ -144,7 +144,7 @@ function planStatusLabel(status: string): string {
                 <Card>
                     <CardHeader class="pb-2">
                         <CardDescription>
-                            Empresas con BI en Plan
+                            Empresas con BI recomendado en Plan 360
                         </CardDescription>
                         <CardTitle class="text-3xl">
                             {{ props.stats.total }}
@@ -207,11 +207,11 @@ function planStatusLabel(status: string): string {
             <Card>
                 <CardHeader>
                     <CardTitle>
-                        Empresas con Datos BI en su Plan
+                        Empresas con BI recomendado en Plan 360
                     </CardTitle>
 
                     <CardDescription>
-                        Solo aparecen Planes que incluyen la capacidad de Datos e Inteligencia BI.
+                        Solo aparecen empresas cuyo Plan 360 recomienda la capacidad de Datos e Inteligencia BI.
                     </CardDescription>
                 </CardHeader>
 
