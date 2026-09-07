@@ -494,9 +494,12 @@ final class AdminTransformationImplementationRequestController
                                 : null,
 
                         'notes' =>
-                            $event->notes
-                                ? (string) $event->notes
-                                : null,
+                            $this->eventNotesLabel(
+                                (string) $event->event_type,
+                                $event->notes
+                                    ? (string) $event->notes
+                                    : null
+                            ),
 
                         'occurred_at' =>
                             $event->occurred_at
@@ -2083,6 +2086,9 @@ final class AdminTransformationImplementationRequestController
             'request_assigned' =>
                 'Responsable asignado',
 
+            'definition_created' =>
+                'Borrador funcional creado',
+
             'definition_agreed_by_tenant' =>
                 'Acuerdo de Definición registrado',
 
@@ -2095,6 +2101,25 @@ final class AdminTransformationImplementationRequestController
             default =>
                 'Actualización de la solicitud',
         };
+    }
+
+    private function eventNotesLabel(
+        string $eventType,
+        ?string $notes
+    ): ?string {
+        if ($notes === null) {
+            return null;
+        }
+
+        if (
+            $eventType === 'definition_created'
+            && trim($notes)
+                === 'LAUDA creó la Definition funcional inicial para la capability solicitada.'
+        ) {
+            return 'LAUDA creó el borrador funcional inicial de la Definición para la capacidad solicitada.';
+        }
+
+        return $notes;
     }
 
     private function statusTransitionEventLabel(

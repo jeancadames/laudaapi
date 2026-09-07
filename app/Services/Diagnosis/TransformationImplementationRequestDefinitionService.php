@@ -256,7 +256,7 @@ final class TransformationImplementationRequestDefinitionService
                             $actor->id,
 
                         'notes' =>
-                            'LAUDA creó la Definition funcional inicial para la capability solicitada.',
+                            'LAUDA creó el borrador funcional inicial de la Definición para la capacidad solicitada.',
 
                         'metadata' => [
                             'definition_id' =>
