@@ -205,6 +205,55 @@ const transitionNotes = ref('');
 const assigning = ref(false);
 const transitioning = ref(false);
 
+function assessmentStatusLabel(
+    status: string | null | undefined,
+): string {
+    if (!status) {
+        return '—';
+    }
+
+    const labels: Record<string, string> = {
+        draft: 'Borrador',
+        in_progress: 'En progreso',
+        submitted: 'Enviado',
+        reviewed: 'Revisado',
+        inactive: 'Inactivo',
+    };
+
+    return labels[status] ?? status;
+}
+
+function phaseDisplayLabel(
+    sequence: number | string | null | undefined,
+    name: string | null | undefined,
+): string {
+    const normalizedName = name?.trim() ?? '';
+
+    if (
+        sequence === null
+        || sequence === undefined
+        || sequence === ''
+    ) {
+        return normalizedName || 'No disponible';
+    }
+
+    const prefix = `Fase ${sequence}`;
+
+    if (!normalizedName) {
+        return prefix;
+    }
+
+    if (
+        normalizedName
+            .toLocaleLowerCase()
+            .startsWith(prefix.toLocaleLowerCase())
+    ) {
+        return normalizedName;
+    }
+
+    return `${prefix} · ${normalizedName}`;
+}
+
 function assignResponsible(): void {
     if (
         !props.actions.can_mutate
@@ -717,7 +766,7 @@ function markRequestReadyForCommercial(): void {
                                 </p>
                                 <p class="mt-1 text-sm font-bold">
                                     #{{ assessment.id }}
-                                    · {{ assessment.status ?? '—' }}
+                                    · {{ assessmentStatusLabel(assessment.status) }}
                                 </p>
                             </div>
 
@@ -744,10 +793,7 @@ function markRequestReadyForCommercial(): void {
                                     Fase
                                 </p>
                                 <p class="mt-1 text-sm font-bold">
-                                    <template v-if="phase.sequence">
-                                        Fase {{ phase.sequence }} ·
-                                    </template>
-                                    {{ phase.name ?? 'No disponible' }}
+                                    {{ phaseDisplayLabel(phase.sequence, phase.name) }}
                                 </p>
                             </div>
                         </div>
@@ -960,9 +1006,10 @@ function markRequestReadyForCommercial(): void {
                         </button>
 
                         <div class="mt-4 rounded-xl border border-blue-200 bg-white/70 p-4 text-xs leading-5 text-slate-600 dark:border-blue-900 dark:bg-slate-950/40 dark:text-slate-400">
-                            “Preparación de definición” solo cambia el estado
-                            operativo de la solicitud. No crea todavía una
-                            Definition. Esa vinculación pertenece a F5.
+                            Los cambios de estado de esta etapa corresponden a revisión
+                            funcional. Por sí solos no crean una Definición ni
+                            inician implementación, contratación, facturación o
+                            suscripciones.
                         </div>
                     </section>
 
@@ -970,8 +1017,8 @@ function markRequestReadyForCommercial(): void {
                         v-else
                         class="rounded-[2rem] border border-slate-200/70 bg-slate-50 p-5 text-sm leading-6 text-slate-500 dark:border-slate-800 dark:bg-slate-900/30"
                     >
-                        Esta solicitud no tiene una transición administrativa
-                        habilitada en F4C.
+                        Esta solicitud no tiene acciones administrativas disponibles
+                        en su estado actual.
                     </section>
                 </aside>
             </div>
