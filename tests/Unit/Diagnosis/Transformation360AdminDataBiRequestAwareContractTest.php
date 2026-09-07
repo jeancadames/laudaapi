@@ -48,7 +48,7 @@ final class Transformation360AdminDataBiRequestAwareContractTest
             'implementation_request:',
             'Empresas con BI en Plan',
             'Solicitudes activas',
-            'Incluido en Plan 360',
+            'Recomendado en Plan 360',
             'Sin solicitud BI',
             'Ver Diagnóstico 360',
             'Ver Plan 360 completo',

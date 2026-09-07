@@ -244,7 +244,7 @@ function planStatusLabel(status: string): string {
                                         </h2>
 
                                         <Badge variant="secondary">
-                                            Incluido en Plan 360
+                                            Recomendado en Plan 360
                                         </Badge>
 
                                         <Badge variant="outline">
