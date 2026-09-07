@@ -223,6 +223,23 @@ function assessmentStatusLabel(
     return labels[status] ?? status;
 }
 
+function definitionStatusLabel(
+    status: string | null | undefined,
+): string {
+    if (!status) {
+        return '—';
+    }
+
+    const labels: Record<string, string> = {
+        draft: 'Borrador',
+        prepared_for_review: 'Preparada para revisión',
+        under_review: 'En revisión',
+        ready: 'Lista',
+    };
+
+    return labels[status] ?? status;
+}
+
 function phaseDisplayLabel(
     sequence: number | string | null | undefined,
     name: string | null | undefined,
@@ -1128,7 +1145,7 @@ function markRequestReadyForCommercial(): void {
                         <p
                             class="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground"
                         >
-                            Definition funcional
+                            Definición funcional
                         </p>
 
                         <h2 class="mt-2 text-lg font-bold">
@@ -1137,14 +1154,14 @@ function markRequestReadyForCommercial(): void {
 
                         <template v-if="props.definition">
                             <p class="mt-2 text-sm leading-6 text-muted-foreground">
-                                Ya existe la Definition V{{ props.definition.version }}
+                                Ya existe la Definición V{{ props.definition.version }}
                                 para
                                 <span class="font-semibold">
-                                    {{ props.definition.capability_key }}
+                                    {{ capability.label }}
                                 </span>.
                                 Estado:
                                 <span class="font-semibold">
-                                    {{ props.definition.status }}
+                                    {{ definitionStatusLabel(props.definition.status) }}
                                 </span>.
                             </p>
                         </template>
@@ -1153,13 +1170,13 @@ function markRequestReadyForCommercial(): void {
                             <p class="mt-2 text-sm leading-6 text-muted-foreground">
                                 La solicitud está lista para que LAUDA cree
                                 explícitamente el borrador funcional de la
-                                capability solicitada.
+                                capacidad solicitada.
                             </p>
                         </template>
 
                         <p class="mt-3 text-xs leading-5 text-muted-foreground">
                             Crear el borrador y preparar su contenido son acciones
-                            separadas. Ninguna envía la Definition al tenant ni
+                            separadas. Ninguna envía la Definición a la empresa ni
                             inicia activación, ejecución, contratación, facturación,
                             pagos o suscripciones.
                         </p>
@@ -1193,7 +1210,7 @@ function markRequestReadyForCommercial(): void {
                         :disabled="!props.actions.definition_create_endpoint"
                         @click="createImplementationDefinition"
                     >
-                        Crear borrador funcional de Definition
+                        Crear borrador funcional de Definición
                     </button>
 
                     <button
@@ -1207,7 +1224,7 @@ function markRequestReadyForCommercial(): void {
                         :disabled="!props.actions.definition_generate_endpoint"
                         @click="generateImplementationDefinition"
                     >
-                        Preparar contenido de la Definition
+                        Preparar contenido de la Definición
                     </button>
 
                     <div
@@ -1224,7 +1241,7 @@ function markRequestReadyForCommercial(): void {
                         v-else-if="props.definition"
                         class="shrink-0 rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-semibold dark:border-slate-800"
                     >
-                        Definition V{{ props.definition.version }} creada
+                        Definición V{{ props.definition.version }} creada
                     </div>
                 </div>
             </div>
