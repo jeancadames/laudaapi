@@ -85,6 +85,15 @@ function definitionLabel(row: Row): string {
     }[row.definition.status]
         ?? row.definition.status;
 }
+
+function planStatusLabel(status: string): string {
+    return {
+        presented: 'Presentado',
+        draft: 'Borrador',
+        published: 'Publicado',
+    }[status]
+        ?? status;
+}
 </script>
 
 <template>
@@ -235,7 +244,7 @@ function definitionLabel(row: Row): string {
                                         </h2>
 
                                         <Badge variant="secondary">
-                                            BI incluido en Plan
+                                            Incluido en Plan 360
                                         </Badge>
 
                                         <Badge variant="outline">
@@ -268,7 +277,7 @@ function definitionLabel(row: Row): string {
                                     >
                                         Plan 360 V{{ row.plan.version }}
                                         ·
-                                        {{ row.plan.status }}
+                                        {{ planStatusLabel(row.plan.status) }}
                                     </p>
                                 </div>
 
