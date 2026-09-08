@@ -417,6 +417,10 @@ const humanReviewForm = useForm({
         dependencies_confirmed: false,
         inputs_validated: false,
         accesses_validated: false,
+        validation_evidence: {
+            inputs: [] as Array<Record<string, any>>,
+            accesses: [] as Array<Record<string, any>>,
+        },
         responsibilities_confirmed: false,
     },
 });
@@ -571,6 +575,37 @@ function syncHumanReviewForm(): void {
         validation.accesses_validated
         ?? false;
 
+    const validationEvidence =
+        source?.readiness
+            ?.validation_evidence
+        ?? {};
+
+    humanReviewForm.readiness.validation_evidence.inputs =
+        Array.isArray(validationEvidence.inputs)
+            ? validationEvidence.inputs.map(
+                (item) => ({
+                    ...item,
+                    data_domains:
+                        Array.isArray(item.data_domains)
+                            ? [...item.data_domains]
+                            : [],
+                }),
+            )
+            : [];
+
+    humanReviewForm.readiness.validation_evidence.accesses =
+        Array.isArray(validationEvidence.accesses)
+            ? validationEvidence.accesses.map(
+                (item) => ({
+                    ...item,
+                    authorized:
+                        item.authorized === true,
+                    verified:
+                        item.verified === true,
+                }),
+            )
+            : [];
+
     humanReviewForm.readiness.responsibilities_confirmed =
         validation.responsibilities_confirmed
         ?? false;
@@ -586,6 +621,67 @@ watch(
         immediate: true,
     },
 );
+
+function addInputValidationEvidence(): void {
+    humanReviewForm.readiness.validation_evidence.inputs.push({
+        source_name: '',
+        data_domains: [],
+        owner: '',
+        historical_coverage: '',
+        granularity: '',
+        status: 'pending',
+        notes: '',
+    });
+}
+
+function removeInputValidationEvidence(
+    index: number,
+): void {
+    humanReviewForm.readiness.validation_evidence.inputs.splice(
+        index,
+        1,
+    );
+}
+
+function setInputValidationEvidenceDomains(
+    index: number,
+    event: Event,
+): void {
+    const target =
+        event.target as HTMLTextAreaElement | null;
+
+    if (!target) {
+        return;
+    }
+
+    humanReviewForm.readiness.validation_evidence.inputs[
+        index
+    ].data_domains =
+        target.value
+            .split(',')
+            .map((value) => value.trim())
+            .filter((value) => value.length > 0);
+}
+
+function addAccessValidationEvidence(): void {
+    humanReviewForm.readiness.validation_evidence.accesses.push({
+        source_name: '',
+        access_method: '',
+        authorized: false,
+        verified: false,
+        status: 'pending',
+        notes: '',
+    });
+}
+
+function removeAccessValidationEvidence(
+    index: number,
+): void {
+    humanReviewForm.readiness.validation_evidence.accesses.splice(
+        index,
+        1,
+    );
+}
 
 function saveImplementationDefinitionHumanReview(): void {
     const endpoint =
@@ -1507,6 +1603,322 @@ function markRequestReadyForCommercial(): void {
                             </option>
                         </select>
                     </div>
+                </div>
+
+                <div
+                    v-if="
+                        props.implementation_request.capability_key
+                            === 'data_transformation_bi'
+                    "
+                    class="mt-8 space-y-8"
+                >
+                    <section>
+                        <div
+                            class="flex flex-wrap items-start justify-between gap-3"
+                        >
+                            <div>
+                                <p class="text-sm font-bold">
+                                    Evidencia de insumos
+                                </p>
+
+                                <p
+                                    class="mt-1 max-w-3xl text-xs leading-5 text-muted-foreground"
+                                >
+                                    Registra las fuentes revisadas, sus dominios,
+                                    cobertura y granularidad. No ingreses
+                                    contraseñas, tokens, API keys ni credenciales.
+                                </p>
+                            </div>
+
+                            <button
+                                type="button"
+                                class="rounded-lg border px-3 py-2 text-xs font-semibold"
+                                :disabled="humanReviewForm.processing"
+                                @click="addInputValidationEvidence"
+                            >
+                                Agregar fuente
+                            </button>
+                        </div>
+
+                        <div
+                            v-if="
+                                !humanReviewForm
+                                    .readiness
+                                    .validation_evidence
+                                    .inputs
+                                    .length
+                            "
+                            class="mt-4 rounded-xl border border-dashed p-4 text-sm text-muted-foreground"
+                        >
+                            Todavía no se ha registrado evidencia de insumos.
+                        </div>
+
+                        <div
+                            v-for="(
+                                item,
+                                index
+                            ) in humanReviewForm.readiness.validation_evidence.inputs"
+                            :key="`input-evidence-${index}`"
+                            class="mt-4 rounded-xl border p-4 dark:border-slate-800"
+                        >
+                            <div class="grid gap-4 md:grid-cols-2">
+                                <label class="block">
+                                    <span class="text-xs font-semibold">
+                                        Fuente
+                                    </span>
+                                    <input
+                                        v-model="item.source_name"
+                                        type="text"
+                                        class="mt-1 w-full rounded-lg border bg-background px-3 py-2 text-sm"
+                                        placeholder="Ej. ERP / SQL Server"
+                                    />
+                                </label>
+
+                                <label class="block">
+                                    <span class="text-xs font-semibold">
+                                        Estado
+                                    </span>
+                                    <select
+                                        v-model="item.status"
+                                        class="mt-1 w-full rounded-lg border bg-background px-3 py-2 text-sm"
+                                    >
+                                        <option value="pending">Pendiente</option>
+                                        <option value="validated">Validado</option>
+                                        <option value="blocked">Bloqueado</option>
+                                        <option value="not_applicable">No aplica</option>
+                                    </select>
+                                </label>
+
+                                <label class="block md:col-span-2">
+                                    <span class="text-xs font-semibold">
+                                        Dominios de datos
+                                    </span>
+                                    <textarea
+                                        :value="
+                                            Array.isArray(item.data_domains)
+                                                ? item.data_domains.join(', ')
+                                                : ''
+                                        "
+                                        rows="2"
+                                        class="mt-1 w-full rounded-lg border bg-background px-3 py-2 text-sm"
+                                        placeholder="clientes, productos, inventario, ventas"
+                                        @input="
+                                            setInputValidationEvidenceDomains(
+                                                index,
+                                                $event,
+                                            )
+                                        "
+                                    />
+                                </label>
+
+                                <label class="block">
+                                    <span class="text-xs font-semibold">
+                                        Responsable / propietario
+                                    </span>
+                                    <input
+                                        v-model="item.owner"
+                                        type="text"
+                                        class="mt-1 w-full rounded-lg border bg-background px-3 py-2 text-sm"
+                                        placeholder="Área o rol responsable"
+                                    />
+                                </label>
+
+                                <label class="block">
+                                    <span class="text-xs font-semibold">
+                                        Cobertura histórica
+                                    </span>
+                                    <input
+                                        v-model="item.historical_coverage"
+                                        type="text"
+                                        class="mt-1 w-full rounded-lg border bg-background px-3 py-2 text-sm"
+                                        placeholder="Ej. enero 2022 a la fecha"
+                                    />
+                                </label>
+
+                                <label class="block">
+                                    <span class="text-xs font-semibold">
+                                        Granularidad
+                                    </span>
+                                    <input
+                                        v-model="item.granularity"
+                                        type="text"
+                                        class="mt-1 w-full rounded-lg border bg-background px-3 py-2 text-sm"
+                                        placeholder="Ej. transacción / línea"
+                                    />
+                                </label>
+
+                                <label class="block">
+                                    <span class="text-xs font-semibold">
+                                        Notas
+                                    </span>
+                                    <input
+                                        v-model="item.notes"
+                                        type="text"
+                                        class="mt-1 w-full rounded-lg border bg-background px-3 py-2 text-sm"
+                                        placeholder="Hallazgos o limitaciones"
+                                    />
+                                </label>
+                            </div>
+
+                            <div class="mt-3 flex justify-end">
+                                <button
+                                    type="button"
+                                    class="text-xs font-semibold text-red-600 hover:underline"
+                                    :disabled="humanReviewForm.processing"
+                                    @click="
+                                        removeInputValidationEvidence(
+                                            index,
+                                        )
+                                    "
+                                >
+                                    Quitar fuente
+                                </button>
+                            </div>
+                        </div>
+                    </section>
+
+                    <section>
+                        <div
+                            class="flex flex-wrap items-start justify-between gap-3"
+                        >
+                            <div>
+                                <p class="text-sm font-bold">
+                                    Evidencia de accesos
+                                </p>
+
+                                <p
+                                    class="mt-1 max-w-3xl text-xs leading-5 text-muted-foreground"
+                                >
+                                    Registra únicamente el mecanismo,
+                                    autorización y comprobación. No almacenes
+                                    usuarios, contraseñas, tokens ni secretos.
+                                </p>
+                            </div>
+
+                            <button
+                                type="button"
+                                class="rounded-lg border px-3 py-2 text-xs font-semibold"
+                                :disabled="humanReviewForm.processing"
+                                @click="addAccessValidationEvidence"
+                            >
+                                Agregar acceso
+                            </button>
+                        </div>
+
+                        <div
+                            v-if="
+                                !humanReviewForm
+                                    .readiness
+                                    .validation_evidence
+                                    .accesses
+                                    .length
+                            "
+                            class="mt-4 rounded-xl border border-dashed p-4 text-sm text-muted-foreground"
+                        >
+                            Todavía no se ha registrado evidencia de accesos.
+                        </div>
+
+                        <div
+                            v-for="(
+                                item,
+                                index
+                            ) in humanReviewForm.readiness.validation_evidence.accesses"
+                            :key="`access-evidence-${index}`"
+                            class="mt-4 rounded-xl border p-4 dark:border-slate-800"
+                        >
+                            <div class="grid gap-4 md:grid-cols-2">
+                                <label class="block">
+                                    <span class="text-xs font-semibold">
+                                        Fuente
+                                    </span>
+                                    <input
+                                        v-model="item.source_name"
+                                        type="text"
+                                        class="mt-1 w-full rounded-lg border bg-background px-3 py-2 text-sm"
+                                        placeholder="Ej. ERP / SQL Server"
+                                    />
+                                </label>
+
+                                <label class="block">
+                                    <span class="text-xs font-semibold">
+                                        Método de acceso
+                                    </span>
+                                    <input
+                                        v-model="item.access_method"
+                                        type="text"
+                                        class="mt-1 w-full rounded-lg border bg-background px-3 py-2 text-sm"
+                                        placeholder="Lectura SQL, CSV, API..."
+                                    />
+                                </label>
+
+                                <label class="block">
+                                    <span class="text-xs font-semibold">
+                                        Estado
+                                    </span>
+                                    <select
+                                        v-model="item.status"
+                                        class="mt-1 w-full rounded-lg border bg-background px-3 py-2 text-sm"
+                                    >
+                                        <option value="pending">Pendiente</option>
+                                        <option value="validated">Validado</option>
+                                        <option value="blocked">Bloqueado</option>
+                                        <option value="not_applicable">No aplica</option>
+                                    </select>
+                                </label>
+
+                                <label
+                                    class="flex items-center gap-3 rounded-lg border p-3"
+                                >
+                                    <input
+                                        v-model="item.authorized"
+                                        type="checkbox"
+                                    />
+                                    <span class="text-sm">
+                                        Acceso autorizado
+                                    </span>
+                                </label>
+
+                                <label
+                                    class="flex items-center gap-3 rounded-lg border p-3"
+                                >
+                                    <input
+                                        v-model="item.verified"
+                                        type="checkbox"
+                                    />
+                                    <span class="text-sm">
+                                        Acceso verificado
+                                    </span>
+                                </label>
+
+                                <label class="block">
+                                    <span class="text-xs font-semibold">
+                                        Notas
+                                    </span>
+                                    <input
+                                        v-model="item.notes"
+                                        type="text"
+                                        class="mt-1 w-full rounded-lg border bg-background px-3 py-2 text-sm"
+                                        placeholder="Hallazgos o limitaciones"
+                                    />
+                                </label>
+                            </div>
+
+                            <div class="mt-3 flex justify-end">
+                                <button
+                                    type="button"
+                                    class="text-xs font-semibold text-red-600 hover:underline"
+                                    :disabled="humanReviewForm.processing"
+                                    @click="
+                                        removeAccessValidationEvidence(
+                                            index,
+                                        )
+                                    "
+                                >
+                                    Quitar acceso
+                                </button>
+                            </div>
+                        </div>
+                    </section>
                 </div>
 
                 <div class="mt-6">

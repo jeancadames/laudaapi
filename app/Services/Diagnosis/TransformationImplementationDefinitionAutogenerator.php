@@ -1487,6 +1487,9 @@ final class TransformationImplementationDefinitionAutogenerator
                         null,
                 ],
 
+                'validation_evidence' =>
+                    TransformationImplementationDefinitionValidationEvidence::empty(),
+
                 'blockers' =>
                     $blockers,
             ],

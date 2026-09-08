@@ -227,6 +227,63 @@ final class AdminTransformationImplementationRequestDefinitionActionController
                 'readiness.accesses_validated' =>
                     ['required', 'boolean'],
 
+                'readiness.validation_evidence' =>
+                    ['sometimes', 'array'],
+
+                'readiness.validation_evidence.inputs' =>
+                    ['sometimes', 'array'],
+
+                'readiness.validation_evidence.inputs.*' =>
+                    ['required', 'array'],
+
+                'readiness.validation_evidence.inputs.*.source_name' =>
+                    ['required', 'string', 'max:255'],
+
+                'readiness.validation_evidence.inputs.*.data_domains' =>
+                    ['required', 'array', 'min:1'],
+
+                'readiness.validation_evidence.inputs.*.data_domains.*' =>
+                    ['required', 'string', 'max:255'],
+
+                'readiness.validation_evidence.inputs.*.owner' =>
+                    ['nullable', 'string', 'max:255'],
+
+                'readiness.validation_evidence.inputs.*.historical_coverage' =>
+                    ['nullable', 'string', 'max:255'],
+
+                'readiness.validation_evidence.inputs.*.granularity' =>
+                    ['nullable', 'string', 'max:255'],
+
+                'readiness.validation_evidence.inputs.*.status' =>
+                    ['required', 'in:pending,validated,blocked,not_applicable'],
+
+                'readiness.validation_evidence.inputs.*.notes' =>
+                    ['nullable', 'string', 'max:2000'],
+
+                'readiness.validation_evidence.accesses' =>
+                    ['sometimes', 'array'],
+
+                'readiness.validation_evidence.accesses.*' =>
+                    ['required', 'array'],
+
+                'readiness.validation_evidence.accesses.*.source_name' =>
+                    ['required', 'string', 'max:255'],
+
+                'readiness.validation_evidence.accesses.*.access_method' =>
+                    ['nullable', 'string', 'max:255'],
+
+                'readiness.validation_evidence.accesses.*.authorized' =>
+                    ['required', 'boolean'],
+
+                'readiness.validation_evidence.accesses.*.verified' =>
+                    ['required', 'boolean'],
+
+                'readiness.validation_evidence.accesses.*.status' =>
+                    ['required', 'in:pending,validated,blocked,not_applicable'],
+
+                'readiness.validation_evidence.accesses.*.notes' =>
+                    ['nullable', 'string', 'max:2000'],
+
                 'readiness.responsibilities_confirmed' =>
                     ['required', 'boolean'],
             ]);

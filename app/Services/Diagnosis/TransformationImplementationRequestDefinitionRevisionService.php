@@ -598,6 +598,9 @@ final class TransformationImplementationRequestDefinitionRevisionService
             'human_validation' =>
                 $humanValidation,
 
+            'validation_evidence' =>
+                TransformationImplementationDefinitionValidationEvidence::empty(),
+
             'blockers' =>
                 [],
         ];

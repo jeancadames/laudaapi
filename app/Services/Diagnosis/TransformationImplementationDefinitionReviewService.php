@@ -447,6 +447,17 @@ final class TransformationImplementationDefinitionReviewService
                 'human_validation' =>
                     $validation,
 
+                'validation_evidence' =>
+                    $input[
+                        'validation_evidence'
+                    ]
+                    ?? (
+                        $current[
+                            'validation_evidence'
+                        ]
+                        ?? []
+                    ),
+
                 'blockers' =>
                     $blockers,
             ]

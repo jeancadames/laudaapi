@@ -262,6 +262,59 @@ final class TransformationImplementationRequestDefinitionHumanReviewAdminHttpTes
 
                 'responsibilities_confirmed' =>
                     true,
+
+                'validation_evidence' => [
+                    'inputs' => [
+                        [
+                            'source_name' =>
+                                'ERP principal',
+
+                            'data_domains' => [
+                                'clientes',
+                                'productos',
+                                'inventario',
+                                'ventas',
+                            ],
+
+                            'owner' =>
+                                'Administración',
+
+                            'historical_coverage' =>
+                                '2022 a la fecha',
+
+                            'granularity' =>
+                                'transacción',
+
+                            'status' =>
+                                'validated',
+
+                            'notes' =>
+                                'Fuente validada para prueba funcional.',
+                        ],
+                    ],
+
+                    'accesses' => [
+                        [
+                            'source_name' =>
+                                'ERP principal',
+
+                            'access_method' =>
+                                'lectura SQL',
+
+                            'authorized' =>
+                                true,
+
+                            'verified' =>
+                                true,
+
+                            'status' =>
+                                'validated',
+
+                            'notes' =>
+                                'Acceso validado para prueba funcional.',
+                        ],
+                    ],
+                ],
             ],
         ];
 
@@ -360,6 +413,47 @@ final class TransformationImplementationRequestDefinitionHumanReviewAdminHttpTes
                     'definition_review_saved'
                 )
                 ->count();
+
+        /*
+         * ==========================================================
+         * 6B. BI TRUE WITHOUT EVIDENCE IS REJECTED
+         * ==========================================================
+         */
+        $reviewWithoutEvidence =
+            $reviewPayload;
+
+        unset(
+            $reviewWithoutEvidence[
+                'readiness'
+            ][
+                'validation_evidence'
+            ]
+        );
+
+        $this
+            ->actingAs(
+                $admin
+            )
+            ->from(
+                $detailUrl
+            )
+            ->patch(
+                $reviewUrl,
+                $reviewWithoutEvidence
+            )
+            ->assertRedirect(
+                $detailUrl
+            )
+            ->assertSessionHasErrors(
+                'readiness.inputs_validated'
+            );
+
+        $definition->refresh();
+
+        $this->assertSame(
+            TransformationImplementationDefinition::STATUS_DRAFT,
+            $definition->status
+        );
 
         /*
          * ==========================================================

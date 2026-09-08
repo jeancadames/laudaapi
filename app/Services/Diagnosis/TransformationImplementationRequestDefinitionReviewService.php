@@ -326,6 +326,49 @@ final class TransformationImplementationRequestDefinitionReviewService
             }
         }
 
+        if (
+            trim(
+                (string) $request->capability_key
+            )
+            === TransformationImplementationDefinitionValidationEvidence::CAPABILITY_KEY
+        ) {
+            $readiness =
+                $data[
+                    'readiness'
+                ] ?? [];
+
+            if (! is_array($readiness)) {
+                throw ValidationException::withMessages([
+                    'readiness' => [
+                        'La revisión debe conservar una estructura de readiness válida.',
+                    ],
+                ]);
+            }
+
+            $validationEvidence =
+                TransformationImplementationDefinitionValidationEvidence::normalize(
+                    $readiness[
+                        'validation_evidence'
+                    ]
+                    ?? data_get(
+                        $definition->readiness,
+                        'validation_evidence'
+                    )
+                );
+
+            TransformationImplementationDefinitionValidationEvidence::assertSupportsConfirmations(
+                $readiness,
+                $validationEvidence
+            );
+
+            $data[
+                'readiness'
+            ][
+                'validation_evidence'
+            ] =
+                $validationEvidence;
+        }
+
         return $data;
     }
 

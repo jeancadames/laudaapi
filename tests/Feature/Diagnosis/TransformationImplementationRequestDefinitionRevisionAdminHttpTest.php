@@ -268,6 +268,59 @@ final class TransformationImplementationRequestDefinitionRevisionAdminHttpTest
 
                             'responsibilities_confirmed' =>
                                 true,
+
+                            'validation_evidence' => [
+                                'inputs' => [
+                                    [
+                                        'source_name' =>
+                                            'ERP principal V1',
+
+                                        'data_domains' => [
+                                            'clientes',
+                                            'productos',
+                                            'inventario',
+                                            'ventas',
+                                        ],
+
+                                        'owner' =>
+                                            'Administración',
+
+                                        'historical_coverage' =>
+                                            '2022 a la fecha',
+
+                                        'granularity' =>
+                                            'transacción',
+
+                                        'status' =>
+                                            'validated',
+
+                                        'notes' =>
+                                            'Evidencia funcional de V1.',
+                                    ],
+                                ],
+
+                                'accesses' => [
+                                    [
+                                        'source_name' =>
+                                            'ERP principal V1',
+
+                                        'access_method' =>
+                                            'lectura SQL',
+
+                                        'authorized' =>
+                                            true,
+
+                                        'verified' =>
+                                            true,
+
+                                        'status' =>
+                                            'validated',
+
+                                        'notes' =>
+                                            'Acceso funcional validado en V1.',
+                                    ],
+                                ],
+                            ],
                         ],
                     ],
                     $admin
@@ -947,6 +1000,18 @@ final class TransformationImplementationRequestDefinitionRevisionAdminHttpTest
                 'Confirmación no reiniciada: '.$key
             );
         }
+
+        $this->assertSame(
+            [
+                'inputs' => [],
+                'accesses' => [],
+            ],
+            data_get(
+                $v2->readiness,
+                'validation_evidence'
+            ),
+            'V2 heredó evidencia de validación de V1.'
+        );
 
         $this->assertNull(
             $v2->reviewed_by_user_id
