@@ -1607,7 +1607,7 @@ function markRequestReadyForCommercial(): void {
 
                 <div
                     v-if="
-                        props.implementation_request.capability_key
+                        props.capability.key
                             === 'data_transformation_bi'
                     "
                     class="mt-8 space-y-8"
