@@ -95,7 +95,7 @@ final class AdminTransformationImplementationRequestDefinitionActionController
         ) {
             throw ValidationException::withMessages([
                 'definition' => [
-                    'Solo una Definition en borrador puede preparar contenido autogenerado.',
+                    'Solo una Definición en borrador puede preparar contenido autogenerado.',
                 ],
             ]);
         }
@@ -110,21 +110,42 @@ final class AdminTransformationImplementationRequestDefinitionActionController
             ]);
         }
 
-        /*
-         * Idempotencia de preparación inicial.
-         *
-         * Si ya existe contenido preparado no se ejecuta
-         * nuevamente el generador.
-         */
-        if (
+        $reprepare =
+            $request->boolean(
+                'reprepare'
+            );
+
+        $contentPrepared =
             $this->contentPrepared(
                 $definition
-            )
+            );
+
+        /*
+         * El POST normal mantiene la idempotencia original.
+         *
+         * La repreparación es explícita y solo llega hasta aquí
+         * si la Request sigue en definition_preparation y la
+         * Definition continúa en draft y editable.
+         */
+        if (
+            $contentPrepared
+            && ! $reprepare
         ) {
             return back()->with(
                 'info',
-                'El contenido funcional de esta Definition ya está preparado.'
+                'El contenido funcional de esta Definición ya está preparado.'
             );
+        }
+
+        if (
+            $reprepare
+            && ! $contentPrepared
+        ) {
+            throw ValidationException::withMessages([
+                'definition' => [
+                    'Solo puede volver a prepararse una Definición cuyo contenido ya fue preparado.',
+                ],
+            ]);
         }
 
         $definition =
@@ -135,7 +156,9 @@ final class AdminTransformationImplementationRequestDefinitionActionController
 
         return back()->with(
             'success',
-            "Contenido funcional de la Definition V{$definition->version} preparado para revisión de LAUDA."
+            $reprepare
+                ? "Contenido funcional de la Definición V{$definition->version} preparado nuevamente para revisión de LAUDA."
+                : "Contenido funcional de la Definición V{$definition->version} preparado para revisión de LAUDA."
         );
     }
 

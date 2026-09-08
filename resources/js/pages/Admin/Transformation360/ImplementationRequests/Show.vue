@@ -381,12 +381,12 @@ function createImplementationDefinition(): void {
 }
 
 
-function generateImplementationDefinition(): void {
+function generateImplementationDefinition(reprepare = false): void {
     const endpoint =
         props.actions.definition_generate_endpoint;
 
     if (
-        !props.actions.can_generate_definition
+        (!reprepare && !props.actions.can_generate_definition)
         || !endpoint
     ) {
         return;
@@ -394,7 +394,9 @@ function generateImplementationDefinition(): void {
 
     router.post(
         endpoint,
-        {},
+        reprepare
+            ? { reprepare: true }
+            : {},
         {
             preserveScroll: true,
         },
@@ -1232,9 +1234,26 @@ function markRequestReadyForCommercial(): void {
                             props.definition &&
                             props.definition.content_prepared
                         "
-                        class="shrink-0 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-2.5 text-sm font-semibold text-emerald-800 dark:border-emerald-900 dark:bg-emerald-950/40 dark:text-emerald-300"
+                        class="flex shrink-0 flex-wrap items-center gap-2"
                     >
-                        Contenido preparado para revisión
+                        <span
+                            class="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-2.5 text-sm font-semibold text-emerald-800 dark:border-emerald-900 dark:bg-emerald-950/40 dark:text-emerald-300"
+                        >
+                            Contenido preparado para revisión
+                        </span>
+
+                        <button
+                            v-if="
+                                props.definition.status === 'draft' &&
+                                props.implementation_request.status === 'definition_preparation' &&
+                                props.actions.definition_generate_endpoint
+                            "
+                            type="button"
+                            class="inline-flex items-center justify-center rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm font-semibold text-slate-800 transition hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100 dark:hover:bg-slate-900"
+                            @click="generateImplementationDefinition(true)"
+                        >
+                            Volver a preparar contenido
+                        </button>
                     </div>
 
                     <div
