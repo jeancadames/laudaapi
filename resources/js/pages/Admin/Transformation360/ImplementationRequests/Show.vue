@@ -2021,7 +2021,22 @@ function markRequestReadyForCommercial(): void {
                     "
                     class="mt-5 rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700 dark:border-red-900 dark:bg-red-950/30 dark:text-red-300"
                 >
-                    Revisa los campos indicados antes de guardar.
+                    <p class="font-semibold">
+                        Revisa los campos indicados antes de guardar.
+                    </p>
+
+                    <ul class="mt-2 list-disc space-y-1 pl-5">
+                        <li
+                            v-for="(message, field) in humanReviewForm.errors"
+                            :key="field"
+                        >
+                            <span class="font-mono text-xs">
+                                {{ field }}
+                            </span>
+                            ·
+                            {{ message }}
+                        </li>
+                    </ul>
                 </div>
 
                 <div class="mt-6 flex justify-end">
