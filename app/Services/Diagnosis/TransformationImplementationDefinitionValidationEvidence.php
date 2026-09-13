@@ -16,8 +16,36 @@ final class TransformationImplementationDefinitionValidationEvidence
         'not_applicable',
     ];
 
+    private const SOURCE_TYPES = [
+        'sql_server',
+        'mysql',
+        'postgresql',
+        'dbf',
+        'quickbooks',
+        'excel',
+        'csv',
+        'api',
+        'other',
+    ];
+
+    private const SOURCE_ROLES = [
+        'primary',
+        'historical',
+        'complementary',
+        'derived',
+    ];
+
+    private const DELIVERY_FORMATS = [
+        'csv',
+        'xlsx',
+    ];
+
     private const INPUT_KEYS = [
         'source_name',
+        'source_type',
+        'source_role',
+        'delivery_format',
+        'extraction_assistance_required',
         'data_domains',
         'owner',
         'historical_coverage',
@@ -138,11 +166,56 @@ final class TransformationImplementationDefinitionValidationEvidence
                 $field
             );
 
+            /*
+             * Evidencia histórica puede no contener todavía
+             * los campos del contrato de intake estándar.
+             */
+            $usesStandardIntakeContract =
+                array_key_exists('source_type', $item)
+                || array_key_exists('source_role', $item)
+                || array_key_exists('delivery_format', $item)
+                || array_key_exists(
+                    'extraction_assistance_required',
+                    $item
+                );
+
             $sourceName =
                 self::requiredString(
                     $item['source_name'] ?? null,
                     "{$field}.source_name",
                     'La fuente de datos es obligatoria.'
+                );
+
+            $sourceType =
+                self::nullableEnum(
+                    $item['source_type'] ?? null,
+                    "{$field}.source_type",
+                    self::SOURCE_TYPES,
+                    'El tipo de fuente no es válido.'
+                );
+
+            $sourceRole =
+                self::nullableEnum(
+                    $item['source_role'] ?? null,
+                    "{$field}.source_role",
+                    self::SOURCE_ROLES,
+                    'El rol de la fuente no es válido.'
+                );
+
+            $deliveryFormat =
+                self::nullableEnum(
+                    $item['delivery_format'] ?? null,
+                    "{$field}.delivery_format",
+                    self::DELIVERY_FORMATS,
+                    'El formato de entrega debe ser CSV o XLSX.'
+                );
+
+            $extractionAssistanceRequired =
+                self::boolean(
+                    $item[
+                        'extraction_assistance_required'
+                    ] ?? false,
+                    "{$field}.extraction_assistance_required"
                 );
 
             $dataDomains =
@@ -204,6 +277,43 @@ final class TransformationImplementationDefinitionValidationEvidence
             }
 
             if (
+                $usesStandardIntakeContract
+                && $status === 'validated'
+            ) {
+                if ($sourceType === null) {
+                    throw ValidationException::withMessages([
+                        "{$field}.source_type" => [
+                            'La evidencia validada debe identificar el tipo de fuente de origen.',
+                        ],
+                    ]);
+                }
+
+                if ($sourceRole === null) {
+                    throw ValidationException::withMessages([
+                        "{$field}.source_role" => [
+                            'La evidencia validada debe indicar el rol de la fuente.',
+                        ],
+                    ]);
+                }
+
+                if ($extractionAssistanceRequired) {
+                    throw ValidationException::withMessages([
+                        "{$field}.extraction_assistance_required" => [
+                            'La fuente no puede marcarse como validada mientras requiera asistencia de extracción.',
+                        ],
+                    ]);
+                }
+
+                if ($deliveryFormat === null) {
+                    throw ValidationException::withMessages([
+                        "{$field}.delivery_format" => [
+                            'La evidencia validada debe indicar un formato estándar de entrega: CSV o XLSX.',
+                        ],
+                    ]);
+                }
+            }
+
+            if (
                 $status === 'not_applicable'
                 && $notes === null
             ) {
@@ -217,6 +327,24 @@ final class TransformationImplementationDefinitionValidationEvidence
             $normalized[] = [
                 'source_name' =>
                     $sourceName,
+
+                ...(
+                    $usesStandardIntakeContract
+                        ? [
+                            'source_type' =>
+                                $sourceType,
+
+                            'source_role' =>
+                                $sourceRole,
+
+                            'delivery_format' =>
+                                $deliveryFormat,
+
+                            'extraction_assistance_required' =>
+                                $extractionAssistanceRequired,
+                        ]
+                        : []
+                ),
 
                 'data_domains' =>
                     $dataDomains,
@@ -442,6 +570,33 @@ final class TransformationImplementationDefinitionValidationEvidence
                 ],
             ]);
         }
+    }
+
+    private static function nullableEnum(
+        mixed $value,
+        string $field,
+        array $allowed,
+        string $message
+    ): ?string {
+        $value =
+            self::nullableString(
+                $value,
+                $field
+            );
+
+        if ($value === null) {
+            return null;
+        }
+
+        if (! in_array($value, $allowed, true)) {
+            throw ValidationException::withMessages([
+                $field => [
+                    $message,
+                ],
+            ]);
+        }
+
+        return $value;
     }
 
     private static function requiredString(

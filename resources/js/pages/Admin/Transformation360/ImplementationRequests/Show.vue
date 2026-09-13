@@ -585,6 +585,20 @@ function syncHumanReviewForm(): void {
             ? validationEvidence.inputs.map(
                 (item) => ({
                     ...item,
+                    source_type:
+                        typeof item.source_type === 'string'
+                            ? item.source_type
+                            : '',
+                    source_role:
+                        typeof item.source_role === 'string'
+                            ? item.source_role
+                            : '',
+                    delivery_format:
+                        typeof item.delivery_format === 'string'
+                            ? item.delivery_format
+                            : '',
+                    extraction_assistance_required:
+                        item.extraction_assistance_required === true,
                     data_domains:
                         Array.isArray(item.data_domains)
                             ? [...item.data_domains]
@@ -625,6 +639,10 @@ watch(
 function addInputValidationEvidence(): void {
     humanReviewForm.readiness.validation_evidence.inputs.push({
         source_name: '',
+        source_type: '',
+        source_role: '',
+        delivery_format: '',
+        extraction_assistance_required: false,
         data_domains: [],
         owner: '',
         historical_coverage: '',
@@ -1624,9 +1642,14 @@ function markRequestReadyForCommercial(): void {
                                 <p
                                     class="mt-1 max-w-3xl text-xs leading-5 text-muted-foreground"
                                 >
-                                    Registra las fuentes revisadas, sus dominios,
-                                    cobertura y granularidad. No ingreses
-                                    contraseñas, tokens, API keys ni credenciales.
+                                    Identifica cada fuente de origen y cómo sus datos
+                                    serán entregados a LAUDA. El intake estándar admite
+                                    CSV o XLSX. La conexión, extracción o conversión
+                                    desde sistemas de origen no forma parte automática
+                                    de este alcance. Si el cliente no puede generar
+                                    estos archivos, marca asistencia de extracción
+                                    requerida. No ingreses contraseñas, tokens,
+                                    API keys ni credenciales.
                                 </p>
                             </div>
 
@@ -1673,6 +1696,127 @@ function markRequestReadyForCommercial(): void {
                                         placeholder="Ej. ERP / SQL Server"
                                     />
                                 </label>
+
+                                <label class="block">
+                                    <span class="text-xs font-semibold">
+                                        Tipo de fuente
+                                    </span>
+
+                                    <select
+                                        v-model="item.source_type"
+                                        class="mt-1 w-full rounded-lg border bg-background px-3 py-2 text-sm"
+                                    >
+                                        <option value="">
+                                            Seleccionar...
+                                        </option>
+                                        <option value="sql_server">
+                                            SQL Server
+                                        </option>
+                                        <option value="mysql">
+                                            MySQL
+                                        </option>
+                                        <option value="postgresql">
+                                            PostgreSQL
+                                        </option>
+                                        <option value="dbf">
+                                            DBF / Visual FoxPro
+                                        </option>
+                                        <option value="quickbooks">
+                                            QuickBooks
+                                        </option>
+                                        <option value="excel">
+                                            Excel
+                                        </option>
+                                        <option value="csv">
+                                            CSV
+                                        </option>
+                                        <option value="api">
+                                            API
+                                        </option>
+                                        <option value="other">
+                                            Otro
+                                        </option>
+                                    </select>
+                                </label>
+
+                                <label class="block">
+                                    <span class="text-xs font-semibold">
+                                        Rol de la fuente
+                                    </span>
+
+                                    <select
+                                        v-model="item.source_role"
+                                        class="mt-1 w-full rounded-lg border bg-background px-3 py-2 text-sm"
+                                    >
+                                        <option value="">
+                                            Seleccionar...
+                                        </option>
+                                        <option value="primary">
+                                            Principal
+                                        </option>
+                                        <option value="historical">
+                                            Histórica
+                                        </option>
+                                        <option value="complementary">
+                                            Complementaria
+                                        </option>
+                                        <option value="derived">
+                                            Derivada
+                                        </option>
+                                    </select>
+                                </label>
+
+                                <label class="block">
+                                    <span class="text-xs font-semibold">
+                                        Formato de entrega a LAUDA
+                                    </span>
+
+                                    <select
+                                        v-model="item.delivery_format"
+                                        class="mt-1 w-full rounded-lg border bg-background px-3 py-2 text-sm"
+                                    >
+                                        <option value="">
+                                            Pendiente de definir
+                                        </option>
+                                        <option value="csv">
+                                            CSV
+                                        </option>
+                                        <option value="xlsx">
+                                            Excel (.xlsx)
+                                        </option>
+                                    </select>
+                                </label>
+
+                                <label
+                                    class="flex items-start gap-3 rounded-lg border p-3"
+                                >
+                                    <input
+                                        v-model="
+                                            item.extraction_assistance_required
+                                        "
+                                        type="checkbox"
+                                        class="mt-1"
+                                    />
+
+                                    <span>
+                                        <span
+                                            class="block text-xs font-semibold"
+                                        >
+                                            Requiere asistencia de extracción
+                                        </span>
+
+                                        <span
+                                            class="mt-1 block text-xs text-muted-foreground"
+                                        >
+                                            Marca esta opción cuando el cliente
+                                            no pueda generar el CSV/XLSX desde
+                                            su sistema de origen. La extracción
+                                            o conversión se evaluará como una
+                                            necesidad funcional separada.
+                                        </span>
+                                    </span>
+                                </label>
+
 
                                 <label class="block">
                                     <span class="text-xs font-semibold">
@@ -1783,15 +1927,18 @@ function markRequestReadyForCommercial(): void {
                         >
                             <div>
                                 <p class="text-sm font-bold">
-                                    Evidencia de accesos
+                                    Evidencia de entrega / acceso
                                 </p>
 
                                 <p
                                     class="mt-1 max-w-3xl text-xs leading-5 text-muted-foreground"
                                 >
-                                    Registra únicamente el mecanismo,
-                                    autorización y comprobación. No almacenes
-                                    usuarios, contraseñas, tokens ni secretos.
+                                    Registra el mecanismo autorizado de entrega
+                                    o acceso a los datos. En el flujo estándar
+                                    normalmente será una entrega de archivos CSV/XLSX;
+                                    no es obligatorio conectarse directamente al
+                                    sistema fuente. No almacenes usuarios,
+                                    contraseñas, tokens ni secretos.
                                 </p>
                             </div>
 
@@ -1847,7 +1994,7 @@ function markRequestReadyForCommercial(): void {
                                         v-model="item.access_method"
                                         type="text"
                                         class="mt-1 w-full rounded-lg border bg-background px-3 py-2 text-sm"
-                                        placeholder="Lectura SQL, CSV, API..."
+                                        placeholder="Carga segura, SFTP, carpeta compartida, entrega CSV/XLSX..."
                                     />
                                 </label>
 
@@ -1874,7 +2021,7 @@ function markRequestReadyForCommercial(): void {
                                         type="checkbox"
                                     />
                                     <span class="text-sm">
-                                        Acceso autorizado
+                                        Entrega / acceso autorizado
                                     </span>
                                 </label>
 
@@ -1886,7 +2033,7 @@ function markRequestReadyForCommercial(): void {
                                         type="checkbox"
                                     />
                                     <span class="text-sm">
-                                        Acceso verificado
+                                        Entrega / acceso verificado
                                     </span>
                                 </label>
 
@@ -1993,7 +2140,7 @@ function markRequestReadyForCommercial(): void {
                             />
 
                             <span class="text-sm">
-                                Accesos validados
+                                Entrega / accesos validados
                             </span>
                         </label>
 

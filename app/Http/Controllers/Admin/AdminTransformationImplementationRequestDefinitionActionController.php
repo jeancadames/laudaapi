@@ -239,6 +239,30 @@ final class AdminTransformationImplementationRequestDefinitionActionController
                 'readiness.validation_evidence.inputs.*.source_name' =>
                     ['required', 'string', 'max:255'],
 
+                'readiness.validation_evidence.inputs.*.source_type' =>
+                    [
+                        'nullable',
+                        'string',
+                        'in:sql_server,mysql,postgresql,dbf,quickbooks,excel,csv,api,other',
+                    ],
+
+                'readiness.validation_evidence.inputs.*.source_role' =>
+                    [
+                        'nullable',
+                        'string',
+                        'in:primary,historical,complementary,derived',
+                    ],
+
+                'readiness.validation_evidence.inputs.*.delivery_format' =>
+                    [
+                        'nullable',
+                        'string',
+                        'in:csv,xlsx',
+                    ],
+
+                'readiness.validation_evidence.inputs.*.extraction_assistance_required' =>
+                    ['sometimes', 'boolean'],
+
                 'readiness.validation_evidence.inputs.*.data_domains' =>
                     ['required', 'array', 'min:1'],
 

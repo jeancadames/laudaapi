@@ -24,7 +24,7 @@ it('renders BI validation evidence from the canonical capability prop', function
             'Evidencia de insumos'
         )
         ->toContain(
-            'Evidencia de accesos'
+            'Evidencia de entrega / acceso'
         )
         ->not->toContain(
             'props.implementation_request.capability_key'
