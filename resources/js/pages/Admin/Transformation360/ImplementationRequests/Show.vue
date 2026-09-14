@@ -598,7 +598,11 @@ function syncHumanReviewForm(): void {
                             ? item.delivery_format
                             : '',
                     extraction_assistance_required:
-                        item.extraction_assistance_required === true,
+                        item.extraction_assistance_required === true
+                            ? true
+                            : item.extraction_assistance_required === false
+                              ? false
+                              : null,
                     data_domains:
                         Array.isArray(item.data_domains)
                             ? [...item.data_domains]
@@ -642,7 +646,7 @@ function addInputValidationEvidence(): void {
         source_type: '',
         source_role: '',
         delivery_format: '',
-        extraction_assistance_required: false,
+        extraction_assistance_required: null,
         data_domains: [],
         owner: '',
         historical_coverage: '',
@@ -1787,33 +1791,39 @@ function markRequestReadyForCommercial(): void {
                                     </select>
                                 </label>
 
-                                <label
-                                    class="flex items-start gap-3 rounded-lg border p-3"
-                                >
-                                    <input
+                                <label class="block">
+                                    <span
+                                        class="text-xs font-semibold"
+                                    >
+                                        Asistencia de extracción
+                                    </span>
+
+                                    <select
                                         v-model="
                                             item.extraction_assistance_required
                                         "
-                                        type="checkbox"
-                                        class="mt-1"
-                                    />
+                                        class="mt-1 w-full rounded-lg border bg-background px-3 py-2 text-sm"
+                                    >
+                                        <option :value="null">
+                                            Pendiente de definir
+                                        </option>
 
-                                    <span>
-                                        <span
-                                            class="block text-xs font-semibold"
-                                        >
-                                            Requiere asistencia de extracción
-                                        </span>
+                                        <option :value="false">
+                                            No requiere asistencia
+                                        </option>
 
-                                        <span
-                                            class="mt-1 block text-xs text-muted-foreground"
-                                        >
-                                            Marca esta opción cuando el cliente
-                                            no pueda generar el CSV/XLSX desde
-                                            su sistema de origen. La extracción
-                                            o conversión se evaluará como una
-                                            necesidad funcional separada.
-                                        </span>
+                                        <option :value="true">
+                                            Sí requiere asistencia
+                                        </option>
+                                    </select>
+
+                                    <span
+                                        class="mt-1 block text-xs leading-5 text-muted-foreground"
+                                    >
+                                        Indica si el cliente necesita apoyo para
+                                        generar la entrega estándar CSV/XLSX.
+                                        La extracción o conversión se evalúa
+                                        como una necesidad funcional separada.
                                     </span>
                                 </label>
 

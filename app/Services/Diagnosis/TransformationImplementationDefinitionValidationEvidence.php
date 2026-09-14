@@ -211,10 +211,10 @@ final class TransformationImplementationDefinitionValidationEvidence
                 );
 
             $extractionAssistanceRequired =
-                self::boolean(
+                self::nullableBoolean(
                     $item[
                         'extraction_assistance_required'
-                    ] ?? false,
+                    ] ?? null,
                     "{$field}.extraction_assistance_required"
                 );
 
@@ -296,7 +296,15 @@ final class TransformationImplementationDefinitionValidationEvidence
                     ]);
                 }
 
-                if ($extractionAssistanceRequired) {
+                if ($extractionAssistanceRequired === null) {
+                    throw ValidationException::withMessages([
+                        "{$field}.extraction_assistance_required" => [
+                            'La evidencia validada debe indicar si requiere asistencia de extracción.',
+                        ],
+                    ]);
+                }
+
+                if ($extractionAssistanceRequired === true) {
                     throw ValidationException::withMessages([
                         "{$field}.extraction_assistance_required" => [
                             'La fuente no puede marcarse como validada mientras requiera asistencia de extracción.',
@@ -697,6 +705,20 @@ final class TransformationImplementationDefinitionValidationEvidence
         }
 
         return $items;
+    }
+
+    private static function nullableBoolean(
+        mixed $value,
+        string $field
+    ): ?bool {
+        if ($value === null) {
+            return null;
+        }
+
+        return self::boolean(
+            $value,
+            $field
+        );
     }
 
     private static function boolean(

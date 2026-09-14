@@ -261,7 +261,7 @@ final class AdminTransformationImplementationRequestDefinitionActionController
                     ],
 
                 'readiness.validation_evidence.inputs.*.extraction_assistance_required' =>
-                    ['sometimes', 'boolean'],
+                    ['sometimes', 'nullable', 'boolean'],
 
                 'readiness.validation_evidence.inputs.*.data_domains' =>
                     ['required', 'array', 'min:1'],
