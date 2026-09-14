@@ -86,6 +86,18 @@ test(
                 'Descargar paquete CSV'
             )
             ->toContain(
+                'Agregar otra fuente de datos'
+            )
+            ->toContain(
+                'nextTick'
+            )
+            ->toContain(
+                'scrollIntoView'
+            )
+            ->toContain(
+                ':id="`input-evidence-${index}`"'
+            )
+            ->toContain(
                 '/standard-intake-template/xlsx'
             )
             ->toContain(

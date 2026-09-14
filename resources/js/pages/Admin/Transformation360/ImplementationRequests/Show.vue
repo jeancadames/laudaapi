@@ -12,7 +12,7 @@ import {
     UserRound,
     UserRoundCheck,
 } from 'lucide-vue-next';
-import { ref, watch } from 'vue';
+import { nextTick, ref, watch } from 'vue';
 
 type Person = {
     id?: number;
@@ -637,17 +637,37 @@ watch(
 );
 
 function addInputValidationEvidence(): void {
-    humanReviewForm.readiness.validation_evidence.inputs.push({
-        source_name: '',
-        source_role: '',
-        delivery_format: '',
-        extraction_assistance_required: null,
-        data_domains: [],
-        owner: '',
-        historical_coverage: '',
-        granularity: '',
-        status: 'pending',
-        notes: '',
+    const inputs =
+        humanReviewForm.readiness.validation_evidence.inputs;
+
+    const newIndex =
+        inputs.length;
+
+    humanReviewForm.readiness.validation_evidence.inputs = [
+        ...inputs,
+        {
+            source_name: '',
+            source_role: '',
+            delivery_format: '',
+            extraction_assistance_required: null,
+            data_domains: [],
+            owner: '',
+            historical_coverage: '',
+            granularity: '',
+            status: 'pending',
+            notes: '',
+        },
+    ];
+
+    nextTick(() => {
+        document
+            .getElementById(
+                `input-evidence-${newIndex}`,
+            )
+            ?.scrollIntoView({
+                behavior: 'smooth',
+                block: 'center',
+            });
     });
 }
 
@@ -1675,7 +1695,7 @@ function markRequestReadyForCommercial(): void {
                                     :disabled="humanReviewForm.processing"
                                     @click="addInputValidationEvidence"
                                 >
-                                    Agregar insumo
+                                    Agregar otra fuente de datos
                                 </button>
                             </div>
                         </div>
@@ -1699,6 +1719,7 @@ function markRequestReadyForCommercial(): void {
                                 index
                             ) in humanReviewForm.readiness.validation_evidence.inputs"
                             :key="`input-evidence-${index}`"
+                            :id="`input-evidence-${index}`"
                             class="mt-4 rounded-xl border p-4 dark:border-slate-800"
                         >
                             <div class="grid gap-4 md:grid-cols-2">
