@@ -200,3 +200,96 @@ test(
             );
     }
 );
+
+test(
+    'standard intake native fetch prefers current xsrf cookie before csrf meta fallback',
+    function () {
+        $source =
+            file_get_contents(
+                resource_path(
+                    'js/pages/Admin/Transformation360/'
+                    .'ImplementationRequests/Show.vue'
+                )
+            );
+
+        expect($source)
+            ->not
+            ->toBeFalse();
+
+        $start =
+            strpos(
+                $source,
+                'function standardIntakeCsrfHeaders()'
+            );
+
+        $end =
+            strpos(
+                $source,
+                'function selectStandardIntakeFile(',
+                $start
+            );
+
+        expect($start)
+            ->not
+            ->toBeFalse()
+            ->and($end)
+            ->not
+            ->toBeFalse();
+
+        $helper =
+            substr(
+                $source,
+                $start,
+                $end - $start
+            );
+
+        $cookie =
+            strpos(
+                $helper,
+                "'XSRF-TOKEN='"
+            );
+
+        $xsrfHeader =
+            strpos(
+                $helper,
+                "'X-XSRF-TOKEN'"
+            );
+
+        $meta =
+            strpos(
+                $helper,
+                '\'meta[name="csrf-token"]\''
+            );
+
+        $csrfHeader =
+            strpos(
+                $helper,
+                "'X-CSRF-TOKEN'"
+            );
+
+        expect($cookie)
+            ->not
+            ->toBeFalse()
+            ->and($xsrfHeader)
+            ->not
+            ->toBeFalse()
+            ->and($meta)
+            ->not
+            ->toBeFalse()
+            ->and($csrfHeader)
+            ->not
+            ->toBeFalse()
+            ->and($cookie)
+            ->toBeLessThan($meta)
+            ->and($xsrfHeader)
+            ->toBeLessThan($meta)
+            ->and($helper)
+            ->toContain(
+                'decodeURIComponent('
+            )
+            ->and($source)
+            ->toContain(
+                "credentials: 'same-origin'"
+            );
+    }
+);

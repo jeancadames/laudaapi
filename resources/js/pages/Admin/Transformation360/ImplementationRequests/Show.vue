@@ -415,6 +415,45 @@ function standardIntakeHttpErrors(
 }
 
 function standardIntakeCsrfHeaders(): Record<string, string> {
+    /*
+     * Preferimos la cookie XSRF-TOKEN porque refleja
+     * el token actual de la sesión del navegador.
+     *
+     * El meta csrf-token queda como fallback para
+     * contextos donde Laravel no haya emitido la cookie.
+     */
+    const xsrfCookie =
+        document.cookie
+            .split('; ')
+            .find(
+                (item) =>
+                    item.startsWith(
+                        'XSRF-TOKEN=',
+                    ),
+            );
+
+    if (xsrfCookie) {
+        const encodedToken =
+            xsrfCookie
+                .slice(
+                    'XSRF-TOKEN='.length,
+                );
+
+        try {
+            return {
+                'X-XSRF-TOKEN':
+                    decodeURIComponent(
+                        encodedToken,
+                    ),
+            };
+        } catch {
+            return {
+                'X-XSRF-TOKEN':
+                    encodedToken,
+            };
+        }
+    }
+
     const metaToken =
         document
             .querySelector<HTMLMetaElement>(
@@ -428,32 +467,7 @@ function standardIntakeCsrfHeaders(): Record<string, string> {
         };
     }
 
-    const xsrfCookie =
-        document.cookie
-            .split('; ')
-            .find(
-                (item) =>
-                    item.startsWith(
-                        'XSRF-TOKEN=',
-                    ),
-            );
-
-    if (!xsrfCookie) {
-        return {};
-    }
-
-    const encodedToken =
-        xsrfCookie
-            .split('=')
-            .slice(1)
-            .join('=');
-
-    return {
-        'X-XSRF-TOKEN':
-            decodeURIComponent(
-                encodedToken,
-            ),
-    };
+    return {};
 }
 
 function selectStandardIntakeFile(
