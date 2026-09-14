@@ -288,6 +288,7 @@ test(
                 'decodeURIComponent('
             )
             ->and($source)
+            ->and($source)
             ->toContain(
                 "credentials: 'same-origin'"
             );
