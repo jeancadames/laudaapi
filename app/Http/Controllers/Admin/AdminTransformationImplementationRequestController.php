@@ -369,6 +369,216 @@ final class AdminTransformationImplementationRequestController
             );
     }
 
+    public function validateStandardIntakeUpload(
+        Request $request,
+        TransformationImplementationRequest $implementationRequest,
+        \App\Services\Diagnosis\DataTransformationBiStandardIntakeValidationService $validationService
+    ): \Illuminate\Http\JsonResponse {
+        $this->authorizeAdmin(
+            $request
+        );
+
+        abort_unless(
+            (string) $implementationRequest->capability_key
+                === 'data_transformation_bi',
+            404
+        );
+
+        $validator =
+            \Illuminate\Support\Facades\Validator::make(
+                $request->all(),
+                [
+                    'file' => [
+                        'required',
+                        'file',
+                        'max:2048',
+                    ],
+                ]
+            );
+
+        if ($validator->fails()) {
+            return response()->json(
+                [
+                    'ok' => false,
+                    'message' =>
+                        'No se pudo recibir el archivo de intake.',
+                    'errors' =>
+                        $validator
+                            ->errors()
+                            ->toArray(),
+                ],
+                422
+            );
+        }
+
+        $file =
+            $request->file(
+                'file'
+            );
+
+        if (
+            $file === null
+            || ! $file->isValid()
+        ) {
+            return response()->json(
+                [
+                    'ok' => false,
+                    'message' =>
+                        'El archivo recibido no es válido.',
+                    'errors' => [
+                        'file' => [
+                            'El archivo recibido no es válido.',
+                        ],
+                    ],
+                ],
+                422
+            );
+        }
+
+        $originalName =
+            $file->getClientOriginalName();
+
+        $extension =
+            strtolower(
+                $file->getClientOriginalExtension()
+            );
+
+        if (
+            ! in_array(
+                $extension,
+                [
+                    'xlsx',
+                    'zip',
+                ],
+                true
+            )
+        ) {
+            return response()->json(
+                [
+                    'ok' => false,
+                    'message' =>
+                        'Formato de intake no soportado.',
+                    'errors' => [
+                        'file' => [
+                            'Selecciona un archivo XLSX '
+                            .'o el paquete ZIP de CSV de LAUDA.',
+                        ],
+                    ],
+                ],
+                422
+            );
+        }
+
+        $path =
+            $file->getRealPath();
+
+        if (
+            ! is_string($path)
+            || $path === ''
+            || ! is_file($path)
+        ) {
+            return response()->json(
+                [
+                    'ok' => false,
+                    'message' =>
+                        'No se pudo acceder al archivo temporal recibido.',
+                    'errors' => [
+                        'file' => [
+                            'No se pudo acceder al archivo temporal recibido.',
+                        ],
+                    ],
+                ],
+                422
+            );
+        }
+
+        $serverMime =
+            (new \finfo(
+                FILEINFO_MIME_TYPE
+            ))
+                ->file(
+                    $path
+                );
+
+        $allowedMimes =
+            match ($extension) {
+                'xlsx' => [
+                    'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+                    'application/zip',
+                    'application/x-zip',
+                    'application/x-zip-compressed',
+                    'application/octet-stream',
+                ],
+
+                'zip' => [
+                    'application/zip',
+                    'application/x-zip',
+                    'application/x-zip-compressed',
+                    'application/octet-stream',
+                ],
+
+                default => [],
+            };
+
+        if (
+            ! is_string($serverMime)
+            || ! in_array(
+                strtolower($serverMime),
+                $allowedMimes,
+                true
+            )
+        ) {
+            return response()->json(
+                [
+                    'ok' => false,
+                    'message' =>
+                        'El contenido del archivo no corresponde '
+                        .'al formato seleccionado.',
+                    'errors' => [
+                        'file' => [
+                            'El archivo no parece ser un XLSX '
+                            .'o paquete ZIP válido.',
+                        ],
+                    ],
+                ],
+                422
+            );
+        }
+
+        $result =
+            $validationService
+                ->validate(
+                    $path,
+                    $originalName
+                );
+
+        return response()->json(
+            [
+                'ok' => true,
+
+                'file' => [
+                    'name' =>
+                        $originalName,
+
+                    'extension' =>
+                        $extension,
+
+                    'size_bytes' =>
+                        (int) (
+                            $file->getSize()
+                            ?: 0
+                        ),
+
+                    'mime_type' =>
+                        $serverMime,
+                ],
+
+                'validation' =>
+                    $result,
+            ]
+        );
+    }
+
     public function show(
         Request $request,
         TransformationImplementationRequest $implementationRequest

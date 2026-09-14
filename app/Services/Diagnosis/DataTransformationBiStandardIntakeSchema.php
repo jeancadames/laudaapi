@@ -657,6 +657,83 @@ final class DataTransformationBiStandardIntakeSchema
      *     description:string
      * }
      */
+    public static function identityKeys(): array
+    {
+        return [
+            'customers' => [
+                'customer_id',
+            ],
+
+            'products' => [
+                'product_id',
+            ],
+
+            'inventory' => [
+                'snapshot_date',
+                'product_id',
+                'branch',
+                'warehouse',
+            ],
+
+            'sales' => [
+                'document_id',
+                'line_number',
+            ],
+
+            'accounts_receivable' => [
+                'document_id',
+            ],
+
+            'suppliers' => [
+                'supplier_id',
+            ],
+
+            'accounts_payable' => [
+                'document_id',
+            ],
+        ];
+    }
+
+    public static function relationships(): array
+    {
+        return [
+            [
+                'from_domain' => 'inventory',
+                'from_field' => 'product_id',
+                'to_domain' => 'products',
+                'to_field' => 'product_id',
+            ],
+
+            [
+                'from_domain' => 'sales',
+                'from_field' => 'customer_id',
+                'to_domain' => 'customers',
+                'to_field' => 'customer_id',
+            ],
+
+            [
+                'from_domain' => 'sales',
+                'from_field' => 'product_id',
+                'to_domain' => 'products',
+                'to_field' => 'product_id',
+            ],
+
+            [
+                'from_domain' => 'accounts_receivable',
+                'from_field' => 'customer_id',
+                'to_domain' => 'customers',
+                'to_field' => 'customer_id',
+            ],
+
+            [
+                'from_domain' => 'accounts_payable',
+                'from_field' => 'supplier_id',
+                'to_domain' => 'suppliers',
+                'to_field' => 'supplier_id',
+            ],
+        ];
+    }
+
     private static function field(
         string $name,
         bool $required,

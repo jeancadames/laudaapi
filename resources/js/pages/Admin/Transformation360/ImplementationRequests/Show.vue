@@ -205,6 +205,360 @@ const transitionNotes = ref('');
 const assigning = ref(false);
 const transitioning = ref(false);
 
+const STANDARD_INTAKE_MAX_BYTES = 2 * 1024 * 1024;
+
+type StandardIntakeDomainReport = {
+    valid?: boolean;
+    row_count?: number;
+    errors?: unknown[];
+    duplicate_keys?: unknown[];
+    relation_errors?: unknown[];
+};
+
+type StandardIntakeStructuralDomainReport = {
+    warnings?: unknown[];
+};
+
+type StandardIntakeValidationResult = {
+    valid: boolean;
+    schema_version?: number;
+    format?: string;
+    errors?: unknown[];
+    warnings?: unknown[];
+    structural?: {
+        domains?: Record<string, StandardIntakeStructuralDomainReport>;
+    };
+    content?: {
+        executed?: boolean;
+        domains?: Record<string, StandardIntakeDomainReport>;
+    };
+};
+
+type StandardIntakeHttpResponse = {
+    ok: boolean;
+    message?: string;
+    errors?: Record<string, string[]>;
+    file?: {
+        name: string;
+        extension: string;
+        size_bytes: number;
+        mime_type?: string;
+    };
+    validation?: StandardIntakeValidationResult;
+};
+
+const standardIntakeFile = ref<File | null>(null);
+const standardIntakeValidating = ref(false);
+const standardIntakeHttpError = ref<string | null>(null);
+const standardIntakeReport = ref<StandardIntakeHttpResponse | null>(null);
+
+const standardIntakeValidationUrl =
+    `/admin/transformation-360/implementation-requests/${props.implementation_request.id}/standard-intake/validate`;
+
+function standardIntakeIssueText(
+    issue: unknown,
+): string {
+    if (typeof issue === 'string') {
+        return issue;
+    }
+
+    if (
+        issue === null
+        || issue === undefined
+    ) {
+        return '';
+    }
+
+    try {
+        return JSON.stringify(issue);
+    } catch {
+        return String(issue);
+    }
+}
+
+function standardIntakeFileSizeLabel(
+    bytes: number,
+): string {
+    if (bytes < 1024) {
+        return `${bytes} B`;
+    }
+
+    if (bytes < 1024 * 1024) {
+        return `${(bytes / 1024).toFixed(1)} KB`;
+    }
+
+    return `${(bytes / 1024 / 1024).toFixed(2)} MB`;
+}
+
+function standardIntakeFormatLabel(
+    format: string | undefined,
+): string {
+    if (format === 'xlsx') {
+        return 'Excel XLSX';
+    }
+
+    if (format === 'csv_zip') {
+        return 'Paquete CSV de LAUDA';
+    }
+
+    return format || 'Formato no identificado';
+}
+
+function standardIntakeDomainLabel(
+    domain: string,
+): string {
+    const labels: Record<string, string> = {
+        customers: 'Clientes',
+        products: 'Productos',
+        inventory: 'Inventario',
+        sales: 'Ventas',
+        accounts_receivable: 'Cuentas por cobrar',
+        suppliers: 'Suplidores',
+        accounts_payable: 'Cuentas por pagar',
+    };
+
+    return labels[domain] ?? domain;
+}
+
+function standardIntakeDomainEntries(): Array<
+    [string, StandardIntakeDomainReport]
+> {
+    return Object.entries(
+        standardIntakeReport.value
+            ?.validation
+            ?.content
+            ?.domains
+        ?? {},
+    );
+}
+
+function standardIntakeDomainWarnings(
+    domain: string,
+): unknown[] {
+    const warnings =
+        standardIntakeReport.value
+            ?.validation
+            ?.structural
+            ?.domains
+            ?.[domain]
+            ?.warnings;
+
+    return Array.isArray(warnings)
+        ? warnings
+        : [];
+}
+
+function standardIntakeHttpErrors(
+    payload: StandardIntakeHttpResponse | null,
+): string[] {
+    if (!payload?.errors) {
+        return [];
+    }
+
+    return Object.values(
+        payload.errors,
+    ).flatMap(
+        (messages) =>
+            Array.isArray(messages)
+                ? messages
+                : [],
+    );
+}
+
+function standardIntakeCsrfHeaders(): Record<string, string> {
+    const metaToken =
+        document
+            .querySelector<HTMLMetaElement>(
+                'meta[name="csrf-token"]',
+            )
+            ?.getAttribute('content');
+
+    if (metaToken) {
+        return {
+            'X-CSRF-TOKEN': metaToken,
+        };
+    }
+
+    const xsrfCookie =
+        document.cookie
+            .split('; ')
+            .find(
+                (item) =>
+                    item.startsWith(
+                        'XSRF-TOKEN=',
+                    ),
+            );
+
+    if (!xsrfCookie) {
+        return {};
+    }
+
+    const encodedToken =
+        xsrfCookie
+            .split('=')
+            .slice(1)
+            .join('=');
+
+    return {
+        'X-XSRF-TOKEN':
+            decodeURIComponent(
+                encodedToken,
+            ),
+    };
+}
+
+function selectStandardIntakeFile(
+    event: Event,
+): void {
+    standardIntakeReport.value = null;
+    standardIntakeHttpError.value = null;
+
+    const input =
+        event.target as HTMLInputElement;
+
+    const file =
+        input.files?.[0]
+        ?? null;
+
+    standardIntakeFile.value =
+        null;
+
+    if (!file) {
+        return;
+    }
+
+    const extension =
+        file.name
+            .split('.')
+            .pop()
+            ?.toLowerCase()
+        ?? '';
+
+    if (
+        ![
+            'xlsx',
+            'zip',
+        ].includes(
+            extension,
+        )
+    ) {
+        standardIntakeHttpError.value =
+            'Selecciona un archivo Excel (.xlsx) '
+            + 'o el paquete CSV de LAUDA (.zip).';
+
+        input.value = '';
+
+        return;
+    }
+
+    if (
+        file.size
+        > STANDARD_INTAKE_MAX_BYTES
+    ) {
+        standardIntakeHttpError.value =
+            'El archivo supera el límite actual de 2 MB.';
+
+        input.value = '';
+
+        return;
+    }
+
+    standardIntakeFile.value =
+        file;
+}
+
+async function validateStandardIntakeFile(): Promise<void> {
+    const file =
+        standardIntakeFile.value;
+
+    if (
+        !file
+        || standardIntakeValidating.value
+    ) {
+        return;
+    }
+
+    standardIntakeValidating.value =
+        true;
+
+    standardIntakeHttpError.value =
+        null;
+
+    standardIntakeReport.value =
+        null;
+
+    const formData =
+        new FormData();
+
+    formData.append(
+        'file',
+        file,
+        file.name,
+    );
+
+    try {
+        const response =
+            await fetch(
+                standardIntakeValidationUrl,
+                {
+                    method: 'POST',
+                    body: formData,
+                    credentials: 'same-origin',
+                    headers: {
+                        Accept: 'application/json',
+                        'X-Requested-With':
+                            'XMLHttpRequest',
+                        ...standardIntakeCsrfHeaders(),
+                    },
+                },
+            );
+
+        let payload:
+            | StandardIntakeHttpResponse
+            | null = null;
+
+        try {
+            const parsedPayload =
+                await response.json();
+
+            payload =
+                parsedPayload as StandardIntakeHttpResponse;
+        } catch {
+            payload = null;
+        }
+
+        if (
+            !response.ok
+            || !payload?.ok
+        ) {
+            const details =
+                standardIntakeHttpErrors(
+                    payload,
+                );
+
+            standardIntakeHttpError.value =
+                [
+                    payload?.message
+                    ?? 'No se pudo validar el archivo.',
+                    ...details,
+                ]
+                    .filter(Boolean)
+                    .join(' ');
+
+            return;
+        }
+
+        standardIntakeReport.value =
+            payload;
+    } catch {
+        standardIntakeHttpError.value =
+            'No se pudo completar la validación del archivo.';
+    } finally {
+        standardIntakeValidating.value =
+            false;
+    }
+}
+
 function assessmentStatusLabel(
     status: string | null | undefined,
 ): string {
@@ -1697,6 +2051,449 @@ function markRequestReadyForCommercial(): void {
                                 >
                                     Agregar otra fuente de datos
                                 </button>
+                            </div>
+                        </div>
+
+                        <div
+                            class="mt-5 rounded-xl border bg-muted/20 p-4 dark:border-slate-800"
+                        >
+                            <div
+                                class="flex flex-wrap items-start justify-between gap-3"
+                            >
+                                <div>
+                                    <p class="text-sm font-bold">
+                                        Validar archivo estándar
+                                    </p>
+
+                                    <p
+                                        class="mt-1 max-w-3xl text-xs leading-5 text-muted-foreground"
+                                    >
+                                        Comprueba la estructura, columnas,
+                                        formatos, duplicados y relaciones antes
+                                        de cualquier importación. Puedes validar
+                                        la plantilla Excel (.xlsx) o el paquete
+                                        CSV de LAUDA (.zip). Los CSV individuales
+                                        no se cargan directamente en este paso.
+                                        El archivo se procesa temporalmente y no
+                                        se conserva.
+                                    </p>
+                                </div>
+
+                                <span
+                                    class="rounded-full border px-2.5 py-1 text-[11px] font-semibold text-muted-foreground"
+                                >
+                                    Máx. 2 MB
+                                </span>
+                            </div>
+
+                            <div
+                                class="mt-4 grid gap-3 lg:grid-cols-[minmax(0,1fr)_auto]"
+                            >
+                                <input
+                                    type="file"
+                                    accept=".xlsx,.zip,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/zip"
+                                    class="block w-full cursor-pointer rounded-lg border bg-background px-3 py-2 text-sm file:mr-3 file:cursor-pointer file:rounded-md file:border-0 file:bg-muted file:px-3 file:py-1.5 file:text-xs file:font-semibold"
+                                    :disabled="standardIntakeValidating"
+                                    @change="selectStandardIntakeFile"
+                                />
+
+                                <button
+                                    type="button"
+                                    class="cursor-pointer rounded-lg bg-foreground px-4 py-2 text-sm font-semibold text-background disabled:cursor-not-allowed disabled:opacity-50"
+                                    :disabled="
+                                        !standardIntakeFile
+                                        || standardIntakeValidating
+                                    "
+                                    @click="validateStandardIntakeFile"
+                                >
+                                    {{
+                                        standardIntakeValidating
+                                            ? 'Validando...'
+                                            : 'Validar archivo'
+                                    }}
+                                </button>
+                            </div>
+
+                            <p
+                                v-if="standardIntakeFile"
+                                class="mt-2 text-xs text-muted-foreground"
+                            >
+                                Seleccionado:
+                                <span class="font-semibold text-foreground">
+                                    {{ standardIntakeFile.name }}
+                                </span>
+                                ·
+                                {{
+                                    standardIntakeFileSizeLabel(
+                                        standardIntakeFile.size,
+                                    )
+                                }}
+                            </p>
+
+                            <div
+                                v-if="standardIntakeHttpError"
+                                class="mt-4 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700 dark:border-red-900/60 dark:bg-red-950/30 dark:text-red-300"
+                            >
+                                {{ standardIntakeHttpError }}
+                            </div>
+
+                            <div
+                                v-if="
+                                    standardIntakeReport
+                                    && standardIntakeReport.validation
+                                "
+                                class="mt-5 space-y-4"
+                            >
+                                <div
+                                    class="flex flex-wrap items-center justify-between gap-3 rounded-lg border p-4"
+                                    :class="
+                                        standardIntakeReport.validation.valid
+                                            ? 'border-emerald-200 bg-emerald-50 dark:border-emerald-900/60 dark:bg-emerald-950/20'
+                                            : 'border-red-200 bg-red-50 dark:border-red-900/60 dark:bg-red-950/20'
+                                    "
+                                >
+                                    <div>
+                                        <p
+                                            class="text-sm font-black"
+                                            :class="
+                                                standardIntakeReport
+                                                    .validation
+                                                    .valid
+                                                    ? 'text-emerald-700 dark:text-emerald-300'
+                                                    : 'text-red-700 dark:text-red-300'
+                                            "
+                                        >
+                                            {{
+                                                standardIntakeReport
+                                                    .validation
+                                                    .valid
+                                                    ? 'PASS · Archivo válido'
+                                                    : 'FAIL · Requiere correcciones'
+                                            }}
+                                        </p>
+
+                                        <p
+                                            class="mt-1 text-xs text-muted-foreground"
+                                        >
+                                            {{
+                                                standardIntakeReport.file
+                                                    ?.name
+                                                ?? standardIntakeFile?.name
+                                            }}
+                                            ·
+                                            {{
+                                                standardIntakeFormatLabel(
+                                                    standardIntakeReport
+                                                        .validation
+                                                        .format,
+                                                )
+                                            }}
+                                            <template
+                                                v-if="
+                                                    standardIntakeReport
+                                                        .file
+                                                        ?.size_bytes
+                                                    !== undefined
+                                                "
+                                            >
+                                                ·
+                                                {{
+                                                    standardIntakeFileSizeLabel(
+                                                        standardIntakeReport
+                                                            .file
+                                                            .size_bytes,
+                                                    )
+                                                }}
+                                            </template>
+                                        </p>
+                                    </div>
+
+                                    <span
+                                        class="rounded-full border px-3 py-1 text-xs font-bold"
+                                    >
+                                        Schema v{{
+                                            standardIntakeReport
+                                                .validation
+                                                .schema_version
+                                            ?? 1
+                                        }}
+                                    </span>
+                                </div>
+
+                                <div
+                                    v-if="
+                                        standardIntakeReport
+                                            .validation
+                                            .errors
+                                            ?.length
+                                    "
+                                    class="rounded-lg border border-red-200 p-3 dark:border-red-900/60"
+                                >
+                                    <p
+                                        class="text-xs font-bold text-red-700 dark:text-red-300"
+                                    >
+                                        Errores generales
+                                    </p>
+
+                                    <ul
+                                        class="mt-2 list-disc space-y-1 pl-5 text-xs"
+                                    >
+                                        <li
+                                            v-for="(
+                                                issue,
+                                                index
+                                            ) in standardIntakeReport
+                                                .validation
+                                                .errors"
+                                            :key="`standard-intake-error-${index}`"
+                                        >
+                                            {{
+                                                standardIntakeIssueText(
+                                                    issue,
+                                                )
+                                            }}
+                                        </li>
+                                    </ul>
+                                </div>
+
+                                <div
+                                    v-if="
+                                        standardIntakeReport
+                                            .validation
+                                            .warnings
+                                            ?.length
+                                    "
+                                    class="rounded-lg border border-amber-200 bg-amber-50/60 p-3 dark:border-amber-900/60 dark:bg-amber-950/20"
+                                >
+                                    <p
+                                        class="text-xs font-bold text-amber-800 dark:text-amber-300"
+                                    >
+                                        Advertencias generales
+                                    </p>
+
+                                    <ul
+                                        class="mt-2 list-disc space-y-1 pl-5 text-xs"
+                                    >
+                                        <li
+                                            v-for="(
+                                                issue,
+                                                index
+                                            ) in standardIntakeReport
+                                                .validation
+                                                .warnings"
+                                            :key="`standard-intake-warning-${index}`"
+                                        >
+                                            {{
+                                                standardIntakeIssueText(
+                                                    issue,
+                                                )
+                                            }}
+                                        </li>
+                                    </ul>
+                                </div>
+
+                                <div
+                                    v-if="
+                                        standardIntakeReport
+                                            .validation
+                                            .content
+                                            ?.executed
+                                    "
+                                    class="space-y-3"
+                                >
+                                    <div
+                                        class="flex flex-wrap items-center justify-between gap-2"
+                                    >
+                                        <p class="text-xs font-bold">
+                                            Resultado por dominio
+                                        </p>
+
+                                        <span
+                                            class="text-xs text-muted-foreground"
+                                        >
+                                            {{
+                                                standardIntakeDomainEntries()
+                                                    .length
+                                            }}
+                                            dominios evaluados
+                                        </span>
+                                    </div>
+
+                                    <div
+                                        class="grid gap-3 lg:grid-cols-2"
+                                    >
+                                        <div
+                                            v-for="[
+                                                domainKey,
+                                                domain,
+                                            ] in standardIntakeDomainEntries()"
+                                            :key="`standard-intake-domain-${domainKey}`"
+                                            class="rounded-lg border p-3 dark:border-slate-800"
+                                        >
+                                            <div
+                                                class="flex items-center justify-between gap-3"
+                                            >
+                                                <div>
+                                                    <p
+                                                        class="text-sm font-semibold"
+                                                    >
+                                                        {{
+                                                            standardIntakeDomainLabel(
+                                                                domainKey,
+                                                            )
+                                                        }}
+                                                    </p>
+
+                                                    <p
+                                                        class="mt-0.5 text-xs text-muted-foreground"
+                                                    >
+                                                        {{
+                                                            domain.row_count
+                                                            ?? 0
+                                                        }}
+                                                        filas
+                                                    </p>
+                                                </div>
+
+                                                <span
+                                                    class="rounded-full border px-2 py-1 text-[10px] font-bold"
+                                                    :class="
+                                                        domain.valid
+                                                            ? 'border-emerald-200 text-emerald-700 dark:border-emerald-900 dark:text-emerald-300'
+                                                            : 'border-red-200 text-red-700 dark:border-red-900 dark:text-red-300'
+                                                    "
+                                                >
+                                                    {{
+                                                        domain.valid
+                                                            ? 'PASS'
+                                                            : 'FAIL'
+                                                    }}
+                                                </span>
+                                            </div>
+
+                                            <ul
+                                                v-if="
+                                                    domain.errors
+                                                        ?.length
+                                                "
+                                                class="mt-3 list-disc space-y-1 pl-5 text-xs text-red-700 dark:text-red-300"
+                                            >
+                                                <li
+                                                    v-for="(
+                                                        issue,
+                                                        index
+                                                    ) in domain.errors"
+                                                    :key="`standard-intake-domain-error-${domainKey}-${index}`"
+                                                >
+                                                    {{
+                                                        standardIntakeIssueText(
+                                                            issue,
+                                                        )
+                                                    }}
+                                                </li>
+                                            </ul>
+
+                                            <ul
+                                                v-if="
+                                                    domain
+                                                        .duplicate_keys
+                                                        ?.length
+                                                "
+                                                class="mt-3 list-disc space-y-1 pl-5 text-xs text-red-700 dark:text-red-300"
+                                            >
+                                                <li
+                                                    v-for="(
+                                                        issue,
+                                                        index
+                                                    ) in domain.duplicate_keys"
+                                                    :key="`standard-intake-domain-duplicate-${domainKey}-${index}`"
+                                                >
+                                                    {{
+                                                        standardIntakeIssueText(
+                                                            issue,
+                                                        )
+                                                    }}
+                                                </li>
+                                            </ul>
+
+                                            <ul
+                                                v-if="
+                                                    domain
+                                                        .relation_errors
+                                                        ?.length
+                                                "
+                                                class="mt-3 list-disc space-y-1 pl-5 text-xs text-red-700 dark:text-red-300"
+                                            >
+                                                <li
+                                                    v-for="(
+                                                        issue,
+                                                        index
+                                                    ) in domain.relation_errors"
+                                                    :key="`standard-intake-domain-relation-${domainKey}-${index}`"
+                                                >
+                                                    {{
+                                                        standardIntakeIssueText(
+                                                            issue,
+                                                        )
+                                                    }}
+                                                </li>
+                                            </ul>
+
+                                            <ul
+                                                v-if="
+                                                    standardIntakeDomainWarnings(
+                                                        domainKey,
+                                                    ).length
+                                                "
+                                                class="mt-3 list-disc space-y-1 pl-5 text-xs text-amber-700 dark:text-amber-300"
+                                            >
+                                                <li
+                                                    v-for="(
+                                                        issue,
+                                                        index
+                                                    ) in standardIntakeDomainWarnings(
+                                                        domainKey,
+                                                    )"
+                                                    :key="`standard-intake-domain-warning-${domainKey}-${index}`"
+                                                >
+                                                    {{
+                                                        standardIntakeIssueText(
+                                                            issue,
+                                                        )
+                                                    }}
+                                                </li>
+                                            </ul>
+
+                                            <p
+                                                v-if="
+                                                    !domain.errors
+                                                        ?.length
+                                                    && !domain
+                                                        .duplicate_keys
+                                                        ?.length
+                                                    && !domain
+                                                        .relation_errors
+                                                        ?.length
+                                                    && !standardIntakeDomainWarnings(
+                                                        domainKey,
+                                                    ).length
+                                                "
+                                                class="mt-3 text-xs text-muted-foreground"
+                                            >
+                                                Sin incidencias detectadas.
+                                            </p>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <p
+                                    v-else
+                                    class="rounded-lg border border-dashed p-3 text-xs text-muted-foreground"
+                                >
+                                    La validación de contenido no se ejecutó
+                                    porque el archivo no superó la validación
+                                    estructural.
+                                </p>
                             </div>
                         </div>
 

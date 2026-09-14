@@ -318,6 +318,26 @@ Route::middleware(['auth', 'verified', 'role:admin'])
             'transformation360.implementation_requests.standard_intake_template.csv'
         );
 
+        /*
+        |--------------------------------------------------------------------------
+        | Data BI · Validación temporal de intake
+        |--------------------------------------------------------------------------
+        |
+        | Recibe XLSX o el paquete ZIP de CSV de LAUDA.
+        | El archivo se valida desde el temporal de PHP:
+        | no se persiste y no modifica la Definition.
+        |
+        */
+        \Illuminate\Support\Facades\Route::post(
+            '/transformation-360/implementation-requests/{implementationRequest}/standard-intake/validate',
+            [
+                \App\Http\Controllers\Admin\AdminTransformationImplementationRequestController::class,
+                'validateStandardIntakeUpload'
+            ]
+        )->name(
+            'transformation360.implementation_requests.standard_intake.validate'
+        );
+
         \Illuminate\Support\Facades\Route::patch(
             '/transformation-360/implementation-requests/{implementationRequest}/assign',
             [
