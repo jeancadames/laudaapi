@@ -338,6 +338,26 @@ Route::middleware(['auth', 'verified', 'role:admin'])
             'transformation360.implementation_requests.standard_intake.validate'
         );
 
+        /*
+        |--------------------------------------------------------------------------
+        | Data BI · Ingestión controlada a staging
+        |--------------------------------------------------------------------------
+        |
+        | Acción explícita separada de la validación temporal.
+        | Revalida el archivo antes de persistirlo en almacenamiento privado
+        | y en staging canónico. No avanza lifecycle ni crea modelo BI final.
+        |
+        */
+        \Illuminate\Support\Facades\Route::post(
+            '/transformation-360/implementation-requests/{implementationRequest}/standard-intake/ingest',
+            [
+                \App\Http\Controllers\Admin\AdminTransformationImplementationRequestController::class,
+                'ingestStandardIntakeUpload'
+            ]
+        )->name(
+            'transformation360.implementation_requests.standard_intake.ingest'
+        );
+
         \Illuminate\Support\Facades\Route::patch(
             '/transformation-360/implementation-requests/{implementationRequest}/assign',
             [

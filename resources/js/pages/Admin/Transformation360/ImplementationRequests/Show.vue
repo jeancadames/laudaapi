@@ -247,13 +247,48 @@ type StandardIntakeHttpResponse = {
     validation?: StandardIntakeValidationResult;
 };
 
+type StandardIntakeIngestionDomainReport = {
+    source_row_count: number;
+    staged_row_count: number;
+    rejected_row_count: number;
+};
+
+type StandardIntakeIngestionResult = {
+    reused: boolean;
+    batch_id: number;
+    status: string;
+    schema_version: number;
+    format: string;
+    original_filename: string;
+    domain_count: number;
+    source_row_count: number;
+    staged_row_count: number;
+    rejected_row_count: number;
+    domains: Record<string, StandardIntakeIngestionDomainReport>;
+};
+
+type StandardIntakeIngestionHttpResponse = {
+    ok: boolean;
+    message?: string;
+    errors?: Record<string, string[]>;
+    ingestion?: StandardIntakeIngestionResult;
+};
+
 const standardIntakeFile = ref<File | null>(null);
 const standardIntakeValidating = ref(false);
 const standardIntakeHttpError = ref<string | null>(null);
 const standardIntakeReport = ref<StandardIntakeHttpResponse | null>(null);
 
+const standardIntakeIngesting = ref(false);
+const standardIntakeIngestionError = ref<string | null>(null);
+const standardIntakeIngestionReport =
+    ref<StandardIntakeIngestionHttpResponse | null>(null);
+
 const standardIntakeValidationUrl =
     `/admin/transformation-360/implementation-requests/${props.implementation_request.id}/standard-intake/validate`;
+
+const standardIntakeIngestionUrl =
+    `/admin/transformation-360/implementation-requests/${props.implementation_request.id}/standard-intake/ingest`;
 
 function standardIntakeIssueText(
     issue: unknown,
@@ -332,6 +367,17 @@ function standardIntakeDomainEntries(): Array<
     );
 }
 
+function standardIntakeIngestionDomainEntries(): Array<
+    [string, StandardIntakeIngestionDomainReport]
+> {
+    return Object.entries(
+        standardIntakeIngestionReport.value
+            ?.ingestion
+            ?.domains
+        ?? {},
+    );
+}
+
 function standardIntakeDomainWarnings(
     domain: string,
 ): unknown[] {
@@ -349,7 +395,10 @@ function standardIntakeDomainWarnings(
 }
 
 function standardIntakeHttpErrors(
-    payload: StandardIntakeHttpResponse | null,
+    payload:
+        | StandardIntakeHttpResponse
+        | StandardIntakeIngestionHttpResponse
+        | null,
 ): string[] {
     if (!payload?.errors) {
         return [];
@@ -412,6 +461,8 @@ function selectStandardIntakeFile(
 ): void {
     standardIntakeReport.value = null;
     standardIntakeHttpError.value = null;
+    standardIntakeIngestionReport.value = null;
+    standardIntakeIngestionError.value = null;
 
     const input =
         event.target as HTMLInputElement;
@@ -474,6 +525,7 @@ async function validateStandardIntakeFile(): Promise<void> {
     if (
         !file
         || standardIntakeValidating.value
+        || standardIntakeIngesting.value
     ) {
         return;
     }
@@ -485,6 +537,12 @@ async function validateStandardIntakeFile(): Promise<void> {
         null;
 
     standardIntakeReport.value =
+        null;
+
+    standardIntakeIngestionReport.value =
+        null;
+
+    standardIntakeIngestionError.value =
         null;
 
     const formData =
@@ -555,6 +613,105 @@ async function validateStandardIntakeFile(): Promise<void> {
             'No se pudo completar la validación del archivo.';
     } finally {
         standardIntakeValidating.value =
+            false;
+    }
+}
+
+async function ingestStandardIntakeFile(): Promise<void> {
+    const file =
+        standardIntakeFile.value;
+
+    const validation =
+        standardIntakeReport.value
+            ?.validation;
+
+    if (
+        !file
+        || validation?.valid !== true
+        || standardIntakeValidating.value
+        || standardIntakeIngesting.value
+    ) {
+        return;
+    }
+
+    standardIntakeIngesting.value =
+        true;
+
+    standardIntakeIngestionError.value =
+        null;
+
+    standardIntakeIngestionReport.value =
+        null;
+
+    const formData =
+        new FormData();
+
+    formData.append(
+        'file',
+        file,
+        file.name,
+    );
+
+    try {
+        const response =
+            await fetch(
+                standardIntakeIngestionUrl,
+                {
+                    method: 'POST',
+                    body: formData,
+                    credentials: 'same-origin',
+                    headers: {
+                        Accept: 'application/json',
+                        'X-Requested-With':
+                            'XMLHttpRequest',
+                        ...standardIntakeCsrfHeaders(),
+                    },
+                },
+            );
+
+        let payload:
+            | StandardIntakeIngestionHttpResponse
+            | null = null;
+
+        try {
+            const parsedPayload =
+                await response.json();
+
+            payload =
+                parsedPayload as StandardIntakeIngestionHttpResponse;
+        } catch {
+            payload = null;
+        }
+
+        if (
+            !response.ok
+            || !payload?.ok
+            || !payload.ingestion
+        ) {
+            const details =
+                standardIntakeHttpErrors(
+                    payload,
+                );
+
+            standardIntakeIngestionError.value =
+                [
+                    payload?.message
+                    ?? 'No se pudo ingresar el archivo al staging.',
+                    ...details,
+                ]
+                    .filter(Boolean)
+                    .join(' ');
+
+            return;
+        }
+
+        standardIntakeIngestionReport.value =
+            payload;
+    } catch {
+        standardIntakeIngestionError.value =
+            'No se pudo completar el ingreso del archivo al staging.';
+    } finally {
+        standardIntakeIngesting.value =
             false;
     }
 }
@@ -2093,7 +2250,7 @@ function markRequestReadyForCommercial(): void {
                                     type="file"
                                     accept=".xlsx,.zip,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/zip"
                                     class="block w-full cursor-pointer rounded-lg border bg-background px-3 py-2 text-sm file:mr-3 file:cursor-pointer file:rounded-md file:border-0 file:bg-muted file:px-3 file:py-1.5 file:text-xs file:font-semibold"
-                                    :disabled="standardIntakeValidating"
+                                    :disabled="standardIntakeValidating || standardIntakeIngesting"
                                     @change="selectStandardIntakeFile"
                                 />
 
@@ -2103,6 +2260,7 @@ function markRequestReadyForCommercial(): void {
                                     :disabled="
                                         !standardIntakeFile
                                         || standardIntakeValidating
+                                        || standardIntakeIngesting
                                     "
                                     @click="validateStandardIntakeFile"
                                 >
@@ -2218,6 +2376,349 @@ function markRequestReadyForCommercial(): void {
                                             ?? 1
                                         }}
                                     </span>
+                                </div>
+
+                                <div
+                                    v-if="
+                                        standardIntakeReport
+                                            .validation
+                                            .valid
+                                    "
+                                    class="rounded-lg border border-sky-200 bg-sky-50/60 p-4 dark:border-sky-900/60 dark:bg-sky-950/20"
+                                >
+                                    <div
+                                        class="flex flex-wrap items-start justify-between gap-3"
+                                    >
+                                        <div class="max-w-3xl">
+                                            <p
+                                                class="text-sm font-bold text-sky-800 dark:text-sky-300"
+                                            >
+                                                Archivo listo para staging
+                                            </p>
+
+                                            <p
+                                                class="mt-1 text-xs leading-5 text-muted-foreground"
+                                            >
+                                                La validación anterior fue temporal
+                                                y no guardó el archivo. El ingreso a
+                                                staging es una acción separada y
+                                                explícita: conservará el archivo en
+                                                almacenamiento privado y registrará
+                                                sus filas validadas en el área de
+                                                preparación de datos. No crea todavía
+                                                el modelo BI final.
+                                            </p>
+                                        </div>
+
+                                        <button
+                                            type="button"
+                                            class="cursor-pointer rounded-lg bg-sky-700 px-4 py-2 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-50"
+                                            :disabled="
+                                                !standardIntakeFile
+                                                || standardIntakeValidating
+                                                || standardIntakeIngesting
+                                            "
+                                            @click="ingestStandardIntakeFile"
+                                        >
+                                            {{
+                                                standardIntakeIngesting
+                                                    ? 'Ingresando...'
+                                                    : 'Ingresar a staging'
+                                            }}
+                                        </button>
+                                    </div>
+
+                                    <p
+                                        class="mt-3 text-[11px] leading-5 text-muted-foreground"
+                                    >
+                                        Esta acción no cambia el estado de la
+                                        solicitud, no modifica la Definición y no
+                                        activa automáticamente ningún servicio.
+                                    </p>
+                                </div>
+
+                                <div
+                                    v-if="standardIntakeIngestionError"
+                                    class="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700 dark:border-red-900/60 dark:bg-red-950/30 dark:text-red-300"
+                                >
+                                    {{ standardIntakeIngestionError }}
+                                </div>
+
+                                <div
+                                    v-if="
+                                        standardIntakeIngestionReport
+                                            ?.ingestion
+                                    "
+                                    class="space-y-4 rounded-xl border border-emerald-200 bg-emerald-50/50 p-4 dark:border-emerald-900/60 dark:bg-emerald-950/20"
+                                >
+                                    <div
+                                        class="flex flex-wrap items-start justify-between gap-3"
+                                    >
+                                        <div>
+                                            <p
+                                                class="text-sm font-black text-emerald-700 dark:text-emerald-300"
+                                            >
+                                                {{
+                                                    standardIntakeIngestionReport
+                                                        .ingestion
+                                                        .reused
+                                                        ? 'Batch existente reutilizado'
+                                                        : 'Ingreso a staging completado'
+                                                }}
+                                            </p>
+
+                                            <p
+                                                v-if="
+                                                    standardIntakeIngestionReport
+                                                        .message
+                                                "
+                                                class="mt-1 text-xs text-muted-foreground"
+                                            >
+                                                {{
+                                                    standardIntakeIngestionReport
+                                                        .message
+                                                }}
+                                            </p>
+                                        </div>
+
+                                        <div
+                                            class="flex flex-wrap items-center gap-2"
+                                        >
+                                            <span
+                                                class="rounded-full border px-2.5 py-1 text-[11px] font-bold"
+                                            >
+                                                Batch #{{
+                                                    standardIntakeIngestionReport
+                                                        .ingestion
+                                                        .batch_id
+                                                }}
+                                            </span>
+
+                                            <span
+                                                class="rounded-full border border-emerald-200 px-2.5 py-1 text-[11px] font-bold text-emerald-700 dark:border-emerald-900 dark:text-emerald-300"
+                                            >
+                                                {{
+                                                    standardIntakeIngestionReport
+                                                        .ingestion
+                                                        .status
+                                                        === 'completed'
+                                                        ? 'Completado'
+                                                        : standardIntakeIngestionReport
+                                                            .ingestion
+                                                            .status
+                                                }}
+                                            </span>
+                                        </div>
+                                    </div>
+
+                                    <div
+                                        class="grid gap-2 sm:grid-cols-2 lg:grid-cols-4"
+                                    >
+                                        <div
+                                            class="rounded-lg border bg-background/70 p-3"
+                                        >
+                                            <p
+                                                class="text-[10px] font-bold tracking-wide text-muted-foreground uppercase"
+                                            >
+                                                Esquema
+                                            </p>
+
+                                            <p class="mt-1 text-sm font-bold">
+                                                v{{
+                                                    standardIntakeIngestionReport
+                                                        .ingestion
+                                                        .schema_version
+                                                }}
+                                            </p>
+                                        </div>
+
+                                        <div
+                                            class="rounded-lg border bg-background/70 p-3"
+                                        >
+                                            <p
+                                                class="text-[10px] font-bold tracking-wide text-muted-foreground uppercase"
+                                            >
+                                                Formato
+                                            </p>
+
+                                            <p class="mt-1 text-sm font-bold">
+                                                {{
+                                                    standardIntakeFormatLabel(
+                                                        standardIntakeIngestionReport
+                                                            .ingestion
+                                                            .format,
+                                                    )
+                                                }}
+                                            </p>
+                                        </div>
+
+                                        <div
+                                            class="rounded-lg border bg-background/70 p-3"
+                                        >
+                                            <p
+                                                class="text-[10px] font-bold tracking-wide text-muted-foreground uppercase"
+                                            >
+                                                Dominios
+                                            </p>
+
+                                            <p class="mt-1 text-sm font-bold">
+                                                {{
+                                                    standardIntakeIngestionReport
+                                                        .ingestion
+                                                        .domain_count
+                                                }}
+                                            </p>
+                                        </div>
+
+                                        <div
+                                            class="rounded-lg border bg-background/70 p-3"
+                                        >
+                                            <p
+                                                class="text-[10px] font-bold tracking-wide text-muted-foreground uppercase"
+                                            >
+                                                Archivo
+                                            </p>
+
+                                            <p
+                                                class="mt-1 truncate text-sm font-bold"
+                                                :title="
+                                                    standardIntakeIngestionReport
+                                                        .ingestion
+                                                        .original_filename
+                                                "
+                                            >
+                                                {{
+                                                    standardIntakeIngestionReport
+                                                        .ingestion
+                                                        .original_filename
+                                                }}
+                                            </p>
+                                        </div>
+                                    </div>
+
+                                    <div
+                                        class="grid gap-2 sm:grid-cols-3"
+                                    >
+                                        <div
+                                            class="rounded-lg border bg-background/70 p-3"
+                                        >
+                                            <p class="text-xs text-muted-foreground">
+                                                Filas de origen
+                                            </p>
+
+                                            <p class="mt-1 text-lg font-black">
+                                                {{
+                                                    standardIntakeIngestionReport
+                                                        .ingestion
+                                                        .source_row_count
+                                                }}
+                                            </p>
+                                        </div>
+
+                                        <div
+                                            class="rounded-lg border bg-background/70 p-3"
+                                        >
+                                            <p class="text-xs text-muted-foreground">
+                                                Filas en staging
+                                            </p>
+
+                                            <p class="mt-1 text-lg font-black">
+                                                {{
+                                                    standardIntakeIngestionReport
+                                                        .ingestion
+                                                        .staged_row_count
+                                                }}
+                                            </p>
+                                        </div>
+
+                                        <div
+                                            class="rounded-lg border bg-background/70 p-3"
+                                        >
+                                            <p class="text-xs text-muted-foreground">
+                                                Filas rechazadas
+                                            </p>
+
+                                            <p class="mt-1 text-lg font-black">
+                                                {{
+                                                    standardIntakeIngestionReport
+                                                        .ingestion
+                                                        .rejected_row_count
+                                                }}
+                                            </p>
+                                        </div>
+                                    </div>
+
+                                    <div>
+                                        <div
+                                            class="flex flex-wrap items-center justify-between gap-2"
+                                        >
+                                            <p class="text-xs font-bold">
+                                                Staging por dominio
+                                            </p>
+
+                                            <span
+                                                class="text-xs text-muted-foreground"
+                                            >
+                                                {{
+                                                    standardIntakeIngestionDomainEntries()
+                                                        .length
+                                                }}
+                                                dominios
+                                            </span>
+                                        </div>
+
+                                        <div
+                                            class="mt-3 grid gap-2 lg:grid-cols-2"
+                                        >
+                                            <div
+                                                v-for="[
+                                                    domainKey,
+                                                    domain,
+                                                ] in standardIntakeIngestionDomainEntries()"
+                                                :key="`standard-intake-ingestion-domain-${domainKey}`"
+                                                class="rounded-lg border bg-background/70 p-3"
+                                            >
+                                                <div
+                                                    class="flex items-center justify-between gap-3"
+                                                >
+                                                    <p class="text-sm font-semibold">
+                                                        {{
+                                                            standardIntakeDomainLabel(
+                                                                domainKey,
+                                                            )
+                                                        }}
+                                                    </p>
+
+                                                    <span
+                                                        class="rounded-full border px-2 py-1 text-[10px] font-bold"
+                                                    >
+                                                        {{
+                                                            domain.staged_row_count
+                                                        }}
+                                                        staged
+                                                    </span>
+                                                </div>
+
+                                                <div
+                                                    class="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground"
+                                                >
+                                                    <span>
+                                                        Origen:
+                                                        {{
+                                                            domain.source_row_count
+                                                        }}
+                                                    </span>
+
+                                                    <span>
+                                                        Rechazadas:
+                                                        {{
+                                                            domain.rejected_row_count
+                                                        }}
+                                                    </span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
                                 </div>
 
                                 <div

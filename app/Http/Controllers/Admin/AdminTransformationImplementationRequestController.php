@@ -579,6 +579,140 @@ final class AdminTransformationImplementationRequestController
         );
     }
 
+    /**
+     * Persist an explicitly approved standard intake into canonical
+     * staging after the complete I15 validation pipeline passes.
+     *
+     * Unlike validateStandardIntakeUpload(), this action is intentionally
+     * persistent. It does not advance Request/Definition lifecycle and
+     * does not create the final BI analytical model.
+     */
+    public function ingestStandardIntakeUpload(
+        Request $request,
+        TransformationImplementationRequest $implementationRequest,
+        \App\Services\Diagnosis\DataTransformationBiStandardIntakeIngestionService $ingestionService
+    ): \Illuminate\Http\JsonResponse {
+        $this->authorizeAdmin(
+            $request
+        );
+
+        abort_unless(
+            (string) $implementationRequest->capability_key
+                === 'data_transformation_bi',
+            404
+        );
+
+        $validator =
+            \Illuminate\Support\Facades\Validator::make(
+                $request->all(),
+                [
+                    'file' => [
+                        'required',
+                        'file',
+                        'max:2048',
+                    ],
+                ]
+            );
+
+        if ($validator->fails()) {
+            return response()->json(
+                [
+                    'ok' => false,
+
+                    'message' =>
+                        'No se pudo recibir el archivo para staging.',
+
+                    'errors' =>
+                        $validator
+                            ->errors()
+                            ->toArray(),
+                ],
+                422
+            );
+        }
+
+        $file =
+            $request->file(
+                'file'
+            );
+
+        if (
+            $file === null
+            || ! $file->isValid()
+        ) {
+            return response()->json(
+                [
+                    'ok' => false,
+
+                    'message' =>
+                        'El archivo recibido no es válido.',
+
+                    'errors' => [
+                        'file' => [
+                            'El archivo recibido no es válido.',
+                        ],
+                    ],
+                ],
+                422
+            );
+        }
+
+        $actor =
+            $request->user();
+
+        abort_unless(
+            $actor instanceof \App\Models\User,
+            403
+        );
+
+        try {
+            $result =
+                $ingestionService
+                    ->ingest(
+                        $implementationRequest,
+                        $file,
+                        $actor
+                    );
+        } catch (
+            \Illuminate\Validation\ValidationException $exception
+        ) {
+            return response()->json(
+                [
+                    'ok' => false,
+
+                    'message' =>
+                        'El archivo no pudo ingresarse al staging.',
+
+                    'errors' =>
+                        $exception->errors(),
+                ],
+                422
+            );
+        }
+
+        $reused =
+            ($result['reused'] ?? false)
+            === true;
+
+        return response()->json(
+            [
+                'ok' =>
+                    true,
+
+                'message' =>
+                    $reused
+                        ? 'Este archivo ya había sido ingresado y se reutilizó el batch existente.'
+                        : 'Archivo validado e ingresado correctamente al staging.',
+
+                'ingestion' =>
+                    $result,
+            ],
+            $reused
+                ? 200
+                : 201
+        );
+    }
+
     public function show(
         Request $request,
         TransformationImplementationRequest $implementationRequest
