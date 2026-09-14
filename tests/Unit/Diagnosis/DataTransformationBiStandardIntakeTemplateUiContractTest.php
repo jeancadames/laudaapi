@@ -89,6 +89,12 @@ test(
                 'Agregar otra fuente de datos'
             )
             ->toContain(
+                'cursor-pointer'
+            )
+            ->toContain(
+                'disabled:cursor-not-allowed'
+            )
+            ->toContain(
                 'nextTick'
             )
             ->toContain(
