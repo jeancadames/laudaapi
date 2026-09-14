@@ -1342,6 +1342,260 @@ function markRequestReadyForCommercial(): void {
     );
 }
 
+
+type StandardIntakeProcessingResult = {
+    run_id: number;
+    batch_id?: number;
+    status: string;
+    source_row_count?: number;
+    profiled_row_count?: number;
+    normalized_row_count?: number;
+    issue_count?: number;
+    blocking_issue_count?: number;
+    warning_issue_count?: number;
+    domain_profile_count?: number;
+    field_profile_count?: number;
+    normalization_change_count?: number;
+    reused?: boolean;
+};
+
+type StandardIntakeProcessingHttpResponse = {
+    ok: boolean;
+    message?: string;
+    processing?: StandardIntakeProcessingResult;
+    errors?: Record<string, string[]>;
+};
+
+const standardIntakeProfiling = ref(false);
+const standardIntakeNormalizing = ref(false);
+
+const standardIntakeProcessingError =
+    ref<string | null>(null);
+
+const standardIntakeProfileReport =
+    ref<StandardIntakeProcessingHttpResponse | null>(null);
+
+const standardIntakeNormalizationReport =
+    ref<StandardIntakeProcessingHttpResponse | null>(null);
+
+const standardIntakeProcessingBatchId =
+    ref<number | null>(null);
+
+const standardIntakeProfilingUrl =
+    `/admin/transformation-360/implementation-requests/${props.implementation_request.id}/standard-intake/profile`;
+
+const standardIntakeNormalizationUrl =
+    `/admin/transformation-360/implementation-requests/${props.implementation_request.id}/standard-intake/normalize`;
+
+function currentStandardIntakeBatchId(): number | null {
+    const value =
+        standardIntakeIngestionReport.value
+            ?.ingestion
+            ?.batch_id;
+
+    return typeof value === 'number'
+        && Number.isInteger(value)
+        && value > 0
+        ? value
+        : null;
+}
+
+function standardIntakeProfileIsForCurrentBatch(): boolean {
+    const batchId =
+        currentStandardIntakeBatchId();
+
+    return (
+        batchId !== null
+        && standardIntakeProcessingBatchId.value === batchId
+        && standardIntakeProfileReport.value?.processing !== undefined
+    );
+}
+
+function canNormalizeStandardIntake(): boolean {
+    if (
+        standardIntakeProfiling.value
+        || standardIntakeNormalizing.value
+        || !standardIntakeProfileIsForCurrentBatch()
+    ) {
+        return false;
+    }
+
+    const processing =
+        standardIntakeProfileReport.value
+            ?.processing;
+
+    if (!processing) {
+        return false;
+    }
+
+    return (
+        processing.run_id > 0
+        && (processing.blocking_issue_count ?? 0) === 0
+        && standardIntakeNormalizationReport.value
+            ?.processing
+            ?.status !== 'completed'
+    );
+}
+
+async function parseStandardIntakeProcessingResponse(
+    response: Response,
+): Promise<StandardIntakeProcessingHttpResponse> {
+    try {
+        return (
+            await response.json()
+        ) as StandardIntakeProcessingHttpResponse;
+    } catch {
+        return {
+            ok: false,
+            message:
+                'El servidor devolvió una respuesta no válida.',
+        };
+    }
+}
+
+async function profileStandardIntakeBatch(): Promise<void> {
+    const batchId =
+        currentStandardIntakeBatchId();
+
+    if (
+        batchId === null
+        || standardIntakeProfiling.value
+        || standardIntakeNormalizing.value
+    ) {
+        return;
+    }
+
+    standardIntakeProfiling.value =
+        true;
+
+    standardIntakeProcessingError.value =
+        null;
+
+    standardIntakeProfileReport.value =
+        null;
+
+    standardIntakeNormalizationReport.value =
+        null;
+
+    standardIntakeProcessingBatchId.value =
+        batchId;
+
+    try {
+        const response =
+            await fetch(
+                standardIntakeProfilingUrl,
+                {
+                    method: 'POST',
+                    credentials: 'same-origin',
+                    headers: {
+                        Accept: 'application/json',
+                        'Content-Type': 'application/json',
+                        ...standardIntakeCsrfHeaders(),
+                    },
+                    body: JSON.stringify({
+                        batch_id: batchId,
+                    }),
+                },
+            );
+
+        const payload =
+            await parseStandardIntakeProcessingResponse(
+                response,
+            );
+
+        if (
+            !response.ok
+            || !payload.ok
+            || !payload.processing
+        ) {
+            standardIntakeProcessingError.value =
+                payload.message
+                ?? 'No se pudo completar el análisis de calidad.';
+
+            return;
+        }
+
+        standardIntakeProfileReport.value =
+            payload;
+    } catch {
+        standardIntakeProcessingError.value =
+            'No se pudo completar el análisis de calidad.';
+    } finally {
+        standardIntakeProfiling.value =
+            false;
+    }
+}
+
+async function normalizeStandardIntakeBatch(): Promise<void> {
+    if (!canNormalizeStandardIntake()) {
+        return;
+    }
+
+    const processing =
+        standardIntakeProfileReport.value
+            ?.processing;
+
+    if (!processing) {
+        return;
+    }
+
+    standardIntakeNormalizing.value =
+        true;
+
+    standardIntakeProcessingError.value =
+        null;
+
+    standardIntakeNormalizationReport.value =
+        null;
+
+    try {
+        const response =
+            await fetch(
+                standardIntakeNormalizationUrl,
+                {
+                    method: 'POST',
+                    credentials: 'same-origin',
+                    headers: {
+                        Accept: 'application/json',
+                        'Content-Type': 'application/json',
+                        ...standardIntakeCsrfHeaders(),
+                    },
+                    body: JSON.stringify({
+                        processing_run_id:
+                            processing.run_id,
+                    }),
+                },
+            );
+
+        const payload =
+            await parseStandardIntakeProcessingResponse(
+                response,
+            );
+
+        if (
+            !response.ok
+            || !payload.ok
+            || !payload.processing
+        ) {
+            standardIntakeProcessingError.value =
+                payload.message
+                ?? 'No se pudo completar la normalización.';
+
+            return;
+        }
+
+        standardIntakeNormalizationReport.value =
+            payload;
+    } catch {
+        standardIntakeProcessingError.value =
+            'No se pudo completar la normalización.';
+    } finally {
+        standardIntakeNormalizing.value =
+            false;
+    }
+}
+
+
 </script>
 
 <template>
@@ -2659,6 +2913,402 @@ function markRequestReadyForCommercial(): void {
                                                         .rejected_row_count
                                                 }}
                                             </p>
+                                        </div>
+                                    </div>
+
+                                    <div
+                                        class="rounded-xl border border-indigo-200 bg-indigo-50/50 p-4 dark:border-indigo-900/60 dark:bg-indigo-950/20"
+                                    >
+                                        <div
+                                            class="flex flex-wrap items-start justify-between gap-3"
+                                        >
+                                            <div class="max-w-3xl">
+                                                <p
+                                                    class="text-sm font-black text-indigo-800 dark:text-indigo-300"
+                                                >
+                                                    Procesamiento posterior a staging
+                                                </p>
+
+                                                <p
+                                                    class="mt-1 text-xs leading-5 text-muted-foreground"
+                                                >
+                                                    El staging ya está almacenado. El
+                                                    siguiente paso analiza calidad,
+                                                    completitud y consistencia sin
+                                                    modificar las filas de origen.
+                                                    La normalización permanece como una
+                                                    acción separada y solo se habilita
+                                                    cuando no existen incidencias
+                                                    bloqueantes.
+                                                </p>
+                                            </div>
+
+                                            <button
+                                                type="button"
+                                                class="cursor-pointer rounded-lg bg-indigo-700 px-4 py-2 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-50"
+                                                :disabled="
+                                                    standardIntakeProfiling
+                                                    || standardIntakeNormalizing
+                                                "
+                                                @click="profileStandardIntakeBatch"
+                                            >
+                                                {{
+                                                    standardIntakeProfiling
+                                                        ? 'Analizando...'
+                                                        : standardIntakeProfileIsForCurrentBatch()
+                                                          ? 'Revisar calidad nuevamente'
+                                                          : 'Analizar calidad'
+                                                }}
+                                            </button>
+                                        </div>
+
+                                        <p
+                                            class="mt-3 text-[11px] leading-5 text-muted-foreground"
+                                        >
+                                            El análisis no cambia el estado de la
+                                            solicitud ni de la Definición y no activa
+                                            servicios comerciales.
+                                        </p>
+
+                                        <div
+                                            v-if="standardIntakeProcessingError"
+                                            class="mt-3 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700 dark:border-red-900/60 dark:bg-red-950/30 dark:text-red-300"
+                                        >
+                                            {{ standardIntakeProcessingError }}
+                                        </div>
+
+                                        <div
+                                            v-if="
+                                                standardIntakeProfileIsForCurrentBatch()
+                                                && standardIntakeProfileReport
+                                                    ?.processing
+                                            "
+                                            class="mt-4 space-y-4"
+                                        >
+                                            <div
+                                                class="flex flex-wrap items-center justify-between gap-3"
+                                            >
+                                                <div>
+                                                    <p
+                                                        class="text-sm font-bold"
+                                                    >
+                                                        Evaluación de calidad
+                                                    </p>
+
+                                                    <p
+                                                        v-if="
+                                                            standardIntakeProfileReport
+                                                                ?.message
+                                                        "
+                                                        class="mt-1 text-xs text-muted-foreground"
+                                                    >
+                                                        {{
+                                                            standardIntakeProfileReport
+                                                                .message
+                                                        }}
+                                                    </p>
+                                                </div>
+
+                                                <div
+                                                    class="flex flex-wrap gap-2"
+                                                >
+                                                    <span
+                                                        class="rounded-full border px-2.5 py-1 text-[11px] font-bold"
+                                                    >
+                                                        Run #{{
+                                                            standardIntakeProfileReport
+                                                                .processing
+                                                                .run_id
+                                                        }}
+                                                    </span>
+
+                                                    <span
+                                                        class="rounded-full border px-2.5 py-1 text-[11px] font-bold"
+                                                    >
+                                                        {{
+                                                            standardIntakeProfileReport
+                                                                .processing
+                                                                .status
+                                                        }}
+                                                    </span>
+                                                </div>
+                                            </div>
+
+                                            <div
+                                                class="grid gap-2 sm:grid-cols-2 lg:grid-cols-4"
+                                            >
+                                                <div
+                                                    class="rounded-lg border bg-background/70 p-3"
+                                                >
+                                                    <p
+                                                        class="text-xs text-muted-foreground"
+                                                    >
+                                                        Filas perfiladas
+                                                    </p>
+                                                    <p
+                                                        class="mt-1 text-lg font-black"
+                                                    >
+                                                        {{
+                                                            standardIntakeProfileReport
+                                                                .processing
+                                                                .profiled_row_count
+                                                            ?? 0
+                                                        }}
+                                                    </p>
+                                                </div>
+
+                                                <div
+                                                    class="rounded-lg border bg-background/70 p-3"
+                                                >
+                                                    <p
+                                                        class="text-xs text-muted-foreground"
+                                                    >
+                                                        Incidencias
+                                                    </p>
+                                                    <p
+                                                        class="mt-1 text-lg font-black"
+                                                    >
+                                                        {{
+                                                            standardIntakeProfileReport
+                                                                .processing
+                                                                .issue_count
+                                                            ?? 0
+                                                        }}
+                                                    </p>
+                                                </div>
+
+                                                <div
+                                                    class="rounded-lg border bg-background/70 p-3"
+                                                >
+                                                    <p
+                                                        class="text-xs text-muted-foreground"
+                                                    >
+                                                        Bloqueantes
+                                                    </p>
+                                                    <p
+                                                        class="mt-1 text-lg font-black"
+                                                    >
+                                                        {{
+                                                            standardIntakeProfileReport
+                                                                .processing
+                                                                .blocking_issue_count
+                                                            ?? 0
+                                                        }}
+                                                    </p>
+                                                </div>
+
+                                                <div
+                                                    class="rounded-lg border bg-background/70 p-3"
+                                                >
+                                                    <p
+                                                        class="text-xs text-muted-foreground"
+                                                    >
+                                                        Advertencias
+                                                    </p>
+                                                    <p
+                                                        class="mt-1 text-lg font-black"
+                                                    >
+                                                        {{
+                                                            standardIntakeProfileReport
+                                                                .processing
+                                                                .warning_issue_count
+                                                            ?? 0
+                                                        }}
+                                                    </p>
+                                                </div>
+                                            </div>
+
+                                            <div
+                                                class="grid gap-2 sm:grid-cols-2"
+                                            >
+                                                <div
+                                                    class="rounded-lg border bg-background/70 p-3"
+                                                >
+                                                    <p
+                                                        class="text-xs text-muted-foreground"
+                                                    >
+                                                        Dominios perfilados
+                                                    </p>
+                                                    <p
+                                                        class="mt-1 text-sm font-bold"
+                                                    >
+                                                        {{
+                                                            standardIntakeProfileReport
+                                                                .processing
+                                                                .domain_profile_count
+                                                            ?? 0
+                                                        }}
+                                                    </p>
+                                                </div>
+
+                                                <div
+                                                    class="rounded-lg border bg-background/70 p-3"
+                                                >
+                                                    <p
+                                                        class="text-xs text-muted-foreground"
+                                                    >
+                                                        Campos perfilados
+                                                    </p>
+                                                    <p
+                                                        class="mt-1 text-sm font-bold"
+                                                    >
+                                                        {{
+                                                            standardIntakeProfileReport
+                                                                .processing
+                                                                .field_profile_count
+                                                            ?? 0
+                                                        }}
+                                                    </p>
+                                                </div>
+                                            </div>
+
+                                            <div
+                                                v-if="
+                                                    (
+                                                        standardIntakeProfileReport
+                                                            .processing
+                                                            .blocking_issue_count
+                                                        ?? 0
+                                                    ) > 0
+                                                "
+                                                class="rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm text-amber-800 dark:border-amber-900/70 dark:bg-amber-950/30 dark:text-amber-300"
+                                            >
+                                                Existen incidencias bloqueantes.
+                                                La normalización permanecerá
+                                                deshabilitada hasta que la fuente sea
+                                                corregida y se ingrese nuevamente al
+                                                staging.
+                                            </div>
+
+                                            <div
+                                                v-else
+                                                class="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-emerald-200 bg-emerald-50/70 p-3 dark:border-emerald-900/60 dark:bg-emerald-950/20"
+                                            >
+                                                <div>
+                                                    <p
+                                                        class="text-sm font-bold text-emerald-800 dark:text-emerald-300"
+                                                    >
+                                                        Calidad habilitada para normalización
+                                                    </p>
+                                                    <p
+                                                        class="mt-1 text-xs text-muted-foreground"
+                                                    >
+                                                        No se detectaron incidencias
+                                                        bloqueantes. La normalización
+                                                        generará datos derivados y no
+                                                        sobrescribirá el staging.
+                                                    </p>
+                                                </div>
+
+                                                <button
+                                                    type="button"
+                                                    class="cursor-pointer rounded-lg bg-emerald-700 px-4 py-2 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-50"
+                                                    :disabled="
+                                                        !canNormalizeStandardIntake()
+                                                    "
+                                                    @click="
+                                                        normalizeStandardIntakeBatch
+                                                    "
+                                                >
+                                                    {{
+                                                        standardIntakeNormalizing
+                                                            ? 'Normalizando...'
+                                                            : standardIntakeNormalizationReport
+                                                                  ?.processing
+                                                                  ?.status
+                                                              === 'completed'
+                                                              ? 'Normalización completada'
+                                                              : 'Normalizar datos'
+                                                    }}
+                                                </button>
+                                            </div>
+
+                                            <div
+                                                v-if="
+                                                    standardIntakeNormalizationReport
+                                                        ?.processing
+                                                "
+                                                class="rounded-lg border border-emerald-200 bg-background/80 p-4 dark:border-emerald-900/60"
+                                            >
+                                                <div
+                                                    class="flex flex-wrap items-center justify-between gap-3"
+                                                >
+                                                    <div>
+                                                        <p
+                                                            class="text-sm font-black text-emerald-700 dark:text-emerald-300"
+                                                        >
+                                                            Normalización completada
+                                                        </p>
+
+                                                        <p
+                                                            v-if="
+                                                                standardIntakeNormalizationReport
+                                                                    ?.message
+                                                            "
+                                                            class="mt-1 text-xs text-muted-foreground"
+                                                        >
+                                                            {{
+                                                                standardIntakeNormalizationReport
+                                                                    .message
+                                                            }}
+                                                        </p>
+                                                    </div>
+
+                                                    <span
+                                                        class="rounded-full border border-emerald-200 px-2.5 py-1 text-[11px] font-bold text-emerald-700 dark:border-emerald-900 dark:text-emerald-300"
+                                                    >
+                                                        {{
+                                                            standardIntakeNormalizationReport
+                                                                .processing
+                                                                .status
+                                                        }}
+                                                    </span>
+                                                </div>
+
+                                                <div
+                                                    class="mt-3 grid gap-2 sm:grid-cols-2"
+                                                >
+                                                    <div
+                                                        class="rounded-lg border bg-background/70 p-3"
+                                                    >
+                                                        <p
+                                                            class="text-xs text-muted-foreground"
+                                                        >
+                                                            Filas normalizadas
+                                                        </p>
+                                                        <p
+                                                            class="mt-1 text-lg font-black"
+                                                        >
+                                                            {{
+                                                                standardIntakeNormalizationReport
+                                                                    .processing
+                                                                    .normalized_row_count
+                                                                ?? 0
+                                                            }}
+                                                        </p>
+                                                    </div>
+
+                                                    <div
+                                                        class="rounded-lg border bg-background/70 p-3"
+                                                    >
+                                                        <p
+                                                            class="text-xs text-muted-foreground"
+                                                        >
+                                                            Cambios de normalización
+                                                        </p>
+                                                        <p
+                                                            class="mt-1 text-lg font-black"
+                                                        >
+                                                            {{
+                                                                standardIntakeNormalizationReport
+                                                                    .processing
+                                                                    .normalization_change_count
+                                                                ?? 0
+                                                            }}
+                                                        </p>
+                                                    </div>
+                                                </div>
+                                            </div>
                                         </div>
                                     </div>
 

@@ -713,6 +713,259 @@ final class AdminTransformationImplementationRequestController
         );
     }
 
+    /**
+     * Run profiling and data-quality assessment over an explicitly
+     * completed standard-intake staging batch.
+     *
+     * This action does not mutate staging, Request/Definition lifecycle
+     * or commercial/activation state.
+     */
+    public function profileStandardIntakeBatch(
+        \Illuminate\Http\Request $request,
+        \App\Models\TransformationImplementationRequest $implementationRequest,
+        \App\Services\Diagnosis\DataTransformationBiStagingProfilingService $profilingService
+    ): \Illuminate\Http\JsonResponse {
+        $this->authorizeAdmin(
+            $request
+        );
+
+        abort_unless(
+            (string) $implementationRequest->capability_key
+                === 'data_transformation_bi',
+            404
+        );
+
+        $validator =
+            \Illuminate\Support\Facades\Validator::make(
+                $request->all(),
+                [
+                    'batch_id' => [
+                        'required',
+                        'integer',
+                        'min:1',
+                    ],
+                ]
+            );
+
+        if ($validator->fails()) {
+            return response()->json(
+                [
+                    'ok' =>
+                        false,
+
+                    'message' =>
+                        'No se pudo iniciar el análisis de calidad.',
+
+                    'errors' =>
+                        $validator
+                            ->errors()
+                            ->toArray(),
+                ],
+                422
+            );
+        }
+
+        $actor =
+            $request->user();
+
+        abort_unless(
+            $actor instanceof \App\Models\User,
+            403
+        );
+
+        $batch =
+            \App\Models\DataTransformationBiIntakeBatch::query()
+                ->where(
+                    'id',
+                    (int) $validator->validated()['batch_id']
+                )
+                ->where(
+                    'company_id',
+                    (int) $implementationRequest->company_id
+                )
+                ->where(
+                    'transformation_implementation_request_id',
+                    (int) $implementationRequest->id
+                )
+                ->where(
+                    'status',
+                    \App\Models\DataTransformationBiIntakeBatch
+                        ::STATUS_COMPLETED
+                )
+                ->firstOrFail();
+
+        try {
+            $result =
+                $profilingService->profile(
+                    $batch,
+                    $actor
+                );
+        } catch (\RuntimeException $exception) {
+            report(
+                $exception
+            );
+
+            return response()->json(
+                [
+                    'ok' =>
+                        false,
+
+                    'message' =>
+                        'No se pudo completar el perfilado y la evaluación de calidad del staging.',
+                ],
+                422
+            );
+        }
+
+        return response()->json(
+            [
+                'ok' =>
+                    true,
+
+                'message' =>
+                    ((int) (
+                        $result['blocking_issue_count']
+                        ?? 0
+                    )) > 0
+                        ? 'Análisis completado. Hay incidencias bloqueantes que deben resolverse antes de normalizar.'
+                        : 'Perfilado y evaluación de calidad completados correctamente.',
+
+                'processing' =>
+                    $result,
+            ]
+        );
+    }
+
+    /**
+     * Normalize a previously profiled processing run.
+     *
+     * Normalization is deliberately separate from profiling. The
+     * normalization service itself enforces the blocking-quality gate.
+     */
+    public function normalizeStandardIntakeProcessingRun(
+        \Illuminate\Http\Request $request,
+        \App\Models\TransformationImplementationRequest $implementationRequest,
+        \App\Services\Diagnosis\DataTransformationBiStagingNormalizationService $normalizationService
+    ): \Illuminate\Http\JsonResponse {
+        $this->authorizeAdmin(
+            $request
+        );
+
+        abort_unless(
+            (string) $implementationRequest->capability_key
+                === 'data_transformation_bi',
+            404
+        );
+
+        $validator =
+            \Illuminate\Support\Facades\Validator::make(
+                $request->all(),
+                [
+                    'processing_run_id' => [
+                        'required',
+                        'integer',
+                        'min:1',
+                    ],
+                ]
+            );
+
+        if ($validator->fails()) {
+            return response()->json(
+                [
+                    'ok' =>
+                        false,
+
+                    'message' =>
+                        'No se pudo iniciar la normalización.',
+
+                    'errors' =>
+                        $validator
+                            ->errors()
+                            ->toArray(),
+                ],
+                422
+            );
+        }
+
+        $actor =
+            $request->user();
+
+        abort_unless(
+            $actor instanceof \App\Models\User,
+            403
+        );
+
+        $run =
+            \App\Models\DataTransformationBiProcessingRun::query()
+                ->where(
+                    'id',
+                    (int) $validator
+                        ->validated()['processing_run_id']
+                )
+                ->where(
+                    'company_id',
+                    (int) $implementationRequest->company_id
+                )
+                ->where(
+                    'transformation_implementation_request_id',
+                    (int) $implementationRequest->id
+                )
+                ->firstOrFail();
+
+        try {
+            $result =
+                $normalizationService->normalize(
+                    $run,
+                    $actor
+                );
+        } catch (\RuntimeException $exception) {
+            report(
+                $exception
+            );
+
+            $run->refresh();
+
+            return response()->json(
+                [
+                    'ok' =>
+                        false,
+
+                    'message' =>
+                        ((int) $run->blocking_issue_count) > 0
+                            ? 'La normalización está bloqueada porque existen incidencias de calidad que deben resolverse primero.'
+                            : 'No se pudo completar la normalización del staging.',
+
+                    'processing' => [
+                        'run_id' =>
+                            (int) $run->id,
+
+                        'status' =>
+                            (string) $run->status,
+
+                        'blocking_issue_count' =>
+                            (int) $run->blocking_issue_count,
+                    ],
+                ],
+                422
+            );
+        }
+
+        return response()->json(
+            [
+                'ok' =>
+                    true,
+
+                'message' =>
+                    ($result['reused'] ?? false)
+                        ? 'La normalización ya estaba completada y se reutilizó el procesamiento existente.'
+                        : 'Normalización completada correctamente.',
+
+                'processing' =>
+                    $result,
+            ]
+        );
+    }
+
     public function show(
         Request $request,
         TransformationImplementationRequest $implementationRequest

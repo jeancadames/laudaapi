@@ -358,6 +358,31 @@ Route::middleware(['auth', 'verified', 'role:admin'])
             'transformation360.implementation_requests.standard_intake.ingest'
         );
 
+        /*
+         * Data BI post-staging processing remains explicitly controlled:
+         * profiling/quality first, normalization second.
+         */
+        \Illuminate\Support\Facades\Route::post(
+            '/transformation-360/implementation-requests/{implementationRequest}/standard-intake/profile',
+            [
+                \App\Http\Controllers\Admin\AdminTransformationImplementationRequestController::class,
+                'profileStandardIntakeBatch'
+            ]
+        )->name(
+            'transformation360.implementation_requests.standard_intake.profile'
+        );
+
+        \Illuminate\Support\Facades\Route::post(
+            '/transformation-360/implementation-requests/{implementationRequest}/standard-intake/normalize',
+            [
+                \App\Http\Controllers\Admin\AdminTransformationImplementationRequestController::class,
+                'normalizeStandardIntakeProcessingRun'
+            ]
+        )->name(
+            'transformation360.implementation_requests.standard_intake.normalize'
+        );
+
+
         \Illuminate\Support\Facades\Route::patch(
             '/transformation-360/implementation-requests/{implementationRequest}/assign',
             [
