@@ -13,10 +13,7 @@ function standardIntakeTriStateEvidence(
         'inputs' => [
             [
                 'source_name' =>
-                    'SQL Server - Base operativa',
-
-                'source_type' =>
-                    'sql_server',
+                    'Sistema operativo de origen',
 
                 'source_role' =>
                     $status === 'validated'
@@ -83,6 +80,10 @@ it(
                 'extraction_assistance_required'
             ]
         )->toBeNull();
+
+        expect($input)
+            ->not
+            ->toHaveKey('source_type');
     }
 );
 
@@ -161,6 +162,10 @@ it(
                 'extraction_assistance_required'
             ]
         )->toBeFalse();
+
+        expect($normalized['inputs'][0])
+            ->not
+            ->toHaveKey('source_type');
     }
 );
 

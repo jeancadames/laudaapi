@@ -5,7 +5,7 @@ use Tests\TestCase;
 uses(TestCase::class);
 
 test(
-    'bi admin ui exposes standard multiorigin intake',
+    'bi admin ui exposes file based standard intake',
     function () {
         $source =
             file_get_contents(
@@ -15,27 +15,41 @@ test(
             );
 
         expect($source)
-            ->toContain('item.source_type')
+            ->toContain(
+                'Sistema de origen (informativo)'
+            )
             ->toContain('item.source_role')
             ->toContain('item.delivery_format')
             ->toContain(
                 'item.extraction_assistance_required'
             )
-            ->toContain('Tipo de fuente')
-            ->toContain('Rol de la fuente')
-            ->toContain('Formato de entrega a LAUDA')
+            ->toContain('Rol de los datos')
             ->toContain(
-                'Requiere asistencia de extracción'
+                'Formato de entrega a LAUDA'
             )
             ->toContain(
-                'Evidencia de entrega / acceso'
+                'Asistencia de extracción'
             )
-            ->toContain('CSV o XLSX');
+            ->toContain(
+                'archivos CSV/XLSX'
+            )
+            ->toContain('CSV')
+            ->toContain('Excel (.xlsx)');
+
+        expect($source)
+            ->not
+            ->toContain(
+                'v-model="item.source_type"'
+            );
+
+        expect($source)
+            ->not
+            ->toContain('Tipo de fuente');
     }
 );
 
 test(
-    'standard intake does not require direct source connection',
+    'standard intake ui treats access as file delivery mechanism',
     function () {
         $source =
             file_get_contents(
@@ -46,16 +60,34 @@ test(
 
         expect($source)
             ->toContain(
-                'no es obligatorio conectarse directamente'
+                'Evidencia de entrega de datos'
             )
             ->toContain(
-                'necesidad funcional separada'
+                'Mecanismo de entrega'
+            )
+            ->toContain(
+                'no requiere'
+            )
+            ->toContain(
+                'conexión directa al sistema fuente'
+            )
+            ->toContain(
+                'Agregar entrega'
+            )
+            ->toContain(
+                'Entrega autorizada'
+            )
+            ->toContain(
+                'Entrega verificada'
+            )
+            ->toContain(
+                'Entrega de datos validada'
             );
     }
 );
 
 test(
-    'human review http accepts standard intake metadata',
+    'human review keeps source type only for legacy compatibility',
     function () {
         $source =
             file_get_contents(
@@ -69,6 +101,9 @@ test(
                 'readiness.validation_evidence.inputs.*.source_type'
             )
             ->toContain(
+                'Compatibilidad histórica solamente.'
+            )
+            ->toContain(
                 'readiness.validation_evidence.inputs.*.source_role'
             )
             ->toContain(
@@ -78,11 +113,10 @@ test(
                 'readiness.validation_evidence.inputs.*.extraction_assistance_required'
             )
             ->toContain(
-                'in:sql_server,mysql,postgresql,dbf,quickbooks,excel,csv,api,other'
-            )
-            ->toContain(
                 'in:primary,historical,complementary,derived'
             )
-            ->toContain('in:csv,xlsx');
+            ->toContain(
+                'in:csv,xlsx'
+            );
     }
 );

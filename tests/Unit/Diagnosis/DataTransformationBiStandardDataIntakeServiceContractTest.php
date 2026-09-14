@@ -7,7 +7,7 @@ use Tests\TestCase;
 uses(TestCase::class);
 
 test(
-    'standard intake supports multiple heterogeneous origin sources',
+    'validated standard intake is file based and does not require technical source type',
     function () {
         $evidence =
             TransformationImplementationDefinitionValidationEvidence::normalize([
@@ -15,80 +15,176 @@ test(
                     [
                         'source_name' =>
                             'ERP operativo',
-                        'source_type' =>
-                            'sql_server',
+
                         'source_role' =>
                             'primary',
+
                         'delivery_format' =>
                             'csv',
+
                         'extraction_assistance_required' =>
                             false,
+
                         'data_domains' => [
                             'clientes',
                             'productos',
                             'ventas',
                         ],
-                        'owner' => null,
-                        'historical_coverage' => null,
-                        'granularity' => null,
+
+                        'owner' =>
+                            'Administración',
+
+                        'historical_coverage' =>
+                            '2022 a la fecha',
+
+                        'granularity' =>
+                            'transacción / línea',
+
+                        'status' =>
+                            'validated',
+
+                        'notes' =>
+                            null,
+                    ],
+                ],
+
+                'accesses' => [],
+            ]);
+
+        expect($evidence['inputs'][0])
+            ->not
+            ->toHaveKey('source_type');
+
+        expect(
+            $evidence['inputs'][0]['delivery_format']
+        )->toBe('csv');
+
+        expect(
+            $evidence['inputs'][0]['status']
+        )->toBe('validated');
+    }
+);
+
+test(
+    'standard intake supports multiple csv and xlsx deliveries',
+    function () {
+        $evidence =
+            TransformationImplementationDefinitionValidationEvidence::normalize([
+                'inputs' => [
+                    [
+                        'source_name' =>
+                            'ERP operativo',
+
+                        'source_role' =>
+                            'primary',
+
+                        'delivery_format' =>
+                            'csv',
+
+                        'extraction_assistance_required' =>
+                            false,
+
+                        'data_domains' => [
+                            'clientes',
+                            'productos',
+                            'ventas',
+                        ],
+
+                        'owner' =>
+                            null,
+
+                        'historical_coverage' =>
+                            null,
+
+                        'granularity' =>
+                            null,
+
                         'status' =>
                             'pending',
-                        'notes' => null,
+
+                        'notes' =>
+                            null,
                     ],
+
                     [
                         'source_name' =>
                             'Histórico legado',
-                        'source_type' =>
-                            'dbf',
+
                         'source_role' =>
                             'historical',
+
                         'delivery_format' =>
                             null,
+
                         'extraction_assistance_required' =>
                             true,
+
                         'data_domains' => [
                             'ventas históricas',
                         ],
-                        'owner' => null,
-                        'historical_coverage' => null,
-                        'granularity' => null,
+
+                        'owner' =>
+                            null,
+
+                        'historical_coverage' =>
+                            null,
+
+                        'granularity' =>
+                            null,
+
                         'status' =>
                             'pending',
+
                         'notes' =>
                             'Pendiente asistencia de extracción.',
                     ],
+
                     [
                         'source_name' =>
-                            'QuickBooks',
-                        'source_type' =>
-                            'quickbooks',
+                            'Sistema contable',
+
                         'source_role' =>
                             'complementary',
+
                         'delivery_format' =>
                             'xlsx',
+
                         'extraction_assistance_required' =>
                             false,
+
                         'data_domains' => [
                             'cuentas por pagar',
                             'contabilidad',
                         ],
-                        'owner' => null,
-                        'historical_coverage' => null,
-                        'granularity' => null,
+
+                        'owner' =>
+                            null,
+
+                        'historical_coverage' =>
+                            null,
+
+                        'granularity' =>
+                            null,
+
                         'status' =>
                             'pending',
-                        'notes' => null,
+
+                        'notes' =>
+                            null,
                     ],
                 ],
+
                 'accesses' => [],
             ]);
 
         expect($evidence['inputs'])
             ->toHaveCount(3);
 
-        expect(
-            $evidence['inputs'][0]['source_type']
-        )->toBe('sql_server');
+        foreach ($evidence['inputs'] as $input) {
+            expect($input)
+                ->not
+                ->toHaveKey('source_type');
+        }
 
         expect(
             $evidence['inputs'][1]['source_role']
@@ -107,7 +203,7 @@ test(
 );
 
 test(
-    'validated standard intake requires source metadata and delivery format',
+    'validated standard intake requires csv or xlsx delivery format',
     function () {
         try {
             TransformationImplementationDefinitionValidationEvidence::normalize([
@@ -115,29 +211,38 @@ test(
                     [
                         'source_name' =>
                             'ERP operativo',
-                        'source_type' =>
-                            'sql_server',
+
                         'source_role' =>
                             'primary',
+
                         'delivery_format' =>
                             null,
+
                         'extraction_assistance_required' =>
                             false,
+
                         'data_domains' => [
                             'clientes',
                             'ventas',
                         ],
+
                         'owner' =>
                             'Administración',
+
                         'historical_coverage' =>
                             '2022 a la fecha',
+
                         'granularity' =>
                             'transacción / línea',
+
                         'status' =>
                             'validated',
-                        'notes' => null,
+
+                        'notes' =>
+                            null,
                     ],
                 ],
+
                 'accesses' => [],
             ]);
 
@@ -154,37 +259,94 @@ test(
 );
 
 test(
-    'extraction assistance keeps source from being validated',
+    'standard intake rejects non standard delivery formats',
+    function () {
+        expect(
+            fn () =>
+                TransformationImplementationDefinitionValidationEvidence::normalize([
+                    'inputs' => [
+                        [
+                            'source_name' =>
+                                'ERP operativo',
+
+                            'source_role' =>
+                                'primary',
+
+                            'delivery_format' =>
+                                'json',
+
+                            'extraction_assistance_required' =>
+                                false,
+
+                            'data_domains' => [
+                                'clientes',
+                            ],
+
+                            'owner' =>
+                                null,
+
+                            'historical_coverage' =>
+                                null,
+
+                            'granularity' =>
+                                null,
+
+                            'status' =>
+                                'pending',
+
+                            'notes' =>
+                                null,
+                        ],
+                    ],
+
+                    'accesses' => [],
+                ])
+        )->toThrow(
+            ValidationException::class
+        );
+    }
+);
+
+test(
+    'extraction assistance keeps standard delivery from being validated',
     function () {
         try {
             TransformationImplementationDefinitionValidationEvidence::normalize([
                 'inputs' => [
                     [
                         'source_name' =>
-                            'QuickBooks',
-                        'source_type' =>
-                            'quickbooks',
+                            'Sistema contable',
+
                         'source_role' =>
                             'complementary',
+
                         'delivery_format' =>
                             'xlsx',
+
                         'extraction_assistance_required' =>
                             true,
+
                         'data_domains' => [
                             'cuentas por pagar',
                         ],
+
                         'owner' =>
                             'Contabilidad',
+
                         'historical_coverage' =>
                             '2024 a la fecha',
+
                         'granularity' =>
                             'documento',
+
                         'status' =>
                             'validated',
+
                         'notes' =>
-                            'Requiere apoyo para exportación.',
+                            'Requiere apoyo para preparar la exportación.',
                     ],
                 ],
+
                 'accesses' => [],
             ]);
 
@@ -201,54 +363,54 @@ test(
 );
 
 test(
-    'validated standard intake accepts csv without direct source connection',
+    'legacy technical source type remains readable and preserved',
     function () {
         $evidence =
             TransformationImplementationDefinitionValidationEvidence::normalize([
                 'inputs' => [
                     [
                         'source_name' =>
-                            'ERP operativo',
+                            'SQL Server - Base operativa',
+
                         'source_type' =>
                             'sql_server',
-                        'source_role' =>
-                            'primary',
-                        'delivery_format' =>
-                            'csv',
-                        'extraction_assistance_required' =>
-                            false,
+
                         'data_domains' => [
                             'clientes',
-                            'productos',
                             'ventas',
                         ],
+
                         'owner' =>
-                            'Administración',
+                            null,
+
                         'historical_coverage' =>
-                            '2022 a la fecha',
+                            null,
+
                         'granularity' =>
-                            'transacción / línea',
+                            null,
+
                         'status' =>
-                            'validated',
-                        'notes' => null,
+                            'pending',
+
+                        'notes' =>
+                            'Evidencia histórica.',
                     ],
                 ],
+
                 'accesses' => [],
             ]);
 
         expect(
-            $evidence['inputs'][0]['status']
-        )->toBe('validated');
+            $evidence['inputs'][0]['source_type']
+        )->toBe('sql_server');
 
-        expect(
-            $evidence['inputs'][0]['delivery_format']
-        )->toBe('csv');
+        expect($evidence['inputs'][0])
+            ->not
+            ->toHaveKey('delivery_format');
 
-        expect(
-            $evidence['inputs'][0][
-                'extraction_assistance_required'
-            ]
-        )->toBeFalse();
+        expect($evidence['inputs'][0])
+            ->not
+            ->toHaveKey('source_role');
     }
 );
 
@@ -261,20 +423,28 @@ test(
                     [
                         'source_name' =>
                             'Fuente legado',
+
                         'data_domains' => [
                             'clientes',
                         ],
+
                         'owner' =>
                             'Sistemas',
+
                         'historical_coverage' =>
                             '2020 a la fecha',
+
                         'granularity' =>
                             'registro',
+
                         'status' =>
                             'validated',
-                        'notes' => null,
+
+                        'notes' =>
+                            null,
                     ],
                 ],
+
                 'accesses' => [],
             ]);
 

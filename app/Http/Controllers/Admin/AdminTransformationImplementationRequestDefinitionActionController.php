@@ -239,8 +239,13 @@ final class AdminTransformationImplementationRequestDefinitionActionController
                 'readiness.validation_evidence.inputs.*.source_name' =>
                     ['required', 'string', 'max:255'],
 
+                /*
+                 * Compatibilidad histórica solamente.
+                 * El intake estándar no exige ni expone source_type.
+                 */
                 'readiness.validation_evidence.inputs.*.source_type' =>
                     [
+                        'sometimes',
                         'nullable',
                         'string',
                         'in:sql_server,mysql,postgresql,dbf,quickbooks,excel,csv,api,other',

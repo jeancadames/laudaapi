@@ -16,7 +16,7 @@ final class TransformationImplementationDefinitionValidationEvidence
         'not_applicable',
     ];
 
-    private const SOURCE_TYPES = [
+    private const LEGACY_SOURCE_TYPES = [
         'sql_server',
         'mysql',
         'postgresql',
@@ -166,13 +166,20 @@ final class TransformationImplementationDefinitionValidationEvidence
                 $field
             );
 
+            $hasLegacySourceType =
+                array_key_exists(
+                    'source_type',
+                    $item
+                );
+
             /*
-             * Evidencia histórica puede no contener todavía
-             * los campos del contrato de intake estándar.
+             * El intake estándar comienza en la entrega de
+             * archivos CSV/XLSX. El tipo técnico del sistema
+             * de origen se conserva solo por compatibilidad
+             * con evidencia histórica.
              */
             $usesStandardIntakeContract =
-                array_key_exists('source_type', $item)
-                || array_key_exists('source_role', $item)
+                array_key_exists('source_role', $item)
                 || array_key_exists('delivery_format', $item)
                 || array_key_exists(
                     'extraction_assistance_required',
@@ -190,7 +197,7 @@ final class TransformationImplementationDefinitionValidationEvidence
                 self::nullableEnum(
                     $item['source_type'] ?? null,
                     "{$field}.source_type",
-                    self::SOURCE_TYPES,
+                    self::LEGACY_SOURCE_TYPES,
                     'El tipo de fuente no es válido.'
                 );
 
@@ -280,14 +287,6 @@ final class TransformationImplementationDefinitionValidationEvidence
                 $usesStandardIntakeContract
                 && $status === 'validated'
             ) {
-                if ($sourceType === null) {
-                    throw ValidationException::withMessages([
-                        "{$field}.source_type" => [
-                            'La evidencia validada debe identificar el tipo de fuente de origen.',
-                        ],
-                    ]);
-                }
-
                 if ($sourceRole === null) {
                     throw ValidationException::withMessages([
                         "{$field}.source_role" => [
@@ -337,11 +336,17 @@ final class TransformationImplementationDefinitionValidationEvidence
                     $sourceName,
 
                 ...(
-                    $usesStandardIntakeContract
+                    $hasLegacySourceType
                         ? [
                             'source_type' =>
                                 $sourceType,
+                        ]
+                        : []
+                ),
 
+                ...(
+                    $usesStandardIntakeContract
+                        ? [
                             'source_role' =>
                                 $sourceRole,
 

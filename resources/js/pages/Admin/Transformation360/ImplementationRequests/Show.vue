@@ -585,10 +585,6 @@ function syncHumanReviewForm(): void {
             ? validationEvidence.inputs.map(
                 (item) => ({
                     ...item,
-                    source_type:
-                        typeof item.source_type === 'string'
-                            ? item.source_type
-                            : '',
                     source_role:
                         typeof item.source_role === 'string'
                             ? item.source_role
@@ -643,7 +639,6 @@ watch(
 function addInputValidationEvidence(): void {
     humanReviewForm.readiness.validation_evidence.inputs.push({
         source_name: '',
-        source_type: '',
         source_role: '',
         delivery_format: '',
         extraction_assistance_required: null,
@@ -1663,7 +1658,7 @@ function markRequestReadyForCommercial(): void {
                                 :disabled="humanReviewForm.processing"
                                 @click="addInputValidationEvidence"
                             >
-                                Agregar fuente
+                                Agregar insumo
                             </button>
                         </div>
 
@@ -1691,61 +1686,28 @@ function markRequestReadyForCommercial(): void {
                             <div class="grid gap-4 md:grid-cols-2">
                                 <label class="block">
                                     <span class="text-xs font-semibold">
-                                        Fuente
+                                        Sistema de origen (informativo)
                                     </span>
                                     <input
                                         v-model="item.source_name"
                                         type="text"
                                         class="mt-1 w-full rounded-lg border bg-background px-3 py-2 text-sm"
-                                        placeholder="Ej. ERP / SQL Server"
+                                        placeholder="Ej. ERP, sistema contable o base operativa"
                                     />
-                                </label>
-
-                                <label class="block">
-                                    <span class="text-xs font-semibold">
-                                        Tipo de fuente
-                                    </span>
-
-                                    <select
-                                        v-model="item.source_type"
-                                        class="mt-1 w-full rounded-lg border bg-background px-3 py-2 text-sm"
+                                    <span
+                                        class="mt-1 block text-xs leading-5 text-muted-foreground"
                                     >
-                                        <option value="">
-                                            Seleccionar...
-                                        </option>
-                                        <option value="sql_server">
-                                            SQL Server
-                                        </option>
-                                        <option value="mysql">
-                                            MySQL
-                                        </option>
-                                        <option value="postgresql">
-                                            PostgreSQL
-                                        </option>
-                                        <option value="dbf">
-                                            DBF / Visual FoxPro
-                                        </option>
-                                        <option value="quickbooks">
-                                            QuickBooks
-                                        </option>
-                                        <option value="excel">
-                                            Excel
-                                        </option>
-                                        <option value="csv">
-                                            CSV
-                                        </option>
-                                        <option value="api">
-                                            API
-                                        </option>
-                                        <option value="other">
-                                            Otro
-                                        </option>
-                                    </select>
+                                        El sistema de origen es solo informativo.
+                                        LAUDA recibe el intake estándar mediante
+                                        archivos CSV/XLSX conforme a la estructura
+                                        requerida.
+                                    </span>
                                 </label>
+
 
                                 <label class="block">
                                     <span class="text-xs font-semibold">
-                                        Rol de la fuente
+                                        Rol de los datos
                                     </span>
 
                                     <select
@@ -1937,18 +1899,17 @@ function markRequestReadyForCommercial(): void {
                         >
                             <div>
                                 <p class="text-sm font-bold">
-                                    Evidencia de entrega / acceso
+                                    Evidencia de entrega de datos
                                 </p>
 
                                 <p
                                     class="mt-1 max-w-3xl text-xs leading-5 text-muted-foreground"
                                 >
-                                    Registra el mecanismo autorizado de entrega
-                                    o acceso a los datos. En el flujo estándar
-                                    normalmente será una entrega de archivos CSV/XLSX;
-                                    no es obligatorio conectarse directamente al
-                                    sistema fuente. No almacenes usuarios,
-                                    contraseñas, tokens ni secretos.
+                                    Registra el mecanismo autorizado para entregar
+                                    los archivos CSV/XLSX a LAUDA. El flujo estándar
+                                    trabaja con archivos estructurados y no requiere
+                                    conexión directa al sistema fuente. No almacenes
+                                    usuarios, contraseñas, tokens ni secretos.
                                 </p>
                             </div>
 
@@ -1958,7 +1919,7 @@ function markRequestReadyForCommercial(): void {
                                 :disabled="humanReviewForm.processing"
                                 @click="addAccessValidationEvidence"
                             >
-                                Agregar acceso
+                                Agregar entrega
                             </button>
                         </div>
 
@@ -1972,7 +1933,7 @@ function markRequestReadyForCommercial(): void {
                             "
                             class="mt-4 rounded-xl border border-dashed p-4 text-sm text-muted-foreground"
                         >
-                            Todavía no se ha registrado evidencia de accesos.
+                            Todavía no se ha registrado evidencia de entrega de datos.
                         </div>
 
                         <div
@@ -1998,7 +1959,7 @@ function markRequestReadyForCommercial(): void {
 
                                 <label class="block">
                                     <span class="text-xs font-semibold">
-                                        Método de acceso
+                                        Mecanismo de entrega
                                     </span>
                                     <input
                                         v-model="item.access_method"
@@ -2031,7 +1992,7 @@ function markRequestReadyForCommercial(): void {
                                         type="checkbox"
                                     />
                                     <span class="text-sm">
-                                        Entrega / acceso autorizado
+                                        Entrega autorizada
                                     </span>
                                 </label>
 
@@ -2043,7 +2004,7 @@ function markRequestReadyForCommercial(): void {
                                         type="checkbox"
                                     />
                                     <span class="text-sm">
-                                        Entrega / acceso verificado
+                                        Entrega verificada
                                     </span>
                                 </label>
 
@@ -2071,7 +2032,7 @@ function markRequestReadyForCommercial(): void {
                                         )
                                     "
                                 >
-                                    Quitar acceso
+                                    Quitar entrega
                                 </button>
                             </div>
                         </div>
@@ -2150,7 +2111,7 @@ function markRequestReadyForCommercial(): void {
                             />
 
                             <span class="text-sm">
-                                Entrega / accesos validados
+                                Entrega de datos validada
                             </span>
                         </label>
 
