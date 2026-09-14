@@ -1437,6 +1437,23 @@ function canNormalizeStandardIntake(): boolean {
     );
 }
 
+function standardIntakeInformationalIssueCount(): number {
+    const processing =
+        standardIntakeProfileReport.value
+            ?.processing;
+
+    if (!processing) {
+        return 0;
+    }
+
+    return Math.max(
+        0,
+        (processing.issue_count ?? 0)
+        - (processing.blocking_issue_count ?? 0)
+        - (processing.warning_issue_count ?? 0),
+    );
+}
+
 async function parseStandardIntakeProcessingResponse(
     response: Response,
 ): Promise<StandardIntakeProcessingHttpResponse> {
@@ -3026,7 +3043,10 @@ async function normalizeStandardIntakeBatch(): Promise<void> {
                                                         class="rounded-full border px-2.5 py-1 text-[11px] font-bold"
                                                     >
                                                         {{
-                                                            standardIntakeProfileReport
+                                                            standardIntakeNormalizationReport
+                                                                ?.processing
+                                                                ?.status
+                                                            ?? standardIntakeProfileReport
                                                                 .processing
                                                                 .status
                                                         }}
@@ -3113,6 +3133,22 @@ async function normalizeStandardIntakeBatch(): Promise<void> {
                                                                 .processing
                                                                 .warning_issue_count
                                                             ?? 0
+                                                        }}
+                                                    </p>
+                                                </div>
+                                                <div
+                                                    class="rounded-lg border bg-background/70 p-3"
+                                                >
+                                                    <p
+                                                        class="text-xs text-muted-foreground"
+                                                    >
+                                                        Informativas
+                                                    </p>
+                                                    <p
+                                                        class="mt-1 text-lg font-black"
+                                                    >
+                                                        {{
+                                                            standardIntakeInformationalIssueCount()
                                                         }}
                                                     </p>
                                                 </div>
