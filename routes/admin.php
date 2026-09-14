@@ -289,6 +289,35 @@ Route::middleware(['auth', 'verified', 'role:admin'])
             'transformation360.implementation_requests.show'
         );
 
+        /*
+        |--------------------------------------------------------------------------
+        | Data BI · Plantillas estándar de intake
+        |--------------------------------------------------------------------------
+        |
+        | Descargas reutilizables. No contienen datos del tenant,
+        | no escriben DB y no requieren conexión al sistema fuente.
+        |
+        */
+        \Illuminate\Support\Facades\Route::get(
+            '/transformation-360/implementation-requests/{implementationRequest}/standard-intake-template/xlsx',
+            [
+                \App\Http\Controllers\Admin\AdminTransformationImplementationRequestController::class,
+                'downloadStandardIntakeXlsx'
+            ]
+        )->name(
+            'transformation360.implementation_requests.standard_intake_template.xlsx'
+        );
+
+        \Illuminate\Support\Facades\Route::get(
+            '/transformation-360/implementation-requests/{implementationRequest}/standard-intake-template/csv',
+            [
+                \App\Http\Controllers\Admin\AdminTransformationImplementationRequestController::class,
+                'downloadStandardIntakeCsv'
+            ]
+        )->name(
+            'transformation360.implementation_requests.standard_intake_template.csv'
+        );
+
         \Illuminate\Support\Facades\Route::patch(
             '/transformation-360/implementation-requests/{implementationRequest}/assign',
             [

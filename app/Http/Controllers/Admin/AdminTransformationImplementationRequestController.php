@@ -315,6 +315,60 @@ final class AdminTransformationImplementationRequestController
         );
     }
 
+    public function downloadStandardIntakeXlsx(
+        Request $request,
+        TransformationImplementationRequest $implementationRequest,
+        \App\Services\Diagnosis\DataTransformationBiStandardIntakeTemplateService $templates
+    ): \Symfony\Component\HttpFoundation\BinaryFileResponse {
+        $this->authorizeAdmin(
+            $request
+        );
+
+        $path =
+            $templates
+                ->createXlsxTemporaryFile();
+
+        return response()
+            ->download(
+                $path,
+                $templates->xlsxFilename(),
+                [
+                    'Content-Type' =>
+                        'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+                ]
+            )
+            ->deleteFileAfterSend(
+                true
+            );
+    }
+
+    public function downloadStandardIntakeCsv(
+        Request $request,
+        TransformationImplementationRequest $implementationRequest,
+        \App\Services\Diagnosis\DataTransformationBiStandardIntakeTemplateService $templates
+    ): \Symfony\Component\HttpFoundation\BinaryFileResponse {
+        $this->authorizeAdmin(
+            $request
+        );
+
+        $path =
+            $templates
+                ->createCsvZipTemporaryFile();
+
+        return response()
+            ->download(
+                $path,
+                $templates->csvZipFilename(),
+                [
+                    'Content-Type' =>
+                        'application/zip',
+                ]
+            )
+            ->deleteFileAfterSend(
+                true
+            );
+    }
+
     public function show(
         Request $request,
         TransformationImplementationRequest $implementationRequest

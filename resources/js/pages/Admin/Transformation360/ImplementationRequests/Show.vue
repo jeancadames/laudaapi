@@ -1652,14 +1652,32 @@ function markRequestReadyForCommercial(): void {
                                 </p>
                             </div>
 
-                            <button
-                                type="button"
-                                class="rounded-lg border px-3 py-2 text-xs font-semibold"
-                                :disabled="humanReviewForm.processing"
-                                @click="addInputValidationEvidence"
+                            <div
+                                class="flex flex-wrap items-center gap-2"
                             >
-                                Agregar insumo
-                            </button>
+                                <a
+                                    :href="`/admin/transformation-360/implementation-requests/${props.implementation_request.id}/standard-intake-template/xlsx`"
+                                    class="rounded-lg border px-3 py-2 text-xs font-semibold"
+                                >
+                                    Descargar plantilla Excel
+                                </a>
+
+                                <a
+                                    :href="`/admin/transformation-360/implementation-requests/${props.implementation_request.id}/standard-intake-template/csv`"
+                                    class="rounded-lg border px-3 py-2 text-xs font-semibold"
+                                >
+                                    Descargar paquete CSV
+                                </a>
+
+                                <button
+                                    type="button"
+                                    class="rounded-lg border px-3 py-2 text-xs font-semibold"
+                                    :disabled="humanReviewForm.processing"
+                                    @click="addInputValidationEvidence"
+                                >
+                                    Agregar insumo
+                                </button>
+                            </div>
                         </div>
 
                         <div
