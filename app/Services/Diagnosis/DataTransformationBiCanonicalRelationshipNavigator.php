@@ -223,6 +223,418 @@ final class DataTransformationBiCanonicalRelationshipNavigator
      * @param array<string,mixed> $relationship
      * @return array<string,mixed>
      */
+    /**
+     * Resolve one canonical relationship for a bounded set of source rows
+     * against an already-frozen P13 dataset.
+     *
+     * Exactly one bulk target lookup is performed for all unique nonblank
+     * relation values in this call.
+     *
+     * @param array<string,mixed> $dataset
+     * @param array<int,array<string,mixed>> $sourceRows
+     * @return array<int,array{
+     *     source_normalized_row_id:int,
+     *     relationship:array<string,mixed>,
+     *     source_relation_value_missing:bool,
+     *     target_found:bool,
+     *     target:null|array<string,mixed>
+     * }>
+     */
+    public function resolveBulkTargetsInDataset(
+        int $companyId,
+        array $dataset,
+        string $fromDomain,
+        array $sourceRows,
+        string $toDomain
+    ): array {
+        if (
+            count($sourceRows)
+            > 500
+        ) {
+            throw new InvalidArgumentException(
+                'La navegación canónica por lote admite '
+                .'un máximo de 500 filas fuente por llamada.'
+            );
+        }
+
+        $relationship =
+            $this->relationship(
+                $fromDomain,
+                $toDomain
+            );
+
+        $fromField =
+            (string) $relationship[
+                'from_field'
+            ];
+
+        $toField =
+            (string) $relationship[
+                'to_field'
+            ];
+
+        $canonicalIdentity =
+            app(
+                DataTransformationBiCanonicalIdentity::class
+            );
+
+        $reader =
+            app(
+                DataTransformationBiPreparedDatasetReader::class
+            );
+
+        /*
+         * sourceId => canonical target hash|null
+         */
+        $sourceTargetHashes = [];
+
+        /*
+         * canonical target hash => true
+         */
+        $requiredHashes = [];
+
+        foreach ($sourceRows as $sourceRow) {
+            if (! is_array($sourceRow)) {
+                throw new InvalidArgumentException(
+                    'Cada fila fuente debe usar el contrato '
+                    .'canónico de P14.'
+                );
+            }
+
+            $sourceId =
+                (int) (
+                    $sourceRow[
+                        'normalized_row_id'
+                    ]
+                    ?? 0
+                );
+
+            if ($sourceId <= 0) {
+                throw new InvalidArgumentException(
+                    'Cada fila fuente debe contener '
+                    .'normalized_row_id válido.'
+                );
+            }
+
+            if (
+                array_key_exists(
+                    $sourceId,
+                    $sourceTargetHashes
+                )
+            ) {
+                throw new InvalidArgumentException(
+                    'La navegación canónica por lote recibió '
+                    .'una fila fuente duplicada.'
+                );
+            }
+
+            $payload =
+                $sourceRow['payload']
+                ?? null;
+
+            if (! is_array($payload)) {
+                throw new InvalidArgumentException(
+                    'Cada fila fuente debe contener '
+                    .'payload canónico válido.'
+                );
+            }
+
+            $relationValue =
+                $payload[$fromField]
+                ?? null;
+
+            $missing =
+                $relationValue === null
+                || (
+                    is_string($relationValue)
+                    && trim($relationValue) === ''
+                );
+
+            if ($missing) {
+                $sourceTargetHashes[$sourceId] =
+                    null;
+
+                continue;
+            }
+
+            $targetHash =
+                $canonicalIdentity
+                    ->hashForIdentityValues(
+                        $toDomain,
+                        [
+                            $toField =>
+                                $relationValue,
+                        ]
+                    );
+
+            $sourceTargetHashes[$sourceId] =
+                $targetHash;
+
+            $requiredHashes[$targetHash] =
+                true;
+        }
+
+        /*
+         * P17-A performs one bounded, indexed query for all unique targets.
+         * It also validates the supplied pinned dataset identity.
+         */
+        $targetRows =
+            $reader
+                ->findDomainRowsByCanonicalIdentityHashesInDataset(
+                    $companyId,
+                    $dataset,
+                    $toDomain,
+                    array_keys(
+                        $requiredHashes
+                    )
+                );
+
+        $resolved = [];
+
+        foreach (
+            $sourceTargetHashes
+            as $sourceId => $targetHash
+        ) {
+            if ($targetHash === null) {
+                $resolved[$sourceId] = [
+                    'source_normalized_row_id' =>
+                        $sourceId,
+
+                    'relationship' =>
+                        $relationship,
+
+                    'source_relation_value_missing' =>
+                        true,
+
+                    'target_found' =>
+                        false,
+
+                    'target' =>
+                        null,
+                ];
+
+                continue;
+            }
+
+            $target =
+                $targetRows[$targetHash]
+                ?? null;
+
+            /*
+             * P16 guarantees referential integrity for newly completed
+             * datasets, but navigation remains defensive and fail-closed.
+             */
+            if (! is_array($target)) {
+                throw new RuntimeException(
+                    'Una relación canónica no pudo resolverse '
+                    .'dentro del dataset fijado.'
+                );
+            }
+
+            $resolved[$sourceId] = [
+                'source_normalized_row_id' =>
+                    $sourceId,
+
+                'relationship' =>
+                    $relationship,
+
+                'source_relation_value_missing' =>
+                    false,
+
+                'target_found' =>
+                    true,
+
+                'target' =>
+                    $target,
+            ];
+        }
+
+        return $resolved;
+    }
+
+    /**
+     * Stream one relationship for an entire source domain without N+1
+     * lookups and without allowing the dataset pointer to move mid-stream.
+     *
+     * P13 is resolved exactly once. Source pages and target bulk lookups
+     * both use the same frozen dataset descriptor.
+     *
+     * @return \Generator<int,array{
+     *     source:array<string,mixed>,
+     *     relationship:array<string,mixed>,
+     *     source_relation_value_missing:bool,
+     *     target_found:bool,
+     *     target:null|array<string,mixed>
+     * }>
+     */
+    public function iterateResolvedRelationship(
+        int $companyId,
+        int $implementationRequestId,
+        string $fromDomain,
+        string $toDomain,
+        int $chunkSize = 500
+    ): \Generator {
+        if (
+            $chunkSize <= 0
+            || $chunkSize > 500
+        ) {
+            throw new InvalidArgumentException(
+                'El tamaño del lote de relaciones debe estar '
+                .'entre 1 y 500.'
+            );
+        }
+
+        /*
+         * Validate the relationship contract before touching the dataset.
+         */
+        $this->relationship(
+            $fromDomain,
+            $toDomain
+        );
+
+        /*
+         * Resolve P13 exactly once for the whole stream.
+         */
+        $resolvedDataset =
+            app(
+                DataTransformationBiUsableDatasetResolver::class
+            )
+                ->forRequest(
+                    $companyId,
+                    $implementationRequestId
+                );
+
+        if (
+            ($resolvedDataset['available'] ?? false)
+            !== true
+            || ! is_array(
+                $resolvedDataset['dataset']
+                ?? null
+            )
+        ) {
+            return;
+        }
+
+        /** @var array<string,mixed> $dataset */
+        $dataset =
+            $resolvedDataset['dataset'];
+
+        $reader =
+            app(
+                DataTransformationBiPreparedDatasetReader::class
+            );
+
+        $chunk = [];
+
+        foreach (
+            $reader->iterateDomainInDataset(
+                $companyId,
+                $dataset,
+                $fromDomain,
+                $chunkSize
+            )
+            as $sourceRow
+        ) {
+            $chunk[] =
+                $sourceRow;
+
+            if (
+                count($chunk)
+                < $chunkSize
+            ) {
+                continue;
+            }
+
+            yield from $this->yieldResolvedChunk(
+                $companyId,
+                $dataset,
+                $fromDomain,
+                $toDomain,
+                $chunk
+            );
+
+            $chunk = [];
+        }
+
+        if ($chunk !== []) {
+            yield from $this->yieldResolvedChunk(
+                $companyId,
+                $dataset,
+                $fromDomain,
+                $toDomain,
+                $chunk
+            );
+        }
+    }
+
+    /**
+     * @param array<string,mixed> $dataset
+     * @param array<int,array<string,mixed>> $sourceRows
+     * @return \Generator<int,array<string,mixed>>
+     */
+    private function yieldResolvedChunk(
+        int $companyId,
+        array $dataset,
+        string $fromDomain,
+        string $toDomain,
+        array $sourceRows
+    ): \Generator {
+        $targets =
+            $this->resolveBulkTargetsInDataset(
+                $companyId,
+                $dataset,
+                $fromDomain,
+                $sourceRows,
+                $toDomain
+            );
+
+        foreach ($sourceRows as $sourceRow) {
+            $sourceId =
+                (int) (
+                    $sourceRow[
+                        'normalized_row_id'
+                    ]
+                    ?? 0
+                );
+
+            $targetResult =
+                $targets[$sourceId]
+                ?? null;
+
+            if (! is_array($targetResult)) {
+                throw new RuntimeException(
+                    'La navegación canónica por lote perdió '
+                    .'correspondencia con una fila fuente.'
+                );
+            }
+
+            yield [
+                'source' =>
+                    $sourceRow,
+
+                'relationship' =>
+                    $targetResult[
+                        'relationship'
+                    ],
+
+                'source_relation_value_missing' =>
+                    (bool) $targetResult[
+                        'source_relation_value_missing'
+                    ],
+
+                'target_found' =>
+                    (bool) $targetResult[
+                        'target_found'
+                    ],
+
+                'target' =>
+                    $targetResult[
+                        'target'
+                    ],
+            ];
+        }
+    }
+
     private function resolveAgainstDataset(
         int $companyId,
         array $dataset,

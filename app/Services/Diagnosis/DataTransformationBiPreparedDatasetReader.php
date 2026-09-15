@@ -353,6 +353,303 @@ final class DataTransformationBiPreparedDatasetReader
      *     payload:array<string,mixed>
      * }|null
      */
+    /**
+     * Find multiple rows by normalized canonical identity inside one
+     * already-resolved P13 dataset.
+     *
+     * The caller supplies the frozen dataset identity. This method never
+     * re-resolves P13, so every lookup remains pinned to the same run/batch.
+     *
+     * Missing hashes are omitted from the returned map. Consumers that
+     * require referential completeness must fail closed themselves.
+     *
+     * @param array<string,mixed> $dataset
+     * @param array<int,string> $canonicalIdentityHashes
+     * @return array<string,array{
+     *     normalized_row_id:int,
+     *     identity_hash:string,
+     *     payload:array<string,mixed>
+     * }>
+     */
+    /**
+     * Iterate one domain against an already-resolved P13 dataset.
+     *
+     * This is the pinned counterpart of iterateDomain(). It deliberately
+     * does not resolve P13 again, allowing downstream consumers to keep
+     * source rows and related target rows on the exact same run/batch.
+     *
+     * @param array<string,mixed> $dataset
+     * @return \Generator<int,array{
+     *     normalized_row_id:int,
+     *     identity_hash:string,
+     *     payload:array<string,mixed>
+     * }>
+     */
+    public function iterateDomainInDataset(
+        int $companyId,
+        array $dataset,
+        string $domain,
+        int $pageSize = self::DEFAULT_PAGE_SIZE
+    ): \Generator {
+        $domain =
+            $this->canonicalDomain(
+                $domain
+            );
+
+        $pageSize =
+            $this->pageSize(
+                $pageSize
+            );
+
+        /*
+         * Validate the technical snapshot identity once before iteration.
+         */
+        $this->datasetIdentity(
+            $dataset
+        );
+
+        $afterId =
+            null;
+
+        while (true) {
+            $page =
+                $this->readResolvedDomainPage(
+                    $companyId,
+                    $dataset,
+                    $domain,
+                    $pageSize,
+                    $afterId,
+                    'pinned_usable_dataset'
+                );
+
+            foreach (
+                $page['rows']
+                as $row
+            ) {
+                yield $row;
+            }
+
+            if (
+                ($page['page']['has_more'] ?? false)
+                !== true
+            ) {
+                break;
+            }
+
+            $nextAfterId =
+                $page['page']['next_after_id']
+                ?? null;
+
+            if (
+                ! is_int($nextAfterId)
+                || $nextAfterId <= 0
+                || (
+                    $afterId !== null
+                    && $nextAfterId <= $afterId
+                )
+            ) {
+                throw new \RuntimeException(
+                    'La paginación del dataset preparado fijado '
+                    .'no avanzó de forma válida.'
+                );
+            }
+
+            $afterId =
+                $nextAfterId;
+        }
+    }
+
+    public function findDomainRowsByCanonicalIdentityHashesInDataset(
+        int $companyId,
+        array $dataset,
+        string $domain,
+        array $canonicalIdentityHashes
+    ): array {
+        $domain =
+            trim($domain);
+
+        if (
+            ! in_array(
+                $domain,
+                DataTransformationBiStandardIntakeSchema::domainKeys(),
+                true
+            )
+        ) {
+            throw new \InvalidArgumentException(
+                "Dominio canónico no soportado: {$domain}."
+            );
+        }
+
+        /*
+         * Reuse the same pinned-dataset validation used by the existing
+         * P14 single-row canonical lookup. The return value is deliberately
+         * not needed here; run and batch remain sourced from the supplied
+         * immutable dataset descriptor.
+         */
+        $this->datasetIdentity(
+            $dataset
+        );
+
+        $runId =
+            (int) (
+                $dataset['processing_run_id']
+                ?? 0
+            );
+
+        $batchId =
+            (int) (
+                $dataset['intake_batch_id']
+                ?? 0
+            );
+
+        $hashes = [];
+
+        foreach ($canonicalIdentityHashes as $hash) {
+            if (! is_string($hash)) {
+                throw new \InvalidArgumentException(
+                    'Cada identidad canónica debe ser un SHA-256 hexadecimal.'
+                );
+            }
+
+            $normalizedHash =
+                strtolower(
+                    trim($hash)
+                );
+
+            if (
+                preg_match(
+                    '/^[a-f0-9]{64}$/',
+                    $normalizedHash
+                )
+                !== 1
+            ) {
+                throw new \InvalidArgumentException(
+                    'Cada identidad canónica debe ser un SHA-256 hexadecimal.'
+                );
+            }
+
+            $hashes[$normalizedHash] =
+                true;
+        }
+
+        $hashes =
+            array_keys(
+                $hashes
+            );
+
+        if ($hashes === []) {
+            return [];
+        }
+
+        /*
+         * One bounded bulk lookup. The unique P15 index on
+         * run + domain + canonical_identity_hash guarantees that at most
+         * one row can be returned for each requested hash.
+         */
+        if (count($hashes) > 500) {
+            throw new \InvalidArgumentException(
+                'El lookup canónico por lote admite un máximo de 500 '
+                .'identidades por llamada.'
+            );
+        }
+
+        $requested =
+            array_fill_keys(
+                $hashes,
+                true
+            );
+
+        $rows =
+            DataTransformationBiNormalizedRow::query()
+                ->where(
+                    'company_id',
+                    $companyId
+                )
+                ->where(
+                    'data_transformation_bi_processing_run_id',
+                    $runId
+                )
+                ->where(
+                    'data_transformation_bi_intake_batch_id',
+                    $batchId
+                )
+                ->where(
+                    'domain_key',
+                    $domain
+                )
+                ->whereIn(
+                    'canonical_identity_hash',
+                    $hashes
+                )
+                ->orderBy('id')
+                ->limit(
+                    count($hashes)
+                )
+                ->get([
+                    'id',
+                    'identity_hash',
+                    'canonical_identity_hash',
+                    'normalized_payload',
+                ]);
+
+        $found = [];
+
+        foreach ($rows as $row) {
+            $canonicalHash =
+                strtolower(
+                    trim(
+                        (string) $row
+                            ->canonical_identity_hash
+                    )
+                );
+
+            if (
+                ! isset(
+                    $requested[$canonicalHash]
+                )
+            ) {
+                throw new \RuntimeException(
+                    'El lookup canónico retornó una identidad no solicitada.'
+                );
+            }
+
+            if (
+                array_key_exists(
+                    $canonicalHash,
+                    $found
+                )
+            ) {
+                throw new \RuntimeException(
+                    'El lookup canónico retornó una identidad duplicada.'
+                );
+            }
+
+            $found[$canonicalHash] =
+                $this->canonicalRow(
+                    $row
+                );
+        }
+
+        /*
+         * Preserve caller hash order after deduplication.
+         */
+        $ordered = [];
+
+        foreach ($hashes as $hash) {
+            if (
+                array_key_exists(
+                    $hash,
+                    $found
+                )
+            ) {
+                $ordered[$hash] =
+                    $found[$hash];
+            }
+        }
+
+        return $ordered;
+    }
+
     public function findDomainRowByCanonicalIdentityHashInDataset(
         int $companyId,
         array $dataset,
