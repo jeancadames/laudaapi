@@ -94,6 +94,15 @@ type Row = {
         detail_url: string;
     } | null;
     data_preparation: DataPreparationStatus | null;
+    processing_history: {
+        summary: {
+            total_batches: number;
+            total_runs: number;
+            shown_batches: number;
+            has_more: boolean;
+        };
+        entries: Array<Record<string, unknown>>;
+    };
     definition: {
         id: number;
         version: number;
@@ -360,6 +369,30 @@ function planStatusLabel(status: string): string {
                                                     ?.stage_label
                                                 ?? 'Sin procesamiento'
                                             }}
+                                        </Badge>
+
+                                        <!-- P12_PROCESSING_HISTORY_SUMMARY -->
+                                        <Badge
+                                            v-if="
+                                                row.processing_history
+                                                    .summary
+                                                    .total_batches > 0
+                                            "
+                                            variant="outline"
+                                        >
+                                            Historial ·
+                                            {{
+                                                row.processing_history
+                                                    .summary
+                                                    .total_batches
+                                            }}
+                                            batches ·
+                                            {{
+                                                row.processing_history
+                                                    .summary
+                                                    .total_runs
+                                            }}
+                                            runs
                                         </Badge>
 
                                         <span

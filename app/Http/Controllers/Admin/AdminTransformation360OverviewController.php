@@ -421,6 +421,30 @@ final class AdminTransformation360OverviewController extends Controller
                                 )
                                 : null;
 
+                        /*
+                         * P12 · Aggregate processing traceability only.
+                         *
+                         * The dedicated read model excludes source artifacts,
+                         * hashes, failure messages and row-level data.
+                         */
+                        $row['processing_history'] =
+                            $implementationRequest
+                                ? app(
+                                    \App\Services\Diagnosis\DataTransformationBiProcessingHistoryReadModel::class
+                                )->forRequest(
+                                    (int) $implementationRequest->company_id,
+                                    (int) $implementationRequest->id
+                                )
+                                : [
+                                    'summary' => [
+                                        'total_batches' => 0,
+                                        'total_runs' => 0,
+                                        'shown_batches' => 0,
+                                        'has_more' => false,
+                                    ],
+                                    'entries' => [],
+                                ];
+
                         $row['definition'] =
                             $definition
                                 ? [

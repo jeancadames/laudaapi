@@ -34,6 +34,51 @@ type DataTransformationBiCapability = {
     detail_url: string | null;
 };
 
+type ProcessingHistory = {
+    summary: {
+        total_batches: number;
+        total_runs: number;
+        shown_batches: number;
+        has_more: boolean;
+    };
+    entries: Array<{
+        batch_id: number;
+        is_latest: boolean;
+        status: string;
+        definition_version: number | null;
+        schema_version: number;
+        domain_count: number;
+        source_row_count: number;
+        staged_row_count: number;
+        rejected_row_count: number;
+        started_at: string | null;
+        completed_at: string | null;
+        failed_at: string | null;
+        purged_at: string | null;
+        created_at: string | null;
+        run_count: number;
+        runs: Array<{
+            run_id: number;
+            status: string;
+            definition_version: number | null;
+            schema_version: number;
+            profiling_version: number;
+            normalization_version: number;
+            source_row_count: number;
+            profiled_row_count: number;
+            normalized_row_count: number;
+            issue_count: number;
+            blocking_issue_count: number;
+            warning_issue_count: number;
+            informational_issue_count: number;
+            started_at: string | null;
+            completed_at: string | null;
+            failed_at: string | null;
+            created_at: string | null;
+        }>;
+    }>;
+};
+
 const props = defineProps<{
     company: {
         id: number;
@@ -201,6 +246,7 @@ const props = defineProps<{
         }>;
     } | null;
 
+    processing_history: ProcessingHistory;
     capability: DataTransformationBiCapability;
 }>();
 
@@ -559,6 +605,42 @@ function requestDefinitionChanges(): void {
             preserveScroll: true,
         },
     );
+}
+
+
+function processingHistoryStatusLabel(
+    status: string,
+): string {
+    return {
+        pending: 'Pendiente',
+        processing: 'En proceso',
+        completed: 'Completado',
+        failed: 'Con incidencia',
+        purged: 'Depurado',
+    }[status]
+        ?? status;
+}
+
+function processingHistoryDate(
+    value: string | null,
+): string {
+    if (!value) {
+        return '—';
+    }
+
+    const date = new Date(value);
+
+    if (Number.isNaN(date.getTime())) {
+        return value;
+    }
+
+    return new Intl.DateTimeFormat(
+        'es-DO',
+        {
+            dateStyle: 'medium',
+            timeStyle: 'short',
+        },
+    ).format(date);
 }
 
 </script>
@@ -2127,6 +2209,301 @@ function requestDefinitionChanges(): void {
                             preparación. No expone registros de origen, datos
                             normalizados ni modifica el estado de la solicitud.
                         </p>
+                    </section>
+
+                    <!-- P12_PROCESSING_HISTORY -->
+                    <section
+                        v-if="processing_history.entries.length > 0"
+                        class="rounded-[2rem] border border-slate-200/70 bg-white p-6 shadow-sm sm:p-8 dark:border-slate-800 dark:bg-slate-950"
+                    >
+                        <div
+                            class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between"
+                        >
+                            <div>
+                                <p
+                                    class="text-[10px] font-black tracking-widest text-slate-400 uppercase"
+                                >
+                                    Trazabilidad de datos
+                                </p>
+
+                                <h2
+                                    class="mt-1 text-xl font-black text-slate-950 dark:text-white"
+                                >
+                                    Historial de procesamiento
+                                </h2>
+
+                                <p
+                                    class="mt-2 max-w-3xl text-sm leading-6 text-slate-500 dark:text-slate-400"
+                                >
+                                    Las versiones corregidas conservan sus batches
+                                    y ejecuciones anteriores. Aquí solo se muestran
+                                    estados y métricas agregadas.
+                                </p>
+                            </div>
+
+                            <div class="flex flex-wrap gap-2">
+                                <span
+                                    class="rounded-full border border-slate-200 px-3 py-1.5 text-[10px] font-black dark:border-slate-800"
+                                >
+                                    {{
+                                        processing_history.summary
+                                            .total_batches
+                                    }}
+                                    batches
+                                </span>
+
+                                <span
+                                    class="rounded-full border border-slate-200 px-3 py-1.5 text-[10px] font-black dark:border-slate-800"
+                                >
+                                    {{
+                                        processing_history.summary
+                                            .total_runs
+                                    }}
+                                    runs
+                                </span>
+                            </div>
+                        </div>
+
+                        <details
+                            class="mt-6 rounded-2xl border border-slate-200/70 bg-slate-50/50 dark:border-slate-800 dark:bg-slate-900/20"
+                        >
+                            <summary
+                                class="cursor-pointer list-none px-5 py-4 text-sm font-black text-slate-800 dark:text-slate-100"
+                            >
+                                Ver historial de batches y ejecuciones
+                            </summary>
+
+                            <div
+                                class="space-y-4 border-t border-slate-200/70 p-4 sm:p-5 dark:border-slate-800"
+                            >
+                                <article
+                                    v-for="batch in processing_history.entries"
+                                    :key="batch.batch_id"
+                                    class="rounded-2xl border border-slate-200/70 bg-white p-4 dark:border-slate-800 dark:bg-slate-950"
+                                >
+                                    <div
+                                        class="flex flex-wrap items-start justify-between gap-3"
+                                    >
+                                        <div>
+                                            <div
+                                                class="flex flex-wrap items-center gap-2"
+                                            >
+                                                <p
+                                                    class="text-sm font-black text-slate-950 dark:text-white"
+                                                >
+                                                    Batch #{{ batch.batch_id }}
+                                                </p>
+
+                                                <span
+                                                    class="rounded-full border px-2 py-0.5 text-[9px] font-black uppercase"
+                                                >
+                                                    {{
+                                                        batch.is_latest
+                                                            ? 'Actual'
+                                                            : 'Anterior'
+                                                    }}
+                                                </span>
+                                            </div>
+
+                                            <p
+                                                class="mt-1 text-xs text-slate-500 dark:text-slate-400"
+                                            >
+                                                {{
+                                                    processingHistoryStatusLabel(
+                                                        batch.status,
+                                                    )
+                                                }}
+                                                ·
+                                                {{
+                                                    processingHistoryDate(
+                                                        batch.completed_at
+                                                        ?? batch.created_at,
+                                                    )
+                                                }}
+                                            </p>
+                                        </div>
+
+                                        <span
+                                            class="text-xs font-semibold text-slate-500 dark:text-slate-400"
+                                        >
+                                            {{ batch.run_count }}
+                                            run<span
+                                                v-if="batch.run_count !== 1"
+                                            >s</span>
+                                        </span>
+                                    </div>
+
+                                    <div
+                                        class="mt-4 grid gap-2 sm:grid-cols-2 lg:grid-cols-4"
+                                    >
+                                        <div
+                                            class="rounded-xl bg-slate-50 p-3 text-xs dark:bg-slate-900/50"
+                                        >
+                                            <p class="text-slate-400">
+                                                Dominios
+                                            </p>
+                                            <p class="mt-1 font-black">
+                                                {{ batch.domain_count }}
+                                            </p>
+                                        </div>
+
+                                        <div
+                                            class="rounded-xl bg-slate-50 p-3 text-xs dark:bg-slate-900/50"
+                                        >
+                                            <p class="text-slate-400">
+                                                Filas origen
+                                            </p>
+                                            <p class="mt-1 font-black">
+                                                {{ batch.source_row_count }}
+                                            </p>
+                                        </div>
+
+                                        <div
+                                            class="rounded-xl bg-slate-50 p-3 text-xs dark:bg-slate-900/50"
+                                        >
+                                            <p class="text-slate-400">
+                                                Staging
+                                            </p>
+                                            <p class="mt-1 font-black">
+                                                {{ batch.staged_row_count }}
+                                            </p>
+                                        </div>
+
+                                        <div
+                                            class="rounded-xl bg-slate-50 p-3 text-xs dark:bg-slate-900/50"
+                                        >
+                                            <p class="text-slate-400">
+                                                Rechazadas
+                                            </p>
+                                            <p class="mt-1 font-black">
+                                                {{ batch.rejected_row_count }}
+                                            </p>
+                                        </div>
+                                    </div>
+
+                                    <div
+                                        v-if="batch.runs.length > 0"
+                                        class="mt-4 space-y-2"
+                                    >
+                                        <div
+                                            v-for="run in batch.runs"
+                                            :key="run.run_id"
+                                            class="rounded-xl border border-slate-200/70 p-3 dark:border-slate-800"
+                                        >
+                                            <div
+                                                class="flex flex-wrap items-center justify-between gap-2"
+                                            >
+                                                <p
+                                                    class="text-xs font-black text-slate-800 dark:text-slate-100"
+                                                >
+                                                    Run #{{ run.run_id }}
+                                                    ·
+                                                    {{
+                                                        processingHistoryStatusLabel(
+                                                            run.status,
+                                                        )
+                                                    }}
+                                                </p>
+
+                                                <p
+                                                    class="text-[10px] text-slate-400"
+                                                >
+                                                    {{
+                                                        processingHistoryDate(
+                                                            run.completed_at
+                                                            ?? run.created_at,
+                                                        )
+                                                    }}
+                                                </p>
+                                            </div>
+
+                                            <div
+                                                class="mt-3 flex flex-wrap gap-x-4 gap-y-1 text-xs text-slate-500 dark:text-slate-400"
+                                            >
+                                                <span>
+                                                    {{
+                                                        run.profiled_row_count
+                                                    }}
+                                                    perfiladas
+                                                </span>
+
+                                                <span>
+                                                    {{
+                                                        run.normalized_row_count
+                                                    }}
+                                                    normalizadas
+                                                </span>
+
+                                                <span>
+                                                    {{ run.issue_count }}
+                                                    incidencias
+                                                </span>
+
+                                                <span
+                                                    v-if="
+                                                        run.blocking_issue_count
+                                                        > 0
+                                                    "
+                                                >
+                                                    {{
+                                                        run.blocking_issue_count
+                                                    }}
+                                                    bloqueantes
+                                                </span>
+
+                                                <span
+                                                    v-if="
+                                                        run.warning_issue_count
+                                                        > 0
+                                                    "
+                                                >
+                                                    {{
+                                                        run.warning_issue_count
+                                                    }}
+                                                    advertencias
+                                                </span>
+
+                                                <span
+                                                    v-if="
+                                                        run.informational_issue_count
+                                                        > 0
+                                                    "
+                                                >
+                                                    {{
+                                                        run.informational_issue_count
+                                                    }}
+                                                    informativas
+                                                </span>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <p
+                                        v-else
+                                        class="mt-4 text-xs text-slate-400"
+                                    >
+                                        Este batch todavía no tiene una ejecución
+                                        de procesamiento registrada.
+                                    </p>
+                                </article>
+
+                                <p
+                                    v-if="processing_history.summary.has_more"
+                                    class="text-xs leading-5 text-slate-500 dark:text-slate-400"
+                                >
+                                    Se muestran los
+                                    {{
+                                        processing_history.summary
+                                            .shown_batches
+                                    }}
+                                    batches más recientes de
+                                    {{
+                                        processing_history.summary
+                                            .total_batches
+                                    }}.
+                                </p>
+                            </div>
+                        </details>
                     </section>
 
                 </div>

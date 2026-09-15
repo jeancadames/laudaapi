@@ -203,6 +203,32 @@ final class AppHubDataTransformationBiController
                 )
                 : null;
 
+        /*
+         * P12 · Historical processing traceability.
+         *
+         * Read-only, company-scoped and request-scoped.
+         */
+        $processingHistory =
+            (int) (
+                $implementationRequest['id']
+                ?? 0
+            ) > 0
+                ? app(
+                    \App\Services\Diagnosis\DataTransformationBiProcessingHistoryReadModel::class
+                )->forRequest(
+                    (int) $company->id,
+                    (int) $implementationRequest['id']
+                )
+                : [
+                    'summary' => [
+                        'total_batches' => 0,
+                        'total_runs' => 0,
+                        'shown_batches' => 0,
+                        'has_more' => false,
+                    ],
+                    'entries' => [],
+                ];
+
         return Inertia::render(
             'App/DataTransformationBi',
             [
@@ -245,6 +271,9 @@ final class AppHubDataTransformationBiController
 
                 'data_preparation' =>
                     $dataPreparation,
+
+                'processing_history' =>
+                    $processingHistory,
 
                 'capability' =>
                     $capability,
