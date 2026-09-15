@@ -483,10 +483,21 @@ function standardIntakeCsrfHeaders(): Record<string, string> {
 function selectStandardIntakeFile(
     event: Event,
 ): void {
+    /*
+     * P11_CORRECTION_REPROCESSING_LOOP
+     *
+     * A newly selected source starts a clean client-side
+     * preparation context. Persisted database history is
+     * never deleted here.
+     */
     standardIntakeReport.value = null;
     standardIntakeHttpError.value = null;
     standardIntakeIngestionReport.value = null;
     standardIntakeIngestionError.value = null;
+    standardIntakeProfileReport.value = null;
+    standardIntakeNormalizationReport.value = null;
+    standardIntakeProcessingBatchId.value = null;
+    standardIntakeProcessingError.value = null;
 
     const input =
         event.target as HTMLInputElement;
@@ -2626,8 +2637,10 @@ async function normalizeStandardIntakeBatch(): Promise<void> {
                                             class="mt-1 text-xs leading-5 text-muted-foreground"
                                         >
                                             Este estado fue recuperado del último staging
-                                            completado. No es necesario volver a cargar ni
-                                            procesar el archivo.
+                                            completado. Puedes continuar desde aquí. Si la
+                                            fuente necesita correcciones, selecciona arriba
+                                            una versión corregida y repite el flujo de
+                                            validación, staging y análisis de calidad.
                                         </p>
                                     </div>
 
@@ -2904,7 +2917,11 @@ async function normalizeStandardIntakeBatch(): Promise<void> {
                                             class="rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm text-amber-800 dark:border-amber-900/70 dark:bg-amber-950/30 dark:text-amber-300"
                                         >
                                             Existen incidencias bloqueantes. La fuente debe
-                                            corregirse antes de normalizar.
+                                            corregirse antes de normalizar. Selecciona arriba
+                                            la versión corregida y repite: Validar archivo →
+                                            Ingresar a staging → Analizar calidad. Si el
+                                            contenido cambia, LAUDA crea un nuevo batch y
+                                            conserva el procesamiento anterior como historial.
                                         </div>
 
                                         <div
