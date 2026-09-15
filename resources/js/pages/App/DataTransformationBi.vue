@@ -149,6 +149,15 @@ const props = defineProps<{
             informational_issue_count: number;
             normalized_row_count: number;
 
+            issues: Array<{
+                code: string;
+                label: string;
+                guidance: string;
+                severity: string;
+                severity_label: string;
+                count: number;
+            }>;
+
             field_summary: {
                 total: number;
                 healthy: number;
@@ -179,6 +188,15 @@ const props = defineProps<{
                 blocking_issue_count: number;
                 warning_issue_count: number;
                 informational_issue_count: number;
+
+                issues: Array<{
+                    code: string;
+                    label: string;
+                    guidance: string;
+                    severity: string;
+                    severity_label: string;
+                    count: number;
+                }>;
             }>;
         }>;
     } | null;
@@ -1768,7 +1786,65 @@ function requestDefinitionChanges(): void {
                                         identidades duplicadas detectadas.
                                     </p>
 
-                                    <!-- P9_FIELD_QUALITY_STATUS -->
+
+                                    <!-- P10_QUALITY_GUIDANCE -->
+                                    <div
+                                        v-if="domain.issues.length > 0"
+                                        class="mt-4 space-y-2"
+                                    >
+                                        <div
+                                            v-for="
+                                                issue in domain.issues
+                                            "
+                                            :key="
+                                                `${domain.key}-${issue.code}-${issue.severity}`
+                                            "
+                                            class="rounded-xl border border-slate-200/70 bg-slate-50/80 p-3 dark:border-slate-800 dark:bg-slate-900/40"
+                                        >
+                                            <div
+                                                class="flex flex-wrap items-center gap-2"
+                                            >
+                                                <p
+                                                    class="text-xs font-black text-slate-900 dark:text-white"
+                                                >
+                                                    {{
+                                                        issue.label
+                                                    }}
+                                                </p>
+
+                                                <span
+                                                    class="rounded-full border px-2 py-0.5 text-[9px] font-black uppercase"
+                                                >
+                                                    {{
+                                                        issue.severity_label
+                                                    }}
+                                                </span>
+
+                                                <span
+                                                    class="text-[10px] font-semibold text-slate-400"
+                                                >
+                                                    {{
+                                                        issue.count
+                                                    }}
+                                                    incidencia<span
+                                                        v-if="
+                                                            issue.count !== 1
+                                                        "
+                                                    >s</span>
+                                                </span>
+                                            </div>
+
+                                            <p
+                                                class="mt-1 text-xs leading-5 text-slate-500 dark:text-slate-400"
+                                            >
+                                                {{
+                                                    issue.guidance
+                                                }}
+                                            </p>
+                                        </div>
+                                    </div>
+
+<!-- P9_FIELD_QUALITY_STATUS -->
                                     <details
                                         v-if="domain.fields.length > 0"
                                         class="mt-4 rounded-xl border border-slate-200/70 bg-white/70 dark:border-slate-800 dark:bg-slate-950/40"
@@ -1977,6 +2053,65 @@ function requestDefinitionChanges(): void {
                                                     }}
                                                     informativas
                                                 </p>
+
+                                                <div
+                                                    v-if="
+                                                        field.issues.length > 0
+                                                    "
+                                                    class="mt-3 space-y-2"
+                                                >
+                                                    <div
+                                                        v-for="
+                                                            issue in field.issues
+                                                        "
+                                                        :key="
+                                                            `${domain.key}-${field.key}-${issue.code}-${issue.severity}`
+                                                        "
+                                                        class="rounded-lg border border-slate-200/70 bg-slate-50/80 p-2.5 dark:border-slate-800 dark:bg-slate-900/40"
+                                                    >
+                                                        <div
+                                                            class="flex flex-wrap items-center gap-2"
+                                                        >
+                                                            <p
+                                                                class="text-[11px] font-black text-slate-800 dark:text-slate-100"
+                                                            >
+                                                                {{
+                                                                    issue.label
+                                                                }}
+                                                            </p>
+
+                                                            <span
+                                                                class="rounded-full border px-2 py-0.5 text-[8px] font-black uppercase"
+                                                            >
+                                                                {{
+                                                                    issue.severity_label
+                                                                }}
+                                                            </span>
+
+                                                            <span
+                                                                class="text-[9px] font-semibold text-slate-400"
+                                                            >
+                                                                {{
+                                                                    issue.count
+                                                                }}
+                                                                incidencia<span
+                                                                    v-if="
+                                                                        issue.count !== 1
+                                                                    "
+                                                                >s</span>
+                                                            </span>
+                                                        </div>
+
+                                                        <p
+                                                            class="mt-1 text-[11px] leading-5 text-slate-500 dark:text-slate-400"
+                                                        >
+                                                            {{
+                                                                issue.guidance
+                                                            }}
+                                                        </p>
+                                                    </div>
+                                                </div>
+
                                             </div>
                                         </div>
                                     </details>

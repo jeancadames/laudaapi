@@ -62,7 +62,10 @@ test(
                 "'severity'"
             )
             ->toContain(
-                'COUNT(*) as severity_count'
+                'COUNT(*) as issue_occurrence_count'
+            )
+            ->toContain(
+                "'issue_code'"
             )
             ->toContain(
                 "->groupBy("
@@ -82,7 +85,6 @@ test(
             "'meta'",
             "'source_row_number'",
             "'identity_hash'",
-            "'issue_code'",
         ] as $forbidden) {
             expect($source)
                 ->not

@@ -334,6 +334,9 @@ final class DataTransformationBiPreparationStatusReadModel
         $fieldsByDomain =
             collect();
 
+        $domainIssueAggregates =
+            collect();
+
         if ($run !== null) {
             /*
              * P9:
@@ -346,7 +349,19 @@ final class DataTransformationBiPreparationStatusReadModel
              * - identity hash
              * - raw or normalized business values
              */
-            $severityCounts =
+            /*
+             * P10:
+             * Read technical issue taxonomy only as aggregates.
+             *
+             * Explicitly never select:
+             * - message
+             * - meta
+             * - source row number
+             * - identity hash
+             * - intake row id
+             * - any raw or normalized business value
+             */
+            $issueAggregates =
                 DataTransformationBiQualityIssue::query()
                     ->where(
                         'data_transformation_bi_processing_run_id',
@@ -360,23 +375,31 @@ final class DataTransformationBiPreparationStatusReadModel
                         'company_id',
                         $companyId
                     )
-                    ->whereNotNull(
-                        'field_key'
-                    )
                     ->select([
                         'domain_key',
                         'field_key',
+                        'issue_code',
                         'severity',
                     ])
                     ->selectRaw(
-                        'COUNT(*) as severity_count'
+                        'COUNT(*) as issue_occurrence_count'
                     )
                     ->groupBy(
                         'domain_key',
                         'field_key',
+                        'issue_code',
                         'severity'
                     )
-                    ->get()
+                    ->get();
+
+            $fieldIssueAggregates =
+                $issueAggregates
+                    ->filter(
+                        fn (
+                            DataTransformationBiQualityIssue $issue
+                        ): bool =>
+                            $issue->field_key !== null
+                    )
                     ->groupBy(
                         fn (
                             DataTransformationBiQualityIssue $issue
@@ -385,6 +408,22 @@ final class DataTransformationBiPreparationStatusReadModel
                             .':'
                             .(string) $issue->field_key
                     );
+
+            $domainIssueAggregates =
+                $issueAggregates
+                    ->filter(
+                        fn (
+                            DataTransformationBiQualityIssue $issue
+                        ): bool =>
+                            $issue->field_key === null
+                    )
+                    ->groupBy(
+                        fn (
+                            DataTransformationBiQualityIssue $issue
+                        ): string =>
+                            (string) $issue->domain_key
+                    );
+
 
             $fieldProfiles =
                 DataTransformationBiFieldProfile::query()
@@ -426,7 +465,7 @@ final class DataTransformationBiPreparationStatusReadModel
                         function (
                             $profiles,
                             string $domainKey
-                        ) use ($severityCounts) {
+                        ) use ($fieldIssueAggregates) {
                             return $profiles
                                 ->sortBy(
                                     fn (
@@ -442,7 +481,7 @@ final class DataTransformationBiPreparationStatusReadModel
                                     function (
                                         DataTransformationBiFieldProfile $profile
                                     ) use (
-                                        $severityCounts,
+                                        $fieldIssueAggregates,
                                         $domainKey
                                     ): array {
                                         $fieldKey =
@@ -455,7 +494,7 @@ final class DataTransformationBiPreparationStatusReadModel
 
                                         $severityRows =
                                             collect(
-                                                $severityCounts->get(
+                                                $fieldIssueAggregates->get(
                                                     $severityKey,
                                                     collect()
                                                 )
@@ -644,6 +683,11 @@ final class DataTransformationBiPreparationStatusReadModel
 
                                             'informational_issue_count' =>
                                                 $informationalCount,
+
+                                            'issues' =>
+                                                $this->issueGuidance(
+                                                    $severityRows
+                                                ),
                                         ];
                                     }
                                 )
@@ -655,7 +699,10 @@ final class DataTransformationBiPreparationStatusReadModel
                 array_map(
                     function (
                         array $domain
-                    ) use ($fieldsByDomain): array {
+                    ) use (
+                        $fieldsByDomain,
+                        $domainIssueAggregates
+                    ): array {
                         $fields =
                             $fieldsByDomain->get(
                                 $domain['key'],
@@ -669,6 +716,14 @@ final class DataTransformationBiPreparationStatusReadModel
 
                         $domain['fields'] =
                             $fields;
+
+                        $domain['issues'] =
+                            $this->issueGuidance(
+                                $domainIssueAggregates->get(
+                                    $domain['key'],
+                                    collect()
+                                )
+                            );
 
                         return $domain;
                     },
@@ -686,6 +741,9 @@ final class DataTransformationBiPreparationStatusReadModel
                             );
 
                         $domain['fields'] =
+                            [];
+
+                        $domain['issues'] =
                             [];
 
                         return $domain;
@@ -811,6 +869,118 @@ final class DataTransformationBiPreparationStatusReadModel
             'field_summary' =>
                 $fieldSummary,
         ];
+    }
+
+    /**
+     * @param iterable<int, mixed> $rows
+     * @return array<int, array{
+     *     code:string,
+     *     label:string,
+     *     guidance:string,
+     *     severity:string,
+     *     severity_label:string,
+     *     count:int
+     * }>
+     */
+    private function issueGuidance(
+        iterable $rows
+    ): array {
+        $issues =
+            [];
+
+        foreach ($rows as $row) {
+            $code =
+                (string) $row->issue_code;
+
+            $severity =
+                (string) $row->severity;
+
+            $descriptor =
+                DataTransformationBiQualityGuidanceCatalog
+                    ::forCode(
+                        $code
+                    );
+
+            $issues[] = [
+                'code' =>
+                    $code,
+
+                'label' =>
+                    $descriptor['label'],
+
+                'guidance' =>
+                    $descriptor['guidance'],
+
+                'severity' =>
+                    $severity,
+
+                'severity_label' =>
+                    match ($severity) {
+                        DataTransformationBiQualityIssue
+                            ::SEVERITY_BLOCKING =>
+                            'Bloqueante',
+
+                        DataTransformationBiQualityIssue
+                            ::SEVERITY_WARNING =>
+                            'Advertencia',
+
+                        default =>
+                            'Informativa',
+                    },
+
+                'count' =>
+                    max(
+                        0,
+                        (int) $row
+                            ->issue_occurrence_count
+                    ),
+            ];
+        }
+
+        usort(
+            $issues,
+            static function (
+                array $left,
+                array $right
+            ): int {
+                $order =
+                    static fn (
+                        string $severity
+                    ): int =>
+                        match ($severity) {
+                            DataTransformationBiQualityIssue
+                                ::SEVERITY_BLOCKING =>
+                                10,
+
+                            DataTransformationBiQualityIssue
+                                ::SEVERITY_WARNING =>
+                                20,
+
+                            default =>
+                                30,
+                        };
+
+                $severityComparison =
+                    $order(
+                        $left['severity']
+                    )
+                    <=>
+                    $order(
+                        $right['severity']
+                    );
+
+                if ($severityComparison !== 0) {
+                    return $severityComparison;
+                }
+
+                return strcmp(
+                    $left['code'],
+                    $right['code']
+                );
+            }
+        );
+
+        return $issues;
     }
 
     /**
