@@ -111,6 +111,33 @@ const props = defineProps<{
             normalization_completed: boolean;
             completed_at: string | null;
         } | null;
+
+        domain_summary: {
+            total: number;
+            normalized: number;
+            profiled: number;
+            with_blocking_issues: number;
+            with_warnings: number;
+            clean: number;
+        };
+
+        domains: Array<{
+            key: string;
+            label: string;
+            preparation_status: string;
+            preparation_label: string;
+            quality_status: string;
+            quality_label: string;
+            row_count: number;
+            field_count: number;
+            identity_count: number;
+            duplicate_identity_count: number;
+            issue_count: number;
+            blocking_issue_count: number;
+            warning_issue_count: number;
+            informational_issue_count: number;
+            normalized_row_count: number;
+        }>;
     } | null;
 
     capability: DataTransformationBiCapability;
@@ -1533,6 +1560,171 @@ function requestDefinitionChanges(): void {
                                             .informational_issue_count
                                     }}
                                 </p>
+                            </div>
+                        </div>
+
+                        <!-- P8_DOMAIN_PREPARATION_STATUS -->
+                        <div
+                            v-if="
+                                data_preparation.domains.length > 0
+                            "
+                            class="mt-6 border-t border-slate-200/70 pt-6 dark:border-slate-800"
+                        >
+                            <div
+                                class="flex flex-wrap items-end justify-between gap-3"
+                            >
+                                <div>
+                                    <p
+                                        class="text-[10px] font-black tracking-widest text-slate-400 uppercase"
+                                    >
+                                        Estado por dominio
+                                    </p>
+
+                                    <h3
+                                        class="mt-1 text-base font-black text-slate-950 dark:text-white"
+                                    >
+                                        Preparación de cada fuente
+                                    </h3>
+                                </div>
+
+                                <p
+                                    class="text-xs font-semibold text-slate-500 dark:text-slate-400"
+                                >
+                                    {{
+                                        data_preparation
+                                            .domain_summary
+                                            .normalized
+                                    }}/{{
+                                        data_preparation
+                                            .domain_summary
+                                            .total
+                                    }}
+                                    dominios normalizados
+                                </p>
+                            </div>
+
+                            <div
+                                class="mt-4 grid gap-3 md:grid-cols-2"
+                            >
+                                <div
+                                    v-for="
+                                        domain in data_preparation.domains
+                                    "
+                                    :key="domain.key"
+                                    class="rounded-2xl border border-slate-200/70 bg-slate-50/40 p-4 dark:border-slate-800 dark:bg-slate-900/20"
+                                >
+                                    <div
+                                        class="flex items-start justify-between gap-3"
+                                    >
+                                        <div>
+                                            <p
+                                                class="text-sm font-black text-slate-950 dark:text-white"
+                                            >
+                                                {{ domain.label }}
+                                            </p>
+
+                                            <p
+                                                class="mt-1 text-xs text-slate-500 dark:text-slate-400"
+                                            >
+                                                {{
+                                                    domain.row_count
+                                                }}
+                                                filas ·
+                                                {{
+                                                    domain.field_count
+                                                }}
+                                                campos
+                                            </p>
+                                        </div>
+
+                                        <span
+                                            class="shrink-0 rounded-full border px-2.5 py-1 text-[10px] font-black uppercase"
+                                        >
+                                            {{
+                                                domain.preparation_label
+                                            }}
+                                        </span>
+                                    </div>
+
+                                    <div
+                                        class="mt-4 grid grid-cols-2 gap-2 text-xs"
+                                    >
+                                        <div
+                                            class="rounded-xl border border-slate-200/70 bg-white p-3 dark:border-slate-800 dark:bg-slate-950/50"
+                                        >
+                                            <p
+                                                class="text-slate-500 dark:text-slate-400"
+                                            >
+                                                Normalizadas
+                                            </p>
+
+                                            <p
+                                                class="mt-1 font-black text-slate-950 dark:text-white"
+                                            >
+                                                {{
+                                                    domain.normalized_row_count
+                                                }}
+                                            </p>
+                                        </div>
+
+                                        <div
+                                            class="rounded-xl border border-slate-200/70 bg-white p-3 dark:border-slate-800 dark:bg-slate-950/50"
+                                        >
+                                            <p
+                                                class="text-slate-500 dark:text-slate-400"
+                                            >
+                                                Calidad
+                                            </p>
+
+                                            <p
+                                                class="mt-1 font-black text-slate-950 dark:text-white"
+                                            >
+                                                {{
+                                                    domain.quality_label
+                                                }}
+                                            </p>
+                                        </div>
+                                    </div>
+
+                                    <p
+                                        v-if="domain.issue_count > 0"
+                                        class="mt-3 text-xs leading-5 text-slate-500 dark:text-slate-400"
+                                    >
+                                        {{
+                                            domain.blocking_issue_count
+                                        }}
+                                        bloqueantes ·
+                                        {{
+                                            domain.warning_issue_count
+                                        }}
+                                        advertencias ·
+                                        {{
+                                            domain.informational_issue_count
+                                        }}
+                                        informativas
+                                    </p>
+
+                                    <p
+                                        v-else
+                                        class="mt-3 text-xs font-semibold text-emerald-700 dark:text-emerald-300"
+                                    >
+                                        Sin incidencias registradas.
+                                    </p>
+
+                                    <p
+                                        v-if="
+                                            domain
+                                                .duplicate_identity_count > 0
+                                        "
+                                        class="mt-2 text-xs font-semibold text-amber-700 dark:text-amber-300"
+                                    >
+                                        {{
+                                            domain
+                                                .duplicate_identity_count
+                                        }}
+                                        identidades duplicadas detectadas.
+                                    </p>
+                                </div>
                             </div>
                         </div>
 

@@ -2,6 +2,7 @@
 
 namespace App\Services\Diagnosis;
 
+use App\Models\DataTransformationBiDomainProfile;
 use App\Models\DataTransformationBiIntakeBatch;
 use App\Models\DataTransformationBiProcessingRun;
 
@@ -154,6 +155,233 @@ final class DataTransformationBiPreparationStatusReadModel
             ];
         }
 
+        $domains =
+            [];
+
+        if ($run !== null) {
+            $domains =
+                DataTransformationBiDomainProfile::query()
+                    ->where(
+                        'data_transformation_bi_processing_run_id',
+                        (int) $run->id
+                    )
+                    ->where(
+                        'data_transformation_bi_intake_batch_id',
+                        (int) $batch->id
+                    )
+                    ->where(
+                        'company_id',
+                        $companyId
+                    )
+                    ->get([
+                        'domain_key',
+                        'row_count',
+                        'field_count',
+                        'identity_count',
+                        'duplicate_identity_count',
+                        'issue_count',
+                        'blocking_issue_count',
+                        'warning_issue_count',
+                        'normalized_row_count',
+                    ])
+                    ->sortBy(
+                        fn (
+                            DataTransformationBiDomainProfile $profile
+                        ): int =>
+                            $this->domainOrder(
+                                (string) $profile->domain_key
+                            )
+                    )
+                    ->values()
+                    ->map(
+                        function (
+                            DataTransformationBiDomainProfile $profile
+                        ) use ($run): array {
+                            $issueCount =
+                                max(
+                                    0,
+                                    (int) $profile->issue_count
+                                );
+
+                            $blockingCount =
+                                max(
+                                    0,
+                                    (int) $profile
+                                        ->blocking_issue_count
+                                );
+
+                            $warningCount =
+                                max(
+                                    0,
+                                    (int) $profile
+                                        ->warning_issue_count
+                                );
+
+                            $informationalCount =
+                                max(
+                                    0,
+                                    $issueCount
+                                    - $blockingCount
+                                    - $warningCount
+                                );
+
+                            $rowCount =
+                                max(
+                                    0,
+                                    (int) $profile->row_count
+                                );
+
+                            $normalizedRowCount =
+                                max(
+                                    0,
+                                    (int) $profile
+                                        ->normalized_row_count
+                                );
+
+                            $normalized =
+                                $run->status
+                                    === DataTransformationBiProcessingRun::STATUS_COMPLETED
+                                && $normalizedRowCount
+                                    === $rowCount;
+
+                            $qualityStatus =
+                                $blockingCount > 0
+                                    ? 'blocking'
+                                    : (
+                                        $warningCount > 0
+                                            ? 'warning'
+                                            : 'clean'
+                                    );
+
+                            return [
+                                'key' =>
+                                    (string) $profile->domain_key,
+
+                                'label' =>
+                                    $this->domainLabel(
+                                        (string) $profile->domain_key
+                                    ),
+
+                                'preparation_status' =>
+                                    $normalized
+                                        ? 'normalized'
+                                        : 'profiled',
+
+                                'preparation_label' =>
+                                    $normalized
+                                        ? 'Normalizado'
+                                        : 'Perfilado',
+
+                                'quality_status' =>
+                                    $qualityStatus,
+
+                                'quality_label' =>
+                                    match ($qualityStatus) {
+                                        'blocking' =>
+                                            'Requiere corrección',
+
+                                        'warning' =>
+                                            'Con advertencias',
+
+                                        default =>
+                                            'Sin bloqueos',
+                                    },
+
+                                'row_count' =>
+                                    $rowCount,
+
+                                'field_count' =>
+                                    max(
+                                        0,
+                                        (int) $profile->field_count
+                                    ),
+
+                                'identity_count' =>
+                                    max(
+                                        0,
+                                        (int) $profile->identity_count
+                                    ),
+
+                                'duplicate_identity_count' =>
+                                    max(
+                                        0,
+                                        (int) $profile
+                                            ->duplicate_identity_count
+                                    ),
+
+                                'issue_count' =>
+                                    $issueCount,
+
+                                'blocking_issue_count' =>
+                                    $blockingCount,
+
+                                'warning_issue_count' =>
+                                    $warningCount,
+
+                                'informational_issue_count' =>
+                                    $informationalCount,
+
+                                'normalized_row_count' =>
+                                    $normalizedRowCount,
+                            ];
+                        }
+                    )
+                    ->all();
+        }
+
+        $domainSummary = [
+            'total' =>
+                count($domains),
+
+            'normalized' =>
+                count(
+                    array_filter(
+                        $domains,
+                        fn (array $domain): bool =>
+                            $domain['preparation_status']
+                                === 'normalized'
+                    )
+                ),
+
+            'profiled' =>
+                count(
+                    array_filter(
+                        $domains,
+                        fn (array $domain): bool =>
+                            $domain['preparation_status']
+                                === 'profiled'
+                    )
+                ),
+
+            'with_blocking_issues' =>
+                count(
+                    array_filter(
+                        $domains,
+                        fn (array $domain): bool =>
+                            $domain['blocking_issue_count'] > 0
+                    )
+                ),
+
+            'with_warnings' =>
+                count(
+                    array_filter(
+                        $domains,
+                        fn (array $domain): bool =>
+                            $domain['warning_issue_count'] > 0
+                    )
+                ),
+
+            'clean' =>
+                count(
+                    array_filter(
+                        $domains,
+                        fn (array $domain): bool =>
+                            $domain['quality_status']
+                                === 'clean'
+                    )
+                ),
+        ];
+
         return [
             'stage' =>
                 $stage,
@@ -189,7 +417,64 @@ final class DataTransformationBiPreparationStatusReadModel
 
             'processing' =>
                 $processing,
+
+            'domain_summary' =>
+                $domainSummary,
+
+            'domains' =>
+                $domains,
         ];
+    }
+
+    private function domainLabel(
+        string $domainKey
+    ): string {
+        return match ($domainKey) {
+            'customers' =>
+                'Clientes',
+
+            'products' =>
+                'Productos',
+
+            'inventory' =>
+                'Inventario',
+
+            'sales' =>
+                'Ventas',
+
+            'accounts_receivable' =>
+                'Cuentas por cobrar',
+
+            'suppliers' =>
+                'Suplidores',
+
+            'accounts_payable' =>
+                'Cuentas por pagar',
+
+            default =>
+                ucwords(
+                    str_replace(
+                        '_',
+                        ' ',
+                        $domainKey
+                    )
+                ),
+        };
+    }
+
+    private function domainOrder(
+        string $domainKey
+    ): int {
+        return match ($domainKey) {
+            'customers' => 10,
+            'products' => 20,
+            'inventory' => 30,
+            'sales' => 40,
+            'accounts_receivable' => 50,
+            'suppliers' => 60,
+            'accounts_payable' => 70,
+            default => 999,
+        };
     }
 
     private function stage(

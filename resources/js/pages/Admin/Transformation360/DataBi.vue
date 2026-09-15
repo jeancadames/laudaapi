@@ -37,6 +37,32 @@ type DataPreparationStatus = {
         normalization_completed: boolean;
         completed_at: string | null;
     } | null;
+    domain_summary: {
+        total: number;
+        normalized: number;
+        profiled: number;
+        with_blocking_issues: number;
+        with_warnings: number;
+        clean: number;
+    };
+    domains: Array<{
+        key: string;
+        label: string;
+        preparation_status: string;
+        preparation_label: string;
+        quality_status: string;
+        quality_label: string;
+        row_count: number;
+        field_count: number;
+        identity_count: number;
+        duplicate_identity_count: number;
+        issue_count: number;
+        blocking_issue_count: number;
+        warning_issue_count: number;
+        informational_issue_count: number;
+        normalized_row_count: number;
+    }>;
+
 };
 
 type Row = {
@@ -355,6 +381,58 @@ function planStatusLabel(status: string): string {
                                                         .normalized_row_count
                                                 }}
                                                 normalizadas
+                                            </template>
+                                        </span>
+
+                                        <span
+                                            v-if="
+                                                row.data_preparation
+                                                    .domain_summary
+                                                    .total > 0
+                                            "
+                                            class="text-xs text-muted-foreground"
+                                        >
+                                            {{
+                                                row.data_preparation
+                                                    .domain_summary
+                                                    .normalized
+                                            }}/{{
+                                                row.data_preparation
+                                                    .domain_summary
+                                                    .total
+                                            }}
+                                            dominios normalizados
+
+                                            <template
+                                                v-if="
+                                                    row.data_preparation
+                                                        .domain_summary
+                                                        .with_blocking_issues > 0
+                                                "
+                                            >
+                                                ·
+                                                {{
+                                                    row.data_preparation
+                                                        .domain_summary
+                                                        .with_blocking_issues
+                                                }}
+                                                con bloqueos
+                                            </template>
+
+                                            <template
+                                                v-else-if="
+                                                    row.data_preparation
+                                                        .domain_summary
+                                                        .with_warnings > 0
+                                                "
+                                            >
+                                                ·
+                                                {{
+                                                    row.data_preparation
+                                                        .domain_summary
+                                                        .with_warnings
+                                                }}
+                                                con advertencias
                                             </template>
                                         </span>
                                     </div>
