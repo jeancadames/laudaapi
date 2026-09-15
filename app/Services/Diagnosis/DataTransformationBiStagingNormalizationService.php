@@ -551,6 +551,32 @@ final class DataTransformationBiStagingNormalizationService
                 'El processing run contiene normalizaciones duplicadas.'
             );
         }
+
+        /*
+         * P16 · Post-normalization integrity gate.
+         *
+         * During a new normalization this executes inside the same database
+         * transaction that persists normalized rows and marks the run as
+         * completed. Any integrity failure therefore rolls the transaction
+         * back before the completed state can be committed.
+         *
+         * It also revalidates the invariant when an already-completed run is
+         * explicitly reused through normalize().
+         */
+        $batch =
+            DataTransformationBiIntakeBatch::query()
+                ->findOrFail(
+                    $run->data_transformation_bi_intake_batch_id
+                );
+
+        app(
+            DataTransformationBiPostNormalizationIntegrityGate::class
+        )
+            ->assertRun(
+                $run,
+                $batch,
+                (int) $run->normalized_row_count
+            );
     }
 
     private function markFailed(
