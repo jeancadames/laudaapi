@@ -4311,6 +4311,12 @@ async function normalizeStandardIntakeBatch(): Promise<void> {
                                 <p class="text-sm font-bold">
                                     Evidencia de entrega de datos
                                 </p>
+                                    <p
+                                        class="mt-1 max-w-3xl text-xs leading-5 text-muted-foreground"
+                                    >
+                                        Evidencia de entrega / acceso para documentar cómo
+                                        los archivos estándar llegan de forma controlada a LAUDA.
+                                    </p>
 
                                 <p
                                     class="mt-1 max-w-3xl text-xs leading-5 text-muted-foreground"

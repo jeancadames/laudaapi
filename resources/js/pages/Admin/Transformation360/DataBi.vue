@@ -298,7 +298,7 @@ function planStatusLabel(status: string): string {
                     </CardTitle>
 
                     <CardDescription>
-                        Solo aparecen empresas cuyo Plan 360 recomienda la capacidad de Datos e Inteligencia BI.
+                        Solo aparecen Planes que incluyen la capacidad de Datos e Inteligencia BI.
                     </CardDescription>
                 </CardHeader>
 
