@@ -169,3 +169,30 @@ test(
         }
     }
 );
+
+// P10_R3_FIELD_SEVERITY_SUM_CONTRACT
+test(
+    'field severity counters consume issue occurrence aggregate consistently',
+    function () {
+        $source =
+            p10Source(
+                'app/Services/Diagnosis/'
+                .'DataTransformationBiPreparationStatusReadModel.php'
+            );
+
+        $sumCount =
+            preg_match_all(
+                "/->sum\\(\\s*'issue_occurrence_count'\\s*\\)/",
+                $source
+            );
+
+        expect($sumCount)
+            ->toBe(3);
+
+        expect($source)
+            ->not
+            ->toContain(
+                "'severity_count'"
+            );
+    }
+);

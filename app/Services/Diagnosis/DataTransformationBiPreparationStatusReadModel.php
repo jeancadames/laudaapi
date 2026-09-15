@@ -508,7 +508,7 @@ final class DataTransformationBiPreparationStatusReadModel
                                                         === DataTransformationBiQualityIssue::SEVERITY_BLOCKING
                                                 )
                                                 ->sum(
-                                                    'severity_count'
+                                                    'issue_occurrence_count'
                                                 );
 
                                         $warningCount =
@@ -519,7 +519,7 @@ final class DataTransformationBiPreparationStatusReadModel
                                                         === DataTransformationBiQualityIssue::SEVERITY_WARNING
                                                 )
                                                 ->sum(
-                                                    'severity_count'
+                                                    'issue_occurrence_count'
                                                 );
 
                                         $informationalCount =
@@ -530,7 +530,7 @@ final class DataTransformationBiPreparationStatusReadModel
                                                         === DataTransformationBiQualityIssue::SEVERITY_INFO
                                                 )
                                                 ->sum(
-                                                    'severity_count'
+                                                    'issue_occurrence_count'
                                                 );
 
                                         $rowCount =
