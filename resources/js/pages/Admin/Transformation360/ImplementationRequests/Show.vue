@@ -2746,6 +2746,9 @@ async function normalizeStandardIntakeBatch(): Promise<void> {
                                     </p>
                                 </div>
 
+                            </div>
+
+                            <!-- P6_R4_PERSISTED_VISIBILITY_BOUNDARY -->
                                 <div
                                     v-if="standardIntakeIngestionError"
                                     class="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700 dark:border-red-900/60 dark:bg-red-950/30 dark:text-red-300"
@@ -3517,6 +3520,13 @@ async function normalizeStandardIntakeBatch(): Promise<void> {
                                     </ul>
                                 </div>
 
+                            <div
+                                v-if="
+                                    standardIntakeReport
+                                    && standardIntakeReport.validation
+                                "
+                                class="mt-5 space-y-4"
+                            >
                                 <div
                                     v-if="
                                         standardIntakeReport
