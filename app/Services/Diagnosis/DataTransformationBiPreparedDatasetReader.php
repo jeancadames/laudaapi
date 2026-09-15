@@ -142,6 +142,62 @@ final class DataTransformationBiPreparedDatasetReader
         $dataset =
             $resolved['dataset'];
 
+        $pinned =
+            $this->domainCountsInDataset(
+                $companyId,
+                $dataset
+            );
+
+        return [
+            'available' =>
+                true,
+
+            'reason' =>
+                (string) (
+                    $resolved['reason']
+                    ?? 'latest_successful_normalized_run'
+                ),
+
+            'dataset' =>
+                $dataset,
+
+            'total_rows' =>
+                (int) $pinned['total_rows'],
+
+            'domains' =>
+                $pinned['domains'],
+        ];
+    }
+
+    /**
+     * Count canonical normalized rows for an already-pinned dataset.
+     *
+     * This method never resolves P13. The supplied descriptor fixes the
+     * processing run and intake batch used for the complete query.
+     *
+     * @param array<string,mixed> $dataset
+     *
+     * @return array{
+     *     total_rows:int,
+     *     domains:array<string,int>
+     * }
+     */
+    public function domainCountsInDataset(
+        int $companyId,
+        array $dataset
+    ): array {
+        if ($companyId <= 0) {
+            throw new InvalidArgumentException(
+                'La empresa del dataset preparado no es válida.'
+            );
+        }
+
+        $counts =
+            array_fill_keys(
+                $this->supportedDomains(),
+                0
+            );
+
         [$runId, $batchId] =
             $this->datasetIdentity(
                 $dataset
@@ -204,23 +260,11 @@ final class DataTransformationBiPreparedDatasetReader
         if ($totalRows !== $expectedRows) {
             throw new RuntimeException(
                 'Los conteos por dominio no coinciden '
-                .'con el dataset utilizable.'
+                .'con el dataset preparado fijado.'
             );
         }
 
         return [
-            'available' =>
-                true,
-
-            'reason' =>
-                (string) (
-                    $resolved['reason']
-                    ?? 'latest_successful_normalized_run'
-                ),
-
-            'dataset' =>
-                $dataset,
-
             'total_rows' =>
                 $totalRows,
 
