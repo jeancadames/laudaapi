@@ -13,6 +13,32 @@ import {
 import AppLayout from '@/layouts/AppLayout.vue';
 import type { BreadcrumbItem } from '@/types';
 
+type DataPreparationStatus = {
+    stage: string;
+    stage_label: string;
+    batch: {
+        batch_id: number;
+        status: string;
+        domain_count: number;
+        source_row_count: number;
+        staged_row_count: number;
+        rejected_row_count: number;
+        completed_at: string | null;
+    };
+    processing: {
+        run_id: number;
+        status: string;
+        profiled_row_count: number;
+        normalized_row_count: number;
+        issue_count: number;
+        blocking_issue_count: number;
+        warning_issue_count: number;
+        informational_issue_count: number;
+        normalization_completed: boolean;
+        completed_at: string | null;
+    } | null;
+};
+
 type Row = {
     assessment_id: number;
     company: string;
@@ -31,6 +57,7 @@ type Row = {
         status_label: string;
         detail_url: string;
     } | null;
+    data_preparation: DataPreparationStatus | null;
     definition: {
         id: number;
         version: number;
@@ -279,6 +306,59 @@ function planStatusLabel(status: string): string {
                                         ·
                                         {{ planStatusLabel(row.plan.status) }}
                                     </p>
+
+                                    <div
+                                        v-if="row.implementation_request"
+                                        class="mt-3 flex flex-wrap items-center gap-2"
+                                    >
+                                        <Badge
+                                            :variant="
+                                                row.data_preparation
+                                                    ? 'secondary'
+                                                    : 'outline'
+                                            "
+                                        >
+                                            Datos ·
+                                            {{
+                                                row.data_preparation
+                                                    ?.stage_label
+                                                ?? 'Sin procesamiento'
+                                            }}
+                                        </Badge>
+
+                                        <span
+                                            v-if="row.data_preparation"
+                                            class="text-xs text-muted-foreground"
+                                        >
+                                            Batch #{{
+                                                row.data_preparation
+                                                    .batch
+                                                    .batch_id
+                                            }}
+                                            ·
+                                            {{
+                                                row.data_preparation
+                                                    .batch
+                                                    .staged_row_count
+                                            }}
+                                            staging
+                                            <template
+                                                v-if="
+                                                    row.data_preparation
+                                                        .processing
+                                                "
+                                            >
+                                                ·
+                                                {{
+                                                    row.data_preparation
+                                                        .processing
+                                                        .normalized_row_count
+                                                }}
+                                                normalizadas
+                                            </template>
+                                        </span>
+                                    </div>
+
                                 </div>
 
                                 <div class="flex flex-wrap gap-2">

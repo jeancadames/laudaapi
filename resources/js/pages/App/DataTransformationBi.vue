@@ -87,6 +87,32 @@ const props = defineProps<{
             submitted_at: string | null;
         } | null;
     };
+    data_preparation: {
+        stage: string;
+        stage_label: string;
+        batch: {
+            batch_id: number;
+            status: string;
+            domain_count: number;
+            source_row_count: number;
+            staged_row_count: number;
+            rejected_row_count: number;
+            completed_at: string | null;
+        };
+        processing: {
+            run_id: number;
+            status: string;
+            profiled_row_count: number;
+            normalized_row_count: number;
+            issue_count: number;
+            blocking_issue_count: number;
+            warning_issue_count: number;
+            informational_issue_count: number;
+            normalization_completed: boolean;
+            completed_at: string | null;
+        } | null;
+    } | null;
+
     capability: DataTransformationBiCapability;
 }>();
 
@@ -1329,6 +1355,194 @@ function requestDefinitionChanges(): void {
                                 Solicitar cambios
                             </button>
                         </div>
+                    </section>
+
+                    <!-- P7_DATA_PREPARATION_STATUS -->
+                    <section
+                        v-if="data_preparation"
+                        class="rounded-[2rem] border border-indigo-200/70 bg-white p-6 shadow-sm sm:p-8 dark:border-indigo-950 dark:bg-slate-950"
+                    >
+                        <div
+                            class="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between"
+                        >
+                            <div>
+                                <p
+                                    class="text-[10px] font-black tracking-widest text-indigo-600 uppercase dark:text-indigo-400"
+                                >
+                                    Preparación de datos
+                                </p>
+
+                                <h2
+                                    class="mt-1 text-xl font-black text-slate-950 dark:text-white"
+                                >
+                                    Estado de tus datos para BI
+                                </h2>
+
+                                <p
+                                    class="mt-2 max-w-3xl text-sm leading-6 text-slate-500 dark:text-slate-400"
+                                >
+                                    Resumen operativo del último procesamiento
+                                    realizado para esta solicitud.
+                                </p>
+                            </div>
+
+                            <span
+                                class="shrink-0 rounded-full border border-indigo-200 bg-indigo-50 px-3 py-1.5 text-[10px] font-black tracking-wide text-indigo-700 uppercase dark:border-indigo-900 dark:bg-indigo-950/30 dark:text-indigo-300"
+                            >
+                                {{ data_preparation.stage_label }}
+                            </span>
+                        </div>
+
+                        <div
+                            class="mt-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-4"
+                        >
+                            <div
+                                class="rounded-2xl border border-slate-200/70 bg-slate-50/50 p-4 dark:border-slate-800 dark:bg-slate-900/20"
+                            >
+                                <p
+                                    class="text-xs text-slate-500 dark:text-slate-400"
+                                >
+                                    Dominios
+                                </p>
+                                <p
+                                    class="mt-1 text-2xl font-black text-slate-950 dark:text-white"
+                                >
+                                    {{ data_preparation.batch.domain_count }}
+                                </p>
+                            </div>
+
+                            <div
+                                class="rounded-2xl border border-slate-200/70 bg-slate-50/50 p-4 dark:border-slate-800 dark:bg-slate-900/20"
+                            >
+                                <p
+                                    class="text-xs text-slate-500 dark:text-slate-400"
+                                >
+                                    Filas en staging
+                                </p>
+                                <p
+                                    class="mt-1 text-2xl font-black text-slate-950 dark:text-white"
+                                >
+                                    {{
+                                        data_preparation
+                                            .batch
+                                            .staged_row_count
+                                    }}
+                                </p>
+                            </div>
+
+                            <div
+                                class="rounded-2xl border border-slate-200/70 bg-slate-50/50 p-4 dark:border-slate-800 dark:bg-slate-900/20"
+                            >
+                                <p
+                                    class="text-xs text-slate-500 dark:text-slate-400"
+                                >
+                                    Filas perfiladas
+                                </p>
+                                <p
+                                    class="mt-1 text-2xl font-black text-slate-950 dark:text-white"
+                                >
+                                    {{
+                                        data_preparation
+                                            .processing
+                                            ?.profiled_row_count
+                                        ?? 0
+                                    }}
+                                </p>
+                            </div>
+
+                            <div
+                                class="rounded-2xl border border-slate-200/70 bg-slate-50/50 p-4 dark:border-slate-800 dark:bg-slate-900/20"
+                            >
+                                <p
+                                    class="text-xs text-slate-500 dark:text-slate-400"
+                                >
+                                    Filas normalizadas
+                                </p>
+                                <p
+                                    class="mt-1 text-2xl font-black text-slate-950 dark:text-white"
+                                >
+                                    {{
+                                        data_preparation
+                                            .processing
+                                            ?.normalized_row_count
+                                        ?? 0
+                                    }}
+                                </p>
+                            </div>
+                        </div>
+
+                        <div
+                            v-if="data_preparation.processing"
+                            class="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4"
+                        >
+                            <div
+                                class="rounded-xl border border-slate-200/70 p-3 dark:border-slate-800"
+                            >
+                                <p class="text-xs text-slate-500">
+                                    Incidencias
+                                </p>
+                                <p class="mt-1 text-lg font-black">
+                                    {{
+                                        data_preparation
+                                            .processing
+                                            .issue_count
+                                    }}
+                                </p>
+                            </div>
+
+                            <div
+                                class="rounded-xl border border-slate-200/70 p-3 dark:border-slate-800"
+                            >
+                                <p class="text-xs text-slate-500">
+                                    Bloqueantes
+                                </p>
+                                <p class="mt-1 text-lg font-black">
+                                    {{
+                                        data_preparation
+                                            .processing
+                                            .blocking_issue_count
+                                    }}
+                                </p>
+                            </div>
+
+                            <div
+                                class="rounded-xl border border-slate-200/70 p-3 dark:border-slate-800"
+                            >
+                                <p class="text-xs text-slate-500">
+                                    Advertencias
+                                </p>
+                                <p class="mt-1 text-lg font-black">
+                                    {{
+                                        data_preparation
+                                            .processing
+                                            .warning_issue_count
+                                    }}
+                                </p>
+                            </div>
+
+                            <div
+                                class="rounded-xl border border-slate-200/70 p-3 dark:border-slate-800"
+                            >
+                                <p class="text-xs text-slate-500">
+                                    Informativas
+                                </p>
+                                <p class="mt-1 text-lg font-black">
+                                    {{
+                                        data_preparation
+                                            .processing
+                                            .informational_issue_count
+                                    }}
+                                </p>
+                            </div>
+                        </div>
+
+                        <p
+                            class="mt-5 border-t border-slate-200/70 pt-4 text-xs leading-5 text-slate-500 dark:border-slate-800 dark:text-slate-400"
+                        >
+                            Esta vista muestra únicamente estado y conteos de
+                            preparación. No expone registros de origen, datos
+                            normalizados ni modifica el estado de la solicitud.
+                        </p>
                     </section>
 
                 </div>

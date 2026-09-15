@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Services\Diagnosis\DataTransformationBiPreparationStatusReadModel;
 use App\Services\Diagnosis\TransformationProfessionalCapabilityCatalog;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
@@ -254,6 +255,11 @@ final class AdminTransformation360OverviewController extends Controller
                 };
             };
 
+        $preparationStatus =
+            app(
+                DataTransformationBiPreparationStatusReadModel::class
+            );
+
         $rows =
             $baseRows
                 ->map(
@@ -261,7 +267,8 @@ final class AdminTransformation360OverviewController extends Controller
                         $requestsByScope,
                         $definitionsByRequest,
                         $eventsByRequest,
-                        $requestStatusLabel
+                        $requestStatusLabel,
+                        $preparationStatus
                     ): array {
                         $assessmentId =
                             (int) (
@@ -404,6 +411,14 @@ final class AdminTransformation360OverviewController extends Controller
                                             false
                                         ),
                                 ]
+                                : null;
+
+                        $row['data_preparation'] =
+                            $implementationRequest
+                                ? $preparationStatus->forRequest(
+                                    (int) $implementationRequest->company_id,
+                                    (int) $implementationRequest->id
+                                )
                                 : null;
 
                         $row['definition'] =

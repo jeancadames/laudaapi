@@ -7,6 +7,7 @@ use App\Models\TransformationImplementationDefinition;
 use App\Models\TransformationImplementationPhaseCapability;
 use App\Models\TransformationImplementationPlan;
 use App\Models\TransformationImplementationRequest;
+use App\Services\Diagnosis\DataTransformationBiPreparationStatusReadModel;
 use App\Services\Diagnosis\TransformationImplementationRequestContract;
 use App\Services\Diagnosis\TransformationProfessionalCapabilityCatalog;
 use App\Services\Ecosystem\SubscriberTransformation360DashboardService;
@@ -25,7 +26,8 @@ final class AppHubDataTransformationBiController
         SubscriberResolver $subscriberResolver,
         CompanyContextResolver $companyResolver,
         TenantAccessService $tenantAccessService,
-        SubscriberTransformation360DashboardService $dashboard
+        SubscriberTransformation360DashboardService $dashboard,
+        DataTransformationBiPreparationStatusReadModel $preparationStatus
     ): Response {
         $user = $request->user();
 
@@ -193,6 +195,14 @@ final class AppHubDataTransformationBiController
                 $transformation360
             );
 
+        $dataPreparation =
+            ($implementationRequest['id'] ?? null)
+                ? $preparationStatus->forRequest(
+                    (int) $company->id,
+                    (int) $implementationRequest['id']
+                )
+                : null;
+
         return Inertia::render(
             'App/DataTransformationBi',
             [
@@ -233,7 +243,8 @@ final class AppHubDataTransformationBiController
                 'implementation_request' =>
                     $implementationRequest,
 
-
+                'data_preparation' =>
+                    $dataPreparation,
 
                 'capability' =>
                     $capability,
