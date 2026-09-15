@@ -103,6 +103,21 @@ type Row = {
         };
         entries: Array<Record<string, unknown>>;
     };
+    usable_dataset: {
+        available: boolean;
+        reason: string;
+        dataset: {
+            processing_run_id: number;
+            intake_batch_id: number;
+            definition_version: number | null;
+            schema_version: number;
+            profiling_version: number;
+            normalization_version: number;
+            normalized_row_count: number;
+            has_rows: boolean;
+            completed_at: string | null;
+        } | null;
+    };
     definition: {
         id: number;
         version: number;
@@ -369,6 +384,33 @@ function planStatusLabel(status: string): string {
                                                     ?.stage_label
                                                 ?? 'Sin procesamiento'
                                             }}
+                                        </Badge>
+
+                                        <!-- P13_USABLE_DATASET_STATUS -->
+                                        <Badge
+                                            :variant="
+                                                row.usable_dataset.available
+                                                    ? 'secondary'
+                                                    : 'outline'
+                                            "
+                                        >
+                                            Dataset utilizable ·
+                                            <template
+                                                v-if="
+                                                    row.usable_dataset.available
+                                                    && row.usable_dataset.dataset
+                                                "
+                                            >
+                                                {{
+                                                    row.usable_dataset
+                                                        .dataset
+                                                        .normalized_row_count
+                                                }}
+                                                filas
+                                            </template>
+                                            <template v-else>
+                                                No disponible
+                                            </template>
                                         </Badge>
 
                                         <!-- P12_PROCESSING_HISTORY_SUMMARY -->

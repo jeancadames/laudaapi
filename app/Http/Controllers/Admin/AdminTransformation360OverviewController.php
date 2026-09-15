@@ -260,6 +260,11 @@ final class AdminTransformation360OverviewController extends Controller
                 DataTransformationBiPreparationStatusReadModel::class
             );
 
+        $usableDatasetResolver =
+            app(
+                \App\Services\Diagnosis\DataTransformationBiUsableDatasetResolver::class
+            );
+
         $rows =
             $baseRows
                 ->map(
@@ -268,7 +273,8 @@ final class AdminTransformation360OverviewController extends Controller
                         $definitionsByRequest,
                         $eventsByRequest,
                         $requestStatusLabel,
-                        $preparationStatus
+                        $preparationStatus,
+                        $usableDatasetResolver
                     ): array {
                         $assessmentId =
                             (int) (
@@ -443,6 +449,25 @@ final class AdminTransformation360OverviewController extends Controller
                                         'has_more' => false,
                                     ],
                                     'entries' => [],
+                                ];
+
+                        /*
+                         * P13 · Current usable dataset.
+                         *
+                         * Distinct from latest-attempt preparation state:
+                         * this resolves the last successful normalized dataset.
+                         */
+                        $row['usable_dataset'] =
+                            $implementationRequest
+                                ? $usableDatasetResolver->forRequest(
+                                    (int) $implementationRequest->company_id,
+                                    (int) $implementationRequest->id
+                                )
+                                : [
+                                    'available' => false,
+                                    'reason' =>
+                                        'no_successful_normalized_dataset',
+                                    'dataset' => null,
                                 ];
 
                         $row['definition'] =

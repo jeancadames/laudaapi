@@ -229,6 +229,29 @@ final class AppHubDataTransformationBiController
                     'entries' => [],
                 ];
 
+        /*
+         * P13 · Last successful normalized dataset.
+         *
+         * This does not replace the latest-attempt preparation status.
+         */
+        $usableDataset =
+            (int) (
+                $implementationRequest['id']
+                ?? 0
+            ) > 0
+                ? app(
+                    \App\Services\Diagnosis\DataTransformationBiUsableDatasetResolver::class
+                )->forRequest(
+                    (int) $company->id,
+                    (int) $implementationRequest['id']
+                )
+                : [
+                    'available' => false,
+                    'reason' =>
+                        'no_successful_normalized_dataset',
+                    'dataset' => null,
+                ];
+
         return Inertia::render(
             'App/DataTransformationBi',
             [
@@ -274,6 +297,9 @@ final class AppHubDataTransformationBiController
 
                 'processing_history' =>
                     $processingHistory,
+
+                'usable_dataset' =>
+                    $usableDataset,
 
                 'capability' =>
                     $capability,

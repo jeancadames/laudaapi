@@ -79,6 +79,22 @@ type ProcessingHistory = {
     }>;
 };
 
+type UsableDatasetStatus = {
+    available: boolean;
+    reason: string;
+    dataset: {
+        processing_run_id: number;
+        intake_batch_id: number;
+        definition_version: number | null;
+        schema_version: number;
+        profiling_version: number;
+        normalization_version: number;
+        normalized_row_count: number;
+        has_rows: boolean;
+        completed_at: string | null;
+    } | null;
+};
+
 const props = defineProps<{
     company: {
         id: number;
@@ -247,6 +263,7 @@ const props = defineProps<{
     } | null;
 
     processing_history: ProcessingHistory;
+    usable_dataset: UsableDatasetStatus;
     capability: DataTransformationBiCapability;
 }>();
 
@@ -2208,6 +2225,150 @@ function processingHistoryDate(
                             Esta vista muestra únicamente estado y conteos de
                             preparación. No expone registros de origen, datos
                             normalizados ni modifica el estado de la solicitud.
+                        </p>
+                    </section>
+
+                    <!-- P13_USABLE_DATASET_STATUS -->
+                    <section
+                        v-if="implementation_request.id"
+                        class="rounded-[2rem] border border-emerald-200/70 bg-white p-6 shadow-sm sm:p-8 dark:border-emerald-950 dark:bg-slate-950"
+                    >
+                        <div
+                            class="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between"
+                        >
+                            <div>
+                                <p
+                                    class="text-[10px] font-black tracking-widest text-emerald-600 uppercase dark:text-emerald-400"
+                                >
+                                    Dataset preparado
+                                </p>
+
+                                <h2
+                                    class="mt-1 text-xl font-black text-slate-950 dark:text-white"
+                                >
+                                    Dataset utilizable actual
+                                </h2>
+
+                                <p
+                                    class="mt-2 max-w-3xl text-sm leading-6 text-slate-500 dark:text-slate-400"
+                                >
+                                    Esta referencia identifica la última versión
+                                    normalizada que LAUDA considera íntegra y
+                                    utilizable. Puede ser anterior al último intento
+                                    si una carga más reciente aún está en proceso o
+                                    requiere correcciones.
+                                </p>
+                            </div>
+
+                            <span
+                                class="shrink-0 rounded-full border px-3 py-1.5 text-[10px] font-black tracking-wide uppercase"
+                            >
+                                {{
+                                    usable_dataset.available
+                                        ? 'Disponible'
+                                        : 'No disponible'
+                                }}
+                            </span>
+                        </div>
+
+                        <div
+                            v-if="
+                                usable_dataset.available
+                                && usable_dataset.dataset
+                            "
+                            class="mt-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-4"
+                        >
+                            <div
+                                class="rounded-2xl border border-slate-200/70 bg-slate-50/50 p-4 dark:border-slate-800 dark:bg-slate-900/20"
+                            >
+                                <p
+                                    class="text-xs text-slate-500 dark:text-slate-400"
+                                >
+                                    Ejecución
+                                </p>
+                                <p
+                                    class="mt-1 text-lg font-black text-slate-950 dark:text-white"
+                                >
+                                    Run #{{
+                                        usable_dataset.dataset
+                                            .processing_run_id
+                                    }}
+                                </p>
+                            </div>
+
+                            <div
+                                class="rounded-2xl border border-slate-200/70 bg-slate-50/50 p-4 dark:border-slate-800 dark:bg-slate-900/20"
+                            >
+                                <p
+                                    class="text-xs text-slate-500 dark:text-slate-400"
+                                >
+                                    Batch
+                                </p>
+                                <p
+                                    class="mt-1 text-lg font-black text-slate-950 dark:text-white"
+                                >
+                                    #{{
+                                        usable_dataset.dataset
+                                            .intake_batch_id
+                                    }}
+                                </p>
+                            </div>
+
+                            <div
+                                class="rounded-2xl border border-slate-200/70 bg-slate-50/50 p-4 dark:border-slate-800 dark:bg-slate-900/20"
+                            >
+                                <p
+                                    class="text-xs text-slate-500 dark:text-slate-400"
+                                >
+                                    Filas normalizadas
+                                </p>
+                                <p
+                                    class="mt-1 text-lg font-black text-slate-950 dark:text-white"
+                                >
+                                    {{
+                                        usable_dataset.dataset
+                                            .normalized_row_count
+                                    }}
+                                </p>
+                            </div>
+
+                            <div
+                                class="rounded-2xl border border-slate-200/70 bg-slate-50/50 p-4 dark:border-slate-800 dark:bg-slate-900/20"
+                            >
+                                <p
+                                    class="text-xs text-slate-500 dark:text-slate-400"
+                                >
+                                    Completado
+                                </p>
+                                <p
+                                    class="mt-1 text-sm font-black text-slate-950 dark:text-white"
+                                >
+                                    {{
+                                        processingHistoryDate(
+                                            usable_dataset.dataset
+                                                .completed_at,
+                                        )
+                                    }}
+                                </p>
+                            </div>
+                        </div>
+
+                        <div
+                            v-else
+                            class="mt-6 rounded-2xl border border-slate-200/70 bg-slate-50/60 p-4 text-sm leading-6 text-slate-500 dark:border-slate-800 dark:bg-slate-900/20 dark:text-slate-400"
+                        >
+                            Todavía no existe una ejecución normalizada completada
+                            e íntegra para esta solicitud. El estado del último
+                            intento se mantiene de forma independiente en
+                            “Preparación de datos”.
+                        </div>
+
+                        <p
+                            class="mt-5 border-t border-slate-200/70 pt-4 text-xs leading-5 text-slate-500 dark:border-slate-800 dark:text-slate-400"
+                        >
+                            Esta vista muestra únicamente la identidad técnica y
+                            conteos agregados del dataset preparado. No expone
+                            registros normalizados ni datos de origen.
                         </p>
                     </section>
 
