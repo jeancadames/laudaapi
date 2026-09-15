@@ -160,6 +160,12 @@ const props = defineProps<{
         current_definition_version: number | null;
     } | null;
 
+    standard_intake_persisted_state: {
+        ingestion: StandardIntakeIngestionHttpResponse | null;
+        profile: StandardIntakeProcessingHttpResponse | null;
+        normalization: StandardIntakeProcessingHttpResponse | null;
+    } | null;
+
     actions: {
         can_create_definition_revision: boolean;
         definition_revision_endpoint: string | null;
@@ -282,7 +288,11 @@ const standardIntakeReport = ref<StandardIntakeHttpResponse | null>(null);
 const standardIntakeIngesting = ref(false);
 const standardIntakeIngestionError = ref<string | null>(null);
 const standardIntakeIngestionReport =
-    ref<StandardIntakeIngestionHttpResponse | null>(null);
+    ref<StandardIntakeIngestionHttpResponse | null>(
+        props.standard_intake_persisted_state
+            ?.ingestion
+        ?? null,
+    );
 
 const standardIntakeValidationUrl =
     `/admin/transformation-360/implementation-requests/${props.implementation_request.id}/standard-intake/validate`;
@@ -1373,13 +1383,27 @@ const standardIntakeProcessingError =
     ref<string | null>(null);
 
 const standardIntakeProfileReport =
-    ref<StandardIntakeProcessingHttpResponse | null>(null);
+    ref<StandardIntakeProcessingHttpResponse | null>(
+        props.standard_intake_persisted_state
+            ?.profile
+        ?? null,
+    );
 
 const standardIntakeNormalizationReport =
-    ref<StandardIntakeProcessingHttpResponse | null>(null);
+    ref<StandardIntakeProcessingHttpResponse | null>(
+        props.standard_intake_persisted_state
+            ?.normalization
+        ?? null,
+    );
 
 const standardIntakeProcessingBatchId =
-    ref<number | null>(null);
+    ref<number | null>(
+        props.standard_intake_persisted_state
+            ?.ingestion
+            ?.ingestion
+            ?.batch_id
+        ?? null,
+    );
 
 const standardIntakeProfilingUrl =
     `/admin/transformation-360/implementation-requests/${props.implementation_request.id}/standard-intake/profile`;

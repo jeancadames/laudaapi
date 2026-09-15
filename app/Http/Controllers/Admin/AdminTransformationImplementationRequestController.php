@@ -1884,6 +1884,303 @@ final class AdminTransformationImplementationRequestController
                 );
 
 
+
+        /*
+         * P6_PERSISTED_DATA_BI_STATE
+         *
+         * Recover the latest successfully staged Data BI batch and its
+         * latest processing run so a page refresh does not erase the
+         * visible staging / profiling / normalization state.
+         *
+         * Read-only:
+         * - no staging mutation
+         * - no reprocessing
+         * - no request/definition lifecycle mutation
+         * - no source artifact/path exposure
+         */
+        $standardIntakePersistedState =
+            null;
+
+        if (
+            (string) $context->capability_key
+            === 'data_transformation_bi'
+        ) {
+            $latestIntakeBatch =
+                \App\Models\DataTransformationBiIntakeBatch::query()
+                    ->where(
+                        'company_id',
+                        (int) $context->company_id
+                    )
+                    ->where(
+                        'transformation_implementation_request_id',
+                        (int) $implementationRequest->id
+                    )
+                    ->where(
+                        'status',
+                        \App\Models\DataTransformationBiIntakeBatch
+                            ::STATUS_COMPLETED
+                    )
+                    ->orderByDesc('id')
+                    ->first();
+
+            if ($latestIntakeBatch !== null) {
+                $domainRows =
+                    \App\Models\DataTransformationBiIntakeBatchDomain::query()
+                        ->where(
+                            'data_transformation_bi_intake_batch_id',
+                            (int) $latestIntakeBatch->id
+                        )
+                        ->where(
+                            'company_id',
+                            (int) $context->company_id
+                        )
+                        ->orderBy('domain_key')
+                        ->get();
+
+                $domains =
+                    [];
+
+                foreach ($domainRows as $domainRow) {
+                    $domains[
+                        (string) $domainRow->domain_key
+                    ] = [
+                        'source_row_count' =>
+                            (int) $domainRow->source_row_count,
+
+                        'staged_row_count' =>
+                            (int) $domainRow->staged_row_count,
+
+                        'rejected_row_count' =>
+                            (int) $domainRow->rejected_row_count,
+                    ];
+                }
+
+                $ingestionState = [
+                    'ok' =>
+                        true,
+
+                    'message' =>
+                        'Estado recuperado del último staging completado.',
+
+                    'ingestion' => [
+                        'reused' =>
+                            true,
+
+                        'batch_id' =>
+                            (int) $latestIntakeBatch->id,
+
+                        'status' =>
+                            (string) $latestIntakeBatch->status,
+
+                        'schema_version' =>
+                            (int) $latestIntakeBatch->schema_version,
+
+                        'format' =>
+                            (string) $latestIntakeBatch->source_format,
+
+                        'original_filename' =>
+                            (string) $latestIntakeBatch->original_filename,
+
+                        'domain_count' =>
+                            (int) $latestIntakeBatch->domain_count,
+
+                        'source_row_count' =>
+                            (int) $latestIntakeBatch->source_row_count,
+
+                        'staged_row_count' =>
+                            (int) $latestIntakeBatch->staged_row_count,
+
+                        'rejected_row_count' =>
+                            (int) $latestIntakeBatch->rejected_row_count,
+
+                        'domains' =>
+                            $domains,
+                    ],
+                ];
+
+                $profileState =
+                    null;
+
+                $normalizationState =
+                    null;
+
+                $latestProcessingRun =
+                    \App\Models\DataTransformationBiProcessingRun::query()
+                        ->where(
+                            'data_transformation_bi_intake_batch_id',
+                            (int) $latestIntakeBatch->id
+                        )
+                        ->where(
+                            'company_id',
+                            (int) $context->company_id
+                        )
+                        ->where(
+                            'transformation_implementation_request_id',
+                            (int) $implementationRequest->id
+                        )
+                        ->orderByDesc('id')
+                        ->first();
+
+                if ($latestProcessingRun !== null) {
+                    $profileSummary = [
+                        'run_id' =>
+                            (int) $latestProcessingRun->id,
+
+                        'batch_id' =>
+                            (int) $latestProcessingRun
+                                ->data_transformation_bi_intake_batch_id,
+
+                        'company_id' =>
+                            (int) $latestProcessingRun->company_id,
+
+                        'profiling_version' =>
+                            (int) $latestProcessingRun->profiling_version,
+
+                        'normalization_version' =>
+                            (int) $latestProcessingRun->normalization_version,
+
+                        'status' =>
+                            (string) $latestProcessingRun->status,
+
+                        'source_row_count' =>
+                            (int) $latestProcessingRun->source_row_count,
+
+                        'profiled_row_count' =>
+                            (int) $latestProcessingRun->profiled_row_count,
+
+                        'normalized_row_count' =>
+                            (int) $latestProcessingRun->normalized_row_count,
+
+                        'issue_count' =>
+                            (int) $latestProcessingRun->issue_count,
+
+                        'blocking_issue_count' =>
+                            (int) $latestProcessingRun->blocking_issue_count,
+
+                        'warning_issue_count' =>
+                            (int) $latestProcessingRun->warning_issue_count,
+
+                        'domain_profile_count' =>
+                            $latestProcessingRun
+                                ->domainProfiles()
+                                ->count(),
+
+                        'field_profile_count' =>
+                            $latestProcessingRun
+                                ->fieldProfiles()
+                                ->count(),
+
+                        'normalization_pending' =>
+                            $latestProcessingRun->status
+                            !== \App\Models\DataTransformationBiProcessingRun
+                                ::STATUS_COMPLETED,
+
+                        'reused' =>
+                            true,
+                    ];
+
+                    $profileState = [
+                        'ok' =>
+                            true,
+
+                        'message' =>
+                            'Estado de perfilado y calidad recuperado.',
+
+                        'processing' =>
+                            $profileSummary,
+                    ];
+
+                    if (
+                        $latestProcessingRun->status
+                        === \App\Models\DataTransformationBiProcessingRun
+                            ::STATUS_COMPLETED
+                    ) {
+                        $normalizationChanges =
+                            \App\Models\DataTransformationBiNormalizedRow::query()
+                                ->where(
+                                    'data_transformation_bi_processing_run_id',
+                                    (int) $latestProcessingRun->id
+                                )
+                                ->sum(
+                                    'change_count'
+                                );
+
+                        $normalizationState = [
+                            'ok' =>
+                                true,
+
+                            'message' =>
+                                'Estado de normalización completada recuperado.',
+
+                            'processing' => [
+                                'run_id' =>
+                                    (int) $latestProcessingRun->id,
+
+                                'batch_id' =>
+                                    (int) $latestProcessingRun
+                                        ->data_transformation_bi_intake_batch_id,
+
+                                'company_id' =>
+                                    (int) $latestProcessingRun->company_id,
+
+                                'status' =>
+                                    (string) $latestProcessingRun->status,
+
+                                'profiling_version' =>
+                                    (int) $latestProcessingRun
+                                        ->profiling_version,
+
+                                'normalization_version' =>
+                                    (int) $latestProcessingRun
+                                        ->normalization_version,
+
+                                'source_row_count' =>
+                                    (int) $latestProcessingRun
+                                        ->source_row_count,
+
+                                'profiled_row_count' =>
+                                    (int) $latestProcessingRun
+                                        ->profiled_row_count,
+
+                                'normalized_row_count' =>
+                                    (int) $latestProcessingRun
+                                        ->normalized_row_count,
+
+                                'issue_count' =>
+                                    (int) $latestProcessingRun
+                                        ->issue_count,
+
+                                'blocking_issue_count' =>
+                                    (int) $latestProcessingRun
+                                        ->blocking_issue_count,
+
+                                'warning_issue_count' =>
+                                    (int) $latestProcessingRun
+                                        ->warning_issue_count,
+
+                                'normalization_change_count' =>
+                                    (int) $normalizationChanges,
+
+                                'reused' =>
+                                    true,
+                            ],
+                        ];
+                    }
+                }
+
+                $standardIntakePersistedState = [
+                    'ingestion' =>
+                        $ingestionState,
+
+                    'profile' =>
+                        $profileState,
+
+                    'normalization' =>
+                        $normalizationState,
+                ];
+            }
+        }
+
         return Inertia::render(
             'Admin/Transformation360/ImplementationRequests/Show',
             [
@@ -2121,6 +2418,8 @@ final class AdminTransformationImplementationRequestController
                 'events' =>
                     $events,
 
+                'standard_intake_persisted_state' =>
+                    $standardIntakePersistedState,
 
                 'admin_users' =>
                     User::query()
