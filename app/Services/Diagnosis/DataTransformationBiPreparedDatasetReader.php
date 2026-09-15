@@ -340,6 +340,90 @@ final class DataTransformationBiPreparedDatasetReader
     }
 
     /**
+     * Resolve one canonical row by its NORMALIZED identity inside an
+     * already-resolved P13 dataset snapshot.
+     *
+     * This is intentionally snapshot-based so relationship navigation
+     * cannot switch to a newer dataset between source and target lookup.
+     *
+     * @param array<string,mixed> $dataset
+     * @return array{
+     *     normalized_row_id:int,
+     *     identity_hash:string,
+     *     payload:array<string,mixed>
+     * }|null
+     */
+    public function findDomainRowByCanonicalIdentityHashInDataset(
+        int $companyId,
+        array $dataset,
+        string $domain,
+        string $canonicalIdentityHash
+    ): ?array {
+        $domain =
+            $this->canonicalDomain(
+                $domain
+            );
+
+        $canonicalIdentityHash =
+            strtolower(
+                trim(
+                    $canonicalIdentityHash
+                )
+            );
+
+        if (
+            preg_match(
+                '/^[a-f0-9]{64}$/',
+                $canonicalIdentityHash
+            )
+            !== 1
+        ) {
+            throw new InvalidArgumentException(
+                'La identidad canónica debe ser un SHA-256 válido.'
+            );
+        }
+
+        [$runId, $batchId] =
+            $this->datasetIdentity(
+                $dataset
+            );
+
+        $row =
+            DataTransformationBiNormalizedRow::query()
+                ->where(
+                    'company_id',
+                    $companyId
+                )
+                ->where(
+                    'data_transformation_bi_processing_run_id',
+                    $runId
+                )
+                ->where(
+                    'data_transformation_bi_intake_batch_id',
+                    $batchId
+                )
+                ->where(
+                    'domain_key',
+                    $domain
+                )
+                ->where(
+                    'canonical_identity_hash',
+                    $canonicalIdentityHash
+                )
+                ->first([
+                    'id',
+                    'identity_hash',
+                    'normalized_payload',
+                ]);
+
+        return $row
+            ? $this->canonicalRow(
+                $row
+            )
+            : null;
+    }
+
+    /**
      * Read a page pinned to an already resolved dataset identity.
      *
      * This method MUST NOT re-resolve the P13 pointer.

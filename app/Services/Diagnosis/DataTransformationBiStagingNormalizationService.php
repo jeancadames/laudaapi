@@ -299,6 +299,11 @@ final class DataTransformationBiStagingNormalizationService
                     );
                 }
 
+                $canonicalIdentity =
+                    app(
+                        DataTransformationBiCanonicalIdentity::class
+                    );
+
                 foreach ($rows as $row) {
                     if (
                         (int) $row->company_id
@@ -324,6 +329,13 @@ final class DataTransformationBiStagingNormalizationService
 
                     $normalizedPayload =
                         $result['payload'];
+
+                    $canonicalIdentityHash =
+                        $canonicalIdentity
+                            ->hashForNormalizedPayload(
+                                (string) $row->domain_key,
+                                $normalizedPayload
+                            );
 
                     $canonicalJson =
                         $this->normalizer
@@ -362,6 +374,9 @@ final class DataTransformationBiStagingNormalizationService
                              */
                             'identity_hash' =>
                                 (string) $row->identity_hash,
+
+                            'canonical_identity_hash' =>
+                                $canonicalIdentityHash,
 
                             'source_row_sha256' =>
                                 (string) $row->row_sha256,

@@ -14,6 +14,7 @@ class DataTransformationBiNormalizedRow extends Model
 
     protected $hidden = [
         'normalized_payload',
+        'canonical_identity_hash',
     ];
 
     protected function casts(): array
