@@ -65,7 +65,8 @@ final class DataTransformationBiCanonicalDatasetDelta
             );
 
         /*
-         * Resolve the ordered, compatible historical pair exactly once.
+         * Preserve the original P18 contract: resolve the ordered,
+         * compatible historical pair exactly once.
          */
         $pair =
             $this->versionedDatasetResolver
@@ -109,6 +110,56 @@ final class DataTransformationBiCanonicalDatasetDelta
         /** @var array<string,mixed> $targetDataset */
         $targetDataset =
             $pair['target'];
+
+        /*
+         * P20-A delegates the actual canonical comparison to the pinned
+         * primitive so downstream dataset-wide consumers can reuse the
+         * already-frozen descriptors without resolving the pair again.
+         */
+        yield from $this->iterateDomainDeltaInDatasets(
+            $companyId,
+            $baseDataset,
+            $targetDataset,
+            $domain,
+            $pageSize
+        );
+    }
+
+    /**
+     * Compare one canonical domain between two already-resolved datasets.
+     *
+     * The caller owns dataset resolution and compatibility. This primitive
+     * never resolves P13/P18 and remains pinned to the supplied run+batch
+     * descriptors for the complete stream.
+     *
+     * @param array<string,mixed> $baseDataset
+     * @param array<string,mixed> $targetDataset
+     *
+     * @return \Generator<int,array{
+     *     canonical_identity_hash:string,
+     *     change_type:string,
+     *     base_normalized_row_id:int|null,
+     *     target_normalized_row_id:int|null,
+     *     base_normalized_sha256:string|null,
+     *     target_normalized_sha256:string|null
+     * }>
+     */
+    public function iterateDomainDeltaInDatasets(
+        int $companyId,
+        array $baseDataset,
+        array $targetDataset,
+        string $domain,
+        int $pageSize = self::DEFAULT_PAGE_SIZE
+    ): \Generator {
+        $domain =
+            $this->canonicalDomain(
+                $domain
+            );
+
+        $pageSize =
+            $this->pageSize(
+                $pageSize
+            );
 
         $baseSignatures =
             $this->signatureReader
