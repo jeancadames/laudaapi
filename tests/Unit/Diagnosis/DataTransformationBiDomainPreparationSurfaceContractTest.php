@@ -195,3 +195,25 @@ test(
         }
     }
 );
+
+test(
+    'admin domain summary is null safe when request has no preparation state',
+    function () {
+        $source =
+            p8Source(
+                'resources/js/pages/Admin/'
+                .'Transformation360/DataBi.vue'
+            );
+
+        expect($source)
+            ->toContain(
+                '&& row.data_preparation'
+            )
+            ->toContain(
+                '.domain_summary'
+            )
+            ->toContain(
+                ".total > 0"
+            );
+    }
+);

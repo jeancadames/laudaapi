@@ -387,6 +387,7 @@ function planStatusLabel(status: string): string {
                                         <span
                                             v-if="
                                                 row.data_preparation
+                                                && row.data_preparation
                                                     .domain_summary
                                                     .total > 0
                                             "
