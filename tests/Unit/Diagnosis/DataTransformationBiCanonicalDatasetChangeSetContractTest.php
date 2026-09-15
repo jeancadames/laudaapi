@@ -178,14 +178,23 @@ test(
         foreach ([
             'canonical_identity_hash',
             'change_type',
-            'base_normalized_row_id',
-            'target_normalized_row_id',
             'base_normalized_sha256',
             'target_normalized_sha256',
         ] as $field) {
             expect($source)
                 ->toContain(
                     $field
+                );
+        }
+
+        foreach ([
+            'base_normalized_row_id',
+            'target_normalized_row_id',
+        ] as $forbidden) {
+            expect($source)
+                ->not
+                ->toContain(
+                    $forbidden
                 );
         }
     }

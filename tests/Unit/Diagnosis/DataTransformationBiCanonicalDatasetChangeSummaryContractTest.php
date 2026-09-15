@@ -71,12 +71,6 @@ function p20cRow(
         'change_type' =>
             $type,
 
-        'base_normalized_row_id' =>
-            null,
-
-        'target_normalized_row_id' =>
-            null,
-
         'base_normalized_sha256' =>
             null,
 

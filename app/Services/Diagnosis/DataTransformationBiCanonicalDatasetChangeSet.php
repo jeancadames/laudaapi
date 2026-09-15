@@ -24,8 +24,6 @@ final class DataTransformationBiCanonicalDatasetChangeSet
      *     domain:string,
      *     canonical_identity_hash:string,
      *     change_type:string,
-     *     base_normalized_row_id:int|null,
-     *     target_normalized_row_id:int|null,
      *     base_normalized_sha256:string|null,
      *     target_normalized_sha256:string|null
      * }>
@@ -87,8 +85,6 @@ final class DataTransformationBiCanonicalDatasetChangeSet
      *     domain:string,
      *     canonical_identity_hash:string,
      *     change_type:string,
-     *     base_normalized_row_id:int|null,
-     *     target_normalized_row_id:int|null,
      *     base_normalized_sha256:string|null,
      *     target_normalized_sha256:string|null
      * }>
@@ -144,11 +140,8 @@ final class DataTransformationBiCanonicalDatasetChangeSet
                     );
                 }
 
-                yield array_merge(
-                    [
-                        'domain' =>
-                            $domain,
-                    ],
+                yield $this->stableChangeRecord(
+                    $domain,
                     $deltaRow
                 );
             }
@@ -1071,4 +1064,197 @@ final class DataTransformationBiCanonicalDatasetChangeSet
 
         return $pageSize;
     }
+
+    /**
+     * Project the low-level P18 delta into the storage-stable P20 contract.
+     *
+     * P18 may retain physical normalized-row ids internally. Those ids
+     * deliberately terminate at this boundary and never reach P20 consumers.
+     *
+     * @param array<string,mixed> $deltaRow
+     *
+     * @return array{
+     *     domain:string,
+     *     canonical_identity_hash:string,
+     *     change_type:string,
+     *     base_normalized_sha256:string|null,
+     *     target_normalized_sha256:string|null
+     * }
+     */
+    private function stableChangeRecord(
+        string $domain,
+        array $deltaRow
+    ): array {
+        $domains =
+            DataTransformationBiCanonicalDatasetContext
+                ::domains();
+
+        if (
+            ! in_array(
+                $domain,
+                $domains,
+                true
+            )
+        ) {
+            throw new RuntimeException(
+                'El change record recibió un dominio no canónico.'
+            );
+        }
+
+        $identity =
+            $deltaRow[
+                'canonical_identity_hash'
+            ]
+            ?? null;
+
+        if (
+            ! is_string($identity)
+            || preg_match(
+                '/^[a-f0-9]{64}$/',
+                $identity
+            )
+            !== 1
+        ) {
+            throw new RuntimeException(
+                'El change record no contiene '
+                .'canonical_identity_hash SHA-256 válido.'
+            );
+        }
+
+        $changeType =
+            $deltaRow[
+                'change_type'
+            ]
+            ?? null;
+
+        if (
+            ! is_string($changeType)
+            || ! in_array(
+                $changeType,
+                [
+                    'added',
+                    'removed',
+                    'modified',
+                    'unchanged',
+                ],
+                true
+            )
+        ) {
+            throw new RuntimeException(
+                'El change record contiene '
+                .'change_type inválido.'
+            );
+        }
+
+        $baseSha =
+            $this->nullableChangeSha256(
+                $deltaRow[
+                    'base_normalized_sha256'
+                ]
+                ?? null,
+                'base_normalized_sha256'
+            );
+
+        $targetSha =
+            $this->nullableChangeSha256(
+                $deltaRow[
+                    'target_normalized_sha256'
+                ]
+                ?? null,
+                'target_normalized_sha256'
+            );
+
+        if ($changeType === 'added') {
+            if (
+                $baseSha !== null
+                || $targetSha === null
+            ) {
+                throw new RuntimeException(
+                    'Un cambio added requiere solo '
+                    .'target_normalized_sha256.'
+                );
+            }
+        } elseif ($changeType === 'removed') {
+            if (
+                $baseSha === null
+                || $targetSha !== null
+            ) {
+                throw new RuntimeException(
+                    'Un cambio removed requiere solo '
+                    .'base_normalized_sha256.'
+                );
+            }
+        } elseif ($changeType === 'modified') {
+            if (
+                $baseSha === null
+                || $targetSha === null
+                || hash_equals(
+                    $baseSha,
+                    $targetSha
+                )
+            ) {
+                throw new RuntimeException(
+                    'Un cambio modified requiere dos fingerprints '
+                    .'canónicos distintos.'
+                );
+            }
+        } else {
+            if (
+                $baseSha === null
+                || $targetSha === null
+                || ! hash_equals(
+                    $baseSha,
+                    $targetSha
+                )
+            ) {
+                throw new RuntimeException(
+                    'Un cambio unchanged requiere dos fingerprints '
+                    .'canónicos iguales.'
+                );
+            }
+        }
+
+        return [
+            'domain' =>
+                $domain,
+
+            'canonical_identity_hash' =>
+                $identity,
+
+            'change_type' =>
+                $changeType,
+
+            'base_normalized_sha256' =>
+                $baseSha,
+
+            'target_normalized_sha256' =>
+                $targetSha,
+        ];
+    }
+
+    private function nullableChangeSha256(
+        mixed $value,
+        string $field
+    ): ?string {
+        if ($value === null) {
+            return null;
+        }
+
+        if (
+            ! is_string($value)
+            || preg_match(
+                '/^[a-f0-9]{64}$/',
+                $value
+            )
+            !== 1
+        ) {
+            throw new RuntimeException(
+                "{$field} debe ser SHA-256 hexadecimal "
+                .'minúsculo o null.'
+            );
+        }
+
+        return $value;
+    }
+
 }
