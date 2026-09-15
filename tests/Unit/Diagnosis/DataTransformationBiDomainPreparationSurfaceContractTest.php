@@ -9,7 +9,7 @@ function p8Source(
 }
 
 test(
-    'domain preparation uses aggregate domain profiles only',
+    'domain preparation uses aggregate domain profiles without reading normalized rows',
     function () {
         $source =
             p8Source(
@@ -37,11 +37,14 @@ test(
                 "'domains'"
             );
 
+        /*
+         * P9 extends this shared read-model with grouped
+         * field severity counts from QualityIssue.
+         *
+         * P8 still guarantees that domain preparation
+         * never reads normalized row payloads.
+         */
         expect($source)
-            ->not
-            ->toContain(
-                'DataTransformationBiQualityIssue::query()'
-            )
             ->not
             ->toContain(
                 'DataTransformationBiNormalizedRow::query()'

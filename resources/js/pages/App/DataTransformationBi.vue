@@ -121,6 +121,17 @@ const props = defineProps<{
             clean: number;
         };
 
+        field_summary: {
+            total: number;
+            healthy: number;
+            informational: number;
+            warning: number;
+            blocking: number;
+            attention: number;
+            required_incomplete: number;
+            with_invalid_values: number;
+        };
+
         domains: Array<{
             key: string;
             label: string;
@@ -137,6 +148,38 @@ const props = defineProps<{
             warning_issue_count: number;
             informational_issue_count: number;
             normalized_row_count: number;
+
+            field_summary: {
+                total: number;
+                healthy: number;
+                informational: number;
+                warning: number;
+                blocking: number;
+                attention: number;
+                required_incomplete: number;
+                with_invalid_values: number;
+            };
+
+            fields: Array<{
+                key: string;
+                description: string | null;
+                data_type: string;
+                required: boolean;
+                quality_status: string;
+                quality_label: string;
+                row_count: number;
+                non_null_count: number;
+                null_count: number;
+                blank_count: number;
+                missing_count: number;
+                completeness_percent: number;
+                distinct_count: number;
+                invalid_count: number;
+                issue_count: number;
+                blocking_issue_count: number;
+                warning_issue_count: number;
+                informational_issue_count: number;
+            }>;
         }>;
     } | null;
 
@@ -1724,6 +1767,220 @@ function requestDefinitionChanges(): void {
                                         }}
                                         identidades duplicadas detectadas.
                                     </p>
+
+                                    <!-- P9_FIELD_QUALITY_STATUS -->
+                                    <details
+                                        v-if="domain.fields.length > 0"
+                                        class="mt-4 rounded-xl border border-slate-200/70 bg-white/70 dark:border-slate-800 dark:bg-slate-950/40"
+                                    >
+                                        <summary
+                                            class="cursor-pointer list-none px-4 py-3 text-xs font-black text-slate-700 dark:text-slate-200"
+                                        >
+                                            Campos ·
+                                            {{
+                                                domain.field_summary.total
+                                            }}
+
+                                            <span
+                                                v-if="
+                                                    domain
+                                                        .field_summary
+                                                        .blocking > 0
+                                                "
+                                                class="ml-2 font-semibold text-red-600 dark:text-red-400"
+                                            >
+                                                {{
+                                                    domain
+                                                        .field_summary
+                                                        .blocking
+                                                }}
+                                                requieren corrección
+                                            </span>
+
+                                            <span
+                                                v-else-if="
+                                                    domain
+                                                        .field_summary
+                                                        .warning > 0
+                                                "
+                                                class="ml-2 font-semibold text-amber-600 dark:text-amber-400"
+                                            >
+                                                {{
+                                                    domain
+                                                        .field_summary
+                                                        .warning
+                                                }}
+                                                con advertencias
+                                            </span>
+                                        </summary>
+
+                                        <div
+                                            class="space-y-2 border-t border-slate-200/70 p-3 dark:border-slate-800"
+                                        >
+                                            <div
+                                                v-for="
+                                                    field in domain.fields
+                                                "
+                                                :key="
+                                                    `${domain.key}-${field.key}`
+                                                "
+                                                class="rounded-xl border border-slate-200/70 p-3 dark:border-slate-800"
+                                            >
+                                                <div
+                                                    class="flex flex-wrap items-start justify-between gap-3"
+                                                >
+                                                    <div
+                                                        class="min-w-0"
+                                                    >
+                                                        <div
+                                                            class="flex flex-wrap items-center gap-2"
+                                                        >
+                                                            <code
+                                                                class="text-xs font-black text-slate-950 dark:text-white"
+                                                            >
+                                                                {{
+                                                                    field.key
+                                                                }}
+                                                            </code>
+
+                                                            <span
+                                                                v-if="
+                                                                    field.required
+                                                                "
+                                                                class="rounded-full border px-2 py-0.5 text-[9px] font-black uppercase"
+                                                            >
+                                                                Requerido
+                                                            </span>
+
+                                                            <span
+                                                                class="text-[10px] font-semibold text-slate-400"
+                                                            >
+                                                                {{
+                                                                    field.data_type
+                                                                }}
+                                                            </span>
+                                                        </div>
+
+                                                        <p
+                                                            v-if="
+                                                                field.description
+                                                            "
+                                                            class="mt-1 text-xs leading-5 text-slate-500 dark:text-slate-400"
+                                                        >
+                                                            {{
+                                                                field.description
+                                                            }}
+                                                        </p>
+                                                    </div>
+
+                                                    <span
+                                                        class="shrink-0 rounded-full border px-2.5 py-1 text-[9px] font-black uppercase"
+                                                    >
+                                                        {{
+                                                            field.quality_label
+                                                        }}
+                                                    </span>
+                                                </div>
+
+                                                <div
+                                                    class="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-4"
+                                                >
+                                                    <div
+                                                        class="rounded-lg bg-slate-50 p-2.5 text-xs dark:bg-slate-900/40"
+                                                    >
+                                                        <p
+                                                            class="text-slate-400"
+                                                        >
+                                                            Completitud
+                                                        </p>
+
+                                                        <p
+                                                            class="mt-1 font-black"
+                                                        >
+                                                            {{
+                                                                field.completeness_percent
+                                                            }}%
+                                                        </p>
+                                                    </div>
+
+                                                    <div
+                                                        class="rounded-lg bg-slate-50 p-2.5 text-xs dark:bg-slate-900/40"
+                                                    >
+                                                        <p
+                                                            class="text-slate-400"
+                                                        >
+                                                            Faltantes
+                                                        </p>
+
+                                                        <p
+                                                            class="mt-1 font-black"
+                                                        >
+                                                            {{
+                                                                field.missing_count
+                                                            }}
+                                                        </p>
+                                                    </div>
+
+                                                    <div
+                                                        class="rounded-lg bg-slate-50 p-2.5 text-xs dark:bg-slate-900/40"
+                                                    >
+                                                        <p
+                                                            class="text-slate-400"
+                                                        >
+                                                            Inválidos
+                                                        </p>
+
+                                                        <p
+                                                            class="mt-1 font-black"
+                                                        >
+                                                            {{
+                                                                field.invalid_count
+                                                            }}
+                                                        </p>
+                                                    </div>
+
+                                                    <div
+                                                        class="rounded-lg bg-slate-50 p-2.5 text-xs dark:bg-slate-900/40"
+                                                    >
+                                                        <p
+                                                            class="text-slate-400"
+                                                        >
+                                                            Distintos
+                                                        </p>
+
+                                                        <p
+                                                            class="mt-1 font-black"
+                                                        >
+                                                            {{
+                                                                field.distinct_count
+                                                            }}
+                                                        </p>
+                                                    </div>
+                                                </div>
+
+                                                <p
+                                                    v-if="
+                                                        field.issue_count > 0
+                                                    "
+                                                    class="mt-3 text-[11px] leading-5 text-slate-500 dark:text-slate-400"
+                                                >
+                                                    {{
+                                                        field.blocking_issue_count
+                                                    }}
+                                                    bloqueantes ·
+                                                    {{
+                                                        field.warning_issue_count
+                                                    }}
+                                                    advertencias ·
+                                                    {{
+                                                        field.informational_issue_count
+                                                    }}
+                                                    informativas
+                                                </p>
+                                            </div>
+                                        </div>
+                                    </details>
+
                                 </div>
                             </div>
                         </div>

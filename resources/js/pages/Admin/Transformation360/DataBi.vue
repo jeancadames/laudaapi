@@ -45,6 +45,16 @@ type DataPreparationStatus = {
         with_warnings: number;
         clean: number;
     };
+    field_summary: {
+        total: number;
+        healthy: number;
+        informational: number;
+        warning: number;
+        blocking: number;
+        attention: number;
+        required_incomplete: number;
+        with_invalid_values: number;
+    };
     domains: Array<{
         key: string;
         label: string;
@@ -436,6 +446,56 @@ function planStatusLabel(status: string): string {
                                                 con advertencias
                                             </template>
                                         </span>
+
+                                        <span
+                                            v-if="
+                                                row.data_preparation
+                                                && row.data_preparation
+                                                    .field_summary
+                                                    .total > 0
+                                            "
+                                            class="text-xs text-muted-foreground"
+                                        >
+                                            {{
+                                                row.data_preparation
+                                                    .field_summary
+                                                    .total
+                                            }}
+                                            campos
+
+                                            <template
+                                                v-if="
+                                                    row.data_preparation
+                                                        .field_summary
+                                                        .blocking > 0
+                                                "
+                                            >
+                                                ·
+                                                {{
+                                                    row.data_preparation
+                                                        .field_summary
+                                                        .blocking
+                                                }}
+                                                requieren corrección
+                                            </template>
+
+                                            <template
+                                                v-else-if="
+                                                    row.data_preparation
+                                                        .field_summary
+                                                        .warning > 0
+                                                "
+                                            >
+                                                ·
+                                                {{
+                                                    row.data_preparation
+                                                        .field_summary
+                                                        .warning
+                                                }}
+                                                con advertencias
+                                            </template>
+                                        </span>
+
                                     </div>
 
                                 </div>
