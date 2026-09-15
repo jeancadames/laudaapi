@@ -2604,6 +2604,338 @@ async function normalizeStandardIntakeBatch(): Promise<void> {
                                 {{ standardIntakeHttpError }}
                             </div>
 
+                            <!-- P6_R5_PERSISTED_PROCESSING_PANEL -->
+                            <div
+                                v-if="
+                                    !standardIntakeReport
+                                    && standardIntakeIngestionReport?.ingestion
+                                "
+                                class="mt-5 space-y-4 rounded-xl border border-indigo-200 bg-indigo-50/40 p-4 dark:border-indigo-900/60 dark:bg-indigo-950/20"
+                            >
+                                <div
+                                    class="flex flex-wrap items-start justify-between gap-3"
+                                >
+                                    <div>
+                                        <p
+                                            class="text-sm font-black text-indigo-800 dark:text-indigo-300"
+                                        >
+                                            Último procesamiento persistido
+                                        </p>
+
+                                        <p
+                                            class="mt-1 text-xs leading-5 text-muted-foreground"
+                                        >
+                                            Este estado fue recuperado del último staging
+                                            completado. No es necesario volver a cargar ni
+                                            procesar el archivo.
+                                        </p>
+                                    </div>
+
+                                    <div class="flex flex-wrap gap-2">
+                                        <span
+                                            class="rounded-full border px-2.5 py-1 text-[11px] font-bold"
+                                        >
+                                            Batch #{{
+                                                standardIntakeIngestionReport
+                                                    .ingestion
+                                                    .batch_id
+                                            }}
+                                        </span>
+
+                                        <span
+                                            class="rounded-full border border-emerald-200 px-2.5 py-1 text-[11px] font-bold text-emerald-700 dark:border-emerald-900 dark:text-emerald-300"
+                                        >
+                                            {{
+                                                standardIntakeIngestionReport
+                                                    .ingestion
+                                                    .status
+                                            }}
+                                        </span>
+                                    </div>
+                                </div>
+
+                                <div
+                                    class="grid gap-2 sm:grid-cols-2 lg:grid-cols-4"
+                                >
+                                    <div class="rounded-lg border bg-background/70 p-3">
+                                        <p class="text-xs text-muted-foreground">
+                                            Archivo
+                                        </p>
+                                        <p
+                                            class="mt-1 truncate text-sm font-bold"
+                                            :title="
+                                                standardIntakeIngestionReport
+                                                    .ingestion
+                                                    .original_filename
+                                            "
+                                        >
+                                            {{
+                                                standardIntakeIngestionReport
+                                                    .ingestion
+                                                    .original_filename
+                                            }}
+                                        </p>
+                                    </div>
+
+                                    <div class="rounded-lg border bg-background/70 p-3">
+                                        <p class="text-xs text-muted-foreground">
+                                            Dominios
+                                        </p>
+                                        <p class="mt-1 text-lg font-black">
+                                            {{
+                                                standardIntakeIngestionReport
+                                                    .ingestion
+                                                    .domain_count
+                                            }}
+                                        </p>
+                                    </div>
+
+                                    <div class="rounded-lg border bg-background/70 p-3">
+                                        <p class="text-xs text-muted-foreground">
+                                            Filas en staging
+                                        </p>
+                                        <p class="mt-1 text-lg font-black">
+                                            {{
+                                                standardIntakeIngestionReport
+                                                    .ingestion
+                                                    .staged_row_count
+                                            }}
+                                        </p>
+                                    </div>
+
+                                    <div class="rounded-lg border bg-background/70 p-3">
+                                        <p class="text-xs text-muted-foreground">
+                                            Filas rechazadas
+                                        </p>
+                                        <p class="mt-1 text-lg font-black">
+                                            {{
+                                                standardIntakeIngestionReport
+                                                    .ingestion
+                                                    .rejected_row_count
+                                            }}
+                                        </p>
+                                    </div>
+                                </div>
+
+                                <div
+                                    class="rounded-xl border bg-background/70 p-4"
+                                >
+                                    <div
+                                        class="flex flex-wrap items-start justify-between gap-3"
+                                    >
+                                        <div>
+                                            <p class="text-sm font-bold">
+                                                Calidad y normalización
+                                            </p>
+
+                                            <p
+                                                v-if="
+                                                    standardIntakeProfileReport
+                                                        ?.processing
+                                                "
+                                                class="mt-1 text-xs text-muted-foreground"
+                                            >
+                                                Run #{{
+                                                    standardIntakeProfileReport
+                                                        .processing
+                                                        .run_id
+                                                }}
+                                                ·
+                                                {{
+                                                    standardIntakeNormalizationReport
+                                                        ?.processing
+                                                        ?.status
+                                                    ?? standardIntakeProfileReport
+                                                        .processing
+                                                        .status
+                                                }}
+                                            </p>
+                                        </div>
+
+                                        <button
+                                            v-if="
+                                                !standardIntakeProfileReport
+                                                    ?.processing
+                                            "
+                                            type="button"
+                                            class="cursor-pointer rounded-lg bg-indigo-700 px-4 py-2 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-50"
+                                            :disabled="
+                                                standardIntakeProfiling
+                                                || standardIntakeNormalizing
+                                            "
+                                            @click="profileStandardIntakeBatch"
+                                        >
+                                            {{
+                                                standardIntakeProfiling
+                                                    ? 'Analizando...'
+                                                    : 'Analizar calidad'
+                                            }}
+                                        </button>
+                                    </div>
+
+                                    <div
+                                        v-if="
+                                            standardIntakeProfileIsForCurrentBatch()
+                                            && standardIntakeProfileReport
+                                                ?.processing
+                                        "
+                                        class="mt-4 space-y-4"
+                                    >
+                                        <div
+                                            class="grid gap-2 sm:grid-cols-2 lg:grid-cols-5"
+                                        >
+                                            <div class="rounded-lg border bg-background p-3">
+                                                <p class="text-xs text-muted-foreground">
+                                                    Perfiladas
+                                                </p>
+                                                <p class="mt-1 text-lg font-black">
+                                                    {{
+                                                        standardIntakeProfileReport
+                                                            .processing
+                                                            .profiled_row_count
+                                                        ?? 0
+                                                    }}
+                                                </p>
+                                            </div>
+
+                                            <div class="rounded-lg border bg-background p-3">
+                                                <p class="text-xs text-muted-foreground">
+                                                    Incidencias
+                                                </p>
+                                                <p class="mt-1 text-lg font-black">
+                                                    {{
+                                                        standardIntakeProfileReport
+                                                            .processing
+                                                            .issue_count
+                                                        ?? 0
+                                                    }}
+                                                </p>
+                                            </div>
+
+                                            <div class="rounded-lg border bg-background p-3">
+                                                <p class="text-xs text-muted-foreground">
+                                                    Bloqueantes
+                                                </p>
+                                                <p class="mt-1 text-lg font-black">
+                                                    {{
+                                                        standardIntakeProfileReport
+                                                            .processing
+                                                            .blocking_issue_count
+                                                        ?? 0
+                                                    }}
+                                                </p>
+                                            </div>
+
+                                            <div class="rounded-lg border bg-background p-3">
+                                                <p class="text-xs text-muted-foreground">
+                                                    Advertencias
+                                                </p>
+                                                <p class="mt-1 text-lg font-black">
+                                                    {{
+                                                        standardIntakeProfileReport
+                                                            .processing
+                                                            .warning_issue_count
+                                                        ?? 0
+                                                    }}
+                                                </p>
+                                            </div>
+
+                                            <div class="rounded-lg border bg-background p-3">
+                                                <p class="text-xs text-muted-foreground">
+                                                    Informativas
+                                                </p>
+                                                <p class="mt-1 text-lg font-black">
+                                                    {{
+                                                        standardIntakeInformationalIssueCount()
+                                                    }}
+                                                </p>
+                                            </div>
+                                        </div>
+
+                                        <div
+                                            v-if="
+                                                standardIntakeNormalizationReport
+                                                    ?.processing
+                                                    ?.status
+                                                === 'completed'
+                                            "
+                                            class="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-emerald-200 bg-emerald-50/70 p-3 dark:border-emerald-900/60 dark:bg-emerald-950/20"
+                                        >
+                                            <div>
+                                                <p
+                                                    class="text-sm font-bold text-emerald-800 dark:text-emerald-300"
+                                                >
+                                                    Normalización completada
+                                                </p>
+                                                <p class="mt-1 text-xs text-muted-foreground">
+                                                    Filas normalizadas:
+                                                    {{
+                                                        standardIntakeNormalizationReport
+                                                            .processing
+                                                            .normalized_row_count
+                                                        ?? 0
+                                                    }}
+                                                    · Cambios:
+                                                    {{
+                                                        standardIntakeNormalizationReport
+                                                            .processing
+                                                            .normalization_change_count
+                                                        ?? 0
+                                                    }}
+                                                </p>
+                                            </div>
+
+                                            <span
+                                                class="rounded-full border border-emerald-200 px-2.5 py-1 text-[11px] font-bold text-emerald-700 dark:border-emerald-900 dark:text-emerald-300"
+                                            >
+                                                completed
+                                            </span>
+                                        </div>
+
+                                        <div
+                                            v-else-if="
+                                                (
+                                                    standardIntakeProfileReport
+                                                        .processing
+                                                        .blocking_issue_count
+                                                    ?? 0
+                                                ) > 0
+                                            "
+                                            class="rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm text-amber-800 dark:border-amber-900/70 dark:bg-amber-950/30 dark:text-amber-300"
+                                        >
+                                            Existen incidencias bloqueantes. La fuente debe
+                                            corregirse antes de normalizar.
+                                        </div>
+
+                                        <div
+                                            v-else
+                                            class="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-emerald-200 bg-emerald-50/70 p-3 dark:border-emerald-900/60 dark:bg-emerald-950/20"
+                                        >
+                                            <p
+                                                class="text-sm font-bold text-emerald-800 dark:text-emerald-300"
+                                            >
+                                                Calidad habilitada para normalización
+                                            </p>
+
+                                            <button
+                                                type="button"
+                                                class="cursor-pointer rounded-lg bg-emerald-700 px-4 py-2 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-50"
+                                                :disabled="
+                                                    !canNormalizeStandardIntake()
+                                                "
+                                                @click="normalizeStandardIntakeBatch"
+                                            >
+                                                {{
+                                                    standardIntakeNormalizing
+                                                        ? 'Normalizando...'
+                                                        : 'Normalizar datos'
+                                                }}
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
                             <div
                                 v-if="
                                     standardIntakeReport
