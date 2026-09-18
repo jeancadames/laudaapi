@@ -2181,6 +2181,29 @@ final class AdminTransformationImplementationRequestController
             }
         }
 
+        /*
+         * D15_INTAKE_V2_STATE
+         *
+         * Parallel read-only hydration for the domain-based Intake v2.
+         * It does not replace the existing persisted staging/profile state.
+         */
+        $standardIntakeV2State =
+            null;
+
+        if (
+            (string) $context->capability_key
+            === 'data_transformation_bi'
+        ) {
+            $standardIntakeV2State =
+                app(
+                    \App\Services\Diagnosis\DataTransformationBiIntakeV2StateService::class
+                )
+                    ->forRequest(
+                        $implementationRequest
+                    );
+        }
+
+
         return Inertia::render(
             'Admin/Transformation360/ImplementationRequests/Show',
             [
@@ -2420,6 +2443,9 @@ final class AdminTransformationImplementationRequestController
 
                 'standard_intake_persisted_state' =>
                     $standardIntakePersistedState,
+
+                'standard_intake_v2_state' =>
+                    $standardIntakeV2State,
 
                 'admin_users' =>
                     User::query()

@@ -29,6 +29,9 @@ class DataTransformationBiIntakeBatch extends Model
     public const FORMAT_CSV_ZIP =
         'csv_zip';
 
+    public const FORMAT_DOMAIN_SESSION_MANIFEST =
+        'domain_session_manifest';
+
     protected $table =
         'data_transformation_bi_intake_batches';
 

@@ -166,6 +166,9 @@ const props = defineProps<{
         normalization: StandardIntakeProcessingHttpResponse | null;
     } | null;
 
+    // D15C_INTAKE_V2_PROP
+    standard_intake_v2_state: StandardIntakeV2State | null;
+
     actions: {
         can_create_definition_revision: boolean;
         definition_revision_endpoint: string | null;
@@ -280,6 +283,99 @@ type StandardIntakeIngestionHttpResponse = {
     ingestion?: StandardIntakeIngestionResult;
 };
 
+// D15C_INTAKE_V2_TYPES
+type StandardIntakeV2DomainDefinition = {
+    key: string;
+    label: string;
+    description: string;
+};
+
+// D15F_ERROR_FEEDBACK_TYPES
+type StandardIntakeV2ValidationFeedback = {
+    valid?: boolean;
+    error_count?: number;
+    warning_count?: number;
+    errors?: string[];
+    warnings?: string[];
+};
+
+type StandardIntakeV2DomainDelivery = {
+    id?: number;
+    domain_key: string;
+    delivery_mode: 'uploaded' | 'no_data' | 'carry_forward' | null;
+    status: 'pending' | 'validating' | 'valid' | 'invalid';
+    original_filename?: string | null;
+    source_format?: 'csv' | 'xlsx' | null;
+    source_size_bytes?: number | null;
+    source_row_count?: number;
+    accepted_row_count?: number;
+    carry_forward_processing_run_id?: number | null;
+    carry_forward_intake_batch_id?: number | null;
+    validated_at?: string | null;
+    validation_feedback?: StandardIntakeV2ValidationFeedback | null;
+};
+
+type StandardIntakeV2RelationalSummary = {
+    valid?: boolean;
+    error_count?: number;
+    warning_count?: number;
+    errors?: string[];
+    warnings?: string[];
+};
+
+type StandardIntakeV2SessionState = {
+    id: number;
+    status: string;
+    resulting_intake_batch_id?: number | null;
+    resolved_manifest_sha256?: string | null;
+    deliveries: StandardIntakeV2DomainDelivery[];
+    all_logical_decisions_resolved?: boolean;
+    relational_validation?: StandardIntakeV2RelationalSummary | null;
+    started_at?: string | null;
+    ready_at?: string | null;
+    finalized_at?: string | null;
+};
+
+type StandardIntakeV2UsableDataset = {
+    available: boolean;
+    reason?: string | null;
+    dataset?: {
+        processing_run_id?: number;
+        intake_batch_id?: number;
+        normalized_row_count?: number;
+    } | null;
+};
+
+type StandardIntakeV2Actions = {
+    can_start_or_resume?: boolean;
+    can_start_new_session?: boolean;
+    can_edit_domains?: boolean;
+    can_resolve?: boolean;
+    can_materialize?: boolean;
+};
+
+type StandardIntakeV2State = {
+    version: number;
+    schema_version: number;
+    domains: StandardIntakeV2DomainDefinition[];
+    session: StandardIntakeV2SessionState | null;
+    usable_dataset: StandardIntakeV2UsableDataset;
+    actions: StandardIntakeV2Actions;
+};
+
+type StandardIntakeV2HttpResponse = {
+    ok: boolean;
+    message?: string;
+    errors?: Record<string, string[]>;
+    state?: StandardIntakeV2State;
+    resolution?: {
+        valid?: boolean;
+        errors?: unknown[];
+        warnings?: unknown[];
+    };
+    ingestion?: StandardIntakeIngestionResult;
+};
+
 const standardIntakeFile = ref<File | null>(null);
 const standardIntakeValidating = ref(false);
 const standardIntakeHttpError = ref<string | null>(null);
@@ -299,6 +395,760 @@ const standardIntakeValidationUrl =
 
 const standardIntakeIngestionUrl =
     `/admin/transformation-360/implementation-requests/${props.implementation_request.id}/standard-intake/ingest`;
+
+// D15C_INTAKE_V2_LOGIC
+const standardIntakeV2State =
+    ref<StandardIntakeV2State | null>(
+        props.standard_intake_v2_state
+        ?? null,
+    );
+
+const standardIntakeV2Busy =
+    ref<string | null>(null);
+
+const standardIntakeV2Error =
+    ref<string | null>(null);
+
+const standardIntakeV2Files =
+    ref<Record<string, File | null>>({});
+
+
+// D15F_ERROR_FEEDBACK_LOGIC
+const standardIntakeV2DomainErrors =
+    ref<Record<string, string[]>>({});
+
+function standardIntakeV2ClearDomainError(
+    domain: string,
+): void {
+    const next = {
+        ...standardIntakeV2DomainErrors.value,
+    };
+
+    delete next[domain];
+
+    standardIntakeV2DomainErrors.value =
+        next;
+}
+
+function standardIntakeV2SetDomainMessage(
+    domain: string,
+    message: string,
+): void {
+    const normalized =
+        message.trim();
+
+    if (!normalized) {
+        standardIntakeV2ClearDomainError(
+            domain,
+        );
+
+        return;
+    }
+
+    standardIntakeV2DomainErrors.value = {
+        ...standardIntakeV2DomainErrors.value,
+        [domain]: [
+            normalized,
+        ],
+    };
+}
+
+function standardIntakeV2SetDomainError(
+    domain: string,
+    error: unknown,
+    fallback: string,
+): void {
+    standardIntakeV2SetDomainMessage(
+        domain,
+        error instanceof Error
+            ? error.message
+            : fallback,
+    );
+}
+
+function standardIntakeV2DomainErrorsFor(
+    domain: string,
+): string[] {
+    const transient =
+        standardIntakeV2DomainErrors.value[
+            domain
+        ]
+        ?? [];
+
+    const persisted =
+        standardIntakeV2Delivery(
+            domain,
+        )
+            ?.validation_feedback
+            ?.errors
+        ?? [];
+
+    return Array.from(
+        new Set([
+            ...transient,
+            ...persisted,
+        ]),
+    ).filter(
+        (message) =>
+            typeof message === 'string'
+            && message.trim() !== '',
+    );
+}
+
+function standardIntakeV2DomainWarningsFor(
+    domain: string,
+): string[] {
+    return (
+        standardIntakeV2Delivery(
+            domain,
+        )
+            ?.validation_feedback
+            ?.warnings
+        ?? []
+    ).filter(
+        (message) =>
+            typeof message === 'string'
+            && message.trim() !== '',
+    );
+}
+
+function standardIntakeV2RelationErrors(): string[] {
+    return (
+        standardIntakeV2State.value
+            ?.session
+            ?.relational_validation
+            ?.errors
+        ?? []
+    ).filter(
+        (message) =>
+            typeof message === 'string'
+            && message.trim() !== '',
+    );
+}
+
+function standardIntakeV2RelationWarnings(): string[] {
+    return (
+        standardIntakeV2State.value
+            ?.session
+            ?.relational_validation
+            ?.warnings
+        ?? []
+    ).filter(
+        (message) =>
+            typeof message === 'string'
+            && message.trim() !== '',
+    );
+}
+
+const standardIntakeV2BaseUrl =
+    `/admin/transformation-360/implementation-requests/${props.implementation_request.id}/standard-intake-v2`;
+
+function standardIntakeV2SessionId(): number | null {
+    const id =
+        standardIntakeV2State.value
+            ?.session
+            ?.id;
+
+    return typeof id === 'number'
+        && Number.isInteger(id)
+        && id > 0
+        ? id
+        : null;
+}
+
+function standardIntakeV2DomainCount(): number {
+    return standardIntakeV2State.value
+        ?.domains
+        ?.length
+        ?? 0;
+}
+
+function standardIntakeV2ResolvedCount(): number {
+    return standardIntakeV2State.value
+        ?.session
+        ?.deliveries
+        ?.filter(
+            (delivery) =>
+                delivery.status === 'valid',
+        )
+        .length
+        ?? 0;
+}
+
+function standardIntakeV2Delivery(
+    domain: string,
+): StandardIntakeV2DomainDelivery | null {
+    return standardIntakeV2State.value
+        ?.session
+        ?.deliveries
+        ?.find(
+            (delivery) =>
+                delivery.domain_key === domain,
+        )
+        ?? null;
+}
+
+function standardIntakeV2SelectedFile(
+    domain: string,
+): File | null {
+    return standardIntakeV2Files.value[domain]
+        ?? null;
+}
+
+function standardIntakeV2CanEditDomains(): boolean {
+    return standardIntakeV2State.value
+        ?.actions
+        ?.can_edit_domains
+        === true;
+}
+
+function standardIntakeV2CanCarryForward(): boolean {
+    return (
+        standardIntakeV2CanEditDomains()
+        && standardIntakeV2State.value
+            ?.usable_dataset
+            ?.available
+            === true
+    );
+}
+
+function standardIntakeV2ModeLabel(
+    mode: StandardIntakeV2DomainDelivery['delivery_mode'],
+): string {
+    switch (mode) {
+        case 'uploaded':
+            return 'Archivo cargado';
+
+        case 'no_data':
+            return 'Sin datos';
+
+        case 'carry_forward':
+            return 'Datos preparados';
+
+        default:
+            return 'Pendiente';
+    }
+}
+
+function standardIntakeV2StatusLabel(
+    status: StandardIntakeV2DomainDelivery['status'] | undefined,
+): string {
+    switch (status) {
+        case 'valid':
+            return 'Válido';
+
+        case 'invalid':
+            return 'Requiere corrección';
+
+        case 'validating':
+            return 'Validando';
+
+        default:
+            return 'Pendiente';
+    }
+}
+
+function standardIntakeV2ErrorMessage(
+    payload: StandardIntakeV2HttpResponse | null,
+    fallback: string,
+): string {
+    // D15F_RELATIONAL_HTTP_FEEDBACK
+    const httpErrors =
+        Object.values(
+            payload?.errors
+            ?? {},
+        )
+            .flatMap(
+                (messages) =>
+                    Array.isArray(messages)
+                        ? messages
+                        : [],
+            )
+            .filter(
+                (message) =>
+                    typeof message === 'string'
+                    && message.trim() !== '',
+            );
+
+    const relationalErrors =
+        (
+            payload
+                ?.resolution
+                ?.errors
+            ?? []
+        )
+            .map(
+                (issue) =>
+                    standardIntakeIssueText(
+                        issue,
+                    ),
+            )
+            .filter(
+                (message) =>
+                    message.trim() !== '',
+            );
+
+    const detail =
+        Array.from(
+            new Set([
+                ...httpErrors,
+                ...relationalErrors,
+            ]),
+        ).join(' ');
+
+    const message =
+        typeof payload?.message === 'string'
+        && payload.message.trim() !== ''
+            ? payload.message.trim()
+            : '';
+
+    return [
+        message,
+        detail,
+    ]
+        .filter(Boolean)
+        .join(' ')
+        || fallback;
+}
+
+async function standardIntakeV2Request(
+    url: string,
+    options: RequestInit = {},
+): Promise<StandardIntakeV2HttpResponse> {
+    const headers =
+        new Headers(
+            options.headers
+            ?? {},
+        );
+
+    headers.set(
+        'Accept',
+        'application/json',
+    );
+
+    headers.set(
+        'X-Requested-With',
+        'XMLHttpRequest',
+    );
+
+    Object.entries(
+        standardIntakeCsrfHeaders(),
+    ).forEach(
+        ([key, value]) =>
+            headers.set(
+                key,
+                value,
+            ),
+    );
+
+    if (
+        options.body !== undefined
+        && !(
+            options.body
+            instanceof FormData
+        )
+        && !headers.has(
+            'Content-Type',
+        )
+    ) {
+        headers.set(
+            'Content-Type',
+            'application/json',
+        );
+    }
+
+    const response =
+        await fetch(
+            url,
+            {
+                ...options,
+                method:
+                    options.method
+                    ?? 'POST',
+                credentials:
+                    'same-origin',
+                headers,
+            },
+        );
+
+    let payload:
+        StandardIntakeV2HttpResponse
+        | null = null;
+
+    try {
+        payload = (await response.json()) as StandardIntakeV2HttpResponse;
+    } catch {
+        payload = null;
+    }
+
+    if (payload?.state) {
+        standardIntakeV2State.value =
+            payload.state;
+    }
+
+    if (
+        !response.ok
+        || payload?.ok !== true
+    ) {
+        throw new Error(
+            standardIntakeV2ErrorMessage(
+                payload,
+                `La operación Intake v2 falló con HTTP ${response.status}.`,
+            ),
+        );
+    }
+
+    return payload;
+}
+
+function selectStandardIntakeV2File(
+    domain: string,
+    event: Event,
+): void {
+    standardIntakeV2Error.value =
+        null;
+
+    standardIntakeV2ClearDomainError(
+        domain,
+    );
+
+    const input =
+        event.target as HTMLInputElement;
+
+    const file =
+        input.files?.[0]
+        ?? null;
+
+    if (!file) {
+        standardIntakeV2Files.value = {
+            ...standardIntakeV2Files.value,
+            [domain]: null,
+        };
+
+        return;
+    }
+
+    const extension =
+        file.name
+            .split('.')
+            .pop()
+            ?.toLowerCase()
+        ?? '';
+
+    if (
+        ![
+            'csv',
+            'xlsx',
+        ].includes(
+            extension,
+        )
+    ) {
+        standardIntakeV2SetDomainMessage(
+            domain,
+            'Cada dominio debe cargarse como CSV o Excel XLSX.',
+        );
+
+        input.value = '';
+
+        return;
+    }
+
+    if (
+        file.size
+        > STANDARD_INTAKE_MAX_BYTES
+    ) {
+        standardIntakeV2SetDomainMessage(
+            domain,
+            'El archivo del dominio supera el límite actual de 2 MB.',
+        );
+
+        input.value = '';
+
+        return;
+    }
+
+    standardIntakeV2Files.value = {
+        ...standardIntakeV2Files.value,
+        [domain]: file,
+    };
+}
+
+async function startStandardIntakeV2Session(): Promise<void> {
+    if (standardIntakeV2Busy.value) {
+        return;
+    }
+
+    standardIntakeV2Busy.value =
+        'session';
+
+    standardIntakeV2Error.value =
+        null;
+
+    try {
+        await standardIntakeV2Request(
+            `${standardIntakeV2BaseUrl}/session`,
+        );
+
+        standardIntakeV2Files.value =
+            {};
+
+        standardIntakeV2DomainErrors.value =
+            {};
+    } catch (error) {
+        standardIntakeV2Error.value =
+            error instanceof Error
+                ? error.message
+                : 'No se pudo preparar la sesión Intake v2.';
+    } finally {
+        standardIntakeV2Busy.value =
+            null;
+    }
+}
+
+async function uploadStandardIntakeV2Domain(
+    domain: string,
+): Promise<void> {
+    const sessionId =
+        standardIntakeV2SessionId();
+
+    const file =
+        standardIntakeV2SelectedFile(
+            domain,
+        );
+
+    if (
+        sessionId === null
+        || !file
+        || standardIntakeV2Busy.value
+    ) {
+        return;
+    }
+
+    standardIntakeV2ClearDomainError(
+        domain,
+    );
+
+    standardIntakeV2Busy.value =
+        `upload:${domain}`;
+
+    standardIntakeV2Error.value =
+        null;
+
+    const formData =
+        new FormData();
+
+    formData.append(
+        'file',
+        file,
+        file.name,
+    );
+
+    try {
+        await standardIntakeV2Request(
+            `${standardIntakeV2BaseUrl}/sessions/${sessionId}/domains/${encodeURIComponent(domain)}/upload`,
+            {
+                body:
+                    formData,
+            },
+        );
+
+        standardIntakeV2Files.value = {
+            ...standardIntakeV2Files.value,
+            [domain]: null,
+        };
+    } catch (error) {
+        standardIntakeV2SetDomainError(
+            domain,
+            error,
+            'No se pudo cargar y validar el dominio.',
+        );
+    } finally {
+        standardIntakeV2Busy.value =
+            null;
+    }
+}
+
+async function noDataStandardIntakeV2Domain(
+    domain: string,
+): Promise<void> {
+    const sessionId =
+        standardIntakeV2SessionId();
+
+    if (
+        sessionId === null
+        || standardIntakeV2Busy.value
+    ) {
+        return;
+    }
+
+    standardIntakeV2ClearDomainError(
+        domain,
+    );
+
+    standardIntakeV2Busy.value =
+        `no-data:${domain}`;
+
+    standardIntakeV2Error.value =
+        null;
+
+    try {
+        await standardIntakeV2Request(
+            `${standardIntakeV2BaseUrl}/sessions/${sessionId}/domains/${encodeURIComponent(domain)}/no-data`,
+        );
+
+        standardIntakeV2Files.value = {
+            ...standardIntakeV2Files.value,
+            [domain]: null,
+        };
+    } catch (error) {
+        standardIntakeV2SetDomainError(
+            domain,
+            error,
+            'No se pudo marcar el dominio sin datos.',
+        );
+    } finally {
+        standardIntakeV2Busy.value =
+            null;
+    }
+}
+
+async function carryForwardStandardIntakeV2Domain(
+    domain: string,
+): Promise<void> {
+    const sessionId =
+        standardIntakeV2SessionId();
+
+    if (
+        sessionId === null
+        || standardIntakeV2Busy.value
+    ) {
+        return;
+    }
+
+    standardIntakeV2ClearDomainError(
+        domain,
+    );
+
+    standardIntakeV2Busy.value =
+        `carry:${domain}`;
+
+    standardIntakeV2Error.value =
+        null;
+
+    try {
+        await standardIntakeV2Request(
+            `${standardIntakeV2BaseUrl}/sessions/${sessionId}/domains/${encodeURIComponent(domain)}/carry-forward`,
+        );
+
+        standardIntakeV2Files.value = {
+            ...standardIntakeV2Files.value,
+            [domain]: null,
+        };
+    } catch (error) {
+        standardIntakeV2SetDomainError(
+            domain,
+            error,
+            'No se pudo reutilizar el dominio del dataset anterior.',
+        );
+    } finally {
+        standardIntakeV2Busy.value =
+            null;
+    }
+}
+
+async function resolveStandardIntakeV2Session(): Promise<void> {
+    const sessionId =
+        standardIntakeV2SessionId();
+
+    if (
+        sessionId === null
+        || standardIntakeV2Busy.value
+    ) {
+        return;
+    }
+
+    standardIntakeV2Busy.value =
+        'resolve';
+
+    standardIntakeV2Error.value =
+        null;
+
+    try {
+        await standardIntakeV2Request(
+            `${standardIntakeV2BaseUrl}/sessions/${sessionId}/resolve`,
+        );
+    } catch (error) {
+        standardIntakeV2Error.value =
+            error instanceof Error
+                ? error.message
+                : 'La validación relacional no pudo completarse.';
+    } finally {
+        standardIntakeV2Busy.value =
+            null;
+    }
+}
+
+async function materializeStandardIntakeV2Session(): Promise<void> {
+    const sessionId =
+        standardIntakeV2SessionId();
+
+    if (
+        sessionId === null
+        || standardIntakeV2Busy.value
+    ) {
+        return;
+    }
+
+    standardIntakeV2Busy.value =
+        'materialize';
+
+    standardIntakeV2Error.value =
+        null;
+
+    try {
+        const payload =
+            await standardIntakeV2Request(
+                `${standardIntakeV2BaseUrl}/sessions/${sessionId}/materialize`,
+            );
+
+        if (payload.ingestion) {
+            /*
+             * Handoff to the existing post-staging pipeline.
+             *
+             * Profiling and normalization remain explicit/manual.
+             * Nothing is auto-executed here.
+             */
+            standardIntakeIngestionReport.value = {
+                ok:
+                    true,
+                message:
+                    payload.message,
+                ingestion:
+                    payload.ingestion,
+            };
+
+            standardIntakeProcessingBatchId.value =
+                payload.ingestion.batch_id;
+
+            standardIntakeProfileReport.value =
+                null;
+
+            standardIntakeNormalizationReport.value =
+                null;
+
+            standardIntakeProcessingError.value =
+                null;
+        }
+    } catch (error) {
+        standardIntakeV2Error.value =
+            error instanceof Error
+                ? error.message
+                : 'No se pudo preparar el staging canónico.';
+    } finally {
+        standardIntakeV2Busy.value =
+            null;
+    }
+}
 
 function standardIntakeIssueText(
     issue: unknown,
@@ -2007,7 +2857,7 @@ async function normalizeStandardIntakeBatch(): Promise<void> {
                 </aside>
             </div>
         </div>
-    
+
         <section
             v-if="
                 props.actions.can_create_definition_revision
@@ -2531,9 +3381,697 @@ async function normalizeStandardIntakeBatch(): Promise<void> {
                             </div>
                         </div>
 
+                        <!-- D15C_INTAKE_V2_UI -->
+                        <section
+                            class="mt-5 rounded-2xl border border-sky-200 bg-sky-50/40 p-4 dark:border-sky-900/70 dark:bg-sky-950/10"
+                        >
+                            <div
+                                class="flex flex-wrap items-start justify-between gap-4"
+                            >
+                                <div class="max-w-3xl">
+                                    <div
+                                        class="flex flex-wrap items-center gap-2"
+                                    >
+                                        <h3
+                                            class="text-base font-black"
+                                        >
+                                            Intake v2 por dominios
+                                        </h3>
+
+                                        <span
+                                            class="rounded-full border border-sky-300 bg-sky-100 px-2.5 py-1 text-[10px] font-black uppercase tracking-wide text-sky-800 dark:border-sky-800 dark:bg-sky-950 dark:text-sky-300"
+                                        >
+                                            Flujo oficial
+                                        </span>
+
+                                        <span
+                                            v-if="
+                                                standardIntakeV2State
+                                                    ?.session
+                                            "
+                                            class="rounded-full border px-2.5 py-1 text-[10px] font-bold uppercase"
+                                        >
+                                            Sesión #{{
+                                                standardIntakeV2State
+                                                    .session
+                                                    .id
+                                            }}
+                                            ·
+                                            {{
+                                                standardIntakeV2State
+                                                    .session
+                                                    .status
+                                            }}
+                                        </span>
+                                    </div>
+
+                                    <p
+                                        class="mt-2 text-sm leading-6 text-muted-foreground"
+                                    >
+                                        Resuelve cada dominio de forma
+                                        independiente. Puedes subir CSV/XLSX,
+                                        indicar que no tienes datos o reutilizar
+                                        un dataset preparado previamente.
+                                        Las relaciones entre dominios se validan
+                                        solo cuando las siete decisiones están
+                                        resueltas.
+                                    </p>
+                                </div>
+
+                                <button
+                                    v-if="
+                                        !standardIntakeV2State
+                                            ?.session
+                                        || standardIntakeV2State
+                                            ?.actions
+                                            ?.can_start_new_session
+                                    "
+                                    type="button"
+                                    class="cursor-pointer rounded-lg bg-sky-700 px-4 py-2 text-sm font-bold text-white disabled:cursor-not-allowed disabled:opacity-50"
+                                    :disabled="
+                                        standardIntakeV2Busy
+                                        !== null
+                                    "
+                                    @click="
+                                        startStandardIntakeV2Session
+                                    "
+                                >
+                                    {{
+                                        standardIntakeV2Busy
+                                            === 'session'
+                                            ? 'Preparando...'
+                                            : standardIntakeV2State
+                                                  ?.session
+                                                  ?.status
+                                              === 'finalized'
+                                              ? 'Nueva sesión Intake v2'
+                                              : 'Iniciar Intake v2'
+                                    }}
+                                </button>
+                            </div>
+
+                            <div
+                                v-if="
+                                    standardIntakeV2State
+                                        ?.usable_dataset
+                                        ?.available
+                                "
+                                class="mt-4 rounded-xl border border-emerald-200 bg-emerald-50/70 p-3 text-xs text-emerald-800 dark:border-emerald-900/70 dark:bg-emerald-950/20 dark:text-emerald-300"
+                            >
+                                <span class="font-black">
+                                    Datos preparados disponibles.
+                                </span>
+                                Run
+                                {{
+                                    standardIntakeV2State
+                                        .usable_dataset
+                                        .dataset
+                                        ?.processing_run_id
+                                    ?? '—'
+                                }}
+                                · Batch
+                                {{
+                                    standardIntakeV2State
+                                        .usable_dataset
+                                        .dataset
+                                        ?.intake_batch_id
+                                    ?? '—'
+                                }}
+                                ·
+                                {{
+                                    standardIntakeV2State
+                                        .usable_dataset
+                                        .dataset
+                                        ?.normalized_row_count
+                                    ?? 0
+                                }}
+                                filas normalizadas.
+                            </div>
+
+                            <div
+                                v-if="standardIntakeV2Error"
+                                class="mt-4 rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-700 dark:border-red-900/60 dark:bg-red-950/30 dark:text-red-300"
+                            >
+                                {{ standardIntakeV2Error }}
+                            </div>
+
+                            <div
+                                v-if="
+                                    standardIntakeV2State
+                                        ?.session
+                                "
+                                class="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-xl border bg-background/70 p-3"
+                            >
+                                <div>
+                                    <p
+                                        class="text-xs font-bold uppercase tracking-wide text-muted-foreground"
+                                    >
+                                        Decisiones resueltas
+                                    </p>
+
+                                    <p
+                                        class="mt-1 text-xl font-black"
+                                    >
+                                        {{
+                                            standardIntakeV2ResolvedCount()
+                                        }}
+                                        /
+                                        {{
+                                            standardIntakeV2DomainCount()
+                                        }}
+                                    </p>
+                                </div>
+
+                                <div
+                                    class="flex flex-wrap gap-2"
+                                >
+                                    <button
+                                        v-if="
+                                            standardIntakeV2State
+                                                ?.actions
+                                                ?.can_resolve
+                                        "
+                                        type="button"
+                                        class="cursor-pointer rounded-lg bg-violet-700 px-4 py-2 text-sm font-bold text-white disabled:cursor-not-allowed disabled:opacity-50"
+                                        :disabled="
+                                            standardIntakeV2Busy
+                                            !== null
+                                        "
+                                        @click="
+                                            resolveStandardIntakeV2Session
+                                        "
+                                    >
+                                        {{
+                                            standardIntakeV2Busy
+                                                === 'resolve'
+                                                ? 'Validando relaciones...'
+                                                : 'Validar relaciones'
+                                        }}
+                                    </button>
+
+                                    <button
+                                        v-if="
+                                            standardIntakeV2State
+                                                ?.actions
+                                                ?.can_materialize
+                                        "
+                                        type="button"
+                                        class="cursor-pointer rounded-lg bg-emerald-700 px-4 py-2 text-sm font-bold text-white disabled:cursor-not-allowed disabled:opacity-50"
+                                        :disabled="
+                                            standardIntakeV2Busy
+                                            !== null
+                                        "
+                                        @click="
+                                            materializeStandardIntakeV2Session
+                                        "
+                                    >
+                                        {{
+                                            standardIntakeV2Busy
+                                                === 'materialize'
+                                                ? 'Preparando staging...'
+                                                : 'Preparar staging'
+                                        }}
+                                    </button>
+                                </div>
+                            </div>
+
+                            <!-- D15F_RELATIONAL_FEEDBACK_UI -->
+                            <div
+                                v-if="
+                                    standardIntakeV2State
+                                        ?.session
+                                        ?.relational_validation
+                                "
+                                class="mt-4 rounded-xl border p-3 text-sm"
+                                :class="
+                                    standardIntakeV2State
+                                        ?.session
+                                        ?.relational_validation
+                                        ?.valid
+                                        ? 'border-emerald-200 bg-emerald-50/70 text-emerald-800 dark:border-emerald-900/70 dark:bg-emerald-950/20 dark:text-emerald-300'
+                                        : 'border-red-200 bg-red-50 text-red-700 dark:border-red-900/60 dark:bg-red-950/30 dark:text-red-300'
+                                "
+                            >
+                                <p class="font-black">
+                                    {{
+                                        standardIntakeV2State
+                                            ?.session
+                                            ?.relational_validation
+                                            ?.valid
+                                            ? 'Relaciones entre dominios validadas.'
+                                            : 'Hay relaciones entre dominios que requieren corrección.'
+                                    }}
+                                </p>
+
+                                <p class="mt-1 text-xs">
+                                    {{
+                                        standardIntakeV2State
+                                            ?.session
+                                            ?.relational_validation
+                                            ?.error_count
+                                        ?? 0
+                                    }}
+                                    error(es) ·
+                                    {{
+                                        standardIntakeV2State
+                                            ?.session
+                                            ?.relational_validation
+                                            ?.warning_count
+                                        ?? 0
+                                    }}
+                                    advertencia(s)
+                                </p>
+
+                                <ul
+                                    v-if="
+                                        standardIntakeV2RelationErrors()
+                                            .length
+                                    "
+                                    class="mt-2 list-disc space-y-1 pl-5 text-xs"
+                                >
+                                    <li
+                                        v-for="
+                                            (message, index) in
+                                            standardIntakeV2RelationErrors()
+                                        "
+                                        :key="`relation-error-${index}`"
+                                    >
+                                        {{ message }}
+                                    </li>
+                                </ul>
+
+                                <ul
+                                    v-if="
+                                        standardIntakeV2RelationWarnings()
+                                            .length
+                                    "
+                                    class="mt-2 list-disc space-y-1 pl-5 text-xs"
+                                >
+                                    <li
+                                        v-for="
+                                            (message, index) in
+                                            standardIntakeV2RelationWarnings()
+                                        "
+                                        :key="`relation-warning-${index}`"
+                                    >
+                                        {{ message }}
+                                    </li>
+                                </ul>
+
+                                <p
+                                    v-if="
+                                        standardIntakeV2State
+                                            ?.session
+                                            ?.relational_validation
+                                            ?.valid
+                                        === false
+                                    "
+                                    class="mt-2 text-xs font-semibold"
+                                >
+                                    Corrige la decisión o el archivo del
+                                    dominio correspondiente y vuelve a
+                                    validar las relaciones.
+                                </p>
+                            </div>
+
+                            <div
+                                v-if="
+                                    standardIntakeV2State
+                                        ?.session
+                                        ?.status
+                                    === 'finalized'
+                                "
+                                class="mt-4 rounded-xl border border-emerald-200 bg-emerald-50/70 p-3 text-sm text-emerald-800 dark:border-emerald-900/70 dark:bg-emerald-950/20 dark:text-emerald-300"
+                            >
+                                <span class="font-black">
+                                    Staging preparado.
+                                </span>
+                                Batch
+                                {{
+                                    standardIntakeV2State
+                                        .session
+                                        .resulting_intake_batch_id
+                                    ?? '—'
+                                }}.
+                                El análisis de calidad y la normalización
+                                continúan como acciones manuales separadas.
+                            </div>
+
+                            <div
+                                class="mt-4 grid gap-3 xl:grid-cols-2"
+                            >
+                                <article
+                                    v-for="
+                                        domain in
+                                        standardIntakeV2State
+                                            ?.domains
+                                        ?? []
+                                    "
+                                    :key="domain.key"
+                                    class="rounded-xl border bg-background p-4"
+                                >
+                                    <div
+                                        class="flex items-start justify-between gap-3"
+                                    >
+                                        <div>
+                                            <h4
+                                                class="text-sm font-black"
+                                            >
+                                                {{ domain.label }}
+                                            </h4>
+
+                                            <p
+                                                class="mt-1 text-xs leading-5 text-muted-foreground"
+                                            >
+                                                {{
+                                                    domain.description
+                                                }}
+                                            </p>
+                                        </div>
+
+                                        <span
+                                            class="shrink-0 rounded-full border px-2.5 py-1 text-[10px] font-black uppercase"
+                                            :class="
+                                                standardIntakeV2Delivery(
+                                                    domain.key,
+                                                )?.status
+                                                    === 'valid'
+                                                    ? 'border-emerald-300 bg-emerald-50 text-emerald-700 dark:border-emerald-900 dark:bg-emerald-950/30 dark:text-emerald-300'
+                                                    : standardIntakeV2Delivery(
+                                                          domain.key,
+                                                      )?.status
+                                                        === 'invalid'
+                                                        ? 'border-red-300 bg-red-50 text-red-700 dark:border-red-900 dark:bg-red-950/30 dark:text-red-300'
+                                                        : 'border-slate-300 bg-muted/40 text-muted-foreground'
+                                            "
+                                        >
+                                            {{
+                                                standardIntakeV2StatusLabel(
+                                                    standardIntakeV2Delivery(
+                                                        domain.key,
+                                                    )?.status,
+                                                )
+                                            }}
+                                        </span>
+                                    </div>
+
+                                    <div
+                                        v-if="
+                                            standardIntakeV2Delivery(
+                                                domain.key,
+                                            )
+                                        "
+                                        class="mt-3 rounded-lg border bg-muted/20 p-3 text-xs"
+                                    >
+                                        <div
+                                            class="flex flex-wrap items-center gap-x-4 gap-y-1"
+                                        >
+                                            <span>
+                                                <strong>
+                                                    Decisión:
+                                                </strong>
+                                                {{
+                                                    standardIntakeV2ModeLabel(
+                                                        standardIntakeV2Delivery(
+                                                            domain.key,
+                                                        )
+                                                            ?.delivery_mode
+                                                        ?? null,
+                                                    )
+                                                }}
+                                            </span>
+
+                                            <span>
+                                                <strong>
+                                                    Filas:
+                                                </strong>
+                                                {{
+                                                    standardIntakeV2Delivery(
+                                                        domain.key,
+                                                    )
+                                                        ?.accepted_row_count
+                                                    ?? 0
+                                                }}
+                                            </span>
+                                        </div>
+
+                                        <p
+                                            v-if="
+                                                standardIntakeV2Delivery(
+                                                    domain.key,
+                                                )
+                                                    ?.original_filename
+                                            "
+                                            class="mt-2 break-all text-muted-foreground"
+                                        >
+                                            {{
+                                                standardIntakeV2Delivery(
+                                                    domain.key,
+                                                )
+                                                    ?.original_filename
+                                            }}
+                                        </p>
+
+                                        <p
+                                            v-if="
+                                                standardIntakeV2Delivery(
+                                                    domain.key,
+                                                )
+                                                    ?.delivery_mode
+                                                === 'carry_forward'
+                                            "
+                                            class="mt-2 text-muted-foreground"
+                                        >
+                                            Run
+                                            {{
+                                                standardIntakeV2Delivery(
+                                                    domain.key,
+                                                )
+                                                    ?.carry_forward_processing_run_id
+                                                ?? '—'
+                                            }}
+                                            · Batch
+                                            {{
+                                                standardIntakeV2Delivery(
+                                                    domain.key,
+                                                )
+                                                    ?.carry_forward_intake_batch_id
+                                                ?? '—'
+                                            }}
+                                        </p>
+                                    </div>
+
+                                    <!-- D15F_DOMAIN_FEEDBACK_UI -->
+                                    <div
+                                        v-if="
+                                            standardIntakeV2DomainErrorsFor(
+                                                domain.key,
+                                            ).length
+                                        "
+                                        class="mt-3 rounded-lg border border-red-200 bg-red-50 p-3 text-xs text-red-700 dark:border-red-900/60 dark:bg-red-950/30 dark:text-red-300"
+                                    >
+                                        <p class="font-black">
+                                            Requiere corrección
+                                        </p>
+
+                                        <ul
+                                            class="mt-1 list-disc space-y-1 pl-5"
+                                        >
+                                            <li
+                                                v-for="
+                                                    (message, index) in
+                                                    standardIntakeV2DomainErrorsFor(
+                                                        domain.key,
+                                                    )
+                                                "
+                                                :key="`${domain.key}-error-${index}`"
+                                            >
+                                                {{ message }}
+                                            </li>
+                                        </ul>
+                                    </div>
+
+                                    <div
+                                        v-if="
+                                            standardIntakeV2DomainWarningsFor(
+                                                domain.key,
+                                            ).length
+                                        "
+                                        class="mt-3 rounded-lg border border-amber-200 bg-amber-50 p-3 text-xs text-amber-800 dark:border-amber-900/60 dark:bg-amber-950/20 dark:text-amber-300"
+                                    >
+                                        <p class="font-black">
+                                            Advertencias
+                                        </p>
+
+                                        <ul
+                                            class="mt-1 list-disc space-y-1 pl-5"
+                                        >
+                                            <li
+                                                v-for="
+                                                    (message, index) in
+                                                    standardIntakeV2DomainWarningsFor(
+                                                        domain.key,
+                                                    )
+                                                "
+                                                :key="`${domain.key}-warning-${index}`"
+                                            >
+                                                {{ message }}
+                                            </li>
+                                        </ul>
+                                    </div>
+
+                                    <!-- D15E_DOMAIN_TEMPLATE_UI -->
+                                    <div
+                                        class="mt-3 flex flex-wrap gap-2"
+                                    >
+                                        <a
+                                            :href="`${standardIntakeV2BaseUrl}/templates/${encodeURIComponent(domain.key)}/csv`"
+                                            class="rounded-lg border px-3 py-2 text-xs font-bold"
+                                        >
+                                            Plantilla CSV
+                                        </a>
+
+                                        <a
+                                            :href="`${standardIntakeV2BaseUrl}/templates/${encodeURIComponent(domain.key)}/xlsx`"
+                                            class="rounded-lg border px-3 py-2 text-xs font-bold"
+                                        >
+                                            Plantilla XLSX
+                                        </a>
+                                    </div>
+
+                                    <div
+                                        v-if="
+                                            standardIntakeV2CanEditDomains()
+                                        "
+                                        class="mt-4 space-y-3"
+                                    >
+                                        <div>
+                                            <input
+                                                type="file"
+                                                accept=".csv,.xlsx"
+                                                class="block w-full cursor-pointer rounded-lg border bg-background px-3 py-2 text-xs file:mr-3 file:rounded-md file:border-0 file:bg-muted file:px-3 file:py-1.5 file:text-xs file:font-semibold"
+                                                :disabled="
+                                                    standardIntakeV2Busy
+                                                    !== null
+                                                "
+                                                @change="
+                                                    selectStandardIntakeV2File(
+                                                        domain.key,
+                                                        $event,
+                                                    )
+                                                "
+                                            />
+
+                                            <p
+                                                v-if="
+                                                    standardIntakeV2SelectedFile(
+                                                        domain.key,
+                                                    )
+                                                "
+                                                class="mt-1 break-all text-[11px] text-muted-foreground"
+                                            >
+                                                Seleccionado:
+                                                <strong>
+                                                    {{
+                                                        standardIntakeV2SelectedFile(
+                                                            domain.key,
+                                                        )
+                                                            ?.name
+                                                    }}
+                                                </strong>
+                                            </p>
+                                        </div>
+
+                                        <div
+                                            class="flex flex-wrap gap-2"
+                                        >
+                                            <button
+                                                type="button"
+                                                class="cursor-pointer rounded-lg bg-foreground px-3 py-2 text-xs font-bold text-background disabled:cursor-not-allowed disabled:opacity-50"
+                                                :disabled="
+                                                    !standardIntakeV2SelectedFile(
+                                                        domain.key,
+                                                    )
+                                                    || standardIntakeV2Busy
+                                                        !== null
+                                                "
+                                                @click="
+                                                    uploadStandardIntakeV2Domain(
+                                                        domain.key,
+                                                    )
+                                                "
+                                            >
+                                                {{
+                                                    standardIntakeV2Busy
+                                                        === `upload:${domain.key}`
+                                                        ? 'Subiendo...'
+                                                        : 'Subir CSV/XLSX'
+                                                }}
+                                            </button>
+
+                                            <button
+                                                type="button"
+                                                class="cursor-pointer rounded-lg border px-3 py-2 text-xs font-bold disabled:cursor-not-allowed disabled:opacity-50"
+                                                :disabled="
+                                                    standardIntakeV2Busy
+                                                    !== null
+                                                "
+                                                @click="
+                                                    noDataStandardIntakeV2Domain(
+                                                        domain.key,
+                                                    )
+                                                "
+                                            >
+                                                No tengo datos
+                                            </button>
+
+                                            <button
+                                                type="button"
+                                                class="cursor-pointer rounded-lg border border-emerald-300 px-3 py-2 text-xs font-bold text-emerald-700 disabled:cursor-not-allowed disabled:opacity-50 dark:border-emerald-900 dark:text-emerald-300"
+                                                :disabled="
+                                                    !standardIntakeV2CanCarryForward()
+                                                    || standardIntakeV2Busy
+                                                        !== null
+                                                "
+                                                @click="
+                                                    carryForwardStandardIntakeV2Domain(
+                                                        domain.key,
+                                                    )
+                                                "
+                                            >
+                                                Reutilizar datos preparados
+                                            </button>
+                                        </div>
+                                    </div>
+                                </article>
+                            </div>
+
+                            <p
+                                v-if="
+                                    !standardIntakeV2State
+                                        ?.session
+                                "
+                                class="mt-4 rounded-xl border border-dashed p-4 text-sm text-muted-foreground"
+                            >
+                                Inicia una sesión Intake v2 para resolver
+                                los siete dominios.
+                            </p>
+                        </section>
+
                         <div
                             class="mt-5 rounded-xl border bg-muted/20 p-4 dark:border-slate-800"
                         >
+                            <div
+                                class="mb-4 rounded-lg border border-amber-200 bg-amber-50 p-3 text-xs text-amber-800 dark:border-amber-900/60 dark:bg-amber-950/20 dark:text-amber-300"
+                            >
+                                <strong>
+                                    Compatibilidad Intake v1:
+                                </strong>
+                                este flujo de archivo único se mantiene
+                                temporalmente para paquetes heredados.
+                                El flujo oficial nuevo es Intake v2 por dominios.
+                            </div>
+
                             <div
                                 class="flex flex-wrap items-start justify-between gap-3"
                             >

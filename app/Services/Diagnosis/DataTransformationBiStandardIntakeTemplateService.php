@@ -494,4 +494,229 @@ final class DataTransformationBiStandardIntakeTemplateService
 
         return $path;
     }
+
+    /*
+     * D15E_DOMAIN_TEMPLATE_SERVICE
+     *
+     * Intake v2 templates are generated directly from the same canonical
+     * schema used by validation. No second field definition is maintained.
+     */
+    public function domainCsvFilename(
+        string $domain
+    ): string {
+        $domain =
+            $this->domainTemplateDomain(
+                $domain
+            );
+
+        return sprintf(
+            'lauda-standard-data-intake-%s-v%d.csv',
+            $domain,
+            DataTransformationBiStandardIntakeSchema::VERSION
+        );
+    }
+
+    public function domainXlsxFilename(
+        string $domain
+    ): string {
+        $domain =
+            $this->domainTemplateDomain(
+                $domain
+            );
+
+        return sprintf(
+            'lauda-standard-data-intake-%s-v%d.xlsx',
+            $domain,
+            DataTransformationBiStandardIntakeSchema::VERSION
+        );
+    }
+
+    public function createDomainCsvTemporaryFile(
+        string $domain
+    ): string {
+        $domain =
+            $this->domainTemplateDomain(
+                $domain
+            );
+
+        $headers =
+            $this->domainTemplateFieldNames(
+                $domain
+            );
+
+        $path =
+            $this->temporaryPath(
+                '.csv'
+            );
+
+        $handle =
+            fopen(
+                $path,
+                'wb'
+            );
+
+        if ($handle === false) {
+            @unlink($path);
+
+            throw new RuntimeException(
+                'No se pudo crear la plantilla CSV temporal.'
+            );
+        }
+
+        try {
+            $written =
+                fputcsv(
+                    $handle,
+                    $headers,
+                    ',',
+                    '"',
+                    ''
+                );
+
+            if ($written === false) {
+                throw new RuntimeException(
+                    'No se pudo escribir la cabecera CSV.'
+                );
+            }
+        } catch (Throwable $exception) {
+            fclose($handle);
+            @unlink($path);
+
+            throw $exception;
+        }
+
+        fclose($handle);
+
+        return $path;
+    }
+
+    public function createDomainXlsxTemporaryFile(
+        string $domain
+    ): string {
+        $domain =
+            $this->domainTemplateDomain(
+                $domain
+            );
+
+        $headers =
+            $this->domainTemplateFieldNames(
+                $domain
+            );
+
+        $path =
+            $this->temporaryPath(
+                '.xlsx'
+            );
+
+        $spreadsheet =
+            new Spreadsheet();
+
+        try {
+            $sheet =
+                $spreadsheet
+                    ->getActiveSheet();
+
+            $sheet
+                ->setTitle(
+                    $domain
+                );
+
+            $sheet
+                ->fromArray(
+                    $headers,
+                    null,
+                    'A1'
+                );
+
+            (new Xlsx($spreadsheet))
+                ->save(
+                    $path
+                );
+
+            return $path;
+        } catch (Throwable $exception) {
+            @unlink($path);
+
+            throw $exception;
+        } finally {
+            $spreadsheet
+                ->disconnectWorksheets();
+        }
+    }
+
+    private function domainTemplateDomain(
+        string $domain
+    ): string {
+        $domain =
+            trim(
+                $domain
+            );
+
+        if (
+            ! in_array(
+                $domain,
+                DataTransformationBiStandardIntakeSchema
+                    ::domainKeys(),
+                true
+            )
+        ) {
+            throw new \InvalidArgumentException(
+                "Dominio canónico no soportado: {$domain}."
+            );
+        }
+
+        return $domain;
+    }
+
+    /**
+     * @return array<int,string>
+     */
+    private function domainTemplateFieldNames(
+        string $domain
+    ): array {
+        $definition =
+            DataTransformationBiStandardIntakeSchema
+                ::domains()[$domain]
+            ?? null;
+
+        if (! is_array($definition)) {
+            throw new RuntimeException(
+                "No existe definición canónica para {$domain}."
+            );
+        }
+
+        $fields =
+            $definition['fields']
+            ?? [];
+
+        $names = [];
+
+        foreach ($fields as $field) {
+            if (! is_array($field)) {
+                continue;
+            }
+
+            $name =
+                trim(
+                    (string) (
+                        $field['name']
+                        ?? ''
+                    )
+                );
+
+            if ($name !== '') {
+                $names[] =
+                    $name;
+            }
+        }
+
+        if ($names === []) {
+            throw new RuntimeException(
+                "El dominio {$domain} no contiene campos canónicos."
+            );
+        }
+
+        return $names;
+    }
+
 }

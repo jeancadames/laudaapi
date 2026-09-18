@@ -136,6 +136,100 @@ class DataTransformationBiStandardIntakeRowValidator
         ];
     }
 
+    /**
+     * Validate one canonical domain without executing cross-domain
+     * relationships.
+     *
+     * Intake v2 uses this method while domains arrive independently.
+     * The existing validate() method remains the authoritative
+     * full-dataset gate and still executes relational validation.
+     */
+    public function validateDomain(
+        string $domain,
+        array $rows
+    ): array {
+        $schemaDomains =
+            DataTransformationBiStandardIntakeSchema
+                ::domains();
+
+        if (
+            ! array_key_exists(
+                $domain,
+                $schemaDomains
+            )
+        ) {
+            $message =
+                "Dominio canónico no soportado: {$domain}.";
+
+            return [
+                'valid' =>
+                    false,
+
+                'schema_version' =>
+                    DataTransformationBiStandardIntakeSchema
+                        ::VERSION,
+
+                'domain' =>
+                    $domain,
+
+                'errors' => [
+                    $message,
+                ],
+
+                'warnings' =>
+                    [],
+
+                'domain_report' => [
+                    'valid' =>
+                        false,
+
+                    'row_count' =>
+                        0,
+
+                    'errors' => [
+                        $message,
+                    ],
+
+                    'duplicate_keys' =>
+                        [],
+
+                    'relation_errors' =>
+                        [],
+                ],
+            ];
+        }
+
+        [
+            'summary' => $summary,
+        ] =
+            $this->validateDomainRows(
+                $domain,
+                $rows,
+                $schemaDomains[$domain]
+            );
+
+        return [
+            'valid' =>
+                $summary['errors'] === [],
+
+            'schema_version' =>
+                DataTransformationBiStandardIntakeSchema
+                    ::VERSION,
+
+            'domain' =>
+                $domain,
+
+            'errors' =>
+                $summary['errors'],
+
+            'warnings' =>
+                [],
+
+            'domain_report' =>
+                $summary,
+        ];
+    }
+
     private function validateDomainRows(
         string $domain,
         array $rows,

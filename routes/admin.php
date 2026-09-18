@@ -383,6 +383,114 @@ Route::middleware(['auth', 'verified', 'role:admin'])
         );
 
 
+
+        /*
+        |--------------------------------------------------------------------------
+        | Data BI · Intake v2 por dominios
+        |--------------------------------------------------------------------------
+        |
+        | D15_INTAKE_V2_HTTP_ROUTES
+        |
+        | Intake session and domain decisions happen before canonical staging.
+        | Existing post-staging profile/normalize endpoints remain unchanged.
+        |
+        */
+
+        /*
+        | D15E_DOMAIN_TEMPLATE_ROUTES
+        | Plantillas individuales Intake v2.
+        */
+        \Illuminate\Support\Facades\Route::get(
+            '/transformation-360/implementation-requests/{implementationRequest}/standard-intake-v2/templates/{domain}/csv',
+            [
+                \App\Http\Controllers\Admin\AdminDataTransformationBiIntakeV2Controller::class,
+                'downloadDomainCsvTemplate'
+            ]
+        )->name(
+            'transformation360.implementation_requests.standard_intake_v2.templates.csv'
+        );
+
+        \Illuminate\Support\Facades\Route::get(
+            '/transformation-360/implementation-requests/{implementationRequest}/standard-intake-v2/templates/{domain}/xlsx',
+            [
+                \App\Http\Controllers\Admin\AdminDataTransformationBiIntakeV2Controller::class,
+                'downloadDomainXlsxTemplate'
+            ]
+        )->name(
+            'transformation360.implementation_requests.standard_intake_v2.templates.xlsx'
+        );
+
+        \Illuminate\Support\Facades\Route::post(
+            '/transformation-360/implementation-requests/{implementationRequest}/standard-intake-v2/session',
+            [
+                \App\Http\Controllers\Admin\AdminDataTransformationBiIntakeV2Controller::class,
+                'startSession',
+            ]
+        )->name(
+            'transformation360.implementation_requests.standard_intake_v2.session'
+        );
+
+        \Illuminate\Support\Facades\Route::post(
+            '/transformation-360/implementation-requests/{implementationRequest}/standard-intake-v2/sessions/{sessionId}/domains/{domain}/upload',
+            [
+                \App\Http\Controllers\Admin\AdminDataTransformationBiIntakeV2Controller::class,
+                'uploadDomain',
+            ]
+        )
+            ->whereNumber('sessionId')
+            ->name(
+                'transformation360.implementation_requests.standard_intake_v2.domain.upload'
+            );
+
+        \Illuminate\Support\Facades\Route::post(
+            '/transformation-360/implementation-requests/{implementationRequest}/standard-intake-v2/sessions/{sessionId}/domains/{domain}/no-data',
+            [
+                \App\Http\Controllers\Admin\AdminDataTransformationBiIntakeV2Controller::class,
+                'noDataDomain',
+            ]
+        )
+            ->whereNumber('sessionId')
+            ->name(
+                'transformation360.implementation_requests.standard_intake_v2.domain.no_data'
+            );
+
+        \Illuminate\Support\Facades\Route::post(
+            '/transformation-360/implementation-requests/{implementationRequest}/standard-intake-v2/sessions/{sessionId}/domains/{domain}/carry-forward',
+            [
+                \App\Http\Controllers\Admin\AdminDataTransformationBiIntakeV2Controller::class,
+                'carryForwardDomain',
+            ]
+        )
+            ->whereNumber('sessionId')
+            ->name(
+                'transformation360.implementation_requests.standard_intake_v2.domain.carry_forward'
+            );
+
+        \Illuminate\Support\Facades\Route::post(
+            '/transformation-360/implementation-requests/{implementationRequest}/standard-intake-v2/sessions/{sessionId}/resolve',
+            [
+                \App\Http\Controllers\Admin\AdminDataTransformationBiIntakeV2Controller::class,
+                'resolveSession',
+            ]
+        )
+            ->whereNumber('sessionId')
+            ->name(
+                'transformation360.implementation_requests.standard_intake_v2.resolve'
+            );
+
+        \Illuminate\Support\Facades\Route::post(
+            '/transformation-360/implementation-requests/{implementationRequest}/standard-intake-v2/sessions/{sessionId}/materialize',
+            [
+                \App\Http\Controllers\Admin\AdminDataTransformationBiIntakeV2Controller::class,
+                'materializeSession',
+            ]
+        )
+            ->whereNumber('sessionId')
+            ->name(
+                'transformation360.implementation_requests.standard_intake_v2.materialize'
+            );
+
+
         \Illuminate\Support\Facades\Route::patch(
             '/transformation-360/implementation-requests/{implementationRequest}/assign',
             [
