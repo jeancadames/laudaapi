@@ -7,6 +7,8 @@ use App\Models\DataTransformationBiIntakeSession;
 use App\Models\TransformationImplementationRequest;
 use App\Models\User;
 use App\Services\Diagnosis\DataTransformationBiIntakeV2DomainDeliveryService;
+use App\Services\Diagnosis\DataTransformationBiSourceDomainRegistry;
+use App\Services\Diagnosis\DataTransformationBiSourceDomainUploadService;
 use App\Services\Diagnosis\DataTransformationBiIntakeV2SessionResolutionService;
 use App\Services\Diagnosis\DataTransformationBiIntakeV2SessionService;
 use App\Services\Diagnosis\DataTransformationBiIntakeV2StagingMaterializationService;
@@ -74,6 +76,7 @@ final class AdminDataTransformationBiIntakeV2Controller extends Controller
         int $sessionId,
         string $domain,
         DataTransformationBiIntakeV2DomainDeliveryService $deliveryService,
+        DataTransformationBiSourceDomainUploadService $sourceUploadService,
         DataTransformationBiIntakeV2StateService $stateService
     ): JsonResponse {
         $actor =
@@ -91,6 +94,12 @@ final class AdminDataTransformationBiIntakeV2Controller extends Controller
                 $sessionId
             );
 
+        $sourceNative =
+            DataTransformationBiSourceDomainRegistry
+                ::supports(
+                    $domain
+                );
+
         $validator =
             Validator::make(
                 $request->all(),
@@ -98,7 +107,11 @@ final class AdminDataTransformationBiIntakeV2Controller extends Controller
                     'file' => [
                         'required',
                         'file',
-                        'max:2048',
+                        $sourceNative
+                            ? 'max:'
+                                .DataTransformationBiSourceDomainUploadService
+                                    ::MAX_UPLOAD_KILOBYTES
+                            : 'max:2048',
                     ],
                 ]
             );
@@ -148,21 +161,38 @@ final class AdminDataTransformationBiIntakeV2Controller extends Controller
             );
         }
 
+        $sourceFilePayload =
+            null;
+
         try {
-            $deliveryService
-                ->persistUploadedDomain(
-                    $implementationRequest,
-                    $session,
-                    $domain,
-                    $file,
-                    $actor
-                );
+            if ($sourceNative) {
+                $sourceFilePayload =
+                    $sourceUploadService
+                        ->persistSourceDomain(
+                            $implementationRequest,
+                            $session,
+                            $domain,
+                            $file,
+                            $actor
+                        );
+            } else {
+                $deliveryService
+                    ->persistUploadedDomain(
+                        $implementationRequest,
+                        $session,
+                        $domain,
+                        $file,
+                        $actor
+                    );
+            }
         } catch (
             ValidationException $exception
         ) {
             return $this->validationError(
                 $exception,
-                'El dominio no superó la validación.'
+                $sourceNative
+                    ? 'No se pudo procesar el archivo fuente.'
+                    : 'El dominio no superó la validación.'
             );
         } catch (
             RuntimeException $exception
@@ -177,7 +207,12 @@ final class AdminDataTransformationBiIntakeV2Controller extends Controller
                 true,
 
             'message' =>
-                'Dominio cargado y validado correctamente.',
+                $sourceNative
+                    ? 'Archivo fuente recibido y analizado correctamente.'
+                    : 'Dominio cargado y validado correctamente.',
+
+            'source_file' =>
+                $sourceFilePayload,
 
             'state' =>
                 $stateService->forRequest(

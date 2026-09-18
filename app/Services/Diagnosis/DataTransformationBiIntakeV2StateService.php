@@ -3,6 +3,7 @@
 namespace App\Services\Diagnosis;
 
 use App\Models\DataTransformationBiIntakeDomainDelivery;
+use App\Models\DataTransformationBiSourceDomainFile;
 use App\Models\DataTransformationBiIntakeSession;
 use App\Models\TransformationImplementationRequest;
 use RuntimeException;
@@ -138,6 +139,23 @@ final class DataTransformationBiIntakeV2StateService
                     'domain_key'
                 );
 
+        $sourceFiles =
+            DataTransformationBiSourceDomainFile::query()
+                ->where(
+                    'company_id',
+                    (int) $session->company_id
+                )
+                ->whereIn(
+                    'data_transformation_bi_intake_domain_delivery_id',
+                    $deliveryRows
+                        ->pluck('id')
+                        ->all()
+                )
+                ->get()
+                ->keyBy(
+                    'data_transformation_bi_intake_domain_delivery_id'
+                );
+
         $deliveries = [];
 
         $validCount = 0;
@@ -153,6 +171,14 @@ final class DataTransformationBiIntakeV2StateService
                 $deliveryRows->get(
                     $domainKey
                 );
+
+            /** @var DataTransformationBiSourceDomainFile|null $sourceFile */
+            $sourceFile =
+                $delivery === null
+                    ? null
+                    : $sourceFiles->get(
+                        (int) $delivery->getKey()
+                    );
 
             if ($delivery === null) {
                 $pendingCount++;
@@ -199,6 +225,15 @@ final class DataTransformationBiIntakeV2StateService
                         null,
 
                     'validation_feedback' =>
+                        null,
+
+                    'source_native_supported' =>
+                        DataTransformationBiSourceDomainRegistry
+                            ::supports(
+                                (string) $domainKey
+                            ),
+
+                    'source_native' =>
                         null,
                 ];
 
@@ -279,6 +314,44 @@ final class DataTransformationBiIntakeV2StateService
                     $this->validationFeedback(
                         $delivery->validation_snapshot
                     ),
+
+                'source_native_supported' =>
+                    DataTransformationBiSourceDomainRegistry
+                        ::supports(
+                            (string) $domainKey
+                        ),
+
+                'source_native' =>
+                    $sourceFile === null
+                        ? null
+                        : [
+                            'id' =>
+                                (int) $sourceFile->getKey(),
+
+                            'status' =>
+                                (string) $sourceFile->status,
+
+                            'original_filename' =>
+                                (string) $sourceFile->original_filename,
+
+                            'source_format' =>
+                                (string) $sourceFile->source_format,
+
+                            'source_size_bytes' =>
+                                (int) $sourceFile->source_size_bytes,
+
+                            'source_row_count' =>
+                                (int) $sourceFile->source_row_count,
+
+                            'reader_configuration' =>
+                                $sourceFile->reader_configuration,
+
+                            'source_structure_snapshot' =>
+                                $sourceFile->source_structure_snapshot,
+
+                            'uploaded_at' =>
+                                $sourceFile->uploaded_at?->toISOString(),
+                        ],
             ];
         }
 

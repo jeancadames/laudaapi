@@ -215,6 +215,7 @@ const assigning = ref(false);
 const transitioning = ref(false);
 
 const STANDARD_INTAKE_MAX_BYTES = 2 * 1024 * 1024;
+const SOURCE_NATIVE_INTAKE_MAX_BYTES = 32 * 1024 * 1024;
 
 type StandardIntakeDomainReport = {
     valid?: boolean;
@@ -299,6 +300,36 @@ type StandardIntakeV2ValidationFeedback = {
     warnings?: string[];
 };
 
+type StandardIntakeV2SourceColumn = {
+    index?: number;
+    key?: string;
+    header?: string | null;
+};
+
+type StandardIntakeV2SourceSheet = {
+    index?: number;
+    name?: string | null;
+    total_row_count?: number;
+    row_count?: number;
+    column_count?: number;
+    headers?: Array<string | null>;
+    columns?: StandardIntakeV2SourceColumn[];
+};
+
+type StandardIntakeV2SourceNativeFile = {
+    id: number;
+    status: string;
+    original_filename: string;
+    source_format?: 'csv' | 'xlsx' | string;
+    source_size_bytes: number;
+    source_row_count: number;
+    reader_configuration?: Record<string, unknown> | null;
+    source_structure_snapshot?: {
+        sheets?: StandardIntakeV2SourceSheet[];
+    } | null;
+    uploaded_at?: string | null;
+};
+
 type StandardIntakeV2DomainDelivery = {
     id?: number;
     domain_key: string;
@@ -313,6 +344,8 @@ type StandardIntakeV2DomainDelivery = {
     carry_forward_intake_batch_id?: number | null;
     validated_at?: string | null;
     validation_feedback?: StandardIntakeV2ValidationFeedback | null;
+    source_native_supported?: boolean;
+    source_native?: StandardIntakeV2SourceNativeFile | null;
 };
 
 type StandardIntakeV2RelationalSummary = {
@@ -648,6 +681,200 @@ function standardIntakeV2StatusLabel(
     }
 }
 
+function standardIntakeV2SourceNative(
+    domain: string,
+): StandardIntakeV2SourceNativeFile | null {
+    return standardIntakeV2Delivery(
+        domain,
+    )?.source_native ?? null;
+}
+
+function standardIntakeV2SourceSheets(
+    domain: string,
+): StandardIntakeV2SourceSheet[] {
+    return (
+        standardIntakeV2SourceNative(
+            domain,
+        )?.source_structure_snapshot
+            ?.sheets
+        ?? []
+    );
+}
+
+function standardIntakeV2SourceStatusLabel(
+    status: string | undefined,
+): string {
+    const labels: Record<string, string> = {
+        uploaded: 'Archivo recibido',
+        profiling: 'Analizando',
+        profiled: 'Perfilado',
+        mapping: 'Mapeo en curso',
+        ready: 'Mapeo listo',
+        transforming: 'Transformando',
+        transformed: 'Transformado',
+        failed: 'Con error',
+    };
+
+    return status
+        ? labels[status] ?? status
+        : 'Archivo recibido';
+}
+
+function standardIntakeV2CardStatusLabel(
+    domain: string,
+): string {
+    const source =
+        standardIntakeV2SourceNative(
+            domain,
+        );
+
+    if (source) {
+        return standardIntakeV2SourceStatusLabel(
+            source.status,
+        );
+    }
+
+    return standardIntakeV2StatusLabel(
+        standardIntakeV2Delivery(
+            domain,
+        )?.status,
+    );
+}
+
+function standardIntakeV2SourceFormatLabel(
+    format: string | undefined,
+): string {
+    if (format === 'csv') {
+        return 'CSV';
+    }
+
+    if (format === 'xlsx') {
+        return 'Excel XLSX';
+    }
+
+    return format || '—';
+}
+
+function standardIntakeV2SourceSheetLabel(
+    domain: string,
+    sheet: StandardIntakeV2SourceSheet,
+    index: number,
+): string {
+    if (
+        standardIntakeV2SourceNative(
+            domain,
+        )?.source_format === 'csv'
+    ) {
+        return 'CSV';
+    }
+
+    const name =
+        typeof sheet.name === 'string'
+            ? sheet.name.trim()
+            : '';
+
+    return name || `Hoja ${index + 1}`;
+}
+
+function standardIntakeV2SourceSheetRows(
+    sheet: StandardIntakeV2SourceSheet,
+): number {
+    if (
+        typeof sheet.row_count === 'number'
+        && sheet.row_count >= 0
+    ) {
+        return sheet.row_count;
+    }
+
+    if (
+        typeof sheet.total_row_count === 'number'
+        && sheet.total_row_count > 0
+    ) {
+        return Math.max(
+            0,
+            sheet.total_row_count - 1,
+        );
+    }
+
+    return 0;
+}
+
+function standardIntakeV2SourceSheetColumns(
+    sheet: StandardIntakeV2SourceSheet,
+): number {
+    if (
+        typeof sheet.column_count === 'number'
+        && sheet.column_count >= 0
+    ) {
+        return sheet.column_count;
+    }
+
+    if (Array.isArray(sheet.columns)) {
+        return sheet.columns.length;
+    }
+
+    if (Array.isArray(sheet.headers)) {
+        return sheet.headers.length;
+    }
+
+    return 0;
+}
+
+function standardIntakeV2SourceColumnLabels(
+    sheet: StandardIntakeV2SourceSheet,
+): string[] {
+    if (Array.isArray(sheet.columns)) {
+        return sheet.columns.map(
+            (column, index) => {
+                const header =
+                    typeof column.header === 'string'
+                        ? column.header.trim()
+                        : '';
+
+                return (
+                    header
+                    || `Columna ${column.index ?? index + 1}`
+                );
+            },
+        );
+    }
+
+    if (Array.isArray(sheet.headers)) {
+        return sheet.headers.map(
+            (header, index) => {
+                const value =
+                    typeof header === 'string'
+                        ? header.trim()
+                        : '';
+
+                return (
+                    value
+                    || `Columna ${index + 1}`
+                );
+            },
+        );
+    }
+
+    return [];
+}
+
+function standardIntakeV2SessionStatusLabel(
+    status: string | null | undefined,
+): string {
+    const labels: Record<string, string> = {
+        draft: 'Borrador',
+        ready: 'Lista',
+        finalizing: 'Finalizando',
+        finalized: 'Finalizada',
+        failed: 'Con error',
+        cancelled: 'Cancelada',
+    };
+
+    return status
+        ? labels[status] ?? status
+        : '—';
+}
+
 function standardIntakeV2ErrorMessage(
     payload: StandardIntakeV2HttpResponse | null,
     fallback: string,
@@ -828,6 +1055,20 @@ function selectStandardIntakeV2File(
         return;
     }
 
+    const maxBytes =
+        standardIntakeV2Delivery(
+            domain,
+        )?.source_native_supported
+            ? SOURCE_NATIVE_INTAKE_MAX_BYTES
+            : STANDARD_INTAKE_MAX_BYTES;
+
+    const maxMegabytes =
+        Math.round(
+            maxBytes
+            / 1024
+            / 1024,
+        );
+
     const extension =
         file.name
             .split('.')
@@ -855,11 +1096,11 @@ function selectStandardIntakeV2File(
 
     if (
         file.size
-        > STANDARD_INTAKE_MAX_BYTES
+        > maxBytes
     ) {
         standardIntakeV2SetDomainMessage(
             domain,
-            'El archivo del dominio supera el límite actual de 2 MB.',
+            `El archivo del dominio supera el límite actual de ${maxMegabytes} MB.`,
         );
 
         input.value = '';
@@ -960,7 +1201,7 @@ async function uploadStandardIntakeV2Domain(
         standardIntakeV2SetDomainError(
             domain,
             error,
-            'No se pudo cargar y validar el dominio.',
+            'No se pudo procesar el archivo del dominio.',
         );
     } finally {
         standardIntakeV2Busy.value =
@@ -3412,9 +3653,11 @@ async function normalizeStandardIntakeBatch(): Promise<void> {
                                             }}
                                             ·
                                             {{
-                                                standardIntakeV2State
-                                                    .session
-                                                    .status
+                                                standardIntakeV2SessionStatusLabel(
+                                                    standardIntakeV2State
+                                                        .session
+                                                        .status,
+                                                )
                                             }}
                                         </span>
                                     </div>
@@ -3774,6 +4017,9 @@ async function normalizeStandardIntakeBatch(): Promise<void> {
                                             standardIntakeV2Delivery(
                                                 domain.key,
                                             )
+                                            && !standardIntakeV2SourceNative(
+                                                domain.key,
+                                            )
                                         "
                                         class="mt-3 rounded-lg border bg-muted/20 p-3 text-xs"
                                     >
@@ -3855,6 +4101,197 @@ async function normalizeStandardIntakeBatch(): Promise<void> {
                                         </p>
                                     </div>
 
+                                    <!-- D17_SOURCE_NATIVE_FILE_UI -->
+                                    <div
+                                        v-if="
+                                            standardIntakeV2SourceNative(
+                                                domain.key,
+                                            )
+                                        "
+                                        class="mt-3 rounded-lg border border-sky-200 bg-sky-50/50 p-3 text-xs dark:border-sky-900/60 dark:bg-sky-950/20"
+                                    >
+                                        <div
+                                            class="flex flex-wrap items-start justify-between gap-2"
+                                        >
+                                            <div class="min-w-0">
+                                                <p
+                                                    class="font-black text-sky-800 dark:text-sky-300"
+                                                >
+                                                    Archivo fuente recibido
+                                                </p>
+
+                                                <p
+                                                    class="mt-1 break-all font-semibold"
+                                                >
+                                                    {{
+                                                        standardIntakeV2SourceNative(
+                                                            domain.key,
+                                                        )
+                                                            ?.original_filename
+                                                    }}
+                                                </p>
+                                            </div>
+
+                                            <span
+                                                class="rounded-full border border-sky-200 px-2 py-1 text-[10px] font-bold text-sky-700 dark:border-sky-900 dark:text-sky-300"
+                                            >
+                                                {{
+                                                    standardIntakeV2SourceStatusLabel(
+                                                        standardIntakeV2SourceNative(
+                                                            domain.key,
+                                                        )
+                                                            ?.status,
+                                                    )
+                                                }}
+                                            </span>
+                                        </div>
+
+                                        <div
+                                            class="mt-3 flex flex-wrap gap-x-4 gap-y-1 text-muted-foreground"
+                                        >
+                                            <span>
+                                                <strong>Formato:</strong>
+                                                {{
+                                                    standardIntakeV2SourceFormatLabel(
+                                                        standardIntakeV2SourceNative(
+                                                            domain.key,
+                                                        )
+                                                            ?.source_format,
+                                                    )
+                                                }}
+                                            </span>
+
+                                            <span>
+                                                <strong>Tamaño:</strong>
+                                                {{
+                                                    standardIntakeFileSizeLabel(
+                                                        standardIntakeV2SourceNative(
+                                                            domain.key,
+                                                        )
+                                                            ?.source_size_bytes
+                                                            ?? 0,
+                                                    )
+                                                }}
+                                            </span>
+
+                                            <span>
+                                                <strong>Filas:</strong>
+                                                {{
+                                                    standardIntakeV2SourceNative(
+                                                        domain.key,
+                                                    )
+                                                        ?.source_row_count
+                                                    ?? 0
+                                                }}
+                                            </span>
+
+                                            <span>
+                                                <strong>Hojas:</strong>
+                                                {{
+                                                    standardIntakeV2SourceSheets(
+                                                        domain.key,
+                                                    ).length
+                                                }}
+                                            </span>
+                                        </div>
+
+                                        <div
+                                            v-if="
+                                                standardIntakeV2SourceSheets(
+                                                    domain.key,
+                                                ).length
+                                            "
+                                            class="mt-3 space-y-2"
+                                        >
+                                            <p class="font-black">
+                                                Estructura detectada
+                                            </p>
+
+                                            <div
+                                                v-for="
+                                                    (sheet, sheetIndex) in
+                                                    standardIntakeV2SourceSheets(
+                                                        domain.key,
+                                                    )
+                                                "
+                                                :key="`${domain.key}-source-${sheetIndex}`"
+                                                class="rounded-md border bg-background/70 p-2"
+                                            >
+                                                <div
+                                                    class="flex flex-wrap justify-between gap-2"
+                                                >
+                                                    <strong>
+                                                        {{
+                                                            standardIntakeV2SourceSheetLabel(
+                                                                domain.key,
+                                                                sheet,
+                                                                sheetIndex,
+                                                            )
+                                                        }}
+                                                    </strong>
+
+                                                    <span
+                                                        class="text-muted-foreground"
+                                                    >
+                                                        {{
+                                                            standardIntakeV2SourceSheetRows(
+                                                                sheet,
+                                                            )
+                                                        }}
+                                                        filas ·
+                                                        {{
+                                                            standardIntakeV2SourceSheetColumns(
+                                                                sheet,
+                                                            )
+                                                        }}
+                                                        columnas
+                                                    </span>
+                                                </div>
+
+                                                <div
+                                                    v-if="
+                                                        standardIntakeV2SourceColumnLabels(
+                                                            sheet,
+                                                        ).length
+                                                    "
+                                                    class="mt-2 flex flex-wrap gap-1"
+                                                >
+                                                    <span
+                                                        v-for="
+                                                            (
+                                                                column,
+                                                                columnIndex
+                                                            ) in
+                                                            standardIntakeV2SourceColumnLabels(
+                                                                sheet,
+                                                            ).slice(0, 8)
+                                                        "
+                                                        :key="`${domain.key}-${sheetIndex}-${columnIndex}`"
+                                                        class="rounded border px-1.5 py-0.5 text-[10px]"
+                                                    >
+                                                        {{ column }}
+                                                    </span>
+
+                                                    <span
+                                                        v-if="
+                                                            standardIntakeV2SourceColumnLabels(
+                                                                sheet,
+                                                            ).length > 8
+                                                        "
+                                                        class="text-[10px] text-muted-foreground"
+                                                    >
+                                                        +{{
+                                                            standardIntakeV2SourceColumnLabels(
+                                                                sheet,
+                                                            ).length - 8
+                                                        }}
+                                                        más
+                                                    </span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+
                                     <!-- D15F_DOMAIN_FEEDBACK_UI -->
                                     <div
                                         v-if="
@@ -3915,6 +4352,18 @@ async function normalizeStandardIntakeBatch(): Promise<void> {
                                     </div>
 
                                     <!-- D15E_DOMAIN_TEMPLATE_UI -->
+                                    <p
+                                        v-if="
+                                            standardIntakeV2Delivery(
+                                                domain.key,
+                                            )
+                                                ?.source_native_supported
+                                        "
+                                        class="mt-3 text-[11px] font-semibold text-muted-foreground"
+                                    >
+                                        Estructura objetivo LAUDA
+                                        (referencia para la transformación)
+                                    </p>
                                     <div
                                         class="mt-3 flex flex-wrap gap-2"
                                     >
@@ -3939,6 +4388,21 @@ async function normalizeStandardIntakeBatch(): Promise<void> {
                                         "
                                         class="mt-4 space-y-3"
                                     >
+                                        <p
+                                            v-if="
+                                                standardIntakeV2Delivery(
+                                                    domain.key,
+                                                )
+                                                    ?.source_native_supported
+                                            "
+                                            class="text-[11px] leading-5 text-muted-foreground"
+                                        >
+                                            Archivo fuente del cliente.
+                                            Puede conservar las columnas y la
+                                            estructura original de su sistema.
+                                            LAUDA realizará la transformación
+                                            hacia el modelo objetivo.
+                                        </p>
                                         <div>
                                             <input
                                                 type="file"
@@ -3999,7 +4463,12 @@ async function normalizeStandardIntakeBatch(): Promise<void> {
                                                     standardIntakeV2Busy
                                                         === `upload:${domain.key}`
                                                         ? 'Subiendo...'
-                                                        : 'Subir CSV/XLSX'
+                                                        : standardIntakeV2Delivery(
+                                                                domain.key,
+                                                            )
+                                                              ?.source_native_supported
+                                                            ? 'Subir archivo fuente'
+                                                            : 'Subir CSV/XLSX'
                                                 }}
                                             </button>
 
