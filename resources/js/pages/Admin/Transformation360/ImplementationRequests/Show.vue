@@ -383,8 +383,105 @@ type StandardIntakeV2Actions = {
     can_start_or_resume?: boolean;
     can_start_new_session?: boolean;
     can_edit_domains?: boolean;
+    can_manage_sources?: boolean;
     can_resolve?: boolean;
     can_materialize?: boolean;
+};
+
+type DynamicSourceObservedSheet = {
+    index: number;
+    name?: string | null;
+    total_row_count?: number;
+    row_count?: number;
+    column_count?: number;
+    headers?: string[];
+};
+
+type DynamicSourceDataFile = {
+    id: number;
+    status: string;
+    original_filename: string;
+    source_format: 'csv' | 'xlsx';
+    source_mime_type?: string | null;
+    source_size_bytes: number;
+    source_sha256: string;
+    reader_configuration?: Record<string, unknown> | null;
+    source_structure_snapshot?: {
+        sheets?: DynamicSourceObservedSheet[];
+    } | null;
+    source_row_count: number;
+    uploaded_at?: string | null;
+};
+
+type DynamicSourceDataUploadFormState = {
+    file: File | null;
+    busy: boolean;
+    error: string | null;
+    message: string | null;
+    input_key: number;
+};
+
+type DynamicSourceAsset = {
+    id: number;
+    display_name: string;
+    source_object_name: string;
+    description?: string | null;
+    origin_system?: string | null;
+    structure_format?: string | null;
+    structure_text?: string | null;
+    delivery_format?: 'csv' | 'xlsx' | null;
+    status: string;
+    structure_status: string;
+    data_status: string;
+    structure_snapshot?: Record<string, unknown> | null;
+    profiling_snapshot?: Record<string, unknown> | null;
+    data_file?: DynamicSourceDataFile | null;
+    sort_order: number;
+    structure_analyzed_at?: string | null;
+    data_received_at?: string | null;
+    profiled_at?: string | null;
+    failure_code?: string | null;
+    failure_message?: string | null;
+    created_at?: string | null;
+    updated_at?: string | null;
+};
+
+type DynamicSourceWorkspaceTab =
+    | 'information'
+    | 'structure'
+    | 'extraction'
+    | 'file'
+    | 'analysis'
+    | 'mapping';
+
+type DynamicSourceStructureFormat =
+    | 'field_type_list'
+    | 'sql_server_ddl'
+    | 'other';
+
+type DynamicSourceStructureFormState = {
+    structure_format: DynamicSourceStructureFormat;
+    structure_text: string;
+    busy: boolean;
+    error: string | null;
+};
+
+type DynamicSourceSqlServerFormState = {
+    schema_name: string;
+    table_name: string;
+    export_format: SqlServerExtractionExportFormat;
+    busy: boolean;
+    error: string | null;
+    copied: boolean;
+    preview: SqlServerExtractionPreview | null;
+};
+
+type DynamicSourceAssetForm = {
+    display_name: string;
+    source_object_name: string;
+    description: string;
+    origin_system: string;
+    delivery_format: 'csv' | 'xlsx' | null;
 };
 
 type StandardIntakeV2State = {
@@ -392,6 +489,7 @@ type StandardIntakeV2State = {
     schema_version: number;
     domains: StandardIntakeV2DomainDefinition[];
     session: StandardIntakeV2SessionState | null;
+    source_assets: DynamicSourceAsset[];
     usable_dataset: StandardIntakeV2UsableDataset;
     actions: StandardIntakeV2Actions;
 };
@@ -401,6 +499,8 @@ type StandardIntakeV2HttpResponse = {
     message?: string;
     errors?: Record<string, string[]>;
     state?: StandardIntakeV2State;
+    source_asset?: DynamicSourceAsset;
+    data_file?: DynamicSourceDataFile;
     resolution?: {
         valid?: boolean;
         errors?: unknown[];
@@ -527,6 +627,1145 @@ function sqlServerExtractionInstructions(
         ?? [];
 }
 
+const dynamicSourceFormOpen =
+    ref(false);
+
+const dynamicSourceEditingId =
+    ref<number | null>(null);
+
+const dynamicSourceBusy =
+    ref<string | null>(null);
+
+const dynamicSourceError =
+    ref<string | null>(null);
+
+const dynamicSourceForm =
+    ref<DynamicSourceAssetForm>({
+        display_name: '',
+        source_object_name: '',
+        description: '',
+        origin_system: '',
+        delivery_format: null,
+    });
+
+function dynamicSourceAssets(): DynamicSourceAsset[] {
+    return standardIntakeV2State.value
+        ?.source_assets
+        ?? [];
+}
+
+function dynamicSourceCanManage(): boolean {
+    return (
+        standardIntakeV2SessionId() !== null
+        && standardIntakeV2State.value
+            ?.actions
+            ?.can_manage_sources
+            === true
+    );
+}
+
+function dynamicSourceResetForm(): void {
+    dynamicSourceEditingId.value =
+        null;
+
+    dynamicSourceForm.value = {
+        display_name: '',
+        source_object_name: '',
+        description: '',
+        origin_system: '',
+        delivery_format: null,
+    };
+
+    dynamicSourceError.value =
+        null;
+}
+
+function openDynamicSourceCreateForm(): void {
+    dynamicSourceResetForm();
+
+    dynamicSourceFormOpen.value =
+        true;
+}
+
+function openDynamicSourceEditForm(
+    asset: DynamicSourceAsset,
+): void {
+    dynamicSourceEditingId.value =
+        asset.id;
+
+    dynamicSourceForm.value = {
+        display_name:
+            asset.display_name,
+
+        source_object_name:
+            asset.source_object_name,
+
+        description:
+            asset.description
+            ?? '',
+
+        origin_system:
+            asset.origin_system
+            ?? '',
+
+        delivery_format:
+            asset.delivery_format
+            ?? null,
+    };
+
+    dynamicSourceError.value =
+        null;
+
+    dynamicSourceFormOpen.value =
+        true;
+}
+
+function closeDynamicSourceForm(): void {
+    if (dynamicSourceBusy.value !== null) {
+        return;
+    }
+
+    dynamicSourceFormOpen.value =
+        false;
+
+    dynamicSourceResetForm();
+}
+
+function dynamicSourceStructureLabel(
+    status: string | undefined,
+): string {
+    const labels: Record<string, string> = {
+        pending: 'Pendiente',
+        provided: 'Recibida',
+        analyzed: 'Analizada',
+    };
+
+    return status
+        ? labels[status] ?? status
+        : 'Pendiente';
+}
+
+function dynamicSourceDataLabel(
+    status: string | undefined,
+): string {
+    const labels: Record<string, string> = {
+        pending: 'Pendiente',
+        received: 'Recibido',
+        analyzed: 'Analizado',
+    };
+
+    return status
+        ? labels[status] ?? status
+        : 'Pendiente';
+}
+
+function dynamicSourceDeliveryLabel(
+    format: string | null | undefined,
+): string {
+    if (format === 'csv') {
+        return 'CSV';
+    }
+
+    if (format === 'xlsx') {
+        return 'Excel (.xlsx)';
+    }
+
+    return 'Por definir';
+}
+
+function upsertDynamicSourceAsset(
+    asset: DynamicSourceAsset,
+): void {
+    if (!standardIntakeV2State.value) {
+        return;
+    }
+
+    const current =
+        standardIntakeV2State.value
+            .source_assets
+        ?? [];
+
+    const existingIndex =
+        current.findIndex(
+            (item) =>
+                item.id === asset.id,
+        );
+
+    const next =
+        existingIndex === -1
+            ? [
+                ...current,
+                asset,
+            ]
+            : current.map(
+                (item) =>
+                    item.id === asset.id
+                        ? asset
+                        : item,
+            );
+
+    standardIntakeV2State.value.source_assets =
+        [...next].sort(
+            (left, right) =>
+                left.sort_order - right.sort_order
+                || left.id - right.id,
+        );
+}
+
+async function saveDynamicSourceAsset(): Promise<void> {
+    const sessionId =
+        standardIntakeV2SessionId();
+
+    if (
+        sessionId === null
+        || !dynamicSourceCanManage()
+    ) {
+        dynamicSourceError.value =
+            'La sesión no permite gestionar fuentes en este momento.';
+
+        return;
+    }
+
+    const displayName =
+        dynamicSourceForm.value
+            .display_name
+            .trim();
+
+    const sourceObjectName =
+        dynamicSourceForm.value
+            .source_object_name
+            .trim();
+
+    if (
+        displayName === ''
+        || sourceObjectName === ''
+    ) {
+        dynamicSourceError.value =
+            'Completa el nombre de la fuente y la tabla o archivo de origen.';
+
+        return;
+    }
+
+    const editingId =
+        dynamicSourceEditingId.value;
+
+    const url =
+        editingId === null
+            ? `${standardIntakeV2BaseUrl}/sessions/${sessionId}/source-assets`
+            : `${standardIntakeV2BaseUrl}/sessions/${sessionId}/source-assets/${editingId}`;
+
+    dynamicSourceBusy.value =
+        editingId === null
+            ? 'create'
+            : `update:${editingId}`;
+
+    dynamicSourceError.value =
+        null;
+
+    try {
+        const payload =
+            await standardIntakeV2Request(
+                url,
+                {
+                    method:
+                        editingId === null
+                            ? 'POST'
+                            : 'PATCH',
+
+                    body:
+                        JSON.stringify({
+                            display_name:
+                                displayName,
+
+                            source_object_name:
+                                sourceObjectName,
+
+                            description:
+                                dynamicSourceForm.value
+                                    .description
+                                    .trim()
+                                || null,
+
+                            origin_system:
+                                dynamicSourceForm.value
+                                    .origin_system
+                                    .trim()
+                                || null,
+
+                            delivery_format:
+                                dynamicSourceForm.value
+                                    .delivery_format,
+                        }),
+                },
+            );
+
+        if (!payload.source_asset) {
+            throw new Error(
+                'La respuesta no contiene la fuente guardada.',
+            );
+        }
+
+        upsertDynamicSourceAsset(
+            payload.source_asset,
+        );
+
+        dynamicSourceFormOpen.value =
+            false;
+
+        dynamicSourceResetForm();
+    } catch (error) {
+        dynamicSourceError.value =
+            error instanceof Error
+                ? error.message
+                : 'No se pudo guardar la fuente.';
+    } finally {
+        dynamicSourceBusy.value =
+            null;
+    }
+}
+
+async function archiveDynamicSourceAsset(
+    asset: DynamicSourceAsset,
+): Promise<void> {
+    const sessionId =
+        standardIntakeV2SessionId();
+
+    if (
+        sessionId === null
+        || !dynamicSourceCanManage()
+    ) {
+        return;
+    }
+
+    const confirmed =
+        window.confirm(
+            `Archivar la fuente "${asset.display_name}"?`,
+        );
+
+    if (!confirmed) {
+        return;
+    }
+
+    dynamicSourceBusy.value =
+        `archive:${asset.id}`;
+
+    dynamicSourceError.value =
+        null;
+
+    try {
+        await standardIntakeV2Request(
+            `${standardIntakeV2BaseUrl}/sessions/${sessionId}/source-assets/${asset.id}/archive`,
+            {
+                method: 'PATCH',
+            },
+        );
+
+        if (standardIntakeV2State.value) {
+            standardIntakeV2State.value.source_assets =
+                dynamicSourceAssets().filter(
+                    (item) =>
+                        item.id !== asset.id,
+                );
+        }
+
+        if (
+            dynamicSourceEditingId.value
+            === asset.id
+        ) {
+            dynamicSourceFormOpen.value =
+                false;
+
+            dynamicSourceResetForm();
+        }
+    } catch (error) {
+        dynamicSourceError.value =
+            error instanceof Error
+                ? error.message
+                : 'No se pudo archivar la fuente.';
+    } finally {
+        dynamicSourceBusy.value =
+            null;
+    }
+}
+
+async function moveDynamicSourceAsset(
+    assetId: number,
+    direction: -1 | 1,
+): Promise<void> {
+    const sessionId =
+        standardIntakeV2SessionId();
+
+    if (
+        sessionId === null
+        || !dynamicSourceCanManage()
+        || dynamicSourceBusy.value !== null
+        || !standardIntakeV2State.value
+    ) {
+        return;
+    }
+
+    const current =
+        [...dynamicSourceAssets()];
+
+    const index =
+        current.findIndex(
+            (asset) =>
+                asset.id === assetId,
+        );
+
+    const targetIndex =
+        index + direction;
+
+    if (
+        index < 0
+        || targetIndex < 0
+        || targetIndex >= current.length
+    ) {
+        return;
+    }
+
+    const previous =
+        [...current];
+
+    [
+        current[index],
+        current[targetIndex],
+    ] = [
+        current[targetIndex],
+        current[index],
+    ];
+
+    standardIntakeV2State.value.source_assets =
+        current.map(
+            (asset, sortOrder) => ({
+                ...asset,
+                sort_order: sortOrder,
+            }),
+        );
+
+    dynamicSourceBusy.value =
+        'reorder';
+
+    dynamicSourceError.value =
+        null;
+
+    try {
+        await standardIntakeV2Request(
+            `${standardIntakeV2BaseUrl}/sessions/${sessionId}/source-assets/reorder`,
+            {
+                method: 'PATCH',
+
+                body:
+                    JSON.stringify({
+                        source_asset_ids:
+                            current.map(
+                                (asset) =>
+                                    asset.id,
+                            ),
+                    }),
+            },
+        );
+    } catch (error) {
+        standardIntakeV2State.value.source_assets =
+            previous;
+
+        dynamicSourceError.value =
+            error instanceof Error
+                ? error.message
+                : 'No se pudo actualizar el orden de las fuentes.';
+    } finally {
+        dynamicSourceBusy.value =
+            null;
+    }
+}
+
+const dynamicSourceSelectedId =
+    ref<number | null>(null);
+
+const dynamicSourceActiveTab =
+    ref<DynamicSourceWorkspaceTab>(
+        'information',
+    );
+
+const dynamicSourceStructureForms =
+    ref<Record<number, DynamicSourceStructureFormState>>({});
+
+const dynamicSourceSqlServerForms =
+    ref<Record<number, DynamicSourceSqlServerFormState>>({});
+
+const dynamicSourceDataUploadForms =
+    ref<Record<number, DynamicSourceDataUploadFormState>>({});
+
+function dynamicSourceSelectedAsset(): DynamicSourceAsset | null {
+    if (dynamicSourceSelectedId.value === null) {
+        return null;
+    }
+
+    return dynamicSourceAssets()
+        .find(
+            (asset) =>
+                asset.id === dynamicSourceSelectedId.value,
+        )
+        ?? null;
+}
+
+function openDynamicSourceWorkspace(
+    asset: DynamicSourceAsset,
+    tab: DynamicSourceWorkspaceTab = 'information',
+): void {
+    dynamicSourceSelectedId.value =
+        asset.id;
+
+    dynamicSourceActiveTab.value =
+        tab;
+
+    dynamicSourceStructureForm(
+        asset,
+    );
+
+    dynamicSourceSqlServerForm(
+        asset,
+    );
+}
+
+function dynamicSourceDataUploadForm(
+    asset: DynamicSourceAsset,
+): DynamicSourceDataUploadFormState {
+    if (!dynamicSourceDataUploadForms.value[asset.id]) {
+        dynamicSourceDataUploadForms.value[asset.id] = {
+            file:
+                null,
+
+            busy:
+                false,
+
+            error:
+                null,
+
+            message:
+                null,
+
+            input_key:
+                0,
+        };
+    }
+
+    return dynamicSourceDataUploadForms.value[asset.id];
+}
+
+function selectDynamicSourceDataFile(
+    asset: DynamicSourceAsset,
+    event: Event,
+): void {
+    const input =
+        event.target as HTMLInputElement;
+
+    const form =
+        dynamicSourceDataUploadForm(
+            asset,
+        );
+
+    form.file =
+        input.files?.[0]
+        ?? null;
+
+    form.error =
+        null;
+
+    form.message =
+        null;
+}
+
+function dynamicSourceDataSheets(
+    asset: DynamicSourceAsset,
+): DynamicSourceObservedSheet[] {
+    const sheets =
+        asset.data_file
+            ?.source_structure_snapshot
+            ?.sheets;
+
+    return Array.isArray(
+        sheets,
+    )
+        ? sheets
+        : [];
+}
+
+function dynamicSourceDataSheetLabel(
+    sheet: DynamicSourceObservedSheet,
+    fallbackIndex: number,
+): string {
+    const sheetName =
+        typeof sheet.name === 'string'
+        && sheet.name.trim() !== ''
+            ? sheet.name.trim()
+            : `Hoja ${
+                Number.isFinite(
+                    sheet.index,
+                )
+                    ? sheet.index + 1
+                    : fallbackIndex + 1
+            }`;
+
+    const details: string[] = [];
+
+    if (
+        typeof sheet.row_count === 'number'
+        && Number.isFinite(
+            sheet.row_count,
+        )
+    ) {
+        details.push(
+            `${sheet.row_count.toLocaleString('es-DO')} filas`,
+        );
+    }
+
+    if (
+        typeof sheet.column_count === 'number'
+        && Number.isFinite(
+            sheet.column_count,
+        )
+    ) {
+        details.push(
+            `${sheet.column_count.toLocaleString('es-DO')} columnas`,
+        );
+    }
+
+    return details.length
+        ? `${sheetName} · ${details.join(' · ')}`
+        : sheetName;
+}
+
+function dynamicSourceFileSizeLabel(
+    bytes: number | null | undefined,
+): string {
+    if (
+        typeof bytes !== 'number'
+        || !Number.isFinite(
+            bytes,
+        )
+        || bytes < 0
+    ) {
+        return '—';
+    }
+
+    if (bytes < 1024) {
+        return `${bytes.toLocaleString('es-DO')} B`;
+    }
+
+    if (bytes < 1024 * 1024) {
+        return `${
+            (
+                bytes
+                / 1024
+            ).toFixed(1)
+        } KB`;
+    }
+
+    return `${
+        (
+            bytes
+            / 1024
+            / 1024
+        ).toFixed(2)
+    } MB`;
+}
+
+function dynamicSourceDateTimeLabel(
+    value: string | null | undefined,
+): string {
+    if (!value) {
+        return '—';
+    }
+
+    const date =
+        new Date(
+            value,
+        );
+
+    if (
+        Number.isNaN(
+            date.getTime(),
+        )
+    ) {
+        return value;
+    }
+
+    return date.toLocaleString(
+        'es-DO',
+    );
+}
+
+async function uploadDynamicSourceData(
+    asset: DynamicSourceAsset,
+): Promise<void> {
+    const sessionId =
+        standardIntakeV2SessionId();
+
+    const form =
+        dynamicSourceDataUploadForm(
+            asset,
+        );
+
+    form.error =
+        null;
+
+    form.message =
+        null;
+
+    if (
+        sessionId === null
+        || !dynamicSourceCanManage()
+    ) {
+        form.error =
+            'La sesión no permite cargar archivos en este momento.';
+
+        return;
+    }
+
+    if (!form.file) {
+        form.error =
+            'Selecciona un archivo CSV o XLSX.';
+
+        return;
+    }
+
+    const lowerName =
+        form.file.name
+            .toLowerCase();
+
+    if (
+        !lowerName.endsWith(
+            '.csv',
+        )
+        && !lowerName.endsWith(
+            '.xlsx',
+        )
+    ) {
+        form.error =
+            'Solo se admiten archivos CSV o XLSX.';
+
+        return;
+    }
+
+    if (
+        form.file.size
+        > 32 * 1024 * 1024
+    ) {
+        form.error =
+            'El archivo excede el máximo permitido de 32 MB.';
+
+        return;
+    }
+
+    const body =
+        new FormData();
+
+    body.append(
+        'file',
+        form.file,
+    );
+
+    form.busy =
+        true;
+
+    try {
+        const payload =
+            await standardIntakeV2Request(
+                `${standardIntakeV2BaseUrl}/sessions/${sessionId}/source-assets/${asset.id}/data-file`,
+                {
+                    method:
+                        'POST',
+
+                    body,
+                },
+            );
+
+        if (
+            !payload.source_asset
+            || !payload.data_file
+        ) {
+            throw new Error(
+                'La respuesta no contiene el archivo procesado.',
+            );
+        }
+
+        const updatedAsset: DynamicSourceAsset = {
+            ...payload.source_asset,
+            data_file:
+                payload.data_file,
+        };
+
+        upsertDynamicSourceAsset(
+            updatedAsset,
+        );
+
+        dynamicSourceSelectedId.value =
+            updatedAsset.id;
+
+        form.file =
+            null;
+
+        form.input_key +=
+            1;
+
+        form.message =
+            payload.message
+            ?? 'Archivo recibido correctamente.';
+    } catch (error) {
+        form.error =
+            error instanceof Error
+                ? error.message
+                : 'No se pudo cargar el archivo de la fuente.';
+    } finally {
+        form.busy =
+            false;
+    }
+}
+
+function dynamicSourceStructureForm(
+    asset: DynamicSourceAsset,
+): DynamicSourceStructureFormState {
+    if (!dynamicSourceStructureForms.value[asset.id]) {
+        const rawStructureFormat =
+            asset.structure_format;
+
+        const existingFormat: DynamicSourceStructureFormat =
+            rawStructureFormat === 'field_type_list'
+            || rawStructureFormat === 'sql_server_ddl'
+            || rawStructureFormat === 'other'
+                ? rawStructureFormat
+                : 'field_type_list';
+
+        dynamicSourceStructureForms.value[asset.id] = {
+            structure_format:
+                existingFormat,
+
+            structure_text:
+                asset.structure_text
+                ?? '',
+
+            busy:
+                false,
+
+            error:
+                null,
+        };
+    }
+
+    return dynamicSourceStructureForms.value[asset.id];
+}
+
+function dynamicSourceStructureFormatLabel(
+    format: string | null | undefined,
+): string {
+    const labels: Record<string, string> = {
+        field_type_list:
+            'Lista de campos y tipos',
+
+        sql_server_ddl:
+            'CREATE TABLE SQL Server',
+
+        other:
+            'Otra estructura',
+    };
+
+    return format
+        ? labels[format] ?? format
+        : 'Sin formato';
+}
+
+async function saveDynamicSourceStructure(
+    asset: DynamicSourceAsset,
+): Promise<void> {
+    const sessionId =
+        standardIntakeV2SessionId();
+
+    const form =
+        dynamicSourceStructureForm(
+            asset,
+        );
+
+    if (
+        sessionId === null
+        || !dynamicSourceCanManage()
+    ) {
+        form.error =
+            'La sesión no permite modificar la estructura en este momento.';
+
+        return;
+    }
+
+    if (form.structure_text.trim() === '') {
+        form.error =
+            'Indica la estructura de la tabla o archivo.';
+
+        return;
+    }
+
+    form.busy =
+        true;
+
+    form.error =
+        null;
+
+    try {
+        const payload =
+            await standardIntakeV2Request(
+                `${standardIntakeV2BaseUrl}/sessions/${sessionId}/source-assets/${asset.id}/structure`,
+                {
+                    method:
+                        'PATCH',
+
+                    body:
+                        JSON.stringify({
+                            structure_format:
+                                form.structure_format,
+
+                            structure_text:
+                                form.structure_text,
+                        }),
+                },
+            );
+
+        if (!payload.source_asset) {
+            throw new Error(
+                'La respuesta no contiene la fuente actualizada.',
+            );
+        }
+
+        upsertDynamicSourceAsset(
+            payload.source_asset,
+        );
+
+        form.structure_format =
+            (
+                payload.source_asset
+                    .structure_format
+                ?? form.structure_format
+            ) as DynamicSourceStructureFormat;
+
+        form.structure_text =
+            payload.source_asset
+                .structure_text
+            ?? form.structure_text;
+
+        dynamicSourceSelectedId.value =
+            payload.source_asset.id;
+    } catch (error) {
+        form.error =
+            error instanceof Error
+                ? error.message
+                : 'No se pudo guardar la estructura.';
+    } finally {
+        form.busy =
+            false;
+    }
+}
+
+function dynamicSourceSqlServerForm(
+    asset: DynamicSourceAsset,
+): DynamicSourceSqlServerFormState {
+    if (!dynamicSourceSqlServerForms.value[asset.id]) {
+        dynamicSourceSqlServerForms.value[asset.id] = {
+            schema_name:
+                'dbo',
+
+            table_name:
+                asset.source_object_name,
+
+            export_format:
+                asset.delivery_format === 'xlsx'
+                    ? 'xlsx'
+                    : 'csv',
+
+            busy:
+                false,
+
+            error:
+                null,
+
+            copied:
+                false,
+
+            preview:
+                null,
+        };
+    }
+
+    return dynamicSourceSqlServerForms.value[asset.id];
+}
+
+function dynamicSourceSqlServerInstructions(
+    asset: DynamicSourceAsset,
+): string[] {
+    const form =
+        dynamicSourceSqlServerForm(
+            asset,
+        );
+
+    if (!form.preview) {
+        return [];
+    }
+
+    return form.preview
+        .export[
+            form.export_format
+        ]
+        ?.instructions
+        ?? [];
+}
+
+async function generateDynamicSourceSqlServerPreview(
+    asset: DynamicSourceAsset,
+): Promise<void> {
+    const sessionId =
+        standardIntakeV2SessionId();
+
+    const structureForm =
+        dynamicSourceStructureForm(
+            asset,
+        );
+
+    const sqlForm =
+        dynamicSourceSqlServerForm(
+            asset,
+        );
+
+    sqlForm.error =
+        null;
+
+    sqlForm.copied =
+        false;
+
+    if (sessionId === null) {
+        sqlForm.error =
+            'No hay una sesión activa.';
+
+        return;
+    }
+
+    if (
+        !asset.structure_text
+        || asset.structure_status === 'pending'
+    ) {
+        sqlForm.error =
+            'Guarda primero la estructura de esta fuente.';
+
+        return;
+    }
+
+    if (
+        structureForm.structure_text
+            .trim()
+        !== (
+            asset.structure_text
+            ?? ''
+        ).trim()
+    ) {
+        sqlForm.error =
+            'Hay cambios de estructura sin guardar. Guarda la estructura antes de generar la consulta.';
+
+        return;
+    }
+
+    if (
+        sqlForm.schema_name.trim() === ''
+    ) {
+        sqlForm.error =
+            'Indica el esquema de SQL Server.';
+
+        return;
+    }
+
+    sqlForm.busy =
+        true;
+
+    try {
+        const payload =
+            await standardIntakeV2Request(
+                `${standardIntakeV2BaseUrl}/sessions/${sessionId}/source-assets/${asset.id}/sql-server-extraction/preview`,
+                {
+                    method:
+                        'POST',
+
+                    body:
+                        JSON.stringify({
+                            schema_name:
+                                sqlForm.schema_name
+                                    .trim(),
+
+                            table_name:
+                                sqlForm.table_name
+                                    .trim()
+                                || null,
+                        }),
+                },
+            ) as StandardIntakeV2HttpResponse & {
+                preview?: SqlServerExtractionPreview;
+            };
+
+        if (!payload.preview) {
+            throw new Error(
+                'No se recibió la consulta de extracción.',
+            );
+        }
+
+        sqlForm.preview =
+            payload.preview;
+    } catch (error) {
+        sqlForm.error =
+            error instanceof Error
+                ? error.message
+                : 'No se pudo preparar la consulta SQL Server.';
+    } finally {
+        sqlForm.busy =
+            false;
+    }
+}
+
+async function copyDynamicSourceSqlServerQuery(
+    asset: DynamicSourceAsset,
+): Promise<void> {
+    const form =
+        dynamicSourceSqlServerForm(
+            asset,
+        );
+
+    const query =
+        form.preview
+            ?.query
+            ?.trim()
+        ?? '';
+
+    if (!query) {
+        return;
+    }
+
+    form.error =
+        null;
+
+    try {
+        await navigator.clipboard.writeText(
+            query,
+        );
+
+        form.copied =
+            true;
+
+        window.setTimeout(
+            () => {
+                form.copied =
+                    false;
+            },
+            1600,
+        );
+    } catch {
+        form.error =
+            'No se pudo copiar automáticamente. Selecciona la consulta y cópiala manualmente.';
+    }
+}
+
 // D15C_INTAKE_V2_LOGIC
 const standardIntakeV2State =
     ref<StandardIntakeV2State | null>(
@@ -539,6 +1778,11 @@ const standardIntakeV2Busy =
 
 const standardIntakeV2Error =
     ref<string | null>(null);
+
+const standardIntakeV2CanonicalOpen =
+    ref<boolean>(
+        standardIntakeV2State.value?.session == null,
+    );
 
 const standardIntakeV2Files =
     ref<Record<string, File | null>>({});
@@ -3794,13 +5038,12 @@ async function normalizeStandardIntakeBatch(): Promise<void> {
                                 <p
                                     class="mt-1 max-w-3xl text-xs leading-5 text-muted-foreground"
                                 >
-                                    Identifica cada fuente de origen y cómo sus datos
-                                    serán entregados a LAUDA. El intake estándar admite
-                                    CSV o XLSX. La conexión, extracción o conversión
-                                    desde sistemas de origen no forma parte automática
-                                    de este alcance. Si el cliente no puede generar
-                                    estos archivos, marca asistencia de extracción
-                                    requerida. No ingreses contraseñas, tokens,
+                                    Registra aquí el contexto general de los sistemas
+                                    de origen para fines de alcance. El origen es
+                                    informativo. Las tablas y archivos concretos se
+                                    gestionan individualmente en Fuentes de datos.
+                                    LAUDA recibe los datos operativos únicamente mediante
+                                    CSV o XLSX. No ingreses contraseñas, tokens,
                                     API keys ni credenciales.
                                 </p>
                             </div>
@@ -3812,14 +5055,14 @@ async function normalizeStandardIntakeBatch(): Promise<void> {
                                     :href="`/admin/transformation-360/implementation-requests/${props.implementation_request.id}/standard-intake-template/xlsx`"
                                     class="rounded-lg border px-3 py-2 text-xs font-semibold"
                                 >
-                                    Descargar plantilla Excel
+                                    Referencia canónica Excel
                                 </a>
 
                                 <a
                                     :href="`/admin/transformation-360/implementation-requests/${props.implementation_request.id}/standard-intake-template/csv`"
                                     class="rounded-lg border px-3 py-2 text-xs font-semibold"
                                 >
-                                    Descargar paquete CSV
+                                    Referencia canónica CSV
                                 </a>
 
                                 <button
@@ -3828,10 +5071,1798 @@ async function normalizeStandardIntakeBatch(): Promise<void> {
                                     :disabled="humanReviewForm.processing"
                                     @click="addInputValidationEvidence"
                                 >
-                                    Agregar otra fuente de datos
+                                    Agregar evidencia de origen
                                 </button>
                             </div>
                         </div>
+
+                        <!-- D17_DYNAMIC_SOURCE_WORKSPACE_UI -->
+                        <section
+                            class="mt-5 rounded-2xl border border-sky-200 bg-sky-50/40 p-4 dark:border-sky-900/70 dark:bg-sky-950/10"
+                        >
+                            <div
+                                class="flex flex-wrap items-start justify-between gap-4"
+                            >
+                                <div class="max-w-3xl">
+                                    <div
+                                        class="flex flex-wrap items-center gap-2"
+                                    >
+                                        <h3 class="text-base font-black">
+                                            Fuentes de datos
+                                        </h3>
+
+                                        <span
+                                            v-if="standardIntakeV2State?.session"
+                                            class="rounded-full border px-2.5 py-1 text-[10px] font-bold uppercase"
+                                        >
+                                            Sesión
+                                            #{{ standardIntakeV2State.session.id }}
+                                            ·
+                                            {{
+                                                standardIntakeV2SessionStatusLabel(
+                                                    standardIntakeV2State.session.status,
+                                                )
+                                            }}
+                                        </span>
+
+                                        <span
+                                            v-if="standardIntakeV2State?.session"
+                                            class="rounded-full border border-sky-200 bg-white px-2.5 py-1 text-[10px] font-bold text-sky-700 dark:border-sky-900 dark:bg-slate-950 dark:text-sky-300"
+                                        >
+                                            {{
+                                                dynamicSourceAssets().length
+                                            }}
+                                            fuente(s)
+                                        </span>
+                                    </div>
+
+                                    <p
+                                        class="mt-2 text-sm leading-6 text-muted-foreground"
+                                    >
+                                        Registra cada tabla o archivo tal como existe
+                                        en el sistema del cliente. No necesitas adaptar
+                                        los datos al modelo LAUDA en esta etapa. El
+                                        sistema de origen es informativo y los datos se
+                                        entregan posteriormente en CSV o Excel.
+                                    </p>
+
+                                    <p
+                                        class="mt-2 text-xs leading-5 text-muted-foreground"
+                                    >
+                                        Ejemplos:
+                                        <strong>Maestro de clientes · CTES</strong>,
+                                        <strong>Facturas · FAC.DBF</strong>,
+                                        <strong>Detalle de facturas · FACDET.DBF</strong>.
+                                    </p>
+                                </div>
+
+                                <div class="flex flex-wrap gap-2">
+                                    <button
+                                        v-if="
+                                            !standardIntakeV2State?.session
+                                            || standardIntakeV2State
+                                                ?.actions
+                                                ?.can_start_new_session
+                                        "
+                                        type="button"
+                                        class="cursor-pointer rounded-lg border bg-background px-4 py-2 text-sm font-bold disabled:cursor-not-allowed disabled:opacity-50"
+                                        :disabled="
+                                            standardIntakeV2Busy
+                                            !== null
+                                        "
+                                        @click="startStandardIntakeV2Session"
+                                    >
+                                        {{
+                                            standardIntakeV2Busy
+                                                === 'session'
+                                                ? 'Preparando...'
+                                                : 'Iniciar sesión'
+                                        }}
+                                    </button>
+
+                                    <button
+                                        v-if="dynamicSourceCanManage()"
+                                        type="button"
+                                        class="cursor-pointer rounded-lg bg-sky-700 px-4 py-2 text-sm font-bold text-white disabled:cursor-not-allowed disabled:opacity-50"
+                                        :disabled="
+                                            dynamicSourceBusy
+                                            !== null
+                                        "
+                                        @click="openDynamicSourceCreateForm"
+                                    >
+                                        + Agregar fuente
+                                    </button>
+                                </div>
+                            </div>
+
+                            <div
+                                v-if="dynamicSourceError"
+                                class="mt-4 rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-700 dark:border-red-900/60 dark:bg-red-950/30 dark:text-red-300"
+                            >
+                                {{ dynamicSourceError }}
+                            </div>
+
+                            <div
+                                v-if="dynamicSourceFormOpen"
+                                class="mt-4 rounded-xl border bg-background p-4"
+                            >
+                                <div
+                                    class="flex flex-wrap items-start justify-between gap-3"
+                                >
+                                    <div>
+                                        <p class="text-sm font-black">
+                                            {{
+                                                dynamicSourceEditingId === null
+                                                    ? 'Agregar fuente de datos'
+                                                    : 'Editar fuente de datos'
+                                            }}
+                                        </p>
+
+                                        <p
+                                            class="mt-1 text-xs leading-5 text-muted-foreground"
+                                        >
+                                            Describe la fuente como existe realmente
+                                            en el sistema del cliente.
+                                        </p>
+                                    </div>
+
+                                    <button
+                                        type="button"
+                                        class="cursor-pointer rounded-lg border px-3 py-1.5 text-xs font-bold disabled:cursor-not-allowed disabled:opacity-50"
+                                        :disabled="dynamicSourceBusy !== null"
+                                        @click="closeDynamicSourceForm"
+                                    >
+                                        Cerrar
+                                    </button>
+                                </div>
+
+                                <div
+                                    class="mt-4 grid gap-4 lg:grid-cols-2 xl:grid-cols-4"
+                                >
+                                    <label class="block">
+                                        <span class="text-xs font-semibold">
+                                            Nombre de la fuente
+                                        </span>
+
+                                        <input
+                                            v-model="
+                                                dynamicSourceForm.display_name
+                                            "
+                                            type="text"
+                                            maxlength="191"
+                                            class="mt-1 w-full rounded-lg border bg-background px-3 py-2 text-sm"
+                                            placeholder="Ej. Maestro de clientes"
+                                        />
+                                    </label>
+
+                                    <label class="block">
+                                        <span class="text-xs font-semibold">
+                                            Tabla o archivo de origen
+                                        </span>
+
+                                        <input
+                                            v-model="
+                                                dynamicSourceForm.source_object_name
+                                            "
+                                            type="text"
+                                            maxlength="255"
+                                            class="mt-1 w-full rounded-lg border bg-background px-3 py-2 text-sm"
+                                            placeholder="Ej. CTES, FAC.DBF, clientes.xlsx"
+                                        />
+                                    </label>
+
+                                    <label class="block">
+                                        <span class="text-xs font-semibold">
+                                            Origen de los datos
+                                        </span>
+
+                                        <input
+                                            v-model="
+                                                dynamicSourceForm.origin_system
+                                            "
+                                            type="text"
+                                            maxlength="191"
+                                            class="mt-1 w-full rounded-lg border bg-background px-3 py-2 text-sm"
+                                            placeholder="Ej. SQL Server, FoxPro, Clarion, Mónica"
+                                        />
+
+                                        <span
+                                            class="mt-1 block text-[11px] leading-5 text-muted-foreground"
+                                        >
+                                            Solo informativo. No representa una conexión.
+                                        </span>
+                                    </label>
+
+                                    <div>
+                                        <span class="text-xs font-semibold">
+                                            Formato de entrega
+                                        </span>
+
+                                        <div
+                                            class="mt-1 grid grid-cols-2 gap-2"
+                                        >
+                                            <button
+                                                type="button"
+                                                class="cursor-pointer rounded-lg border px-3 py-2 text-xs font-bold"
+                                                :class="
+                                                    dynamicSourceForm.delivery_format
+                                                        === 'csv'
+                                                        ? 'border-sky-500 bg-sky-50 text-sky-700 dark:bg-sky-950/30 dark:text-sky-300'
+                                                        : 'bg-background'
+                                                "
+                                                @click="
+                                                    dynamicSourceForm.delivery_format =
+                                                        'csv'
+                                                "
+                                            >
+                                                CSV
+                                            </button>
+
+                                            <button
+                                                type="button"
+                                                class="cursor-pointer rounded-lg border px-3 py-2 text-xs font-bold"
+                                                :class="
+                                                    dynamicSourceForm.delivery_format
+                                                        === 'xlsx'
+                                                        ? 'border-sky-500 bg-sky-50 text-sky-700 dark:bg-sky-950/30 dark:text-sky-300'
+                                                        : 'bg-background'
+                                                "
+                                                @click="
+                                                    dynamicSourceForm.delivery_format =
+                                                        'xlsx'
+                                                "
+                                            >
+                                                Excel (.xlsx)
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <label class="mt-4 block">
+                                    <span class="text-xs font-semibold">
+                                        Breve descripción
+                                    </span>
+
+                                    <textarea
+                                        v-model="
+                                            dynamicSourceForm.description
+                                        "
+                                        maxlength="4000"
+                                        rows="3"
+                                        class="mt-1 w-full rounded-lg border bg-background px-3 py-2 text-sm"
+                                        placeholder="Ej. Maestro general de clientes, condiciones de crédito y datos de contacto."
+                                    ></textarea>
+                                </label>
+
+                                <div
+                                    v-if="dynamicSourceError"
+                                    class="mt-3 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700 dark:border-red-900/60 dark:bg-red-950/30 dark:text-red-300"
+                                >
+                                    {{ dynamicSourceError }}
+                                </div>
+
+                                <div
+                                    class="mt-4 flex flex-wrap justify-end gap-2"
+                                >
+                                    <button
+                                        type="button"
+                                        class="cursor-pointer rounded-lg border px-4 py-2 text-sm font-bold disabled:cursor-not-allowed disabled:opacity-50"
+                                        :disabled="dynamicSourceBusy !== null"
+                                        @click="closeDynamicSourceForm"
+                                    >
+                                        Cancelar
+                                    </button>
+
+                                    <button
+                                        type="button"
+                                        class="cursor-pointer rounded-lg bg-foreground px-4 py-2 text-sm font-bold text-background disabled:cursor-not-allowed disabled:opacity-50"
+                                        :disabled="dynamicSourceBusy !== null"
+                                        @click="saveDynamicSourceAsset"
+                                    >
+                                        {{
+                                            dynamicSourceBusy === 'create'
+                                            || (
+                                                dynamicSourceEditingId !== null
+                                                && dynamicSourceBusy
+                                                    === `update:${dynamicSourceEditingId}`
+                                            )
+                                                ? 'Guardando...'
+                                                : dynamicSourceEditingId === null
+                                                  ? 'Agregar fuente'
+                                                  : 'Guardar cambios'
+                                        }}
+                                    </button>
+                                </div>
+                            </div>
+
+                            <div
+                                v-if="
+                                    standardIntakeV2State?.session
+                                    && dynamicSourceAssets().length === 0
+                                    && !dynamicSourceFormOpen
+                                "
+                                class="mt-4 rounded-xl border border-dashed bg-background/60 p-6 text-center"
+                            >
+                                <Database
+                                    class="mx-auto h-8 w-8 text-muted-foreground"
+                                />
+
+                                <p class="mt-3 text-sm font-black">
+                                    Todavía no hay fuentes registradas
+                                </p>
+
+                                <p
+                                    class="mx-auto mt-1 max-w-xl text-xs leading-5 text-muted-foreground"
+                                >
+                                    Agrega las tablas o archivos que el cliente
+                                    utiliza. No existe un límite por dominio:
+                                    puedes registrar tantas fuentes como sean
+                                    necesarias.
+                                </p>
+
+                                <button
+                                    v-if="dynamicSourceCanManage()"
+                                    type="button"
+                                    class="mt-4 cursor-pointer rounded-lg bg-sky-700 px-4 py-2 text-sm font-bold text-white"
+                                    @click="openDynamicSourceCreateForm"
+                                >
+                                    + Agregar primera fuente
+                                </button>
+                            </div>
+
+                            <div
+                                v-if="dynamicSourceAssets().length"
+                                class="mt-5 overflow-x-auto pb-2"
+                            >
+                                <div
+                                    class="flex min-w-max items-stretch gap-3"
+                                >
+                                    <article
+                                        v-for="(
+                                            asset,
+                                            assetIndex
+                                        ) in dynamicSourceAssets()"
+                                        :key="`source-asset-${asset.id}`"
+                                        class="flex w-[340px] shrink-0 flex-col rounded-xl border bg-background p-4"
+                                    >
+                                        <div
+                                            class="flex items-start justify-between gap-3"
+                                        >
+                                            <div class="min-w-0">
+                                                <p
+                                                    class="truncate text-sm font-black"
+                                                >
+                                                    {{ asset.display_name }}
+                                                </p>
+
+                                                <p
+                                                    class="mt-1 truncate font-mono text-xs text-muted-foreground"
+                                                >
+                                                    {{ asset.source_object_name }}
+                                                </p>
+                                            </div>
+
+                                            <span
+                                                class="shrink-0 rounded-full border px-2 py-1 text-[10px] font-bold uppercase text-muted-foreground"
+                                            >
+                                                {{
+                                                    asset.origin_system
+                                                    || 'Origen no indicado'
+                                                }}
+                                            </span>
+                                        </div>
+
+                                        <p
+                                            class="mt-3 min-h-10 text-xs leading-5 text-muted-foreground"
+                                        >
+                                            {{
+                                                asset.description
+                                                || 'Sin descripción.'
+                                            }}
+                                        </p>
+
+                                        <div
+                                            class="mt-4 grid grid-cols-3 gap-2"
+                                        >
+                                            <div
+                                                class="rounded-lg border bg-muted/20 p-2"
+                                            >
+                                                <p
+                                                    class="text-[10px] font-bold uppercase text-muted-foreground"
+                                                >
+                                                    Estructura
+                                                </p>
+                                                <p
+                                                    class="mt-1 text-xs font-black"
+                                                >
+                                                    {{
+                                                        dynamicSourceStructureLabel(
+                                                            asset.structure_status,
+                                                        )
+                                                    }}
+                                                </p>
+                                            </div>
+
+                                            <div
+                                                class="rounded-lg border bg-muted/20 p-2"
+                                            >
+                                                <p
+                                                    class="text-[10px] font-bold uppercase text-muted-foreground"
+                                                >
+                                                    Datos
+                                                </p>
+                                                <p
+                                                    class="mt-1 text-xs font-black"
+                                                >
+                                                    {{
+                                                        dynamicSourceDataLabel(
+                                                            asset.data_status,
+                                                        )
+                                                    }}
+                                                </p>
+                                            </div>
+
+                                            <div
+                                                class="rounded-lg border bg-muted/20 p-2"
+                                            >
+                                                <p
+                                                    class="text-[10px] font-bold uppercase text-muted-foreground"
+                                                >
+                                                    Entrega
+                                                </p>
+                                                <p
+                                                    class="mt-1 text-xs font-black"
+                                                >
+                                                    {{
+                                                        dynamicSourceDeliveryLabel(
+                                                            asset.delivery_format,
+                                                        )
+                                                    }}
+                                                </p>
+                                            </div>
+                                        </div>
+
+                                        <div
+                                            class="mt-4 flex flex-wrap gap-1.5"
+                                        >
+                                            <span
+                                                class="rounded-full border px-2 py-1 text-[10px] font-semibold"
+                                            >
+                                                Información
+                                            </span>
+                                            <span
+                                                class="rounded-full border px-2 py-1 text-[10px] font-semibold"
+                                            >
+                                                Estructura
+                                            </span>
+                                            <span
+                                                class="rounded-full border px-2 py-1 text-[10px] font-semibold"
+                                            >
+                                                Extracción
+                                            </span>
+                                            <span
+                                                class="rounded-full border px-2 py-1 text-[10px] font-semibold"
+                                            >
+                                                Archivo
+                                            </span>
+                                            <span
+                                                class="rounded-full border px-2 py-1 text-[10px] font-semibold"
+                                            >
+                                                Análisis
+                                            </span>
+                                            <span
+                                                class="rounded-full border px-2 py-1 text-[10px] font-semibold"
+                                            >
+                                                Mapeo
+                                            </span>
+                                        </div>
+
+                                        <div
+                                            class="mt-auto flex flex-wrap items-center justify-between gap-2 pt-5"
+                                        >
+                                            <div class="flex gap-1">
+                                                <button
+                                                    type="button"
+                                                    title="Mover a la izquierda"
+                                                    class="cursor-pointer rounded-lg border px-2 py-1.5 text-xs font-bold disabled:cursor-not-allowed disabled:opacity-40"
+                                                    :disabled="
+                                                        assetIndex === 0
+                                                        || dynamicSourceBusy !== null
+                                                    "
+                                                    @click="
+                                                        moveDynamicSourceAsset(
+                                                            asset.id,
+                                                            -1,
+                                                        )
+                                                    "
+                                                >
+                                                    ←
+                                                </button>
+
+                                                <button
+                                                    type="button"
+                                                    title="Mover a la derecha"
+                                                    class="cursor-pointer rounded-lg border px-2 py-1.5 text-xs font-bold disabled:cursor-not-allowed disabled:opacity-40"
+                                                    :disabled="
+                                                        assetIndex
+                                                            === dynamicSourceAssets().length - 1
+                                                        || dynamicSourceBusy !== null
+                                                    "
+                                                    @click="
+                                                        moveDynamicSourceAsset(
+                                                            asset.id,
+                                                            1,
+                                                        )
+                                                    "
+                                                >
+                                                    →
+                                                </button>
+                                            </div>
+
+                                            <div class="flex gap-2">
+                                                <button
+                                                    type="button"
+                                                    class="cursor-pointer rounded-lg bg-sky-700 px-3 py-1.5 text-xs font-bold text-white"
+                                                    @click="
+                                                        openDynamicSourceWorkspace(
+                                                            asset,
+                                                        )
+                                                    "
+                                                >
+                                                    Gestionar
+                                                </button>
+
+                                                <button
+                                                    v-if="dynamicSourceCanManage()"
+                                                    type="button"
+                                                    class="cursor-pointer rounded-lg border px-3 py-1.5 text-xs font-bold disabled:cursor-not-allowed disabled:opacity-50"
+                                                    :disabled="
+                                                        dynamicSourceBusy !== null
+                                                    "
+                                                    @click="
+                                                        openDynamicSourceEditForm(
+                                                            asset,
+                                                        )
+                                                    "
+                                                >
+                                                    Editar
+                                                </button>
+
+                                                <button
+                                                    v-if="dynamicSourceCanManage()"
+                                                    type="button"
+                                                    class="cursor-pointer rounded-lg border border-red-200 px-3 py-1.5 text-xs font-bold text-red-700 disabled:cursor-not-allowed disabled:opacity-50 dark:border-red-900 dark:text-red-300"
+                                                    :disabled="
+                                                        dynamicSourceBusy !== null
+                                                    "
+                                                    @click="
+                                                        archiveDynamicSourceAsset(
+                                                            asset,
+                                                        )
+                                                    "
+                                                >
+                                                    {{
+                                                        dynamicSourceBusy
+                                                            === `archive:${asset.id}`
+                                                            ? 'Archivando...'
+                                                            : 'Archivar'
+                                                    }}
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </article>
+                                </div>
+                            </div>
+
+                            <!-- D17_DYNAMIC_SOURCE_DETAIL_WORKSPACE -->
+                            <section
+                                v-if="dynamicSourceSelectedAsset()"
+                                class="mt-5 overflow-hidden rounded-xl border bg-background"
+                            >
+                                <div
+                                    class="flex flex-wrap items-start justify-between gap-4 border-b p-4"
+                                >
+                                    <div>
+                                        <p
+                                            class="text-xs font-bold uppercase tracking-wide text-muted-foreground"
+                                        >
+                                            Fuente seleccionada
+                                        </p>
+
+                                        <h4 class="mt-1 text-base font-black">
+                                            {{
+                                                dynamicSourceSelectedAsset()
+                                                    ?.display_name
+                                            }}
+                                        </h4>
+
+                                        <div
+                                            class="mt-1 flex flex-wrap gap-x-3 gap-y-1 text-xs text-muted-foreground"
+                                        >
+                                            <span class="font-mono">
+                                                {{
+                                                    dynamicSourceSelectedAsset()
+                                                        ?.source_object_name
+                                                }}
+                                            </span>
+
+                                            <span>
+                                                {{
+                                                    dynamicSourceSelectedAsset()
+                                                        ?.origin_system
+                                                    || 'Origen no indicado'
+                                                }}
+                                            </span>
+
+                                            <span>
+                                                {{
+                                                    dynamicSourceDeliveryLabel(
+                                                        dynamicSourceSelectedAsset()
+                                                            ?.delivery_format,
+                                                    )
+                                                }}
+                                            </span>
+                                        </div>
+                                    </div>
+
+                                    <button
+                                        type="button"
+                                        class="cursor-pointer rounded-lg border px-3 py-1.5 text-xs font-bold"
+                                        @click="
+                                            dynamicSourceSelectedId =
+                                                null
+                                        "
+                                    >
+                                        Cerrar detalle
+                                    </button>
+                                </div>
+
+                                <div
+                                    class="overflow-x-auto border-b bg-muted/10"
+                                >
+                                    <div
+                                        class="flex min-w-max gap-1 p-2"
+                                    >
+                                        <button
+                                            v-for="tab in [
+                                                {
+                                                    key: 'information',
+                                                    label: 'Información',
+                                                },
+                                                {
+                                                    key: 'structure',
+                                                    label: 'Estructura',
+                                                },
+                                                {
+                                                    key: 'extraction',
+                                                    label: 'Extracción',
+                                                },
+                                                {
+                                                    key: 'file',
+                                                    label: 'Archivo CSV/XLSX',
+                                                },
+                                                {
+                                                    key: 'analysis',
+                                                    label: 'Análisis',
+                                                },
+                                                {
+                                                    key: 'mapping',
+                                                    label: 'Mapeo LAUDA',
+                                                },
+                                            ]"
+                                            :key="tab.key"
+                                            type="button"
+                                            class="cursor-pointer whitespace-nowrap rounded-lg px-3 py-2 text-xs font-bold"
+                                            :class="
+                                                dynamicSourceActiveTab
+                                                    === tab.key
+                                                    ? 'bg-foreground text-background'
+                                                    : 'border bg-background text-muted-foreground'
+                                            "
+                                            @click="
+                                                dynamicSourceActiveTab =
+                                                    tab.key as DynamicSourceWorkspaceTab
+                                            "
+                                        >
+                                            {{ tab.label }}
+                                        </button>
+                                    </div>
+                                </div>
+
+                                <div class="p-4">
+                                    <!-- INFORMATION -->
+                                    <div
+                                        v-if="
+                                            dynamicSourceActiveTab
+                                            === 'information'
+                                        "
+                                    >
+                                        <div
+                                            class="grid gap-3 md:grid-cols-2 xl:grid-cols-4"
+                                        >
+                                            <div
+                                                class="rounded-lg border p-3"
+                                            >
+                                                <p
+                                                    class="text-[10px] font-bold uppercase text-muted-foreground"
+                                                >
+                                                    Nombre
+                                                </p>
+                                                <p
+                                                    class="mt-1 text-sm font-black"
+                                                >
+                                                    {{
+                                                        dynamicSourceSelectedAsset()
+                                                            ?.display_name
+                                                    }}
+                                                </p>
+                                            </div>
+
+                                            <div
+                                                class="rounded-lg border p-3"
+                                            >
+                                                <p
+                                                    class="text-[10px] font-bold uppercase text-muted-foreground"
+                                                >
+                                                    Tabla / archivo
+                                                </p>
+                                                <p
+                                                    class="mt-1 break-all font-mono text-sm font-black"
+                                                >
+                                                    {{
+                                                        dynamicSourceSelectedAsset()
+                                                            ?.source_object_name
+                                                    }}
+                                                </p>
+                                            </div>
+
+                                            <div
+                                                class="rounded-lg border p-3"
+                                            >
+                                                <p
+                                                    class="text-[10px] font-bold uppercase text-muted-foreground"
+                                                >
+                                                    Origen
+                                                </p>
+                                                <p
+                                                    class="mt-1 text-sm font-black"
+                                                >
+                                                    {{
+                                                        dynamicSourceSelectedAsset()
+                                                            ?.origin_system
+                                                        || 'No indicado'
+                                                    }}
+                                                </p>
+                                                <p
+                                                    class="mt-1 text-[10px] text-muted-foreground"
+                                                >
+                                                    Informativo solamente
+                                                </p>
+                                            </div>
+
+                                            <div
+                                                class="rounded-lg border p-3"
+                                            >
+                                                <p
+                                                    class="text-[10px] font-bold uppercase text-muted-foreground"
+                                                >
+                                                    Entrega
+                                                </p>
+                                                <p
+                                                    class="mt-1 text-sm font-black"
+                                                >
+                                                    {{
+                                                        dynamicSourceDeliveryLabel(
+                                                            dynamicSourceSelectedAsset()
+                                                                ?.delivery_format,
+                                                        )
+                                                    }}
+                                                </p>
+                                            </div>
+                                        </div>
+
+                                        <div
+                                            class="mt-4 rounded-lg border p-3"
+                                        >
+                                            <p
+                                                class="text-xs font-bold"
+                                            >
+                                                Descripción
+                                            </p>
+                                            <p
+                                                class="mt-1 text-sm leading-6 text-muted-foreground"
+                                            >
+                                                {{
+                                                    dynamicSourceSelectedAsset()
+                                                        ?.description
+                                                    || 'Sin descripción.'
+                                                }}
+                                            </p>
+                                        </div>
+                                    </div>
+
+                                    <!-- STRUCTURE -->
+                                    <div
+                                        v-if="
+                                            dynamicSourceActiveTab
+                                            === 'structure'
+                                            && dynamicSourceSelectedAsset()
+                                        "
+                                    >
+                                        <div
+                                            class="flex flex-wrap items-start justify-between gap-3"
+                                        >
+                                            <div>
+                                                <p class="text-sm font-black">
+                                                    Estructura de la fuente
+                                                </p>
+
+                                                <p
+                                                    class="mt-1 max-w-3xl text-xs leading-5 text-muted-foreground"
+                                                >
+                                                    Puedes registrar primero la
+                                                    estructura de la tabla o archivo.
+                                                    Esto permite a LAUDA conocer los
+                                                    campos antes de recibir los datos.
+                                                    La estructura es texto de referencia:
+                                                    nunca se ejecuta.
+                                                </p>
+                                            </div>
+
+                                            <span
+                                                class="rounded-full border px-2.5 py-1 text-[10px] font-bold uppercase"
+                                            >
+                                                {{
+                                                    dynamicSourceStructureLabel(
+                                                        dynamicSourceSelectedAsset()
+                                                            ?.structure_status,
+                                                    )
+                                                }}
+                                            </span>
+                                        </div>
+
+                                        <div
+                                            class="mt-4"
+                                        >
+                                            <p
+                                                class="text-xs font-semibold"
+                                            >
+                                                Formato de la estructura
+                                            </p>
+
+                                            <div
+                                                class="mt-2 flex flex-wrap gap-2"
+                                            >
+                                                <button
+                                                    type="button"
+                                                    class="cursor-pointer rounded-lg border px-3 py-2 text-xs font-bold"
+                                                    :class="
+                                                        dynamicSourceStructureForm(
+                                                            dynamicSourceSelectedAsset()!,
+                                                        ).structure_format
+                                                            === 'field_type_list'
+                                                            ? 'border-sky-500 bg-sky-50 text-sky-700 dark:bg-sky-950/30 dark:text-sky-300'
+                                                            : 'bg-background'
+                                                    "
+                                                    @click="
+                                                        dynamicSourceStructureForm(
+                                                            dynamicSourceSelectedAsset()!,
+                                                        ).structure_format =
+                                                            'field_type_list'
+                                                    "
+                                                >
+                                                    Lista de campos y tipos
+                                                </button>
+
+                                                <button
+                                                    type="button"
+                                                    class="cursor-pointer rounded-lg border px-3 py-2 text-xs font-bold"
+                                                    :class="
+                                                        dynamicSourceStructureForm(
+                                                            dynamicSourceSelectedAsset()!,
+                                                        ).structure_format
+                                                            === 'sql_server_ddl'
+                                                            ? 'border-sky-500 bg-sky-50 text-sky-700 dark:bg-sky-950/30 dark:text-sky-300'
+                                                            : 'bg-background'
+                                                    "
+                                                    @click="
+                                                        dynamicSourceStructureForm(
+                                                            dynamicSourceSelectedAsset()!,
+                                                        ).structure_format =
+                                                            'sql_server_ddl'
+                                                    "
+                                                >
+                                                    CREATE TABLE SQL Server
+                                                </button>
+
+                                                <button
+                                                    type="button"
+                                                    class="cursor-pointer rounded-lg border px-3 py-2 text-xs font-bold"
+                                                    :class="
+                                                        dynamicSourceStructureForm(
+                                                            dynamicSourceSelectedAsset()!,
+                                                        ).structure_format
+                                                            === 'other'
+                                                            ? 'border-sky-500 bg-sky-50 text-sky-700 dark:bg-sky-950/30 dark:text-sky-300'
+                                                            : 'bg-background'
+                                                    "
+                                                    @click="
+                                                        dynamicSourceStructureForm(
+                                                            dynamicSourceSelectedAsset()!,
+                                                        ).structure_format =
+                                                            'other'
+                                                    "
+                                                >
+                                                    Otra estructura
+                                                </button>
+                                            </div>
+                                        </div>
+
+                                        <label class="mt-4 block">
+                                            <span
+                                                class="text-xs font-semibold"
+                                            >
+                                                Definición de estructura
+                                            </span>
+
+                                            <textarea
+                                                v-model="
+                                                    dynamicSourceStructureForm(
+                                                        dynamicSourceSelectedAsset()!,
+                                                    ).structure_text
+                                                "
+                                                maxlength="50000"
+                                                rows="12"
+                                                class="mt-1 w-full rounded-lg border bg-background px-3 py-2 font-mono text-xs leading-5"
+                                                placeholder="[CODIGO] varchar(20)&#10;[NOMBRE] varchar(150)&#10;[RNC] varchar(20)"
+                                            ></textarea>
+
+                                            <span
+                                                class="mt-1 block text-[11px] leading-5 text-muted-foreground"
+                                            >
+                                                Puedes pegar una lista de campos,
+                                                un CREATE TABLE o cualquier descripción
+                                                estructural útil. No pegues datos,
+                                                credenciales, usuarios ni contraseñas.
+                                            </span>
+                                        </label>
+
+                                        <div
+                                            v-if="
+                                                dynamicSourceStructureForm(
+                                                    dynamicSourceSelectedAsset()!,
+                                                ).error
+                                            "
+                                            class="mt-3 rounded-lg border border-red-200 bg-red-50 p-3 text-xs text-red-700 dark:border-red-900/60 dark:bg-red-950/30 dark:text-red-300"
+                                        >
+                                            {{
+                                                dynamicSourceStructureForm(
+                                                    dynamicSourceSelectedAsset()!,
+                                                ).error
+                                            }}
+                                        </div>
+
+                                        <div
+                                            class="mt-4 flex flex-wrap items-center justify-between gap-3"
+                                        >
+                                            <p
+                                                class="text-xs text-muted-foreground"
+                                            >
+                                                Formato actual:
+                                                <strong>
+                                                    {{
+                                                        dynamicSourceStructureFormatLabel(
+                                                            dynamicSourceStructureForm(
+                                                                dynamicSourceSelectedAsset()!,
+                                                            ).structure_format,
+                                                        )
+                                                    }}
+                                                </strong>
+                                            </p>
+
+                                            <button
+                                                v-if="dynamicSourceCanManage()"
+                                                type="button"
+                                                class="cursor-pointer rounded-lg bg-foreground px-4 py-2 text-sm font-bold text-background disabled:cursor-not-allowed disabled:opacity-50"
+                                                :disabled="
+                                                    dynamicSourceStructureForm(
+                                                        dynamicSourceSelectedAsset()!,
+                                                    ).busy
+                                                "
+                                                @click="
+                                                    saveDynamicSourceStructure(
+                                                        dynamicSourceSelectedAsset()!,
+                                                    )
+                                                "
+                                            >
+                                                {{
+                                                    dynamicSourceStructureForm(
+                                                        dynamicSourceSelectedAsset()!,
+                                                    ).busy
+                                                        ? 'Guardando estructura...'
+                                                        : 'Guardar estructura'
+                                                }}
+                                            </button>
+                                        </div>
+                                    </div>
+
+                                    <!-- EXTRACTION -->
+                                    <div
+                                        v-if="
+                                            dynamicSourceActiveTab
+                                            === 'extraction'
+                                            && dynamicSourceSelectedAsset()
+                                        "
+                                    >
+                                        <div
+                                            class="flex flex-wrap items-start justify-between gap-3"
+                                        >
+                                            <div>
+                                                <p class="text-sm font-black">
+                                                    Asistencia de extracción
+                                                </p>
+
+                                                <p
+                                                    class="mt-1 max-w-3xl text-xs leading-5 text-muted-foreground"
+                                                >
+                                                    Esta herramienta es opcional e
+                                                    independiente del origen informado.
+                                                    LAUDA no conecta al servidor del
+                                                    cliente. Solo prepara una consulta
+                                                    SELECT que el cliente ejecuta
+                                                    localmente.
+                                                </p>
+                                            </div>
+
+                                            <span
+                                                class="rounded-full border px-2.5 py-1 text-[10px] font-bold uppercase text-muted-foreground"
+                                            >
+                                                Sin conexión remota
+                                            </span>
+                                        </div>
+
+                                        <div
+                                            v-if="
+                                                !dynamicSourceSelectedAsset()
+                                                    ?.structure_text
+                                            "
+                                            class="mt-4 rounded-lg border border-amber-200 bg-amber-50 p-3 text-xs leading-5 text-amber-800 dark:border-amber-900/60 dark:bg-amber-950/20 dark:text-amber-300"
+                                        >
+                                            Guarda primero la estructura de esta
+                                            fuente en la pestaña
+                                            <strong>Estructura</strong>.
+                                        </div>
+
+                                        <div
+                                            v-else
+                                            class="mt-4"
+                                        >
+                                            <div
+                                                class="rounded-xl border bg-muted/20 p-4"
+                                            >
+                                                <div
+                                                    class="flex flex-wrap items-center justify-between gap-3"
+                                                >
+                                                    <div>
+                                                        <p class="text-sm font-black">
+                                                            SQL Server
+                                                        </p>
+
+                                                        <p
+                                                            class="mt-1 text-xs text-muted-foreground"
+                                                        >
+                                                            Genera un SELECT de solo lectura
+                                                            usando la estructura ya guardada.
+                                                        </p>
+                                                    </div>
+
+                                                    <span
+                                                        class="rounded-full border px-2 py-1 text-[10px] font-bold"
+                                                    >
+                                                        SELECT solamente
+                                                    </span>
+                                                </div>
+
+                                                <div
+                                                    class="mt-4 grid gap-3 md:grid-cols-2"
+                                                >
+                                                    <label class="block">
+                                                        <span
+                                                            class="text-xs font-semibold"
+                                                        >
+                                                            Esquema
+                                                        </span>
+
+                                                        <input
+                                                            v-model="
+                                                                dynamicSourceSqlServerForm(
+                                                                    dynamicSourceSelectedAsset()!,
+                                                                ).schema_name
+                                                            "
+                                                            type="text"
+                                                            maxlength="128"
+                                                            class="mt-1 w-full rounded-lg border bg-background px-3 py-2 text-sm"
+                                                            placeholder="dbo"
+                                                        />
+                                                    </label>
+
+                                                    <label class="block">
+                                                        <span
+                                                            class="text-xs font-semibold"
+                                                        >
+                                                            Tabla
+                                                        </span>
+
+                                                        <input
+                                                            v-model="
+                                                                dynamicSourceSqlServerForm(
+                                                                    dynamicSourceSelectedAsset()!,
+                                                                ).table_name
+                                                            "
+                                                            type="text"
+                                                            maxlength="128"
+                                                            class="mt-1 w-full rounded-lg border bg-background px-3 py-2 text-sm"
+                                                            :placeholder="
+                                                                dynamicSourceSelectedAsset()
+                                                                    ?.source_object_name
+                                                            "
+                                                        />
+                                                    </label>
+                                                </div>
+
+                                                <div
+                                                    v-if="
+                                                        dynamicSourceSqlServerForm(
+                                                            dynamicSourceSelectedAsset()!,
+                                                        ).error
+                                                    "
+                                                    class="mt-3 rounded-lg border border-red-200 bg-red-50 p-3 text-xs leading-5 text-red-700 dark:border-red-900/60 dark:bg-red-950/30 dark:text-red-300"
+                                                >
+                                                    {{
+                                                        dynamicSourceSqlServerForm(
+                                                            dynamicSourceSelectedAsset()!,
+                                                        ).error
+                                                    }}
+                                                </div>
+
+                                                <div class="mt-4">
+                                                    <button
+                                                        type="button"
+                                                        class="cursor-pointer rounded-lg bg-foreground px-4 py-2 text-sm font-bold text-background disabled:cursor-not-allowed disabled:opacity-50"
+                                                        :disabled="
+                                                            dynamicSourceSqlServerForm(
+                                                                dynamicSourceSelectedAsset()!,
+                                                            ).busy
+                                                        "
+                                                        @click="
+                                                            generateDynamicSourceSqlServerPreview(
+                                                                dynamicSourceSelectedAsset()!,
+                                                            )
+                                                        "
+                                                    >
+                                                        {{
+                                                            dynamicSourceSqlServerForm(
+                                                                dynamicSourceSelectedAsset()!,
+                                                            ).busy
+                                                                ? 'Generando...'
+                                                                : 'Preparar extracción SQL Server'
+                                                        }}
+                                                    </button>
+                                                </div>
+                                            </div>
+
+                                            <div
+                                                v-if="
+                                                    dynamicSourceSqlServerForm(
+                                                        dynamicSourceSelectedAsset()!,
+                                                    ).preview
+                                                "
+                                                class="mt-4 space-y-4"
+                                            >
+                                                <div
+                                                    class="rounded-xl border p-4"
+                                                >
+                                                    <p
+                                                        class="text-xs font-black"
+                                                    >
+                                                        Campos detectados ·
+                                                        {{
+                                                            dynamicSourceSqlServerForm(
+                                                                dynamicSourceSelectedAsset()!,
+                                                            ).preview?.field_count
+                                                        }}
+                                                    </p>
+
+                                                    <div
+                                                        class="mt-2 flex flex-wrap gap-1.5"
+                                                    >
+                                                        <span
+                                                            v-for="
+                                                                field in dynamicSourceSqlServerForm(
+                                                                    dynamicSourceSelectedAsset()!,
+                                                                ).preview?.fields
+                                                            "
+                                                            :key="
+                                                                `dynamic-source-${dynamicSourceSelectedAsset()?.id}-field-${field.name}`
+                                                            "
+                                                            class="rounded-md border px-2 py-1 font-mono text-[11px]"
+                                                        >
+                                                            {{ field.name }}
+                                                        </span>
+                                                    </div>
+                                                </div>
+
+                                                <div
+                                                    class="rounded-xl border p-4"
+                                                >
+                                                    <div
+                                                        class="flex flex-wrap items-center justify-between gap-2"
+                                                    >
+                                                        <p
+                                                            class="text-xs font-black"
+                                                        >
+                                                            Consulta de extracción
+                                                        </p>
+
+                                                        <button
+                                                            type="button"
+                                                            class="cursor-pointer rounded-lg border px-3 py-1.5 text-xs font-bold"
+                                                            @click="
+                                                                copyDynamicSourceSqlServerQuery(
+                                                                    dynamicSourceSelectedAsset()!,
+                                                                )
+                                                            "
+                                                        >
+                                                            {{
+                                                                dynamicSourceSqlServerForm(
+                                                                    dynamicSourceSelectedAsset()!,
+                                                                ).copied
+                                                                    ? 'Copiado'
+                                                                    : 'Copiar consulta'
+                                                            }}
+                                                        </button>
+                                                    </div>
+
+                                                    <pre
+                                                        class="mt-3 max-h-80 overflow-auto whitespace-pre rounded-lg border bg-muted/20 p-3 font-mono text-xs leading-5"
+                                                    >{{ dynamicSourceSqlServerForm(
+                                                        dynamicSourceSelectedAsset()!,
+                                                    ).preview?.query }}</pre>
+                                                </div>
+
+                                                <div
+                                                    class="rounded-xl border p-4"
+                                                >
+                                                    <p class="text-xs font-black">
+                                                        Formato de entrega
+                                                    </p>
+
+                                                    <div
+                                                        class="mt-2 grid max-w-sm grid-cols-2 gap-2"
+                                                    >
+                                                        <button
+                                                            type="button"
+                                                            class="cursor-pointer rounded-lg border px-3 py-2 text-xs font-bold"
+                                                            :class="
+                                                                dynamicSourceSqlServerForm(
+                                                                    dynamicSourceSelectedAsset()!,
+                                                                ).export_format
+                                                                    === 'csv'
+                                                                    ? 'border-sky-500 bg-sky-50 text-sky-700 dark:bg-sky-950/30 dark:text-sky-300'
+                                                                    : 'bg-background'
+                                                            "
+                                                            @click="
+                                                                dynamicSourceSqlServerForm(
+                                                                    dynamicSourceSelectedAsset()!,
+                                                                ).export_format =
+                                                                    'csv'
+                                                            "
+                                                        >
+                                                            CSV
+                                                        </button>
+
+                                                        <button
+                                                            type="button"
+                                                            class="cursor-pointer rounded-lg border px-3 py-2 text-xs font-bold"
+                                                            :class="
+                                                                dynamicSourceSqlServerForm(
+                                                                    dynamicSourceSelectedAsset()!,
+                                                                ).export_format
+                                                                    === 'xlsx'
+                                                                    ? 'border-sky-500 bg-sky-50 text-sky-700 dark:bg-sky-950/30 dark:text-sky-300'
+                                                                    : 'bg-background'
+                                                            "
+                                                            @click="
+                                                                dynamicSourceSqlServerForm(
+                                                                    dynamicSourceSelectedAsset()!,
+                                                                ).export_format =
+                                                                    'xlsx'
+                                                            "
+                                                        >
+                                                            Excel (.xlsx)
+                                                        </button>
+                                                    </div>
+
+                                                    <div
+                                                        class="mt-3 rounded-lg border bg-muted/20 p-3"
+                                                    >
+                                                        <p
+                                                            class="text-xs font-bold"
+                                                        >
+                                                            Cómo entregar el archivo
+                                                        </p>
+
+                                                        <ol
+                                                            class="mt-2 list-decimal space-y-1 pl-5 text-xs leading-5 text-muted-foreground"
+                                                        >
+                                                            <li
+                                                                v-for="(
+                                                                    instruction,
+                                                                    index
+                                                                ) in dynamicSourceSqlServerInstructions(
+                                                                    dynamicSourceSelectedAsset()!,
+                                                                )"
+                                                                :key="
+                                                                    `dynamic-source-export-${index}`
+                                                                "
+                                                            >
+                                                                {{ instruction }}
+                                                            </li>
+                                                        </ol>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <!-- FILE -->
+                                    <div
+                                        v-if="
+                                            dynamicSourceActiveTab
+                                            === 'file'
+                                        "
+                                        class="space-y-4"
+                                    >
+                                        <div
+                                            class="rounded-xl border p-4"
+                                        >
+                                            <div
+                                                class="flex flex-wrap items-start justify-between gap-3"
+                                            >
+                                                <div>
+                                                    <p
+                                                        class="text-sm font-black"
+                                                    >
+                                                        Archivo CSV/XLSX
+                                                    </p>
+
+                                                    <p
+                                                        class="mt-1 max-w-2xl text-xs leading-5 text-muted-foreground"
+                                                    >
+                                                        Carga el archivo real de esta fuente.
+                                                        No necesita estar normalizado al modelo
+                                                        LAUDA y no requiere haber registrado
+                                                        previamente una estructura manual.
+                                                    </p>
+                                                </div>
+
+                                                <span
+                                                    class="rounded-full border px-2.5 py-1 text-[10px] font-bold uppercase"
+                                                >
+                                                    Máx. 32 MB
+                                                </span>
+                                            </div>
+                                        </div>
+
+                                        <div
+                                            v-if="
+                                                dynamicSourceSelectedAsset()
+                                                    ?.data_file
+                                            "
+                                            class="rounded-xl border bg-background/70 p-4"
+                                        >
+                                            <div
+                                                class="flex flex-wrap items-start justify-between gap-3"
+                                            >
+                                                <div>
+                                                    <p
+                                                        class="text-xs font-bold uppercase tracking-wide text-muted-foreground"
+                                                    >
+                                                        Archivo actual
+                                                    </p>
+
+                                                    <p
+                                                        class="mt-1 break-all text-sm font-black"
+                                                    >
+                                                        {{
+                                                            dynamicSourceSelectedAsset()
+                                                                ?.data_file
+                                                                ?.original_filename
+                                                        }}
+                                                    </p>
+                                                </div>
+
+                                                <span
+                                                    class="rounded-full border px-2.5 py-1 text-[10px] font-bold uppercase"
+                                                >
+                                                    {{
+                                                        dynamicSourceSelectedAsset()
+                                                            ?.data_file
+                                                            ?.source_format
+                                                            ?.toUpperCase()
+                                                    }}
+                                                </span>
+                                            </div>
+
+                                            <div
+                                                class="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4"
+                                            >
+                                                <div
+                                                    class="rounded-lg border p-3"
+                                                >
+                                                    <p
+                                                        class="text-[10px] font-bold uppercase text-muted-foreground"
+                                                    >
+                                                        Tamaño
+                                                    </p>
+
+                                                    <p
+                                                        class="mt-1 text-sm font-semibold"
+                                                    >
+                                                        {{
+                                                            dynamicSourceFileSizeLabel(
+                                                                dynamicSourceSelectedAsset()
+                                                                    ?.data_file
+                                                                    ?.source_size_bytes,
+                                                            )
+                                                        }}
+                                                    </p>
+                                                </div>
+
+                                                <div
+                                                    class="rounded-lg border p-3"
+                                                >
+                                                    <p
+                                                        class="text-[10px] font-bold uppercase text-muted-foreground"
+                                                    >
+                                                        Filas detectadas
+                                                    </p>
+
+                                                    <p
+                                                        class="mt-1 text-sm font-semibold"
+                                                    >
+                                                        {{
+                                                            (
+                                                                dynamicSourceSelectedAsset()
+                                                                    ?.data_file
+                                                                    ?.source_row_count
+                                                                ?? 0
+                                                            ).toLocaleString(
+                                                                'es-DO',
+                                                            )
+                                                        }}
+                                                    </p>
+                                                </div>
+
+                                                <div
+                                                    class="rounded-lg border p-3"
+                                                >
+                                                    <p
+                                                        class="text-[10px] font-bold uppercase text-muted-foreground"
+                                                    >
+                                                        Hojas detectadas
+                                                    </p>
+
+                                                    <p
+                                                        class="mt-1 text-sm font-semibold"
+                                                    >
+                                                        {{
+                                                            dynamicSourceDataSheets(
+                                                                dynamicSourceSelectedAsset()!,
+                                                            ).length
+                                                        }}
+                                                    </p>
+                                                </div>
+
+                                                <div
+                                                    class="rounded-lg border p-3"
+                                                >
+                                                    <p
+                                                        class="text-[10px] font-bold uppercase text-muted-foreground"
+                                                    >
+                                                        Recibido
+                                                    </p>
+
+                                                    <p
+                                                        class="mt-1 text-sm font-semibold"
+                                                    >
+                                                        {{
+                                                            dynamicSourceDateTimeLabel(
+                                                                dynamicSourceSelectedAsset()
+                                                                    ?.data_file
+                                                                    ?.uploaded_at,
+                                                            )
+                                                        }}
+                                                    </p>
+                                                </div>
+                                            </div>
+
+                                            <div
+                                                v-if="
+                                                    dynamicSourceDataSheets(
+                                                        dynamicSourceSelectedAsset()!,
+                                                    ).length
+                                                "
+                                                class="mt-4"
+                                            >
+                                                <p
+                                                    class="text-[10px] font-bold uppercase text-muted-foreground"
+                                                >
+                                                    Estructura observada por hoja
+                                                </p>
+
+                                                <div
+                                                    class="mt-2 flex flex-wrap gap-2"
+                                                >
+                                                    <span
+                                                        v-for="(
+                                                            sheet,
+                                                            index
+                                                        ) in dynamicSourceDataSheets(
+                                                            dynamicSourceSelectedAsset()!,
+                                                        )"
+                                                        :key="
+                                                            `dynamic-source-sheet-${sheet.index}-${index}`
+                                                        "
+                                                        class="rounded-full border px-2.5 py-1 text-xs"
+                                                    >
+                                                        {{
+                                                            dynamicSourceDataSheetLabel(
+                                                                sheet,
+                                                                index,
+                                                            )
+                                                        }}
+                                                    </span>
+                                                </div>
+                                            </div>
+
+                                            <div
+                                                class="mt-4 rounded-lg border p-3"
+                                            >
+                                                <p
+                                                    class="text-[10px] font-bold uppercase text-muted-foreground"
+                                                >
+                                                    SHA-256
+                                                </p>
+
+                                                <p
+                                                    class="mt-1 break-all font-mono text-[11px]"
+                                                >
+                                                    {{
+                                                        dynamicSourceSelectedAsset()
+                                                            ?.data_file
+                                                            ?.source_sha256
+                                                    }}
+                                                </p>
+                                            </div>
+                                        </div>
+
+                                        <div
+                                            v-else
+                                            class="rounded-xl border border-dashed p-4 text-xs leading-5 text-muted-foreground"
+                                        >
+                                            Todavía no se ha recibido un archivo para
+                                            esta fuente. Puedes cargar directamente un
+                                            CSV o XLSX; los encabezados y hojas se
+                                            utilizarán para descubrir su estructura.
+                                        </div>
+
+                                        <div
+                                            class="rounded-xl border border-dashed p-4"
+                                        >
+                                            <p
+                                                class="text-xs font-bold"
+                                            >
+                                                {{
+                                                    dynamicSourceSelectedAsset()
+                                                        ?.data_file
+                                                        ? 'Reemplazar archivo'
+                                                        : 'Seleccionar archivo'
+                                                }}
+                                            </p>
+
+                                            <input
+                                                :key="
+                                                    dynamicSourceDataUploadForm(
+                                                        dynamicSourceSelectedAsset()!,
+                                                    ).input_key
+                                                "
+                                                type="file"
+                                                accept=".csv,.xlsx"
+                                                class="mt-3 block w-full text-xs"
+                                                :disabled="
+                                                    !dynamicSourceCanManage()
+                                                    || dynamicSourceDataUploadForm(
+                                                        dynamicSourceSelectedAsset()!,
+                                                    ).busy
+                                                "
+                                                @change="
+                                                    selectDynamicSourceDataFile(
+                                                        dynamicSourceSelectedAsset()!,
+                                                        $event,
+                                                    )
+                                                "
+                                            />
+
+                                            <div
+                                                v-if="
+                                                    dynamicSourceDataUploadForm(
+                                                        dynamicSourceSelectedAsset()!,
+                                                    ).file
+                                                "
+                                                class="mt-3 rounded-lg border bg-background p-3 text-xs"
+                                            >
+                                                <strong>
+                                                    Seleccionado:
+                                                </strong>
+
+                                                {{
+                                                    dynamicSourceDataUploadForm(
+                                                        dynamicSourceSelectedAsset()!,
+                                                    ).file?.name
+                                                }}
+
+                                                ·
+
+                                                {{
+                                                    dynamicSourceFileSizeLabel(
+                                                        dynamicSourceDataUploadForm(
+                                                            dynamicSourceSelectedAsset()!,
+                                                        ).file?.size,
+                                                    )
+                                                }}
+                                            </div>
+
+                                            <p
+                                                v-if="
+                                                    dynamicSourceDataUploadForm(
+                                                        dynamicSourceSelectedAsset()!,
+                                                    ).error
+                                                "
+                                                class="mt-3 text-xs font-semibold"
+                                            >
+                                                {{
+                                                    dynamicSourceDataUploadForm(
+                                                        dynamicSourceSelectedAsset()!,
+                                                    ).error
+                                                }}
+                                            </p>
+
+                                            <p
+                                                v-if="
+                                                    dynamicSourceDataUploadForm(
+                                                        dynamicSourceSelectedAsset()!,
+                                                    ).message
+                                                "
+                                                class="mt-3 text-xs font-semibold"
+                                            >
+                                                {{
+                                                    dynamicSourceDataUploadForm(
+                                                        dynamicSourceSelectedAsset()!,
+                                                    ).message
+                                                }}
+                                            </p>
+
+                                            <div
+                                                class="mt-4 flex flex-wrap items-center gap-3"
+                                            >
+                                                <Button
+                                                    type="button"
+                                                    size="sm"
+                                                    :disabled="
+                                                        !dynamicSourceCanManage()
+                                                        || !dynamicSourceDataUploadForm(
+                                                            dynamicSourceSelectedAsset()!,
+                                                        ).file
+                                                        || dynamicSourceDataUploadForm(
+                                                            dynamicSourceSelectedAsset()!,
+                                                        ).busy
+                                                    "
+                                                    @click="
+                                                        uploadDynamicSourceData(
+                                                            dynamicSourceSelectedAsset()!,
+                                                        )
+                                                    "
+                                                >
+                                                    {{
+                                                        dynamicSourceDataUploadForm(
+                                                            dynamicSourceSelectedAsset()!,
+                                                        ).busy
+                                                            ? 'Procesando...'
+                                                            : dynamicSourceSelectedAsset()
+                                                                ?.data_file
+                                                                ? 'Reemplazar archivo'
+                                                                : 'Subir archivo'
+                                                    }}
+                                                </Button>
+
+                                                <span
+                                                    class="text-xs text-muted-foreground"
+                                                >
+                                                    Solo CSV o XLSX. El archivo se
+                                                    conserva en almacenamiento privado.
+                                                </span>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <!-- ANALYSIS -->
+                                    <div
+                                        v-if="
+                                            dynamicSourceActiveTab
+                                            === 'analysis'
+                                        "
+                                        class="rounded-xl border border-dashed p-6"
+                                    >
+                                        <p class="text-sm font-black">
+                                            Análisis de la fuente
+                                        </p>
+
+                                        <p
+                                            class="mt-2 max-w-2xl text-xs leading-5 text-muted-foreground"
+                                        >
+                                            Se habilitará después de recibir el
+                                            archivo CSV/XLSX: estructura observada,
+                                            filas, calidad, nulos, duplicados y otras
+                                            señales de perfilado.
+                                        </p>
+                                    </div>
+
+                                    <!-- MAPPING -->
+                                    <div
+                                        v-if="
+                                            dynamicSourceActiveTab
+                                            === 'mapping'
+                                        "
+                                        class="rounded-xl border border-dashed p-6"
+                                    >
+                                        <p class="text-sm font-black">
+                                            Mapeo al modelo LAUDA
+                                        </p>
+
+                                        <p
+                                            class="mt-2 max-w-2xl text-xs leading-5 text-muted-foreground"
+                                        >
+                                            Aquí relacionaremos posteriormente los
+                                            campos y fuentes reales con el modelo
+                                            canónico usado por staging, normalización,
+                                            BI e inteligencia empresarial.
+                                        </p>
+                                    </div>
+                                </div>
+                            </section>
+
+                            <div
+                                v-if="standardIntakeV2State?.session"
+                                class="mt-4 rounded-xl border bg-background/70 p-3 text-xs leading-5 text-muted-foreground"
+                            >
+                                <strong>Flujo:</strong>
+                                Información
+                                →
+                                Estructura
+                                →
+                                Extracción
+                                →
+                                CSV/XLSX
+                                →
+                                Análisis
+                                →
+                                Mapeo al modelo LAUDA.
+                                La estructura puede registrarse manualmente o
+                                descubrirse al recibir el archivo; cada fuente se
+                                carga de forma independiente.
+                            </div>
+                        </section>
 
                         <!-- D15C_INTAKE_V2_UI -->
                         <section
@@ -3847,7 +6878,7 @@ async function normalizeStandardIntakeBatch(): Promise<void> {
                                         <h3
                                             class="text-base font-black"
                                         >
-                                            Carga por dominios
+                                            Modelo objetivo LAUDA · procesamiento interno
                                         </h3>
 
                                         <span
@@ -3876,13 +6907,12 @@ async function normalizeStandardIntakeBatch(): Promise<void> {
                                     <p
                                         class="mt-2 text-sm leading-6 text-muted-foreground"
                                     >
-                                        Gestiona cada dominio de forma
-                                        independiente. Puedes cargar archivos
-                                        CSV/XLSX, indicar que no dispones de
-                                        datos o reutilizar información preparada
-                                        previamente. Las relaciones entre
-                                        dominios se validan cuando todas las
-                                        decisiones han sido completadas.
+                                        Esta sección conserva el contrato canónico
+                                        utilizado por staging, normalización y BI.
+                                        No representa las tablas o archivos que el
+                                        cliente debe entregar. Las fuentes reales
+                                        se registran arriba y posteriormente se
+                                        mapean hacia este modelo objetivo.
                                     </p>
                                 </div>
 
@@ -3916,7 +6946,31 @@ async function normalizeStandardIntakeBatch(): Promise<void> {
                                               : 'Iniciar sesión'
                                     }}
                                 </button>
-                            </div>
+
+                                <button
+                                    type="button"
+                                    class="cursor-pointer rounded-lg border px-4 py-2 text-sm font-bold disabled:cursor-not-allowed disabled:opacity-50"
+                                    :disabled="
+                                        standardIntakeV2Busy
+                                        !== null
+                                    "
+                                    @click="
+                                        standardIntakeV2CanonicalOpen =
+                                            !standardIntakeV2CanonicalOpen
+                                    "
+                                >
+                                    {{
+                                        standardIntakeV2CanonicalOpen
+                                            ? 'Ocultar modelo interno'
+                                            : 'Mostrar modelo interno'
+                                    }}
+                                </button>
+</div>
+                            <div
+                                v-show="standardIntakeV2CanonicalOpen"
+                                data-d17-canonical-body
+                            >
+
 
                             <div
                                 v-if="
@@ -5064,7 +8118,9 @@ async function normalizeStandardIntakeBatch(): Promise<void> {
                                 Inicia una sesión para gestionar los siete
                                 dominios.
                             </p>
-                        </section>
+
+                            </div>
+</section>
 
                         <div
                             v-if="

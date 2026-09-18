@@ -129,4 +129,13 @@ class DataTransformationBiIntakeSession extends Model
             'data_transformation_bi_intake_session_id'
         );
     }
+
+    public function sourceAssets(): HasMany
+    {
+        return $this->hasMany(
+            DataTransformationBiSourceAsset::class,
+            'data_transformation_bi_intake_session_id'
+        );
+    }
+
 }

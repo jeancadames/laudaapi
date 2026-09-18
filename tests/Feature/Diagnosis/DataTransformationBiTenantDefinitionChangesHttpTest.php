@@ -253,6 +253,59 @@ final class DataTransformationBiTenantDefinitionChangesHttpTest
                             'accesses_validated' =>
                                 true,
 
+                            'validation_evidence' => [
+                                'inputs' => [
+                                    [
+                                        'source_name' =>
+                                            'Archivo suministrado por el cliente',
+
+                                        'data_domains' => [
+                                            'clientes',
+                                            'productos',
+                                            'inventario',
+                                            'ventas',
+                                        ],
+
+                                        'owner' =>
+                                            'Cliente',
+
+                                        'historical_coverage' =>
+                                            'Histórico disponible',
+
+                                        'granularity' =>
+                                            'transacción',
+
+                                        'status' =>
+                                            'validated',
+
+                                        'notes' =>
+                                            'Archivo de prueba validado para el flujo funcional.',
+                                    ],
+                                ],
+
+                                'accesses' => [
+                                    [
+                                        'source_name' =>
+                                            'Archivo suministrado por el cliente',
+
+                                        'access_method' =>
+                                            'entrega de archivo',
+
+                                        'authorized' =>
+                                            true,
+
+                                        'verified' =>
+                                            true,
+
+                                        'status' =>
+                                            'validated',
+
+                                        'notes' =>
+                                            'Entrega de archivo validada para prueba funcional.',
+                                    ],
+                                ],
+                            ],
+
                             'responsibilities_confirmed' =>
                                 true,
                         ],

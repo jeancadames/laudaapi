@@ -420,6 +420,104 @@ Route::middleware(['auth', 'verified', 'role:admin'])
             'transformation360.implementation_requests.standard_intake_v2.templates.xlsx'
         );
 
+          /*
+          |--------------------------------------------------------------------------
+          | Data BI · Dynamic source assets
+          |--------------------------------------------------------------------------
+          |
+          | Client-native sources are independent from canonical LAUDA domains.
+          |
+          */
+
+          \Illuminate\Support\Facades\Route::post(
+              '/transformation-360/implementation-requests/{implementationRequest}/standard-intake-v2/sessions/{sessionId}/source-assets',
+              [
+                  \App\Http\Controllers\Admin\AdminDataTransformationBiIntakeV2Controller::class,
+                  'createSourceAsset',
+              ]
+          )
+              ->whereNumber('sessionId')
+              ->name(
+                  'transformation360.implementation_requests.standard_intake_v2.source_assets.create'
+              );
+
+          \Illuminate\Support\Facades\Route::patch(
+              '/transformation-360/implementation-requests/{implementationRequest}/standard-intake-v2/sessions/{sessionId}/source-assets/reorder',
+              [
+                  \App\Http\Controllers\Admin\AdminDataTransformationBiIntakeV2Controller::class,
+                  'reorderSourceAssets',
+              ]
+          )
+              ->whereNumber('sessionId')
+              ->name(
+                  'transformation360.implementation_requests.standard_intake_v2.source_assets.reorder'
+              );
+
+          \Illuminate\Support\Facades\Route::patch(
+              '/transformation-360/implementation-requests/{implementationRequest}/standard-intake-v2/sessions/{sessionId}/source-assets/{sourceAssetId}',
+              [
+                  \App\Http\Controllers\Admin\AdminDataTransformationBiIntakeV2Controller::class,
+                  'updateSourceAsset',
+              ]
+          )
+              ->whereNumber('sessionId')
+              ->whereNumber('sourceAssetId')
+              ->name(
+                  'transformation360.implementation_requests.standard_intake_v2.source_assets.update'
+              );
+
+          \Illuminate\Support\Facades\Route::patch(
+              '/transformation-360/implementation-requests/{implementationRequest}/standard-intake-v2/sessions/{sessionId}/source-assets/{sourceAssetId}/archive',
+              [
+                  \App\Http\Controllers\Admin\AdminDataTransformationBiIntakeV2Controller::class,
+                  'archiveSourceAsset',
+              ]
+          )
+              ->whereNumber('sessionId')
+              ->whereNumber('sourceAssetId')
+              ->name(
+                  'transformation360.implementation_requests.standard_intake_v2.source_assets.archive'
+              );
+
+          \Illuminate\Support\Facades\Route::post(
+              '/transformation-360/implementation-requests/{implementationRequest}/standard-intake-v2/sessions/{sessionId}/source-assets/{sourceAssetId}/data-file',
+              [
+                  \App\Http\Controllers\Admin\AdminDataTransformationBiIntakeV2Controller::class,
+                  'uploadSourceAssetData',
+              ]
+          )
+              ->whereNumber('sessionId')
+              ->whereNumber('sourceAssetId')
+              ->name(
+                  'transformation360.implementation_requests.standard_intake_v2.source_assets.data_file.upload'
+              );
+
+          \Illuminate\Support\Facades\Route::patch(
+              '/transformation-360/implementation-requests/{implementationRequest}/standard-intake-v2/sessions/{sessionId}/source-assets/{sourceAssetId}/structure',
+              [
+                  \App\Http\Controllers\Admin\AdminDataTransformationBiIntakeV2Controller::class,
+                  'updateSourceAssetStructure',
+              ]
+          )
+              ->whereNumber('sessionId')
+              ->whereNumber('sourceAssetId')
+              ->name(
+                  'transformation360.implementation_requests.standard_intake_v2.source_assets.structure'
+              );
+
+          \Illuminate\Support\Facades\Route::post(
+              '/transformation-360/implementation-requests/{implementationRequest}/standard-intake-v2/sessions/{sessionId}/source-assets/{sourceAssetId}/sql-server-extraction/preview',
+              [
+                  \App\Http\Controllers\Admin\AdminDataTransformationBiIntakeV2Controller::class,
+                  'previewSourceAssetSqlServerExtraction',
+              ]
+          )
+              ->whereNumber('sessionId')
+              ->whereNumber('sourceAssetId')
+              ->name(
+                  'transformation360.implementation_requests.standard_intake_v2.source_assets.sql_server_extraction.preview'
+              );
+
         \Illuminate\Support\Facades\Route::post(
             '/transformation-360/implementation-requests/{implementationRequest}/standard-intake-v2/domains/{domain}/sql-server-extraction/preview',
             [

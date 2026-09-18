@@ -255,7 +255,16 @@ test(
 
         expect($source)
             ->toContain(
-                'standardIntakeValidating || standardIntakeIngesting'
+                'standardIntakeValidating.value'
+            )
+            ->toContain(
+                'standardIntakeIngesting.value'
+            )
+            ->toContain(
+                '|| standardIntakeValidating'
+            )
+            ->toContain(
+                '|| standardIntakeIngesting'
             )
             ->and(
                 substr_count(

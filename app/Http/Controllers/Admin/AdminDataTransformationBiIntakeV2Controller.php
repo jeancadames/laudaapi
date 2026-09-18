@@ -4,10 +4,14 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\DataTransformationBiIntakeSession;
+use App\Models\DataTransformationBiSourceAsset;
 use App\Models\TransformationImplementationRequest;
 use App\Models\User;
 use App\Services\Diagnosis\DataTransformationBiIntakeV2DomainDeliveryService;
 use App\Services\Diagnosis\DataTransformationBiSourceDomainRegistry;
+use App\Services\Diagnosis\DataTransformationBiSourceAssetService;
+use App\Services\Diagnosis\DataTransformationBiSourceAssetStructureService;
+use App\Services\Diagnosis\DataTransformationBiSourceAssetDataUploadService;
 use App\Services\Diagnosis\DataTransformationBiSourceDomainUploadService;
 use App\Services\Diagnosis\DataTransformationBiSqlServerExtractionAssistant;
 use App\Services\Diagnosis\DataTransformationBiIntakeV2SessionResolutionService;
@@ -479,6 +483,599 @@ final class AdminDataTransformationBiIntakeV2Controller extends Controller
     /*
      * D15E_DOMAIN_TEMPLATE_CONTROLLER
      */
+    public function createSourceAsset(
+        Request $request,
+        TransformationImplementationRequest $implementationRequest,
+        int $sessionId,
+        DataTransformationBiSourceAssetService $service
+    ): JsonResponse {
+        $actor =
+            $this->actor(
+                $request
+            );
+
+        $this->assertRequest(
+            $implementationRequest
+        );
+
+        $session =
+            $this->scopedSession(
+                $implementationRequest,
+                $sessionId
+            );
+
+        $validated =
+            $request->validate([
+                'display_name' => [
+                    'required',
+                    'string',
+                    'max:191',
+                ],
+                'source_object_name' => [
+                    'required',
+                    'string',
+                    'max:255',
+                ],
+                'description' => [
+                    'nullable',
+                    'string',
+                    'max:4000',
+                ],
+                'origin_system' => [
+                    'nullable',
+                    'string',
+                    'max:191',
+                ],
+                'structure_format' => [
+                    'nullable',
+                    'string',
+                    'max:64',
+                ],
+                'delivery_format' => [
+                    'nullable',
+                    'string',
+                    'in:csv,xlsx',
+                ],
+            ]);
+
+        $asset =
+            $service->create(
+                $implementationRequest,
+                $session,
+                $validated,
+                $actor
+            );
+
+        return response()->json([
+            'ok' =>
+                true,
+
+            'message' =>
+                'Fuente de datos creada correctamente.',
+
+            'source_asset' =>
+                $this->sourceAssetPayload(
+                    $asset
+                ),
+        ]);
+    }
+
+    public function updateSourceAsset(
+        Request $request,
+        TransformationImplementationRequest $implementationRequest,
+        int $sessionId,
+        int $sourceAssetId,
+        DataTransformationBiSourceAssetService $service
+    ): JsonResponse {
+        $actor =
+            $this->actor(
+                $request
+            );
+
+        $this->assertRequest(
+            $implementationRequest
+        );
+
+        $session =
+            $this->scopedSession(
+                $implementationRequest,
+                $sessionId
+            );
+
+        $asset =
+            $this->scopedSourceAsset(
+                $implementationRequest,
+                $session,
+                $sourceAssetId
+            );
+
+        $validated =
+            $request->validate([
+                'display_name' => [
+                    'sometimes',
+                    'required',
+                    'string',
+                    'max:191',
+                ],
+                'source_object_name' => [
+                    'sometimes',
+                    'required',
+                    'string',
+                    'max:255',
+                ],
+                'description' => [
+                    'sometimes',
+                    'nullable',
+                    'string',
+                    'max:4000',
+                ],
+                'origin_system' => [
+                    'sometimes',
+                    'nullable',
+                    'string',
+                    'max:191',
+                ],
+                'structure_format' => [
+                    'sometimes',
+                    'nullable',
+                    'string',
+                    'max:64',
+                ],
+                'delivery_format' => [
+                    'sometimes',
+                    'nullable',
+                    'string',
+                    'in:csv,xlsx',
+                ],
+            ]);
+
+        $asset =
+            $service->update(
+                $implementationRequest,
+                $session,
+                $asset,
+                $validated,
+                $actor
+            );
+
+        return response()->json([
+            'ok' =>
+                true,
+
+            'message' =>
+                'Fuente de datos actualizada correctamente.',
+
+            'source_asset' =>
+                $this->sourceAssetPayload(
+                    $asset
+                ),
+        ]);
+    }
+
+    public function reorderSourceAssets(
+        Request $request,
+        TransformationImplementationRequest $implementationRequest,
+        int $sessionId,
+        DataTransformationBiSourceAssetService $service
+    ): JsonResponse {
+        $actor =
+            $this->actor(
+                $request
+            );
+
+        $this->assertRequest(
+            $implementationRequest
+        );
+
+        $session =
+            $this->scopedSession(
+                $implementationRequest,
+                $sessionId
+            );
+
+        $validated =
+            $request->validate([
+                'source_asset_ids' => [
+                    'present',
+                    'array',
+                ],
+                'source_asset_ids.*' => [
+                    'integer',
+                    'min:1',
+                    'distinct',
+                ],
+            ]);
+
+        $service->reorder(
+            $implementationRequest,
+            $session,
+            $validated['source_asset_ids'],
+            $actor
+        );
+
+        return response()->json([
+            'ok' =>
+                true,
+
+            'message' =>
+                'Orden de fuentes actualizado correctamente.',
+        ]);
+    }
+
+    public function archiveSourceAsset(
+        Request $request,
+        TransformationImplementationRequest $implementationRequest,
+        int $sessionId,
+        int $sourceAssetId,
+        DataTransformationBiSourceAssetService $service
+    ): JsonResponse {
+        $actor =
+            $this->actor(
+                $request
+            );
+
+        $this->assertRequest(
+            $implementationRequest
+        );
+
+        $session =
+            $this->scopedSession(
+                $implementationRequest,
+                $sessionId
+            );
+
+        $asset =
+            $this->scopedSourceAsset(
+                $implementationRequest,
+                $session,
+                $sourceAssetId
+            );
+
+        $asset =
+            $service->archive(
+                $implementationRequest,
+                $session,
+                $asset,
+                $actor
+            );
+
+        return response()->json([
+            'ok' =>
+                true,
+
+            'message' =>
+                'Fuente de datos archivada correctamente.',
+
+            'source_asset' =>
+                $this->sourceAssetPayload(
+                    $asset
+                ),
+        ]);
+    }
+
+    public function uploadSourceAssetData(
+        Request $request,
+        TransformationImplementationRequest $implementationRequest,
+        int $sessionId,
+        int $sourceAssetId,
+        DataTransformationBiSourceAssetDataUploadService $service
+    ): JsonResponse {
+        $actor =
+            $this->actor(
+                $request
+            );
+
+        $this->assertRequest(
+            $implementationRequest
+        );
+
+        $session =
+            $this->scopedSession(
+                $implementationRequest,
+                $sessionId
+            );
+
+        $asset =
+            $this->scopedSourceAsset(
+                $implementationRequest,
+                $session,
+                $sourceAssetId
+            );
+
+        $validator =
+            Validator::make(
+                $request->all(),
+                [
+                    'file' => [
+                        'required',
+                        'file',
+                        'max:'
+                            .DataTransformationBiSourceAssetDataUploadService
+                                ::MAX_UPLOAD_KILOBYTES,
+                    ],
+                ]
+            );
+
+        if ($validator->fails()) {
+            return response()->json(
+                [
+                    'ok' =>
+                        false,
+
+                    'message' =>
+                        'No se pudo recibir el archivo de la fuente.',
+
+                    'errors' =>
+                        $validator
+                            ->errors()
+                            ->toArray(),
+                ],
+                422
+            );
+        }
+
+        $file =
+            $request->file(
+                'file'
+            );
+
+        if (
+            $file === null
+            || ! $file->isValid()
+        ) {
+            return response()->json(
+                [
+                    'ok' =>
+                        false,
+
+                    'message' =>
+                        'El archivo recibido no es válido.',
+
+                    'errors' => [
+                        'file' => [
+                            'El archivo recibido no es válido.',
+                        ],
+                    ],
+                ],
+                422
+            );
+        }
+
+        try {
+            $result =
+                $service->persist(
+                    $implementationRequest,
+                    $session,
+                    $asset,
+                    $file,
+                    $actor
+                );
+        } catch (
+            ValidationException $exception
+        ) {
+            return $this->validationError(
+                $exception,
+                'No se pudo procesar el archivo de la fuente.'
+            );
+        } catch (
+            RuntimeException $exception
+        ) {
+            return $this->runtimeError(
+                $exception
+            );
+        }
+
+        $updatedAsset =
+            $result['source_asset']
+            ?? null;
+
+        $dataFile =
+            $result['data_file']
+            ?? null;
+
+        if (
+            ! $updatedAsset
+                instanceof DataTransformationBiSourceAsset
+            || ! is_array(
+                $dataFile
+            )
+        ) {
+            return $this->runtimeError(
+                new RuntimeException(
+                    'El servicio de carga no devolvió un resultado válido.'
+                )
+            );
+        }
+
+        return response()->json([
+            'ok' =>
+                true,
+
+            'message' =>
+                'Archivo CSV/XLSX recibido y analizado correctamente.',
+
+            'source_asset' =>
+                $this->sourceAssetPayload(
+                    $updatedAsset
+                ),
+
+            'data_file' =>
+                $dataFile,
+        ]);
+    }
+
+    public function updateSourceAssetStructure(
+        Request $request,
+        TransformationImplementationRequest $implementationRequest,
+        int $sessionId,
+        int $sourceAssetId,
+        DataTransformationBiSourceAssetStructureService $service
+    ): JsonResponse {
+        $actor =
+            $this->actor(
+                $request
+            );
+
+        $this->assertRequest(
+            $implementationRequest
+        );
+
+        $session =
+            $this->scopedSession(
+                $implementationRequest,
+                $sessionId
+            );
+
+        $asset =
+            $this->scopedSourceAsset(
+                $implementationRequest,
+                $session,
+                $sourceAssetId
+            );
+
+        $validated =
+            $request->validate([
+                'structure_format' => [
+                    'required',
+                    'string',
+                    'in:field_type_list,sql_server_ddl,other',
+                ],
+
+                'structure_text' => [
+                    'required',
+                    'string',
+                    'max:50000',
+                ],
+            ]);
+
+        $asset =
+            $service->save(
+                $implementationRequest,
+                $session,
+                $asset,
+                (string) $validated['structure_format'],
+                (string) $validated['structure_text'],
+                $actor
+            );
+
+        return response()->json([
+            'ok' =>
+                true,
+
+            'message' =>
+                'Estructura de la fuente guardada correctamente.',
+
+            'source_asset' =>
+                $this->sourceAssetPayload(
+                    $asset
+                ),
+        ]);
+    }
+
+    public function previewSourceAssetSqlServerExtraction(
+        Request $request,
+        TransformationImplementationRequest $implementationRequest,
+        int $sessionId,
+        int $sourceAssetId,
+        DataTransformationBiSqlServerExtractionAssistant $assistant
+    ): JsonResponse {
+        $actor =
+            $this->actor(
+                $request
+            );
+
+        $this->assertRequest(
+            $implementationRequest
+        );
+
+        $session =
+            $this->scopedSession(
+                $implementationRequest,
+                $sessionId
+            );
+
+        $asset =
+            $this->scopedSourceAsset(
+                $implementationRequest,
+                $session,
+                $sourceAssetId
+            );
+
+        $structureText =
+            trim(
+                (string) (
+                    $asset->structure_text
+                    ?? ''
+                )
+            );
+
+        if ($structureText === '') {
+            throw ValidationException::withMessages([
+                'structure_text' => [
+                    'Guarda primero la estructura de esta fuente.',
+                ],
+            ]);
+        }
+
+        $validated =
+            $request->validate([
+                'schema_name' => [
+                    'required',
+                    'string',
+                    'max:128',
+                ],
+
+                'table_name' => [
+                    'nullable',
+                    'string',
+                    'max:128',
+                ],
+            ]);
+
+        $tableName =
+            trim(
+                (string) (
+                    $validated['table_name']
+                    ?? ''
+                )
+            );
+
+        if ($tableName === '') {
+            $tableName =
+                trim(
+                    (string) $asset->source_object_name
+                );
+        }
+
+        try {
+            $preview =
+                $assistant->preview(
+                    trim(
+                        (string) $validated['schema_name']
+                    ),
+                    $tableName,
+                    $structureText
+                );
+        } catch (\Throwable $exception) {
+            throw ValidationException::withMessages([
+                'structure_text' => [
+                    $exception->getMessage(),
+                ],
+            ]);
+        }
+
+        return response()->json([
+            'ok' =>
+                true,
+
+            'source_asset_id' =>
+                (int) $asset->getKey(),
+
+            'preview' =>
+                $preview,
+        ]);
+    }
+
     public function previewSqlServerExtraction(
         Request $request,
         TransformationImplementationRequest $implementationRequest,
@@ -761,4 +1358,130 @@ final class AdminDataTransformationBiIntakeV2Controller extends Controller
             422
         );
     }
+
+    private function scopedSourceAsset(
+        TransformationImplementationRequest $implementationRequest,
+        DataTransformationBiIntakeSession $session,
+        int $sourceAssetId
+    ): DataTransformationBiSourceAsset {
+        $asset =
+            DataTransformationBiSourceAsset::query()
+                ->whereKey(
+                    $sourceAssetId
+                )
+                ->where(
+                    'company_id',
+                    (int) $implementationRequest->company_id
+                )
+                ->where(
+                    'data_transformation_bi_intake_session_id',
+                    (int) $session->getKey()
+                )
+                ->first();
+
+        abort_unless(
+            $asset !== null,
+            404
+        );
+
+        return $asset;
+    }
+
+    /**
+     * Safe HTTP representation of one dynamic source.
+     *
+     * @return array<string,mixed>
+     */
+    private function sourceAssetPayload(
+        DataTransformationBiSourceAsset $asset
+    ): array {
+        return [
+            'id' =>
+                (int) $asset->getKey(),
+
+            'display_name' =>
+                (string) $asset->display_name,
+
+            'source_object_name' =>
+                (string) $asset->source_object_name,
+
+            'description' =>
+                $asset->description !== null
+                    ? (string) $asset->description
+                    : null,
+
+            'origin_system' =>
+                $asset->origin_system !== null
+                    ? (string) $asset->origin_system
+                    : null,
+
+            'structure_format' =>
+                $asset->structure_format !== null
+                    ? (string) $asset->structure_format
+                    : null,
+
+            'structure_text' =>
+                $asset->structure_text !== null
+                    ? (string) $asset->structure_text
+                    : null,
+
+            'delivery_format' =>
+                $asset->delivery_format !== null
+                    ? (string) $asset->delivery_format
+                    : null,
+
+            'status' =>
+                (string) $asset->status,
+
+            'structure_status' =>
+                (string) $asset->structure_status,
+
+            'data_status' =>
+                (string) $asset->data_status,
+
+            'structure_snapshot' =>
+                $asset->structure_snapshot,
+
+            'profiling_snapshot' =>
+                $asset->profiling_snapshot,
+
+            'sort_order' =>
+                (int) $asset->sort_order,
+
+            'structure_analyzed_at' =>
+                $asset->structure_analyzed_at
+                    ?->toISOString(),
+
+            'data_received_at' =>
+                $asset->data_received_at
+                    ?->toISOString(),
+
+            'profiled_at' =>
+                $asset->profiled_at
+                    ?->toISOString(),
+
+            'archived_at' =>
+                $asset->archived_at
+                    ?->toISOString(),
+
+            'failure_code' =>
+                $asset->failure_code !== null
+                    ? (string) $asset->failure_code
+                    : null,
+
+            'failure_message' =>
+                $asset->failure_message !== null
+                    ? (string) $asset->failure_message
+                    : null,
+
+            'created_at' =>
+                $asset->created_at
+                    ?->toISOString(),
+
+            'updated_at' =>
+                $asset->updated_at
+                    ?->toISOString(),
+        ];
+    }
+
 }

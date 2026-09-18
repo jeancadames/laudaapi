@@ -18,10 +18,13 @@ test(
             ->not
             ->toBeFalse()
             ->toContain(
-                'Validar archivo estándar'
+                'async function validateStandardIntakeFile()'
             )
             ->toContain(
-                'Validar archivo'
+                'Selecciona un archivo Excel (.xlsx)'
+            )
+            ->toContain(
+                'o el paquete CSV de LAUDA (.zip).'
             )
             ->toContain(
                 'standardIntakeValidationUrl'
@@ -73,9 +76,6 @@ test(
                 'STANDARD_INTAKE_MAX_BYTES = 2 * 1024 * 1024'
             )
             ->toContain(
-                "accept=\".xlsx,.zip"
-            )
-            ->toContain(
                 "'xlsx'"
             )
             ->toContain(
@@ -85,13 +85,16 @@ test(
                 'El archivo supera el límite actual de 2 MB.'
             )
             ->toContain(
-                'Los CSV individuales'
+                'Selecciona un archivo Excel (.xlsx)'
             )
             ->toContain(
-                'El archivo se procesa temporalmente y no'
+                'o el paquete CSV de LAUDA (.zip).'
             )
             ->toContain(
-                'se conserva.'
+                'La validación anterior fue temporal'
+            )
+            ->toContain(
+                'y no guardó el archivo.'
             );
     }
 );

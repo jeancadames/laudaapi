@@ -80,13 +80,22 @@ test(
 
         expect($source)
             ->toContain(
-                'Descargar plantilla Excel'
+                'Referencia canónica Excel'
             )
             ->toContain(
-                'Descargar paquete CSV'
+                'Referencia canónica CSV'
             )
             ->toContain(
-                'Agregar otra fuente de datos'
+                '/standard-intake-template/xlsx'
+            )
+            ->toContain(
+                '/standard-intake-template/csv'
+            )
+            ->toContain(
+                '<!-- D17_DYNAMIC_SOURCE_WORKSPACE_UI -->'
+            )
+            ->toContain(
+                'Fuentes de datos'
             )
             ->toContain(
                 'cursor-pointer'

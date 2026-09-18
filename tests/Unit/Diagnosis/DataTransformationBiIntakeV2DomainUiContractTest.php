@@ -58,10 +58,9 @@ test(
             d15cIntakeV2UiSource();
 
         foreach ([
-            'Intake v2 por dominios',
-            'Flujo oficial',
-            'accept=".csv,.xlsx"',
-            'Subir CSV/XLSX',
+            'Modelo objetivo LAUDA · procesamiento interno',
+            'Esta sección conserva el contrato canónico',
+            'No representa las tablas o archivos que el',
             'No tengo datos',
             'Reutilizar datos preparados',
             'Validar relaciones',
@@ -149,17 +148,23 @@ test(
 );
 
 test(
-    'd15 c keeps legacy intake visibly compatibility only',
+    'd15 c presents canonical intake as downstream internal processing',
     function () {
         $source =
             d15cIntakeV2UiSource();
 
         expect($source)
             ->toContain(
-                'Compatibilidad Intake v1:'
+                'Modelo objetivo LAUDA · procesamiento interno'
             )
             ->toContain(
-                'El flujo oficial nuevo es Intake v2 por dominios.'
+                'Las fuentes reales'
+            )
+            ->toContain(
+                'mapean hacia este modelo objetivo.'
+            )
+            ->toContain(
+                'Fuentes de datos'
             );
     }
 );

@@ -219,7 +219,7 @@ test(
 );
 
 test(
-    'd15 f frontend exposes no private intake source metadata',
+    'd15 f frontend keeps private storage metadata hidden',
     function () {
         $source =
             file_get_contents(
@@ -231,7 +231,7 @@ test(
 
         foreach ([
             'source_path',
-            'source_sha256',
+            'source_disk',
             'validation_snapshot',
         ] as $forbidden) {
             expect($source)
@@ -240,5 +240,17 @@ test(
                     $forbidden
                 );
         }
+
+        /*
+         * SHA-256 is intentionally safe artifact metadata.
+         * It supports integrity without exposing private storage.
+         */
+        expect($source)
+            ->toContain(
+                'source_sha256'
+            )
+            ->toContain(
+                'SHA-256'
+            );
     }
 );

@@ -4,8 +4,10 @@ namespace App\Services\Diagnosis;
 
 use App\Models\DataTransformationBiIntakeDomainDelivery;
 use App\Models\DataTransformationBiSourceDomainFile;
+use App\Models\DataTransformationBiSourceAsset;
 use App\Models\DataTransformationBiIntakeSession;
 use App\Models\TransformationImplementationRequest;
+use Illuminate\Support\Facades\Schema;
 use RuntimeException;
 
 final class DataTransformationBiIntakeV2StateService
@@ -93,6 +95,11 @@ final class DataTransformationBiIntakeV2StateService
                     $requestId
                 );
 
+        $sourceAssets =
+            $this->sourceAssetsPayload(
+                $session
+            );
+
         return [
             'version' =>
                 2,
@@ -105,6 +112,9 @@ final class DataTransformationBiIntakeV2StateService
 
             'session' =>
                 $sessionPayload,
+
+            'source_assets' =>
+                $sourceAssets,
 
             'usable_dataset' =>
                 $usableDataset,
@@ -613,6 +623,9 @@ final class DataTransformationBiIntakeV2StateService
                 'can_edit_domains' =>
                     false,
 
+                'can_manage_sources' =>
+                    false,
+
                 'can_resolve' =>
                     false,
 
@@ -677,6 +690,25 @@ final class DataTransformationBiIntakeV2StateService
                     true
                 ),
 
+            /*
+             * Dynamic client-native sources currently share the same
+             * editable session states as canonical-domain decisions,
+             * but use their own semantic permission so both workflows
+             * can evolve independently.
+             */
+            'can_manage_sources' =>
+                in_array(
+                    $status,
+                    [
+                        DataTransformationBiIntakeSession
+                            ::STATUS_DRAFT,
+
+                        DataTransformationBiIntakeSession
+                            ::STATUS_READY,
+                    ],
+                    true
+                ),
+
             'can_resolve' =>
                 $status
                     === DataTransformationBiIntakeSession
@@ -706,4 +738,246 @@ final class DataTransformationBiIntakeV2StateService
             );
         }
     }
+
+    /**
+     * Read-only projection of active dynamic client-native sources.
+     *
+     * This projection deliberately:
+     * - does not require a canonical domain;
+     * - excludes archived sources from the active workspace;
+     * - exposes no private storage path;
+     * - exposes no credentials;
+     * - performs no lifecycle mutation.
+     *
+     * @return array<int,array<string,mixed>>
+     */
+    private function sourceAssetsPayload(
+        ?DataTransformationBiIntakeSession $session
+    ): array {
+        if (
+            $session === null
+            || ! Schema::hasTable(
+                'data_transformation_bi_source_assets'
+            )
+        ) {
+            return [];
+        }
+
+        $query =
+            DataTransformationBiSourceAsset::query()
+                ->where(
+                    'data_transformation_bi_intake_session_id',
+                    (int) $session->getKey()
+                )
+                ->where(
+                    'company_id',
+                    (int) $session->company_id
+                )
+                ->whereNull(
+                    'archived_at'
+                )
+                ->orderBy(
+                    'sort_order'
+                )
+                ->orderBy(
+                    'id'
+                );
+
+        /*
+         * The dynamic source tables are introduced additively.
+         *
+         * Until the file-artifact migration exists in a given
+         * environment, source state must continue to load safely.
+         */
+        if (
+            Schema::hasTable(
+                'data_transformation_bi_source_asset_files'
+            )
+        ) {
+            $query->with([
+                'dataFile' =>
+                    static function ($query): void {
+                        $query->select([
+                            'id',
+                            'data_transformation_bi_source_asset_id',
+                            'status',
+                            'original_filename',
+                            'source_format',
+                            'source_mime_type',
+                            'source_size_bytes',
+                            'source_sha256',
+                            'reader_configuration',
+                            'source_structure_snapshot',
+                            'source_row_count',
+                            'uploaded_at',
+                        ]);
+                    },
+            ]);
+        }
+
+        return $query
+            ->get([
+                'id',
+                'display_name',
+                'source_object_name',
+                'description',
+                'origin_system',
+                'structure_format',
+                'structure_text',
+                'delivery_format',
+                'status',
+                'structure_status',
+                'data_status',
+                'structure_snapshot',
+                'profiling_snapshot',
+                'sort_order',
+                'structure_analyzed_at',
+                'data_received_at',
+                'profiled_at',
+                'failure_code',
+                'failure_message',
+                'created_at',
+                'updated_at',
+            ])
+            ->map(
+                static function (
+                    DataTransformationBiSourceAsset $asset
+                ): array {
+                    $dataFile =
+                        $asset->relationLoaded(
+                            'dataFile'
+                        )
+                            ? $asset->dataFile
+                            : null;
+
+                    return [
+                        'id' =>
+                            (int) $asset->getKey(),
+
+                        'display_name' =>
+                            (string) $asset->display_name,
+
+                        'source_object_name' =>
+                            (string) $asset->source_object_name,
+
+                        'description' =>
+                            $asset->description !== null
+                                ? (string) $asset->description
+                                : null,
+
+                        'origin_system' =>
+                            $asset->origin_system !== null
+                                ? (string) $asset->origin_system
+                                : null,
+
+                        'structure_format' =>
+                            $asset->structure_format !== null
+                                ? (string) $asset->structure_format
+                                : null,
+
+                        'structure_text' =>
+                            $asset->structure_text !== null
+                                ? (string) $asset->structure_text
+                                : null,
+
+                        'delivery_format' =>
+                            $asset->delivery_format !== null
+                                ? (string) $asset->delivery_format
+                                : null,
+
+                        'status' =>
+                            (string) $asset->status,
+
+                        'structure_status' =>
+                            (string) $asset->structure_status,
+
+                        'data_status' =>
+                            (string) $asset->data_status,
+
+                        'structure_snapshot' =>
+                            $asset->structure_snapshot,
+
+                        'profiling_snapshot' =>
+                            $asset->profiling_snapshot,
+
+                        'data_file' =>
+                            $dataFile !== null
+                                ? [
+                                    'id' =>
+                                        (int) $dataFile->getKey(),
+
+                                    'status' =>
+                                        (string) $dataFile->status,
+
+                                    'original_filename' =>
+                                        (string) $dataFile->original_filename,
+
+                                    'source_format' =>
+                                        (string) $dataFile->source_format,
+
+                                    'source_mime_type' =>
+                                        $dataFile->source_mime_type !== null
+                                            ? (string) $dataFile->source_mime_type
+                                            : null,
+
+                                    'source_size_bytes' =>
+                                        (int) $dataFile->source_size_bytes,
+
+                                    'source_sha256' =>
+                                        (string) $dataFile->source_sha256,
+
+                                    'reader_configuration' =>
+                                        $dataFile->reader_configuration,
+
+                                    'source_structure_snapshot' =>
+                                        $dataFile->source_structure_snapshot,
+
+                                    'source_row_count' =>
+                                        (int) $dataFile->source_row_count,
+
+                                    'uploaded_at' =>
+                                        $dataFile->uploaded_at
+                                            ?->toISOString(),
+                                ]
+                                : null,
+
+                        'sort_order' =>
+                            (int) $asset->sort_order,
+
+                        'structure_analyzed_at' =>
+                            $asset->structure_analyzed_at
+                                ?->toISOString(),
+
+                        'data_received_at' =>
+                            $asset->data_received_at
+                                ?->toISOString(),
+
+                        'profiled_at' =>
+                            $asset->profiled_at
+                                ?->toISOString(),
+
+                        'failure_code' =>
+                            $asset->failure_code !== null
+                                ? (string) $asset->failure_code
+                                : null,
+
+                        'failure_message' =>
+                            $asset->failure_message !== null
+                                ? (string) $asset->failure_message
+                                : null,
+
+                        'created_at' =>
+                            $asset->created_at
+                                ?->toISOString(),
+
+                        'updated_at' =>
+                            $asset->updated_at
+                                ?->toISOString(),
+                    ];
+                }
+            )
+            ->values()
+            ->all();
+    }
+
 }
