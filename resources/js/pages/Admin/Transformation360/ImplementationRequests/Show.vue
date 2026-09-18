@@ -429,6 +429,104 @@ const standardIntakeValidationUrl =
 const standardIntakeIngestionUrl =
     `/admin/transformation-360/implementation-requests/${props.implementation_request.id}/standard-intake/ingest`;
 
+type SqlServerExtractionField = {
+    name: string;
+    quoted: string;
+};
+
+type SqlServerExtractionExportFormat =
+    'csv'
+    | 'xlsx';
+
+type SqlServerExtractionExportGuidance = {
+    label: string;
+    extension: string;
+    instructions: string[];
+};
+
+type SqlServerExtractionPreview = {
+    source_type: 'sql_server';
+    schema_name: string;
+    table_name: string;
+    field_count: number;
+    fields: SqlServerExtractionField[];
+    query: string;
+    export: {
+        csv: SqlServerExtractionExportGuidance;
+        xlsx: SqlServerExtractionExportGuidance;
+    };
+};
+
+type SqlServerExtractionFormState = {
+    open: boolean;
+    schema_name: string;
+    table_name: string;
+    structure_text: string;
+    export_format: SqlServerExtractionExportFormat;
+    busy: boolean;
+    error: string | null;
+    copied: boolean;
+    preview: SqlServerExtractionPreview | null;
+};
+
+const sqlServerExtractionForms =
+    ref<Record<string, SqlServerExtractionFormState>>({});
+
+function sqlServerExtractionForm(
+    domain: string,
+): SqlServerExtractionFormState {
+    if (!sqlServerExtractionForms.value[domain]) {
+        sqlServerExtractionForms.value[domain] = {
+            open: false,
+            schema_name: 'dbo',
+            table_name: '',
+            structure_text: '',
+            export_format: 'csv',
+            busy: false,
+            error: null,
+            copied: false,
+            preview: null,
+        };
+    }
+
+    return sqlServerExtractionForms.value[domain];
+}
+
+function toggleSqlServerExtraction(
+    domain: string,
+): void {
+    const form =
+        sqlServerExtractionForm(
+            domain,
+        );
+
+    form.open =
+        !form.open;
+
+    form.error =
+        null;
+}
+
+function sqlServerExtractionInstructions(
+    domain: string,
+): string[] {
+    const form =
+        sqlServerExtractionForm(
+            domain,
+        );
+
+    if (!form.preview) {
+        return [];
+    }
+
+    return form.preview
+        .export[
+            form.export_format
+        ]
+        ?.instructions
+        ?? [];
+}
+
 // D15C_INTAKE_V2_LOGIC
 const standardIntakeV2State =
     ref<StandardIntakeV2State | null>(
@@ -1026,6 +1124,119 @@ async function standardIntakeV2Request(
     }
 
     return payload;
+}
+
+async function generateSqlServerExtractionPreview(
+    domain: string,
+): Promise<void> {
+    const form =
+        sqlServerExtractionForm(
+            domain,
+        );
+
+    form.error =
+        null;
+
+    form.copied =
+        false;
+
+    if (
+        form.schema_name.trim() === ''
+        || form.table_name.trim() === ''
+        || form.structure_text.trim() === ''
+    ) {
+        form.error =
+            'Completa el esquema, la tabla y la estructura antes de generar la consulta.';
+
+        return;
+    }
+
+    form.busy =
+        true;
+
+    try {
+        const url =
+            `/admin/transformation-360/implementation-requests/${props.implementation_request.id}`
+            + `/standard-intake-v2/domains/${encodeURIComponent(domain)}`
+            + '/sql-server-extraction/preview';
+
+        const payload =
+            await standardIntakeV2Request(
+                url,
+                {
+                    body:
+                        JSON.stringify({
+                            schema_name:
+                                form.schema_name.trim(),
+
+                            table_name:
+                                form.table_name.trim(),
+
+                            structure_text:
+                                form.structure_text,
+                        }),
+                },
+            ) as StandardIntakeV2HttpResponse & {
+                preview?: SqlServerExtractionPreview;
+            };
+
+        if (!payload.preview) {
+            throw new Error(
+                'LAUDA no devolvió una vista previa de la consulta.',
+            );
+        }
+
+        form.preview =
+            payload.preview;
+    } catch (error) {
+        form.preview =
+            null;
+
+        form.error =
+            error instanceof Error
+                ? error.message
+                : 'No se pudo generar la consulta de extracción.';
+    } finally {
+        form.busy =
+            false;
+    }
+}
+
+async function copySqlServerExtractionQuery(
+    domain: string,
+): Promise<void> {
+    const form =
+        sqlServerExtractionForm(
+            domain,
+        );
+
+    const query =
+        form.preview?.query
+        ?? '';
+
+    if (query === '') {
+        return;
+    }
+
+    try {
+        await navigator.clipboard.writeText(
+            query,
+        );
+
+        form.copied =
+            true;
+
+        window.setTimeout(
+            () => {
+                form.copied =
+                    false;
+            },
+            2000,
+        );
+    } catch {
+        form.error =
+            'No se pudo copiar automáticamente. Selecciona el query y cópialo manualmente.';
+    }
 }
 
 function selectStandardIntakeV2File(
@@ -4380,6 +4591,340 @@ async function normalizeStandardIntakeBatch(): Promise<void> {
                                         >
                                             Plantilla XLSX
                                         </a>
+
+                                        <button
+                                            v-if="
+                                                standardIntakeV2Delivery(
+                                                    domain.key,
+                                                )
+                                                    ?.source_native_supported
+                                            "
+                                            type="button"
+                                            class="cursor-pointer rounded-lg border px-3 py-2 text-xs font-bold"
+                                            @click="
+                                                toggleSqlServerExtraction(
+                                                    domain.key,
+                                                )
+                                            "
+                                        >
+                                            {{
+                                                sqlServerExtractionForm(
+                                                    domain.key,
+                                                ).open
+                                                    ? 'Cerrar asistencia SQL Server'
+                                                    : 'Preparar extracción SQL Server'
+                                            }}
+                                        </button>
+                                    </div>
+
+                                    <div
+                                        v-if="
+                                            standardIntakeV2Delivery(
+                                                domain.key,
+                                            )
+                                                ?.source_native_supported
+                                            && sqlServerExtractionForm(
+                                                domain.key,
+                                            ).open
+                                        "
+                                        class="mt-4 rounded-xl border bg-muted/20 p-4"
+                                    >
+                                        <div
+                                            class="flex flex-wrap items-start justify-between gap-3"
+                                        >
+                                            <div>
+                                                <p
+                                                    class="text-sm font-bold"
+                                                >
+                                                    Preparar extracción desde SQL Server
+                                                </p>
+
+                                                <p
+                                                    class="mt-1 max-w-3xl text-xs leading-5 text-muted-foreground"
+                                                >
+                                                    Pega únicamente la estructura de la tabla.
+                                                    LAUDA preparará un SELECT de solo lectura.
+                                                    No necesitamos acceso al servidor, usuario,
+                                                    contraseña ni cadena de conexión.
+                                                </p>
+                                            </div>
+
+                                            <span
+                                                class="rounded-full border px-2.5 py-1 text-[11px] font-semibold text-muted-foreground"
+                                            >
+                                                Solo lectura
+                                            </span>
+                                        </div>
+
+                                        <div
+                                            class="mt-4 grid gap-3 md:grid-cols-2"
+                                        >
+                                            <label
+                                                class="block"
+                                            >
+                                                <span
+                                                    class="text-xs font-semibold"
+                                                >
+                                                    Esquema
+                                                </span>
+
+                                                <input
+                                                    v-model="
+                                                        sqlServerExtractionForm(
+                                                            domain.key,
+                                                        ).schema_name
+                                                    "
+                                                    type="text"
+                                                    maxlength="128"
+                                                    placeholder="dbo"
+                                                    class="mt-1 w-full rounded-lg border bg-background px-3 py-2 text-sm"
+                                                />
+                                            </label>
+
+                                            <label
+                                                class="block"
+                                            >
+                                                <span
+                                                    class="text-xs font-semibold"
+                                                >
+                                                    Tabla
+                                                </span>
+
+                                                <input
+                                                    v-model="
+                                                        sqlServerExtractionForm(
+                                                            domain.key,
+                                                        ).table_name
+                                                    "
+                                                    type="text"
+                                                    maxlength="128"
+                                                    placeholder="CTES"
+                                                    class="mt-1 w-full rounded-lg border bg-background px-3 py-2 text-sm"
+                                                />
+                                            </label>
+                                        </div>
+
+                                        <label
+                                            class="mt-3 block"
+                                        >
+                                            <span
+                                                class="text-xs font-semibold"
+                                            >
+                                                Estructura de la tabla
+                                            </span>
+
+                                            <textarea
+                                                v-model="
+                                                    sqlServerExtractionForm(
+                                                        domain.key,
+                                                    ).structure_text
+                                                "
+                                                maxlength="50000"
+                                                rows="9"
+                                                class="mt-1 w-full rounded-lg border bg-background px-3 py-2 font-mono text-xs leading-5"
+                                                placeholder="[CODIGO] varchar(20)&#10;[NOMBRE] varchar(150)&#10;[RNC] varchar(20)"
+                                            ></textarea>
+
+                                            <span
+                                                class="mt-1 block text-[11px] leading-5 text-muted-foreground"
+                                            >
+                                                Puedes pegar un CREATE TABLE de SQL Server
+                                                o una lista de campos con sus tipos.
+                                                No pegues datos, credenciales ni consultas
+                                                de actualización.
+                                            </span>
+                                        </label>
+
+                                        <div
+                                            v-if="
+                                                sqlServerExtractionForm(
+                                                    domain.key,
+                                                ).error
+                                            "
+                                            class="mt-3 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs leading-5 text-red-700 dark:border-red-900/50 dark:bg-red-950/20 dark:text-red-300"
+                                        >
+                                            {{
+                                                sqlServerExtractionForm(
+                                                    domain.key,
+                                                ).error
+                                            }}
+                                        </div>
+
+                                        <div
+                                            class="mt-3 flex flex-wrap gap-2"
+                                        >
+                                            <button
+                                                type="button"
+                                                class="cursor-pointer rounded-lg bg-foreground px-3 py-2 text-xs font-bold text-background disabled:cursor-not-allowed disabled:opacity-50"
+                                                :disabled="
+                                                    sqlServerExtractionForm(
+                                                        domain.key,
+                                                    ).busy
+                                                "
+                                                @click="
+                                                    generateSqlServerExtractionPreview(
+                                                        domain.key,
+                                                    )
+                                                "
+                                            >
+                                                {{
+                                                    sqlServerExtractionForm(
+                                                        domain.key,
+                                                    ).busy
+                                                        ? 'Generando...'
+                                                        : 'Generar consulta'
+                                                }}
+                                            </button>
+                                        </div>
+
+                                        <div
+                                            v-if="
+                                                sqlServerExtractionForm(
+                                                    domain.key,
+                                                ).preview
+                                            "
+                                            class="mt-5 space-y-4"
+                                        >
+                                            <div>
+                                                <p
+                                                    class="text-xs font-bold"
+                                                >
+                                                    Campos detectados
+                                                    ·
+                                                    {{
+                                                        sqlServerExtractionForm(
+                                                            domain.key,
+                                                        ).preview?.field_count
+                                                    }}
+                                                </p>
+
+                                                <div
+                                                    class="mt-2 flex flex-wrap gap-1.5"
+                                                >
+                                                    <span
+                                                        v-for="
+                                                            field in sqlServerExtractionForm(
+                                                                domain.key,
+                                                            ).preview?.fields
+                                                        "
+                                                        :key="
+                                                            `${domain.key}-sql-field-${field.name}`
+                                                        "
+                                                        class="rounded-md border bg-background px-2 py-1 font-mono text-[11px]"
+                                                    >
+                                                        {{ field.name }}
+                                                    </span>
+                                                </div>
+                                            </div>
+
+                                            <div>
+                                                <div
+                                                    class="flex flex-wrap items-center justify-between gap-2"
+                                                >
+                                                    <p
+                                                        class="text-xs font-bold"
+                                                    >
+                                                        Consulta de extracción
+                                                    </p>
+
+                                                    <button
+                                                        type="button"
+                                                        class="cursor-pointer rounded-lg border px-3 py-1.5 text-xs font-bold"
+                                                        @click="
+                                                            copySqlServerExtractionQuery(
+                                                                domain.key,
+                                                            )
+                                                        "
+                                                    >
+                                                        {{
+                                                            sqlServerExtractionForm(
+                                                                domain.key,
+                                                            ).copied
+                                                                ? 'Copiado'
+                                                                : 'Copiar consulta'
+                                                        }}
+                                                    </button>
+                                                </div>
+
+                                                <pre
+                                                    class="mt-2 max-h-80 overflow-auto whitespace-pre rounded-lg border bg-background p-3 font-mono text-xs leading-5"
+                                                >{{ sqlServerExtractionForm(
+                                                    domain.key,
+                                                ).preview?.query }}</pre>
+                                            </div>
+
+                                            <div>
+                                                <label
+                                                    class="block max-w-xs"
+                                                >
+                                                    <span
+                                                        class="text-xs font-semibold"
+                                                    >
+                                                        Formato de entrega
+                                                    </span>
+
+                                                    <select
+                                                        v-model="
+                                                            sqlServerExtractionForm(
+                                                                domain.key,
+                                                            ).export_format
+                                                        "
+                                                        class="mt-1 w-full rounded-lg border bg-background px-3 py-2 text-sm"
+                                                    >
+                                                        <option
+                                                            value="csv"
+                                                        >
+                                                            CSV
+                                                        </option>
+
+                                                        <option
+                                                            value="xlsx"
+                                                        >
+                                                            Excel (.xlsx)
+                                                        </option>
+                                                    </select>
+                                                </label>
+
+                                                <div
+                                                    class="mt-3 rounded-lg border bg-background p-3"
+                                                >
+                                                    <p
+                                                        class="text-xs font-bold"
+                                                    >
+                                                        Cómo entregar el archivo
+                                                    </p>
+
+                                                    <ol
+                                                        class="mt-2 list-decimal space-y-1 pl-5 text-xs leading-5 text-muted-foreground"
+                                                    >
+                                                        <li
+                                                            v-for="
+                                                                (
+                                                                    instruction,
+                                                                    index
+                                                                ) in sqlServerExtractionInstructions(
+                                                                    domain.key,
+                                                                )
+                                                            "
+                                                            :key="
+                                                                `${domain.key}-sql-export-${index}`
+                                                            "
+                                                        >
+                                                            {{ instruction }}
+                                                        </li>
+                                                    </ol>
+                                                </div>
+
+                                                <p
+                                                    class="mt-3 text-[11px] leading-5 text-muted-foreground"
+                                                >
+                                                    El query se ejecuta únicamente en
+                                                    el entorno del cliente. Después de
+                                                    exportar el resultado, súbelo abajo
+                                                    como archivo fuente de este dominio.
+                                                </p>
+                                            </div>
+                                        </div>
                                     </div>
 
                                     <div

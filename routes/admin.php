@@ -421,6 +421,17 @@ Route::middleware(['auth', 'verified', 'role:admin'])
         );
 
         \Illuminate\Support\Facades\Route::post(
+            '/transformation-360/implementation-requests/{implementationRequest}/standard-intake-v2/domains/{domain}/sql-server-extraction/preview',
+            [
+                \App\Http\Controllers\Admin\AdminDataTransformationBiIntakeV2Controller::class,
+                'previewSqlServerExtraction',
+            ]
+        )
+            ->name(
+                'transformation360.implementation_requests.standard_intake_v2.domain.sql_server_extraction.preview'
+            );
+
+        Route::post(
             '/transformation-360/implementation-requests/{implementationRequest}/standard-intake-v2/session',
             [
                 \App\Http\Controllers\Admin\AdminDataTransformationBiIntakeV2Controller::class,

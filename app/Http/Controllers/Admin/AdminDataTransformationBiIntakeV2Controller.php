@@ -9,6 +9,7 @@ use App\Models\User;
 use App\Services\Diagnosis\DataTransformationBiIntakeV2DomainDeliveryService;
 use App\Services\Diagnosis\DataTransformationBiSourceDomainRegistry;
 use App\Services\Diagnosis\DataTransformationBiSourceDomainUploadService;
+use App\Services\Diagnosis\DataTransformationBiSqlServerExtractionAssistant;
 use App\Services\Diagnosis\DataTransformationBiIntakeV2SessionResolutionService;
 use App\Services\Diagnosis\DataTransformationBiIntakeV2SessionService;
 use App\Services\Diagnosis\DataTransformationBiIntakeV2StagingMaterializationService;
@@ -478,6 +479,109 @@ final class AdminDataTransformationBiIntakeV2Controller extends Controller
     /*
      * D15E_DOMAIN_TEMPLATE_CONTROLLER
      */
+    public function previewSqlServerExtraction(
+        Request $request,
+        TransformationImplementationRequest $implementationRequest,
+        string $domain,
+        DataTransformationBiSqlServerExtractionAssistant $assistant
+    ): JsonResponse {
+        $this->actor(
+            $request
+        );
+
+        $this->assertRequest(
+            $implementationRequest
+        );
+
+        abort_unless(
+            DataTransformationBiSourceDomainRegistry
+                ::supports(
+                    $domain
+                ),
+            404
+        );
+
+        $validator =
+            Validator::make(
+                $request->all(),
+                [
+                    'schema_name' => [
+                        'required',
+                        'string',
+                        'max:128',
+                    ],
+
+                    'table_name' => [
+                        'required',
+                        'string',
+                        'max:128',
+                    ],
+
+                    'structure_text' => [
+                        'required',
+                        'string',
+                        'max:'
+                        .DataTransformationBiSqlServerExtractionAssistant
+                            ::MAX_STRUCTURE_LENGTH,
+                    ],
+                ]
+            );
+
+        if ($validator->fails()) {
+            return response()->json(
+                [
+                    'ok' =>
+                        false,
+
+                    'message' =>
+                        'No se pudo interpretar la estructura de SQL Server.',
+
+                    'errors' =>
+                        $validator
+                            ->errors()
+                            ->toArray(),
+                ],
+                422
+            );
+        }
+
+        try {
+            $preview =
+                $assistant->preview(
+                    (string) $request->input(
+                        'schema_name'
+                    ),
+                    (string) $request->input(
+                        'table_name'
+                    ),
+                    (string) $request->input(
+                        'structure_text'
+                    )
+                );
+        } catch (
+            ValidationException $exception
+        ) {
+            return $this->validationError(
+                $exception,
+                'No se pudo generar la consulta de extracción.'
+            );
+        }
+
+        return response()->json([
+            'ok' =>
+                true,
+
+            'message' =>
+                'Consulta de extracción preparada correctamente.',
+
+            'domain' =>
+                $domain,
+
+            'preview' =>
+                $preview,
+        ]);
+    }
+
     public function downloadDomainCsvTemplate(
         Request $request,
         TransformationImplementationRequest $implementationRequest,
