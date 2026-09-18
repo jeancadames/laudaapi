@@ -3395,14 +3395,8 @@ async function normalizeStandardIntakeBatch(): Promise<void> {
                                         <h3
                                             class="text-base font-black"
                                         >
-                                            Intake v2 por dominios
+                                            Carga por dominios
                                         </h3>
-
-                                        <span
-                                            class="rounded-full border border-sky-300 bg-sky-100 px-2.5 py-1 text-[10px] font-black uppercase tracking-wide text-sky-800 dark:border-sky-800 dark:bg-sky-950 dark:text-sky-300"
-                                        >
-                                            Flujo oficial
-                                        </span>
 
                                         <span
                                             v-if="
@@ -3428,13 +3422,13 @@ async function normalizeStandardIntakeBatch(): Promise<void> {
                                     <p
                                         class="mt-2 text-sm leading-6 text-muted-foreground"
                                     >
-                                        Resuelve cada dominio de forma
-                                        independiente. Puedes subir CSV/XLSX,
-                                        indicar que no tienes datos o reutilizar
-                                        un dataset preparado previamente.
-                                        Las relaciones entre dominios se validan
-                                        solo cuando las siete decisiones están
-                                        resueltas.
+                                        Gestiona cada dominio de forma
+                                        independiente. Puedes cargar archivos
+                                        CSV/XLSX, indicar que no dispones de
+                                        datos o reutilizar información preparada
+                                        previamente. Las relaciones entre
+                                        dominios se validan cuando todas las
+                                        decisiones han sido completadas.
                                     </p>
                                 </div>
 
@@ -3464,8 +3458,8 @@ async function normalizeStandardIntakeBatch(): Promise<void> {
                                                   ?.session
                                                   ?.status
                                               === 'finalized'
-                                              ? 'Nueva sesión Intake v2'
-                                              : 'Iniciar Intake v2'
+                                              ? 'Nueva sesión'
+                                              : 'Iniciar sesión'
                                     }}
                                 </button>
                             </div>
@@ -4053,106 +4047,18 @@ async function normalizeStandardIntakeBatch(): Promise<void> {
                                 "
                                 class="mt-4 rounded-xl border border-dashed p-4 text-sm text-muted-foreground"
                             >
-                                Inicia una sesión Intake v2 para resolver
-                                los siete dominios.
+                                Inicia una sesión para gestionar los siete
+                                dominios.
                             </p>
                         </section>
 
                         <div
+                            v-if="
+                                standardIntakeReport
+                                || standardIntakeIngestionReport?.ingestion
+                            "
                             class="mt-5 rounded-xl border bg-muted/20 p-4 dark:border-slate-800"
                         >
-                            <div
-                                class="mb-4 rounded-lg border border-amber-200 bg-amber-50 p-3 text-xs text-amber-800 dark:border-amber-900/60 dark:bg-amber-950/20 dark:text-amber-300"
-                            >
-                                <strong>
-                                    Compatibilidad Intake v1:
-                                </strong>
-                                este flujo de archivo único se mantiene
-                                temporalmente para paquetes heredados.
-                                El flujo oficial nuevo es Intake v2 por dominios.
-                            </div>
-
-                            <div
-                                class="flex flex-wrap items-start justify-between gap-3"
-                            >
-                                <div>
-                                    <p class="text-sm font-bold">
-                                        Validar archivo estándar
-                                    </p>
-
-                                    <p
-                                        class="mt-1 max-w-3xl text-xs leading-5 text-muted-foreground"
-                                    >
-                                        Comprueba la estructura, columnas,
-                                        formatos, duplicados y relaciones antes
-                                        de cualquier importación. Puedes validar
-                                        la plantilla Excel (.xlsx) o el paquete
-                                        CSV de LAUDA (.zip). Los CSV individuales
-                                        no se cargan directamente en este paso.
-                                        El archivo se procesa temporalmente y no
-                                        se conserva.
-                                    </p>
-                                </div>
-
-                                <span
-                                    class="rounded-full border px-2.5 py-1 text-[11px] font-semibold text-muted-foreground"
-                                >
-                                    Máx. 2 MB
-                                </span>
-                            </div>
-
-                            <div
-                                class="mt-4 grid gap-3 lg:grid-cols-[minmax(0,1fr)_auto]"
-                            >
-                                <input
-                                    type="file"
-                                    accept=".xlsx,.zip,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/zip"
-                                    class="block w-full cursor-pointer rounded-lg border bg-background px-3 py-2 text-sm file:mr-3 file:cursor-pointer file:rounded-md file:border-0 file:bg-muted file:px-3 file:py-1.5 file:text-xs file:font-semibold"
-                                    :disabled="standardIntakeValidating || standardIntakeIngesting"
-                                    @change="selectStandardIntakeFile"
-                                />
-
-                                <button
-                                    type="button"
-                                    class="cursor-pointer rounded-lg bg-foreground px-4 py-2 text-sm font-semibold text-background disabled:cursor-not-allowed disabled:opacity-50"
-                                    :disabled="
-                                        !standardIntakeFile
-                                        || standardIntakeValidating
-                                        || standardIntakeIngesting
-                                    "
-                                    @click="validateStandardIntakeFile"
-                                >
-                                    {{
-                                        standardIntakeValidating
-                                            ? 'Validando...'
-                                            : 'Validar archivo'
-                                    }}
-                                </button>
-                            </div>
-
-                            <p
-                                v-if="standardIntakeFile"
-                                class="mt-2 text-xs text-muted-foreground"
-                            >
-                                Seleccionado:
-                                <span class="font-semibold text-foreground">
-                                    {{ standardIntakeFile.name }}
-                                </span>
-                                ·
-                                {{
-                                    standardIntakeFileSizeLabel(
-                                        standardIntakeFile.size,
-                                    )
-                                }}
-                            </p>
-
-                            <div
-                                v-if="standardIntakeHttpError"
-                                class="mt-4 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700 dark:border-red-900/60 dark:bg-red-950/30 dark:text-red-300"
-                            >
-                                {{ standardIntakeHttpError }}
-                            </div>
-
                             <!-- P6_R5_PERSISTED_PROCESSING_PANEL -->
                             <div
                                 v-if="
