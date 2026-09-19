@@ -37,7 +37,8 @@ final class DataTransformationBiSourceAssetService
         array $input,
         User $actor
     ): DataTransformationBiSourceAsset {
-        $this->assertAdmin(
+        $this->assertCanManage(
+            $implementationRequest,
             $actor
         );
 
@@ -140,7 +141,8 @@ final class DataTransformationBiSourceAssetService
         array $input,
         User $actor
     ): DataTransformationBiSourceAsset {
-        $this->assertAdmin(
+        $this->assertCanManage(
+            $implementationRequest,
             $actor
         );
 
@@ -207,7 +209,8 @@ final class DataTransformationBiSourceAssetService
         array $orderedAssetIds,
         User $actor
     ): void {
-        $this->assertAdmin(
+        $this->assertCanManage(
+            $implementationRequest,
             $actor
         );
 
@@ -347,7 +350,8 @@ final class DataTransformationBiSourceAssetService
         DataTransformationBiSourceAsset $asset,
         User $actor
     ): DataTransformationBiSourceAsset {
-        $this->assertAdmin(
+        $this->assertCanManage(
+            $implementationRequest,
             $actor
         );
 
@@ -626,17 +630,16 @@ final class DataTransformationBiSourceAssetService
         return $text;
     }
 
-    private function assertAdmin(
+    private function assertCanManage(
+        TransformationImplementationRequest $implementationRequest,
         User $actor
     ): void {
-        if (
-            (string) $actor->role
-            !== 'admin'
-        ) {
-            throw new AuthorizationException(
-                'Solo un administrador puede gestionar fuentes de datos.'
-            );
-        }
+        app(
+            DataTransformationBiIntakeActorAuthorizationService::class
+        )->assertCanManage(
+            $implementationRequest,
+            $actor
+        );
     }
 
     private function assertRequestAndSession(

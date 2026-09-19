@@ -8,7 +8,7 @@ import {
     Layers3,
     Sparkles,
 } from 'lucide-vue-next';
-import { computed, ref } from 'vue';
+import { computed, ref, watch } from 'vue';
 
 type DataTransformationBiCapability = {
     capability_key: 'data_transformation_bi';
@@ -93,6 +93,104 @@ type UsableDatasetStatus = {
         has_rows: boolean;
         completed_at: string | null;
     } | null;
+};
+
+
+type SourceWorkspace = {
+    session: {
+        id: number;
+        status: string;
+    } | null;
+    actions: {
+        can_start_or_resume: boolean;
+        can_manage_sources: boolean;
+    };
+    readiness: {
+        inputs_validated: boolean;
+        accesses_validated: boolean;
+        source_count: number;
+        complete_source_count: number;
+    };
+};
+
+type DynamicSourceAssetFile = {
+    id: number;
+    status: string;
+    original_filename: string;
+    source_format: string;
+    source_size_bytes: number;
+    source_row_count: number;
+    uploaded_at: string | null;
+};
+
+type DynamicSourceAsset = {
+    id: number;
+    display_name: string;
+    source_object_name: string;
+    description: string | null;
+    origin_system: string | null;
+    structure_format:
+        | 'field_type_list'
+        | 'sql_server_ddl'
+        | 'other'
+        | null;
+    structure_text: string | null;
+    delivery_format:
+        | 'csv'
+        | 'xlsx'
+        | null;
+    status: string;
+    structure_status: string;
+    data_status: string;
+    data_file: DynamicSourceAssetFile | null;
+    sort_order: number;
+    structure_analyzed_at: string | null;
+    data_received_at: string | null;
+    profiled_at: string | null;
+    failure_message: string | null;
+    created_at: string | null;
+    updated_at: string | null;
+};
+
+type SourceWorkspaceTab =
+    | 'information'
+    | 'structure'
+    | 'extraction'
+    | 'file'
+    | 'result';
+
+type SqlServerExtractionPreview = {
+    schema_name: string;
+    table_name: string;
+    field_count: number;
+    query: string;
+    export: {
+        csv: {
+            label: string;
+            extension: string;
+            instructions: string[];
+        };
+        xlsx: {
+            label: string;
+            extension: string;
+            instructions: string[];
+        };
+    };
+};
+
+type SourceWorkspaceApiResponse = {
+    ok?: boolean;
+    message?: string;
+    errors?: Record<string, string[]>;
+    state?: {
+        session?: {
+            id: number;
+            status: string;
+        } | null;
+        source_assets?: DynamicSourceAsset[];
+        actions?: Record<string, boolean>;
+    };
+    preview?: SqlServerExtractionPreview;
 };
 
 const props = defineProps<{
@@ -261,6 +359,9 @@ const props = defineProps<{
             }>;
         }>;
     } | null;
+
+    source_workspace: SourceWorkspace;
+    source_assets: DynamicSourceAsset[];
 
     processing_history: ProcessingHistory;
     usable_dataset: UsableDatasetStatus;
@@ -624,6 +725,999 @@ function requestDefinitionChanges(): void {
     );
 }
 
+
+
+/*
+ * T1_TENANT_SOURCE_WORKSPACE
+ *
+ * Tenant-owned source intake.
+ *
+ * LAUDA never connects to the client's database from this UI.
+ * Extraction assistance only generates a read-only query for the
+ * client to execute locally.
+ */
+const sourceWorkspaceBase =
+    '/app/transformacion-360/datos-bi/fuentes';
+
+const sourceTabs: Array<{
+    key: SourceWorkspaceTab;
+    label: string;
+}> = [
+    {
+        key: 'information',
+        label: 'Información',
+    },
+    {
+        key: 'structure',
+        label: 'Estructura',
+    },
+    {
+        key: 'extraction',
+        label: 'Extracción',
+    },
+    {
+        key: 'file',
+        label: 'Archivo',
+    },
+    {
+        key: 'result',
+        label: 'Resultado',
+    },
+];
+
+const selectedSourceId =
+    ref<number | null>(
+        props.source_assets[0]?.id
+        ?? null,
+    );
+
+const activeSourceTab =
+    ref<SourceWorkspaceTab>(
+        'information',
+    );
+
+const sourceWorkspaceBusy =
+    ref<string | null>(
+        null,
+    );
+
+const sourceWorkspaceError =
+    ref<string | null>(
+        null,
+    );
+
+const sourceWorkspaceNotice =
+    ref<string | null>(
+        null,
+    );
+
+const sourceFile =
+    ref<File | null>(
+        null,
+    );
+
+const extractionPreview =
+    ref<SqlServerExtractionPreview | null>(
+        null,
+    );
+
+const createSourceForm = ref({
+    display_name: '',
+    source_object_name: '',
+    description: '',
+    origin_system: '',
+    delivery_format: 'csv' as 'csv' | 'xlsx',
+});
+
+const editSourceForm = ref({
+    display_name: '',
+    source_object_name: '',
+    description: '',
+    origin_system: '',
+    delivery_format: 'csv' as 'csv' | 'xlsx',
+});
+
+const structureForm = ref({
+    structure_format:
+        'field_type_list' as (
+            | 'field_type_list'
+            | 'sql_server_ddl'
+            | 'other'
+        ),
+
+    structure_text: '',
+});
+
+const extractionForm = ref({
+    schema_name: 'dbo',
+    table_name: '',
+});
+
+const sourceWorkspaceSessionId =
+    computed(
+        () =>
+            props.source_workspace
+                .session
+                ?.id
+            ?? null,
+    );
+
+const canManageSources =
+    computed(
+        () =>
+            props.source_workspace
+                .actions
+                .can_manage_sources
+            === true,
+    );
+
+const selectedSource =
+    computed(
+        () =>
+            props.source_assets.find(
+                (sourceAsset) =>
+                    sourceAsset.id
+                    === selectedSourceId.value,
+            )
+            ?? null,
+    );
+
+const selectedExtractionExport =
+    computed(() => {
+        if (!extractionPreview.value) {
+            return null;
+        }
+
+        const format =
+            selectedSource.value
+                ?.delivery_format
+                === 'xlsx'
+                ? 'xlsx'
+                : 'csv';
+
+        return extractionPreview.value
+            .export[format];
+    });
+
+watch(
+    selectedSource,
+    (sourceAsset) => {
+        extractionPreview.value = null;
+        sourceFile.value = null;
+
+        if (!sourceAsset) {
+            editSourceForm.value = {
+                display_name: '',
+                source_object_name: '',
+                description: '',
+                origin_system: '',
+                delivery_format: 'csv',
+            };
+
+            structureForm.value = {
+                structure_format:
+                    'field_type_list',
+                structure_text: '',
+            };
+
+            extractionForm.value = {
+                schema_name: 'dbo',
+                table_name: '',
+            };
+
+            return;
+        }
+
+        editSourceForm.value = {
+            display_name:
+                sourceAsset.display_name,
+
+            source_object_name:
+                sourceAsset.source_object_name,
+
+            description:
+                sourceAsset.description
+                ?? '',
+
+            origin_system:
+                sourceAsset.origin_system
+                ?? '',
+
+            delivery_format:
+                sourceAsset.delivery_format
+                === 'xlsx'
+                    ? 'xlsx'
+                    : 'csv',
+        };
+
+        structureForm.value = {
+            structure_format:
+                sourceAsset.structure_format
+                ?? 'field_type_list',
+
+            structure_text:
+                sourceAsset.structure_text
+                ?? '',
+        };
+
+        extractionForm.value = {
+            schema_name: 'dbo',
+            table_name:
+                sourceAsset.source_object_name
+                ?? '',
+        };
+    },
+    {
+        immediate: true,
+    },
+);
+
+watch(
+    () =>
+        props.source_assets.map(
+            (sourceAsset) =>
+                sourceAsset.id,
+        ),
+    (sourceIds) => {
+        if (
+            selectedSourceId.value === null
+            || !sourceIds.includes(
+                selectedSourceId.value,
+            )
+        ) {
+            selectedSourceId.value =
+                sourceIds[0]
+                ?? null;
+        }
+    },
+);
+
+function selectSource(
+    sourceAssetId: number,
+): void {
+    selectedSourceId.value =
+        sourceAssetId;
+
+    activeSourceTab.value =
+        'information';
+
+    sourceWorkspaceError.value =
+        null;
+
+    sourceWorkspaceNotice.value =
+        null;
+}
+
+function xsrfCookieValue(): string | null {
+    const prefix =
+        'XSRF-TOKEN=';
+
+    const cookie =
+        document.cookie
+            .split('; ')
+            .find(
+                (item) =>
+                    item.startsWith(
+                        prefix,
+                    ),
+            );
+
+    if (!cookie) {
+        return null;
+    }
+
+    return decodeURIComponent(
+        cookie.slice(
+            prefix.length,
+        ),
+    );
+}
+
+function sourceWorkspaceHeaders(
+    isFormData: boolean,
+): Record<string, string> {
+    const headers: Record<string, string> = {
+        Accept: 'application/json',
+        'X-Requested-With':
+            'XMLHttpRequest',
+    };
+
+    const csrfToken =
+        document
+            .querySelector<HTMLMetaElement>(
+                'meta[name="csrf-token"]',
+            )
+            ?.content
+        ?? null;
+
+    if (csrfToken) {
+        headers['X-CSRF-TOKEN'] =
+            csrfToken;
+    } else {
+        const xsrfToken =
+            xsrfCookieValue();
+
+        if (xsrfToken) {
+            headers['X-XSRF-TOKEN'] =
+                xsrfToken;
+        }
+    }
+
+    if (!isFormData) {
+        headers['Content-Type'] =
+            'application/json';
+    }
+
+    return headers;
+}
+
+async function sourceWorkspaceApi(
+    endpoint: string,
+    method: 'POST' | 'PATCH',
+    body?:
+        | Record<string, unknown>
+        | FormData,
+): Promise<SourceWorkspaceApiResponse> {
+    const isFormData =
+        body instanceof FormData;
+
+    const response =
+        await fetch(
+            endpoint,
+            {
+                method,
+                credentials:
+                    'same-origin',
+
+                headers:
+                    sourceWorkspaceHeaders(
+                        isFormData,
+                    ),
+
+                body:
+                    body === undefined
+                        ? undefined
+                        : isFormData
+                          ? body
+                          : JSON.stringify(
+                                body,
+                            ),
+            },
+        );
+
+    const payload: SourceWorkspaceApiResponse =
+        await response
+            .json()
+            .catch(
+                () => ({}),
+            );
+
+    if (
+        !response.ok
+        || payload.ok === false
+    ) {
+        const validationMessage =
+            Object
+                .values(
+                    payload.errors
+                    ?? {},
+                )
+                .flat()
+                .find(
+                    (message) =>
+                        typeof message
+                        === 'string',
+                );
+
+        throw new Error(
+            validationMessage
+            ?? payload.message
+            ?? 'No se pudo completar la operación.',
+        );
+    }
+
+    return payload;
+}
+
+async function runSourceWorkspaceAction(
+    key: string,
+    action:
+        () =>
+            Promise<SourceWorkspaceApiResponse>,
+): Promise<
+    SourceWorkspaceApiResponse
+    | null
+> {
+    if (sourceWorkspaceBusy.value) {
+        return null;
+    }
+
+    sourceWorkspaceBusy.value =
+        key;
+
+    sourceWorkspaceError.value =
+        null;
+
+    sourceWorkspaceNotice.value =
+        null;
+
+    try {
+        const response =
+            await action();
+
+        sourceWorkspaceNotice.value =
+            response.message
+            ?? 'Operación completada correctamente.';
+
+        return response;
+    } catch (error) {
+        sourceWorkspaceError.value =
+            error instanceof Error
+                ? error.message
+                : 'No se pudo completar la operación.';
+
+        return null;
+    } finally {
+        sourceWorkspaceBusy.value =
+            null;
+    }
+}
+
+function reloadSourceWorkspace(): void {
+    router.reload({
+        only: [
+            'source_workspace',
+            'source_assets',
+        ],
+        preserveState: true,
+    });
+}
+
+async function prepareSourceWorkspace(): Promise<void> {
+    const result =
+        await runSourceWorkspaceAction(
+            'prepare',
+            () =>
+                sourceWorkspaceApi(
+                    `${sourceWorkspaceBase}/preparar`,
+                    'POST',
+                    {},
+                ),
+        );
+
+    if (result) {
+        reloadSourceWorkspace();
+    }
+}
+
+async function createSourceAsset(): Promise<void> {
+    const sessionId =
+        sourceWorkspaceSessionId.value;
+
+    const displayName =
+        createSourceForm.value
+            .display_name
+            .trim();
+
+    const objectName =
+        createSourceForm.value
+            .source_object_name
+            .trim();
+
+    if (!sessionId) {
+        sourceWorkspaceError.value =
+            'Prepara primero el workspace de fuentes.';
+        return;
+    }
+
+    if (
+        displayName === ''
+        || objectName === ''
+    ) {
+        sourceWorkspaceError.value =
+            'Indica el nombre de la fuente y la tabla u objeto de origen.';
+        return;
+    }
+
+    const result =
+        await runSourceWorkspaceAction(
+            'create',
+            () =>
+                sourceWorkspaceApi(
+                    `${sourceWorkspaceBase}/sesiones/${sessionId}/fuentes`,
+                    'POST',
+                    {
+                        display_name:
+                            displayName,
+
+                        source_object_name:
+                            objectName,
+
+                        description:
+                            createSourceForm.value
+                                .description
+                                .trim()
+                            || null,
+
+                        origin_system:
+                            createSourceForm.value
+                                .origin_system
+                                .trim()
+                            || null,
+
+                        delivery_format:
+                            createSourceForm.value
+                                .delivery_format,
+                    },
+                ),
+        );
+
+    if (!result) {
+        return;
+    }
+
+    const assets =
+        result.state
+            ?.source_assets
+        ?? [];
+
+    if (assets.length > 0) {
+        selectedSourceId.value =
+            assets[
+                assets.length - 1
+            ].id;
+    }
+
+    createSourceForm.value = {
+        display_name: '',
+        source_object_name: '',
+        description: '',
+        origin_system: '',
+        delivery_format: 'csv',
+    };
+
+    reloadSourceWorkspace();
+}
+
+async function updateSourceAsset(): Promise<void> {
+    const sessionId =
+        sourceWorkspaceSessionId.value;
+
+    const sourceAsset =
+        selectedSource.value;
+
+    if (
+        !sessionId
+        || !sourceAsset
+    ) {
+        return;
+    }
+
+    const displayName =
+        editSourceForm.value
+            .display_name
+            .trim();
+
+    const objectName =
+        editSourceForm.value
+            .source_object_name
+            .trim();
+
+    if (
+        displayName === ''
+        || objectName === ''
+    ) {
+        sourceWorkspaceError.value =
+            'El nombre de la fuente y la tabla u objeto de origen son obligatorios.';
+        return;
+    }
+
+    const result =
+        await runSourceWorkspaceAction(
+            'update',
+            () =>
+                sourceWorkspaceApi(
+                    `${sourceWorkspaceBase}/sesiones/${sessionId}/fuentes/${sourceAsset.id}`,
+                    'PATCH',
+                    {
+                        display_name:
+                            displayName,
+
+                        source_object_name:
+                            objectName,
+
+                        description:
+                            editSourceForm.value
+                                .description
+                                .trim()
+                            || null,
+
+                        origin_system:
+                            editSourceForm.value
+                                .origin_system
+                                .trim()
+                            || null,
+
+                        delivery_format:
+                            editSourceForm.value
+                                .delivery_format,
+                    },
+                ),
+        );
+
+    if (result) {
+        reloadSourceWorkspace();
+    }
+}
+
+async function moveSourceAsset(
+    direction: -1 | 1,
+): Promise<void> {
+    const sessionId =
+        sourceWorkspaceSessionId.value;
+
+    const sourceAsset =
+        selectedSource.value;
+
+    if (
+        !sessionId
+        || !sourceAsset
+    ) {
+        return;
+    }
+
+    const ids =
+        props.source_assets.map(
+            (item) =>
+                item.id,
+        );
+
+    const currentIndex =
+        ids.indexOf(
+            sourceAsset.id,
+        );
+
+    const targetIndex =
+        currentIndex + direction;
+
+    if (
+        currentIndex < 0
+        || targetIndex < 0
+        || targetIndex >= ids.length
+    ) {
+        return;
+    }
+
+    [
+        ids[currentIndex],
+        ids[targetIndex],
+    ] = [
+        ids[targetIndex],
+        ids[currentIndex],
+    ];
+
+    const result =
+        await runSourceWorkspaceAction(
+            'reorder',
+            () =>
+                sourceWorkspaceApi(
+                    `${sourceWorkspaceBase}/sesiones/${sessionId}/fuentes/reordenar`,
+                    'PATCH',
+                    {
+                        source_asset_ids:
+                            ids,
+                    },
+                ),
+        );
+
+    if (result) {
+        reloadSourceWorkspace();
+    }
+}
+
+async function archiveSourceAsset(): Promise<void> {
+    const sessionId =
+        sourceWorkspaceSessionId.value;
+
+    const sourceAsset =
+        selectedSource.value;
+
+    if (
+        !sessionId
+        || !sourceAsset
+    ) {
+        return;
+    }
+
+    const confirmed =
+        window.confirm(
+            `¿Archivar la fuente "${sourceAsset.display_name}"?`
+            + ' Se conservará su historial, pero dejará de formar parte del workspace activo.',
+        );
+
+    if (!confirmed) {
+        return;
+    }
+
+    const result =
+        await runSourceWorkspaceAction(
+            'archive',
+            () =>
+                sourceWorkspaceApi(
+                    `${sourceWorkspaceBase}/sesiones/${sessionId}/fuentes/${sourceAsset.id}/archivar`,
+                    'PATCH',
+                    {},
+                ),
+        );
+
+    if (!result) {
+        return;
+    }
+
+    const remaining =
+        result.state
+            ?.source_assets
+        ?? [];
+
+    selectedSourceId.value =
+        remaining[0]?.id
+        ?? null;
+
+    reloadSourceWorkspace();
+}
+
+async function saveSourceStructure(): Promise<void> {
+    const sessionId =
+        sourceWorkspaceSessionId.value;
+
+    const sourceAsset =
+        selectedSource.value;
+
+    if (
+        !sessionId
+        || !sourceAsset
+    ) {
+        return;
+    }
+
+    const structureText =
+        structureForm.value
+            .structure_text
+            .trim();
+
+    if (structureText === '') {
+        sourceWorkspaceError.value =
+            'Indica la estructura antes de guardarla.';
+        return;
+    }
+
+    const result =
+        await runSourceWorkspaceAction(
+            'structure',
+            () =>
+                sourceWorkspaceApi(
+                    `${sourceWorkspaceBase}/sesiones/${sessionId}/fuentes/${sourceAsset.id}/estructura`,
+                    'PATCH',
+                    {
+                        structure_format:
+                            structureForm.value
+                                .structure_format,
+
+                        structure_text:
+                            structureText,
+                    },
+                ),
+        );
+
+    if (result) {
+        reloadSourceWorkspace();
+    }
+}
+
+async function previewSourceExtraction(): Promise<void> {
+    const sessionId =
+        sourceWorkspaceSessionId.value;
+
+    const sourceAsset =
+        selectedSource.value;
+
+    if (
+        !sessionId
+        || !sourceAsset
+    ) {
+        return;
+    }
+
+    if (
+        !sourceAsset.structure_text
+        || sourceAsset.structure_text
+            .trim() === ''
+    ) {
+        sourceWorkspaceError.value =
+            'Guarda primero la estructura de esta fuente.';
+        return;
+    }
+
+    const schemaName =
+        extractionForm.value
+            .schema_name
+            .trim();
+
+    if (schemaName === '') {
+        sourceWorkspaceError.value =
+            'Indica el esquema de SQL Server.';
+        return;
+    }
+
+    const result =
+        await runSourceWorkspaceAction(
+            'extraction',
+            () =>
+                sourceWorkspaceApi(
+                    `${sourceWorkspaceBase}/sesiones/${sessionId}/fuentes/${sourceAsset.id}/extraccion-sql-server/previsualizar`,
+                    'POST',
+                    {
+                        schema_name:
+                            schemaName,
+
+                        table_name:
+                            extractionForm.value
+                                .table_name
+                                .trim()
+                            || null,
+                    },
+                ),
+        );
+
+    if (
+        result
+        && result.preview
+    ) {
+        extractionPreview.value =
+            result.preview;
+    }
+}
+
+function selectSourceFile(
+    event: Event,
+): void {
+    const input =
+        event.target as HTMLInputElement;
+
+    sourceFile.value =
+        input.files?.[0]
+        ?? null;
+}
+
+async function uploadSourceData(): Promise<void> {
+    const sessionId =
+        sourceWorkspaceSessionId.value;
+
+    const sourceAsset =
+        selectedSource.value;
+
+    if (
+        !sessionId
+        || !sourceAsset
+    ) {
+        return;
+    }
+
+    if (!sourceFile.value) {
+        sourceWorkspaceError.value =
+            'Selecciona un archivo CSV o XLSX.';
+        return;
+    }
+
+    const formData =
+        new FormData();
+
+    formData.append(
+        'file',
+        sourceFile.value,
+    );
+
+    const result =
+        await runSourceWorkspaceAction(
+            'upload',
+            () =>
+                sourceWorkspaceApi(
+                    `${sourceWorkspaceBase}/sesiones/${sessionId}/fuentes/${sourceAsset.id}/archivo`,
+                    'POST',
+                    formData,
+                ),
+        );
+
+    if (result) {
+        sourceFile.value = null;
+        reloadSourceWorkspace();
+    }
+}
+
+async function copyExtractionQuery(): Promise<void> {
+    const query =
+        extractionPreview.value
+            ?.query;
+
+    if (!query) {
+        return;
+    }
+
+    try {
+        await navigator
+            .clipboard
+            .writeText(
+                query,
+            );
+
+        sourceWorkspaceNotice.value =
+            'Consulta copiada al portapapeles.';
+    } catch {
+        sourceWorkspaceError.value =
+            'No se pudo copiar automáticamente. Selecciona la consulta y cópiala manualmente.';
+    }
+}
+
+function sourceStatusLabel(
+    status: string,
+): string {
+    return {
+        draft: 'Borrador',
+        active: 'Activa',
+        ready: 'Lista',
+        archived: 'Archivada',
+        failed: 'Con incidencia',
+    }[status]
+        ?? status;
+}
+
+function sourceStructureStatusLabel(
+    status: string,
+): string {
+    return {
+        pending: 'Pendiente',
+        provided: 'Registrada',
+        analyzed: 'Analizada',
+        failed: 'Con incidencia',
+    }[status]
+        ?? status;
+}
+
+function sourceDataStatusLabel(
+    status: string,
+): string {
+    return {
+        pending: 'Pendiente',
+        received: 'Recibido',
+        analyzed: 'Analizado',
+        failed: 'Con incidencia',
+    }[status]
+        ?? status;
+}
+
+function sourceFileSize(
+    bytes: number,
+): string {
+    if (
+        !Number.isFinite(bytes)
+        || bytes <= 0
+    ) {
+        return '0 KB';
+    }
+
+    const megabytes =
+        bytes
+        / 1024
+        / 1024;
+
+    if (megabytes >= 1) {
+        return `${megabytes.toFixed(2)} MB`;
+    }
+
+    return `${(
+        bytes / 1024
+    ).toFixed(1)} KB`;
+}
 
 function processingHistoryStatusLabel(
     status: string,
@@ -1542,6 +2636,1005 @@ function processingHistoryDate(
                                 Solicitar cambios
                             </button>
                         </div>
+                    </section>
+
+
+                    <!-- T1_TENANT_SOURCE_WORKSPACE -->
+                    <section
+                        v-if="implementation_request.id"
+                        class="rounded-[2rem] border border-cyan-200/70 bg-white p-6 shadow-sm sm:p-8 dark:border-cyan-950 dark:bg-slate-950"
+                    >
+                        <div
+                            class="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between"
+                        >
+                            <div>
+                                <p
+                                    class="text-[10px] font-black tracking-widest text-cyan-700 uppercase dark:text-cyan-400"
+                                >
+                                    Entrega de información
+                                </p>
+
+                                <h2
+                                    class="mt-1 text-xl font-black text-slate-950 dark:text-white"
+                                >
+                                    Fuentes de datos
+                                </h2>
+
+                                <p
+                                    class="mt-2 max-w-3xl text-sm leading-6 text-slate-500 dark:text-slate-400"
+                                >
+                                    Registra las fuentes que utiliza tu empresa,
+                                    documenta su estructura y entrega los archivos
+                                    CSV o XLSX que LAUDA transformará para BI.
+                                </p>
+                            </div>
+
+                            <div
+                                class="shrink-0 rounded-2xl border border-slate-200/70 bg-slate-50/60 px-4 py-3 text-right dark:border-slate-800 dark:bg-slate-900/30"
+                            >
+                                <p
+                                    class="text-[10px] font-black tracking-wide text-slate-400 uppercase"
+                                >
+                                    Preparación de fuentes
+                                </p>
+
+                                <p
+                                    class="mt-1 text-sm font-black text-slate-900 dark:text-slate-100"
+                                >
+                                    {{
+                                        source_workspace
+                                            .readiness
+                                            .complete_source_count
+                                    }}/{{
+                                        source_workspace
+                                            .readiness
+                                            .source_count
+                                    }}
+                                    completas
+                                </p>
+
+                                <p
+                                    class="mt-1 text-[11px]"
+                                    :class="
+                                        source_workspace
+                                            .readiness
+                                            .inputs_validated
+                                            ? 'text-emerald-600 dark:text-emerald-400'
+                                            : 'text-amber-600 dark:text-amber-400'
+                                    "
+                                >
+                                    {{
+                                        source_workspace
+                                            .readiness
+                                            .inputs_validated
+                                            ? 'Entrega lista'
+                                            : 'Entrega pendiente'
+                                    }}
+                                </p>
+                            </div>
+                        </div>
+
+                        <div
+                            v-if="sourceWorkspaceError"
+                            class="mt-5 rounded-2xl border border-red-200 bg-red-50 p-4 text-sm font-semibold text-red-700 dark:border-red-950 dark:bg-red-950/20 dark:text-red-300"
+                        >
+                            {{ sourceWorkspaceError }}
+                        </div>
+
+                        <div
+                            v-if="sourceWorkspaceNotice"
+                            class="mt-5 rounded-2xl border border-emerald-200 bg-emerald-50 p-4 text-sm font-semibold text-emerald-700 dark:border-emerald-950 dark:bg-emerald-950/20 dark:text-emerald-300"
+                        >
+                            {{ sourceWorkspaceNotice }}
+                        </div>
+
+                        <!-- No session yet -->
+                        <div
+                            v-if="!source_workspace.session"
+                            class="mt-6 rounded-2xl border border-dashed border-cyan-300 bg-cyan-50/40 p-6 dark:border-cyan-900 dark:bg-cyan-950/10"
+                        >
+                            <h3
+                                class="text-base font-black text-slate-950 dark:text-white"
+                            >
+                                Prepara el espacio de entrega
+                            </h3>
+
+                            <p
+                                class="mt-2 max-w-2xl text-sm leading-6 text-slate-600 dark:text-slate-300"
+                            >
+                                Este paso crea o reutiliza una sesión de trabajo
+                                para organizar tus fuentes. No inicia staging,
+                                perfilado, normalización ni ejecución de BI.
+                            </p>
+
+                            <button
+                                v-if="
+                                    source_workspace
+                                        .actions
+                                        .can_start_or_resume
+                                "
+                                type="button"
+                                class="mt-5 inline-flex items-center justify-center rounded-xl bg-cyan-700 px-4 py-2.5 text-sm font-black text-white transition hover:bg-cyan-800 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-cyan-600 dark:hover:bg-cyan-500"
+                                :disabled="
+                                    sourceWorkspaceBusy !== null
+                                "
+                                @click="prepareSourceWorkspace"
+                            >
+                                {{
+                                    sourceWorkspaceBusy === 'prepare'
+                                        ? 'Preparando...'
+                                        : 'Preparar fuentes de datos'
+                                }}
+                            </button>
+                        </div>
+
+                        <template v-else>
+                            <div
+                                class="mt-6 flex flex-wrap items-center gap-2 text-xs"
+                            >
+                                <span
+                                    class="rounded-full border border-slate-200 px-3 py-1.5 font-bold text-slate-600 dark:border-slate-800 dark:text-slate-300"
+                                >
+                                    Sesión #{{ source_workspace.session.id }}
+                                </span>
+
+                                <span
+                                    class="rounded-full border border-slate-200 px-3 py-1.5 font-bold text-slate-600 dark:border-slate-800 dark:text-slate-300"
+                                >
+                                    {{ source_workspace.session.status }}
+                                </span>
+
+                                <span
+                                    v-if="!canManageSources"
+                                    class="rounded-full border border-amber-200 bg-amber-50 px-3 py-1.5 font-bold text-amber-700 dark:border-amber-900 dark:bg-amber-950/20 dark:text-amber-300"
+                                >
+                                    Solo lectura
+                                </span>
+                            </div>
+
+                            <!-- Create source -->
+                            <details
+                                v-if="canManageSources"
+                                class="mt-6 rounded-2xl border border-slate-200/70 bg-slate-50/40 dark:border-slate-800 dark:bg-slate-900/20"
+                            >
+                                <summary
+                                    class="cursor-pointer list-none px-5 py-4 text-sm font-black text-slate-900 dark:text-slate-100"
+                                >
+                                    + Agregar fuente
+                                </summary>
+
+                                <form
+                                    class="grid gap-4 border-t border-slate-200/70 p-5 md:grid-cols-2 dark:border-slate-800"
+                                    @submit.prevent="createSourceAsset"
+                                >
+                                    <label class="block">
+                                        <span
+                                            class="text-xs font-bold text-slate-600 dark:text-slate-300"
+                                        >
+                                            Nombre de la fuente *
+                                        </span>
+
+                                        <input
+                                            v-model="createSourceForm.display_name"
+                                            type="text"
+                                            maxlength="191"
+                                            required
+                                            class="mt-2 w-full rounded-xl border border-slate-200 bg-background px-3 py-2.5 text-sm dark:border-slate-800"
+                                            placeholder="Ej. Clientes ERP"
+                                        />
+                                    </label>
+
+                                    <label class="block">
+                                        <span
+                                            class="text-xs font-bold text-slate-600 dark:text-slate-300"
+                                        >
+                                            Tabla u objeto origen *
+                                        </span>
+
+                                        <input
+                                            v-model="createSourceForm.source_object_name"
+                                            type="text"
+                                            maxlength="191"
+                                            required
+                                            class="mt-2 w-full rounded-xl border border-slate-200 bg-background px-3 py-2.5 text-sm dark:border-slate-800"
+                                            placeholder="Ej. Clientes"
+                                        />
+                                    </label>
+
+                                    <label class="block">
+                                        <span
+                                            class="text-xs font-bold text-slate-600 dark:text-slate-300"
+                                        >
+                                            Sistema / ERP origen
+                                        </span>
+
+                                        <input
+                                            v-model="createSourceForm.origin_system"
+                                            type="text"
+                                            maxlength="191"
+                                            class="mt-2 w-full rounded-xl border border-slate-200 bg-background px-3 py-2.5 text-sm dark:border-slate-800"
+                                            placeholder="Ej. SQL Server · Sistema comercial"
+                                        />
+                                    </label>
+
+                                    <label class="block">
+                                        <span
+                                            class="text-xs font-bold text-slate-600 dark:text-slate-300"
+                                        >
+                                            Formato previsto
+                                        </span>
+
+                                        <select
+                                            v-model="createSourceForm.delivery_format"
+                                            class="mt-2 w-full rounded-xl border border-slate-200 bg-background px-3 py-2.5 text-sm dark:border-slate-800"
+                                        >
+                                            <option value="csv">
+                                                CSV
+                                            </option>
+                                            <option value="xlsx">
+                                                Excel XLSX
+                                            </option>
+                                        </select>
+                                    </label>
+
+                                    <label class="block md:col-span-2">
+                                        <span
+                                            class="text-xs font-bold text-slate-600 dark:text-slate-300"
+                                        >
+                                            Descripción
+                                        </span>
+
+                                        <textarea
+                                            v-model="createSourceForm.description"
+                                            rows="3"
+                                            maxlength="2000"
+                                            class="mt-2 w-full rounded-xl border border-slate-200 bg-background px-3 py-2.5 text-sm leading-6 dark:border-slate-800"
+                                            placeholder="Describe qué información contiene esta fuente."
+                                        />
+                                    </label>
+
+                                    <div
+                                        class="md:col-span-2 flex justify-end"
+                                    >
+                                        <button
+                                            type="submit"
+                                            class="rounded-xl bg-slate-950 px-4 py-2.5 text-sm font-black text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-white dark:text-slate-950"
+                                            :disabled="
+                                                sourceWorkspaceBusy !== null
+                                            "
+                                        >
+                                            {{
+                                                sourceWorkspaceBusy === 'create'
+                                                    ? 'Creando...'
+                                                    : 'Crear fuente'
+                                            }}
+                                        </button>
+                                    </div>
+                                </form>
+                            </details>
+
+                            <!-- Source selector -->
+                            <div
+                                v-if="source_assets.length > 0"
+                                class="mt-6"
+                            >
+                                <p
+                                    class="text-[10px] font-black tracking-widest text-slate-400 uppercase"
+                                >
+                                    Fuentes activas
+                                </p>
+
+                                <div
+                                    class="mt-3 flex gap-3 overflow-x-auto pb-2"
+                                >
+                                    <div
+                                        v-for="(
+                                            sourceAsset,
+                                            sourceIndex
+                                        ) in source_assets"
+                                        :key="sourceAsset.id"
+                                        class="min-w-56 rounded-2xl border p-3"
+                                        :class="
+                                            selectedSourceId === sourceAsset.id
+                                                ? 'border-cyan-400 bg-cyan-50/60 dark:border-cyan-800 dark:bg-cyan-950/20'
+                                                : 'border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-950'
+                                        "
+                                    >
+                                        <button
+                                            type="button"
+                                            class="w-full text-left"
+                                            @click="
+                                                selectSource(
+                                                    sourceAsset.id,
+                                                )
+                                            "
+                                        >
+                                            <p
+                                                class="text-sm font-black text-slate-950 dark:text-white"
+                                            >
+                                                {{ sourceAsset.display_name }}
+                                            </p>
+
+                                            <p
+                                                class="mt-1 truncate text-xs text-slate-500 dark:text-slate-400"
+                                            >
+                                                {{
+                                                    sourceAsset.origin_system
+                                                    || 'Origen no indicado'
+                                                }}
+                                                ·
+                                                {{
+                                                    sourceAsset.source_object_name
+                                                    || 'Objeto pendiente'
+                                                }}
+                                            </p>
+
+                                            <p
+                                                class="mt-2 text-[10px] font-bold tracking-wide text-cyan-700 uppercase dark:text-cyan-400"
+                                            >
+                                                {{
+                                                    sourceStatusLabel(
+                                                        sourceAsset.status,
+                                                    )
+                                                }}
+                                                ·
+                                                {{
+                                                    sourceDataStatusLabel(
+                                                        sourceAsset.data_status,
+                                                    )
+                                                }}
+                                            </p>
+                                        </button>
+
+                                        <div
+                                            v-if="canManageSources"
+                                            class="mt-3 flex gap-2 border-t border-slate-200/70 pt-3 dark:border-slate-800"
+                                        >
+                                            <button
+                                                type="button"
+                                                class="rounded-lg border border-slate-200 px-2.5 py-1.5 text-xs font-bold disabled:opacity-30 dark:border-slate-800"
+                                                :disabled="
+                                                    sourceIndex === 0
+                                                    || sourceWorkspaceBusy !== null
+                                                "
+                                                @click="
+                                                    selectSource(
+                                                        sourceAsset.id,
+                                                    );
+                                                    moveSourceAsset(-1);
+                                                "
+                                            >
+                                                ↑
+                                            </button>
+
+                                            <button
+                                                type="button"
+                                                class="rounded-lg border border-slate-200 px-2.5 py-1.5 text-xs font-bold disabled:opacity-30 dark:border-slate-800"
+                                                :disabled="
+                                                    sourceIndex === source_assets.length - 1
+                                                    || sourceWorkspaceBusy !== null
+                                                "
+                                                @click="
+                                                    selectSource(
+                                                        sourceAsset.id,
+                                                    );
+                                                    moveSourceAsset(1);
+                                                "
+                                            >
+                                                ↓
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div
+                                v-else
+                                class="mt-6 rounded-2xl border border-dashed border-slate-300 p-6 text-sm leading-6 text-slate-500 dark:border-slate-700 dark:text-slate-400"
+                            >
+                                Todavía no has registrado fuentes. Agrega la
+                                primera para comenzar a documentar y entregar
+                                tus datos.
+                            </div>
+
+                            <!-- Selected source workspace -->
+                            <div
+                                v-if="selectedSource"
+                                class="mt-6 overflow-hidden rounded-2xl border border-slate-200/70 dark:border-slate-800"
+                            >
+                                <div
+                                    class="flex gap-1 overflow-x-auto border-b border-slate-200/70 bg-slate-50/50 p-2 dark:border-slate-800 dark:bg-slate-900/20"
+                                >
+                                    <button
+                                        v-for="tab in sourceTabs"
+                                        :key="tab.key"
+                                        type="button"
+                                        class="shrink-0 rounded-xl px-3 py-2 text-xs font-black transition"
+                                        :class="
+                                            activeSourceTab === tab.key
+                                                ? 'bg-white text-cyan-700 shadow-sm dark:bg-slate-950 dark:text-cyan-300'
+                                                : 'text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white'
+                                        "
+                                        @click="
+                                            activeSourceTab =
+                                                tab.key
+                                        "
+                                    >
+                                        {{ tab.label }}
+                                    </button>
+                                </div>
+
+                                <div class="p-5 sm:p-6">
+                                    <!-- Información -->
+                                    <form
+                                        v-if="
+                                            activeSourceTab ===
+                                            'information'
+                                        "
+                                        class="grid gap-4 md:grid-cols-2"
+                                        @submit.prevent="updateSourceAsset"
+                                    >
+                                        <label class="block">
+                                            <span
+                                                class="text-xs font-bold text-slate-600 dark:text-slate-300"
+                                            >
+                                                Nombre
+                                            </span>
+
+                                            <input
+                                                v-model="editSourceForm.display_name"
+                                                type="text"
+                                                maxlength="191"
+                                                required
+                                                class="mt-2 w-full rounded-xl border border-slate-200 bg-background px-3 py-2.5 text-sm disabled:opacity-60 dark:border-slate-800"
+                                                :disabled="!canManageSources"
+                                            />
+                                        </label>
+
+                                        <label class="block">
+                                            <span
+                                                class="text-xs font-bold text-slate-600 dark:text-slate-300"
+                                            >
+                                                Tabla u objeto origen
+                                            </span>
+
+                                            <input
+                                                v-model="editSourceForm.source_object_name"
+                                                type="text"
+                                                maxlength="191"
+                                                required
+                                                class="mt-2 w-full rounded-xl border border-slate-200 bg-background px-3 py-2.5 text-sm disabled:opacity-60 dark:border-slate-800"
+                                                :disabled="!canManageSources"
+                                            />
+                                        </label>
+
+                                        <label class="block">
+                                            <span
+                                                class="text-xs font-bold text-slate-600 dark:text-slate-300"
+                                            >
+                                                Sistema / ERP
+                                            </span>
+
+                                            <input
+                                                v-model="editSourceForm.origin_system"
+                                                type="text"
+                                                maxlength="191"
+                                                class="mt-2 w-full rounded-xl border border-slate-200 bg-background px-3 py-2.5 text-sm disabled:opacity-60 dark:border-slate-800"
+                                                :disabled="!canManageSources"
+                                            />
+                                        </label>
+
+                                        <label class="block">
+                                            <span
+                                                class="text-xs font-bold text-slate-600 dark:text-slate-300"
+                                            >
+                                                Formato
+                                            </span>
+
+                                            <select
+                                                v-model="editSourceForm.delivery_format"
+                                                class="mt-2 w-full rounded-xl border border-slate-200 bg-background px-3 py-2.5 text-sm disabled:opacity-60 dark:border-slate-800"
+                                                :disabled="!canManageSources"
+                                            >
+                                                <option value="csv">
+                                                    CSV
+                                                </option>
+                                                <option value="xlsx">
+                                                    Excel XLSX
+                                                </option>
+                                            </select>
+                                        </label>
+
+                                        <label class="block md:col-span-2">
+                                            <span
+                                                class="text-xs font-bold text-slate-600 dark:text-slate-300"
+                                            >
+                                                Descripción
+                                            </span>
+
+                                            <textarea
+                                                v-model="editSourceForm.description"
+                                                rows="3"
+                                                maxlength="2000"
+                                                class="mt-2 w-full rounded-xl border border-slate-200 bg-background px-3 py-2.5 text-sm leading-6 disabled:opacity-60 dark:border-slate-800"
+                                                :disabled="!canManageSources"
+                                            />
+                                        </label>
+
+                                        <div
+                                            v-if="canManageSources"
+                                            class="md:col-span-2 flex flex-wrap justify-between gap-3 border-t border-slate-200/70 pt-4 dark:border-slate-800"
+                                        >
+                                            <button
+                                                type="button"
+                                                class="rounded-xl border border-red-200 px-4 py-2.5 text-sm font-bold text-red-600 hover:bg-red-50 disabled:opacity-50 dark:border-red-950 dark:text-red-400 dark:hover:bg-red-950/20"
+                                                :disabled="
+                                                    sourceWorkspaceBusy !== null
+                                                "
+                                                @click="archiveSourceAsset"
+                                            >
+                                                Archivar fuente
+                                            </button>
+
+                                            <button
+                                                type="submit"
+                                                class="rounded-xl bg-slate-950 px-4 py-2.5 text-sm font-black text-white disabled:opacity-50 dark:bg-white dark:text-slate-950"
+                                                :disabled="
+                                                    sourceWorkspaceBusy !== null
+                                                "
+                                            >
+                                                {{
+                                                    sourceWorkspaceBusy === 'update'
+                                                        ? 'Guardando...'
+                                                        : 'Guardar información'
+                                                }}
+                                            </button>
+                                        </div>
+                                    </form>
+
+                                    <!-- Estructura -->
+                                    <div
+                                        v-else-if="
+                                            activeSourceTab ===
+                                            'structure'
+                                        "
+                                    >
+                                        <div
+                                            class="rounded-xl border border-blue-200 bg-blue-50/50 p-4 text-xs leading-5 text-slate-600 dark:border-blue-950 dark:bg-blue-950/10 dark:text-slate-300"
+                                        >
+                                            La estructura es opcional para subir
+                                            un archivo. Puedes registrarla para
+                                            documentar campos o para generar una
+                                            consulta de extracción.
+                                        </div>
+
+                                        <div class="mt-5">
+                                            <label class="block">
+                                                <span
+                                                    class="text-xs font-bold text-slate-600 dark:text-slate-300"
+                                                >
+                                                    Formato de estructura
+                                                </span>
+
+                                                <select
+                                                    v-model="structureForm.structure_format"
+                                                    class="mt-2 w-full rounded-xl border border-slate-200 bg-background px-3 py-2.5 text-sm disabled:opacity-60 dark:border-slate-800"
+                                                    :disabled="!canManageSources"
+                                                >
+                                                    <option value="field_type_list">
+                                                        Lista campo / tipo
+                                                    </option>
+                                                    <option value="sql_server_ddl">
+                                                        SQL Server DDL
+                                                    </option>
+                                                    <option value="other">
+                                                        Otro
+                                                    </option>
+                                                </select>
+                                            </label>
+
+                                            <label class="mt-4 block">
+                                                <span
+                                                    class="text-xs font-bold text-slate-600 dark:text-slate-300"
+                                                >
+                                                    Definición
+                                                </span>
+
+                                                <textarea
+                                                    v-model="structureForm.structure_text"
+                                                    rows="12"
+                                                    maxlength="50000"
+                                                    class="mt-2 w-full rounded-xl border border-slate-200 bg-background px-3 py-3 font-mono text-xs leading-5 disabled:opacity-60 dark:border-slate-800"
+                                                    :disabled="!canManageSources"
+                                                    placeholder="Ej. IdCliente INT&#10;Nombre VARCHAR(200)&#10;FechaCreacion DATETIME"
+                                                />
+                                            </label>
+
+                                            <div
+                                                v-if="canManageSources"
+                                                class="mt-4 flex justify-end"
+                                            >
+                                                <button
+                                                    type="button"
+                                                    class="rounded-xl bg-slate-950 px-4 py-2.5 text-sm font-black text-white disabled:opacity-50 dark:bg-white dark:text-slate-950"
+                                                    :disabled="
+                                                        sourceWorkspaceBusy !== null
+                                                    "
+                                                    @click="saveSourceStructure"
+                                                >
+                                                    {{
+                                                        sourceWorkspaceBusy === 'structure'
+                                                            ? 'Guardando...'
+                                                            : 'Guardar estructura'
+                                                    }}
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <!-- Extracción -->
+                                    <div
+                                        v-else-if="
+                                            activeSourceTab ===
+                                            'extraction'
+                                        "
+                                    >
+                                        <div
+                                            class="rounded-xl border border-cyan-200 bg-cyan-50/50 p-4 text-sm leading-6 text-slate-600 dark:border-cyan-950 dark:bg-cyan-950/10 dark:text-slate-300"
+                                        >
+                                            <strong
+                                                class="text-slate-900 dark:text-white"
+                                            >
+                                                LAUDA no se conecta a tu servidor.
+                                            </strong>
+                                            Esta herramienta genera una consulta
+                                            SELECT de solo lectura para que la
+                                            ejecutes localmente en SQL Server y
+                                            exportes el resultado.
+                                        </div>
+
+                                        <div
+                                            class="mt-5 grid gap-4 md:grid-cols-2"
+                                        >
+                                            <label class="block">
+                                                <span
+                                                    class="text-xs font-bold text-slate-600 dark:text-slate-300"
+                                                >
+                                                    Esquema
+                                                </span>
+
+                                                <input
+                                                    v-model="extractionForm.schema_name"
+                                                    type="text"
+                                                    maxlength="128"
+                                                    class="mt-2 w-full rounded-xl border border-slate-200 bg-background px-3 py-2.5 text-sm dark:border-slate-800"
+                                                    placeholder="dbo"
+                                                />
+                                            </label>
+
+                                            <label class="block">
+                                                <span
+                                                    class="text-xs font-bold text-slate-600 dark:text-slate-300"
+                                                >
+                                                    Tabla
+                                                </span>
+
+                                                <input
+                                                    v-model="extractionForm.table_name"
+                                                    type="text"
+                                                    maxlength="128"
+                                                    class="mt-2 w-full rounded-xl border border-slate-200 bg-background px-3 py-2.5 text-sm dark:border-slate-800"
+                                                    :placeholder="
+                                                        selectedSource.source_object_name
+                                                    "
+                                                />
+                                            </label>
+                                        </div>
+
+                                        <div class="mt-4 flex justify-end">
+                                            <button
+                                                type="button"
+                                                class="rounded-xl bg-cyan-700 px-4 py-2.5 text-sm font-black text-white disabled:cursor-not-allowed disabled:opacity-50 dark:bg-cyan-600"
+                                                :disabled="
+                                                    sourceWorkspaceBusy !== null
+                                                    || !selectedSource.structure_text
+                                                "
+                                                @click="previewSourceExtraction"
+                                            >
+                                                {{
+                                                    sourceWorkspaceBusy === 'extraction'
+                                                        ? 'Generando...'
+                                                        : 'Generar consulta'
+                                                }}
+                                            </button>
+                                        </div>
+
+                                        <div
+                                            v-if="extractionPreview"
+                                            class="mt-5 space-y-4 border-t border-slate-200/70 pt-5 dark:border-slate-800"
+                                        >
+                                            <div
+                                                class="flex flex-wrap items-center justify-between gap-3"
+                                            >
+                                                <p
+                                                    class="text-sm font-black text-slate-900 dark:text-white"
+                                                >
+                                                    SELECT generado ·
+                                                    {{ extractionPreview.field_count }}
+                                                    campos
+                                                </p>
+
+                                                <button
+                                                    type="button"
+                                                    class="rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-bold dark:border-slate-800"
+                                                    @click="copyExtractionQuery"
+                                                >
+                                                    Copiar consulta
+                                                </button>
+                                            </div>
+
+                                            <textarea
+                                                :value="extractionPreview.query"
+                                                rows="10"
+                                                readonly
+                                                class="w-full rounded-xl border border-slate-200 bg-slate-950 px-4 py-3 font-mono text-xs leading-5 text-slate-100 dark:border-slate-800"
+                                            />
+
+                                            <div
+                                                v-if="selectedExtractionExport"
+                                                class="rounded-xl border border-slate-200/70 p-4 dark:border-slate-800"
+                                            >
+                                                <p
+                                                    class="text-xs font-black text-slate-900 dark:text-white"
+                                                >
+                                                    Exportar como
+                                                    {{ selectedExtractionExport.label }}
+                                                </p>
+
+                                                <ol
+                                                    class="mt-3 list-decimal space-y-2 pl-5 text-xs leading-5 text-slate-500 dark:text-slate-400"
+                                                >
+                                                    <li
+                                                        v-for="instruction in selectedExtractionExport.instructions"
+                                                        :key="instruction"
+                                                    >
+                                                        {{ instruction }}
+                                                    </li>
+                                                </ol>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <!-- Archivo -->
+                                    <div
+                                        v-else-if="
+                                            activeSourceTab ===
+                                            'file'
+                                        "
+                                    >
+                                        <div
+                                            class="rounded-xl border border-blue-200 bg-blue-50/50 p-4 text-xs leading-5 text-slate-600 dark:border-blue-950 dark:bg-blue-950/10 dark:text-slate-300"
+                                        >
+                                            Sube el resultado completo en CSV o
+                                            XLSX. La estructura previa no es
+                                            obligatoria. Tamaño máximo: 32 MB.
+                                        </div>
+
+                                        <div
+                                            v-if="selectedSource.data_file"
+                                            class="mt-5 rounded-2xl border border-slate-200/70 p-4 dark:border-slate-800"
+                                        >
+                                            <p
+                                                class="text-sm font-black text-slate-900 dark:text-white"
+                                            >
+                                                {{
+                                                    selectedSource.data_file
+                                                        .original_filename
+                                                }}
+                                            </p>
+
+                                            <p
+                                                class="mt-1 text-xs text-slate-500 dark:text-slate-400"
+                                            >
+                                                {{
+                                                    selectedSource.data_file
+                                                        .source_format
+                                                        .toUpperCase()
+                                                }}
+                                                ·
+                                                {{
+                                                    sourceFileSize(
+                                                        selectedSource.data_file
+                                                            .source_size_bytes,
+                                                    )
+                                                }}
+                                                ·
+                                                {{
+                                                    selectedSource.data_file
+                                                        .source_row_count
+                                                }}
+                                                filas detectadas
+                                            </p>
+                                        </div>
+
+                                        <div
+                                            v-if="canManageSources"
+                                            class="mt-5"
+                                        >
+                                            <input
+                                                type="file"
+                                                accept=".csv,.xlsx"
+                                                class="block w-full rounded-xl border border-slate-200 bg-background px-3 py-3 text-sm dark:border-slate-800"
+                                                @change="selectSourceFile"
+                                            />
+
+                                            <div
+                                                class="mt-4 flex justify-end"
+                                            >
+                                                <button
+                                                    type="button"
+                                                    class="rounded-xl bg-slate-950 px-4 py-2.5 text-sm font-black text-white disabled:cursor-not-allowed disabled:opacity-50 dark:bg-white dark:text-slate-950"
+                                                    :disabled="
+                                                        sourceWorkspaceBusy !== null
+                                                        || !sourceFile
+                                                    "
+                                                    @click="uploadSourceData"
+                                                >
+                                                    {{
+                                                        sourceWorkspaceBusy === 'upload'
+                                                            ? 'Subiendo...'
+                                                            : selectedSource.data_file
+                                                              ? 'Reemplazar archivo'
+                                                              : 'Subir archivo'
+                                                    }}
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <!-- Resultado -->
+                                    <div
+                                        v-else-if="
+                                            activeSourceTab ===
+                                            'result'
+                                        "
+                                    >
+                                        <div
+                                            class="grid gap-3 sm:grid-cols-3"
+                                        >
+                                            <div
+                                                class="rounded-xl border border-slate-200/70 p-4 dark:border-slate-800"
+                                            >
+                                                <p
+                                                    class="text-[10px] font-black tracking-wide text-slate-400 uppercase"
+                                                >
+                                                    Fuente
+                                                </p>
+                                                <p
+                                                    class="mt-1 text-sm font-black"
+                                                >
+                                                    {{
+                                                        sourceStatusLabel(
+                                                            selectedSource.status,
+                                                        )
+                                                    }}
+                                                </p>
+                                            </div>
+
+                                            <div
+                                                class="rounded-xl border border-slate-200/70 p-4 dark:border-slate-800"
+                                            >
+                                                <p
+                                                    class="text-[10px] font-black tracking-wide text-slate-400 uppercase"
+                                                >
+                                                    Estructura
+                                                </p>
+                                                <p
+                                                    class="mt-1 text-sm font-black"
+                                                >
+                                                    {{
+                                                        sourceStructureStatusLabel(
+                                                            selectedSource.structure_status,
+                                                        )
+                                                    }}
+                                                </p>
+                                            </div>
+
+                                            <div
+                                                class="rounded-xl border border-slate-200/70 p-4 dark:border-slate-800"
+                                            >
+                                                <p
+                                                    class="text-[10px] font-black tracking-wide text-slate-400 uppercase"
+                                                >
+                                                    Datos
+                                                </p>
+                                                <p
+                                                    class="mt-1 text-sm font-black"
+                                                >
+                                                    {{
+                                                        sourceDataStatusLabel(
+                                                            selectedSource.data_status,
+                                                        )
+                                                    }}
+                                                </p>
+                                            </div>
+                                        </div>
+
+                                        <div
+                                            class="mt-4 rounded-2xl border border-slate-200/70 bg-slate-50/50 p-4 text-sm leading-6 dark:border-slate-800 dark:bg-slate-900/20"
+                                        >
+                                            <p
+                                                class="font-black text-slate-900 dark:text-white"
+                                            >
+                                                Readiness derivado
+                                            </p>
+
+                                            <p
+                                                class="mt-2 text-slate-500 dark:text-slate-400"
+                                            >
+                                                {{
+                                                    source_workspace
+                                                        .readiness
+                                                        .complete_source_count
+                                                }}
+                                                de
+                                                {{
+                                                    source_workspace
+                                                        .readiness
+                                                        .source_count
+                                                }}
+                                                fuentes activas tienen un archivo
+                                                CSV/XLSX vigente recibido.
+                                            </p>
+
+                                            <p
+                                                class="mt-2 font-bold"
+                                                :class="
+                                                    source_workspace
+                                                        .readiness
+                                                        .inputs_validated
+                                                        ? 'text-emerald-600 dark:text-emerald-400'
+                                                        : 'text-amber-600 dark:text-amber-400'
+                                                "
+                                            >
+                                                {{
+                                                    source_workspace
+                                                        .readiness
+                                                        .inputs_validated
+                                                        ? 'Fuentes listas para continuar.'
+                                                        : 'Todavía faltan entregas por completar.'
+                                                }}
+                                            </p>
+                                        </div>
+
+                                        <div
+                                            v-if="selectedSource.failure_message"
+                                            class="mt-4 rounded-xl border border-red-200 bg-red-50 p-4 text-sm leading-6 text-red-700 dark:border-red-950 dark:bg-red-950/20 dark:text-red-300"
+                                        >
+                                            {{
+                                                selectedSource.failure_message
+                                            }}
+                                        </div>
+
+                                        <p
+                                            class="mt-4 border-t border-slate-200/70 pt-4 text-xs leading-5 text-slate-500 dark:border-slate-800 dark:text-slate-400"
+                                        >
+                                            El estado técnico es calculado por
+                                            LAUDA. No se puede marcar manualmente
+                                            una fuente como validada o lista.
+                                        </p>
+                                    </div>
+                                </div>
+                            </div>
+                        </template>
+
+                        <p
+                            class="mt-6 border-t border-slate-200/70 pt-4 text-xs leading-5 text-slate-500 dark:border-slate-800 dark:text-slate-400"
+                        >
+                            Tu empresa administra la información y sus entregas.
+                            LAUDA conserva el profiling técnico, normalización,
+                            relaciones, modelo canónico y procesamiento posterior.
+                        </p>
                     </section>
 
                     <!-- P7_DATA_PREPARATION_STATUS -->

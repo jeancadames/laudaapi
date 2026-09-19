@@ -8,12 +8,15 @@ use App\Models\TransformationImplementationPhaseCapability;
 use App\Models\TransformationImplementationPlan;
 use App\Models\TransformationImplementationRequest;
 use App\Services\Diagnosis\DataTransformationBiPreparationStatusReadModel;
+use App\Services\Diagnosis\DataTransformationBiIntakeV2StateService;
+use App\Services\Diagnosis\DataTransformationBiSourceReadinessService;
 use App\Services\Diagnosis\TransformationImplementationRequestContract;
 use App\Services\Diagnosis\TransformationProfessionalCapabilityCatalog;
 use App\Services\Ecosystem\SubscriberTransformation360DashboardService;
 use App\Services\Subscribers\CompanyContextResolver;
 use App\Services\Subscribers\SubscriberResolver;
 use App\Services\Subscribers\TenantAccessService;
+use App\Services\Diagnosis\DataTransformationBiTenantSourceWorkspaceProjection;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -27,7 +30,9 @@ final class AppHubDataTransformationBiController
         CompanyContextResolver $companyResolver,
         TenantAccessService $tenantAccessService,
         SubscriberTransformation360DashboardService $dashboard,
-        DataTransformationBiPreparationStatusReadModel $preparationStatus
+        DataTransformationBiPreparationStatusReadModel $preparationStatus,
+        DataTransformationBiIntakeV2StateService $intakeState,
+        DataTransformationBiSourceReadinessService $sourceReadiness
     ): Response {
         $user = $request->user();
 
@@ -204,6 +209,166 @@ final class AppHubDataTransformationBiController
                 : null;
 
         /*
+         * Client-owned dynamic source workspace.
+         *
+         * This is intentionally separate from $dataPreparation.
+         *
+         * $dataPreparation:
+         *   persisted batch / processing status.
+         *
+         * $sourceWorkspaceState:
+         *   pre-staging Intake v2 session + dynamic SourceAssets.
+         *
+         * The browser never selects Company or implementation request.
+         */
+        $sourceWorkspaceState = null;
+
+        $sourceReadinessState = [
+            'inputs_validated' => false,
+            'accesses_validated' => false,
+            'source_count' => 0,
+            'complete_source_count' => 0,
+        ];
+
+        $sourceWorkspaceRequest = null;
+
+        if (
+            (int) (
+                $implementationRequest['id']
+                ?? 0
+            ) > 0
+        ) {
+            $sourceWorkspaceRequest =
+                TransformationImplementationRequest::query()
+                    ->whereKey(
+                        (int) $implementationRequest['id']
+                    )
+                    ->where(
+                        'company_id',
+                        (int) $company->id
+                    )
+                    ->where(
+                        'capability_key',
+                        'data_transformation_bi'
+                    )
+                    ->first();
+        }
+
+        if ($sourceWorkspaceRequest !== null) {
+            $sourceWorkspaceState =
+                $intakeState->forRequest(
+                    $sourceWorkspaceRequest
+                );
+
+            $sourceReadinessState =
+                $sourceReadiness->forRequest(
+                    $sourceWorkspaceRequest
+                );
+        }
+
+        /*
+         * Deliberately narrow tenant projection.
+         *
+         * We do not expose the complete Intake v2 legacy domain payload,
+         * technical delivery state, storage information or internal
+         * configuration here.
+         */
+        $sourceWorkspace = [
+            'session' =>
+                is_array(
+                    $sourceWorkspaceState['session']
+                    ?? null
+                )
+                    ? [
+                        'id' =>
+                            (int) (
+                                $sourceWorkspaceState[
+                                    'session'
+                                ]['id']
+                                ?? 0
+                            ),
+
+                        'status' =>
+                            (string) (
+                                $sourceWorkspaceState[
+                                    'session'
+                                ]['status']
+                                ?? ''
+                            ),
+                    ]
+                    : null,
+
+            'actions' => [
+                'can_start_or_resume' =>
+                    (bool) (
+                        $sourceWorkspaceState[
+                            'actions'
+                        ]['can_start_or_resume']
+                        ?? false
+                    ),
+
+                'can_manage_sources' =>
+                    (bool) (
+                        $sourceWorkspaceState[
+                            'actions'
+                        ]['can_manage_sources']
+                        ?? false
+                    ),
+            ],
+
+            /*
+             * Server-owned readiness.
+             *
+             * accesses_validated remains a legacy compatibility mirror.
+             * It does NOT represent remote DB access.
+             */
+            'readiness' => [
+                'inputs_validated' =>
+                    (bool) (
+                        $sourceReadinessState[
+                            'inputs_validated'
+                        ]
+                        ?? false
+                    ),
+
+                'accesses_validated' =>
+                    (bool) (
+                        $sourceReadinessState[
+                            'accesses_validated'
+                        ]
+                        ?? false
+                    ),
+
+                'source_count' =>
+                    (int) (
+                        $sourceReadinessState[
+                            'source_count'
+                        ]
+                        ?? 0
+                    ),
+
+                'complete_source_count' =>
+                    (int) (
+                        $sourceReadinessState[
+                            'complete_source_count'
+                        ]
+                        ?? 0
+                    ),
+            ],
+        ];
+
+        $sourceAssets =
+            is_array($sourceWorkspaceState)
+                ? (
+                    $sourceWorkspaceState[
+                        'source_assets'
+                    ]
+                    ?? []
+                )
+                : [];
+
+
+        /*
          * P12 · Historical processing traceability.
          *
          * Read-only, company-scoped and request-scoped.
@@ -295,6 +460,15 @@ final class AppHubDataTransformationBiController
                 'data_preparation' =>
                     $dataPreparation,
 
+                'source_workspace' =>
+                    $sourceWorkspace,
+
+                'source_assets' =>
+                    app(
+                        DataTransformationBiTenantSourceWorkspaceProjection::class
+                    )->sourceAssetsFromState(
+                        $sourceWorkspaceState
+                    ),
                 'processing_history' =>
                     $processingHistory,
 

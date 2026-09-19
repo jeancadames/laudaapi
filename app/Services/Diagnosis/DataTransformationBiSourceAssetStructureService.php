@@ -29,7 +29,8 @@ final class DataTransformationBiSourceAssetStructureService
         string $structureText,
         User $actor
     ): DataTransformationBiSourceAsset {
-        $this->assertAdmin(
+        $this->assertCanManage(
+            $implementationRequest,
             $actor
         );
 
@@ -177,17 +178,16 @@ final class DataTransformationBiSourceAssetStructureService
         );
     }
 
-    private function assertAdmin(
+    private function assertCanManage(
+        TransformationImplementationRequest $implementationRequest,
         User $actor
     ): void {
-        if (
-            (string) $actor->role
-            !== 'admin'
-        ) {
-            throw new AuthorizationException(
-                'Solo un administrador puede gestionar la estructura de una fuente.'
-            );
-        }
+        app(
+            DataTransformationBiIntakeActorAuthorizationService::class
+        )->assertCanManage(
+            $implementationRequest,
+            $actor
+        );
     }
 
     private function assertRequestAndSession(

@@ -27,7 +27,8 @@ final class DataTransformationBiIntakeV2SessionService
         TransformationImplementationRequest $implementationRequest,
         User $actor
     ): array {
-        $this->assertAdmin(
+        $this->assertCanManage(
+            $implementationRequest,
             $actor
         );
 
@@ -416,17 +417,16 @@ final class DataTransformationBiIntakeV2SessionService
         ];
     }
 
-    private function assertAdmin(
+    private function assertCanManage(
+        TransformationImplementationRequest $implementationRequest,
         User $actor
     ): void {
-        if (
-            (string) $actor->role
-            !== 'admin'
-        ) {
-            throw new AuthorizationException(
-                'La gestión del intake requiere privilegios administrativos.'
-            );
-        }
+        app(
+            DataTransformationBiIntakeActorAuthorizationService::class
+        )->assertCanManage(
+            $implementationRequest,
+            $actor
+        );
     }
 
     private function assertPersistedRequest(

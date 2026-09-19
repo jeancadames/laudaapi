@@ -202,7 +202,86 @@ Route::middleware(['auth', 'verified'])
     )
     ->name('app.transformation.data_bi.request');
 
-    /*
+
+/*
+|--------------------------------------------------------------------------
+| Tenant Data BI · client-owned source workspace
+|--------------------------------------------------------------------------
+|
+| Company and implementation request are always resolved server-side.
+| The browser may identify only a session/source inside that already
+| authorized tenant context.
+|
+*/
+Route::middleware(['auth', 'verified'])
+    ->prefix('/app/transformacion-360/datos-bi/fuentes')
+    ->name('app.transformation.data_bi.sources.')
+    ->controller(
+        \App\Http\Controllers\AppHubDataTransformationBiSourceWorkspaceController::class
+    )
+    ->group(function (): void {
+        Route::post(
+            '/preparar',
+            'prepareWorkspace'
+        )
+            ->name('prepare');
+
+        Route::post(
+            '/sesiones/{sessionId}/fuentes',
+            'createSourceAsset'
+        )
+            ->whereNumber('sessionId')
+            ->name('create');
+
+        Route::patch(
+            '/sesiones/{sessionId}/fuentes/reordenar',
+            'reorderSourceAssets'
+        )
+            ->whereNumber('sessionId')
+            ->name('reorder');
+
+        Route::patch(
+            '/sesiones/{sessionId}/fuentes/{sourceAssetId}',
+            'updateSourceAsset'
+        )
+            ->whereNumber('sessionId')
+            ->whereNumber('sourceAssetId')
+            ->name('update');
+
+        Route::patch(
+            '/sesiones/{sessionId}/fuentes/{sourceAssetId}/archivar',
+            'archiveSourceAsset'
+        )
+            ->whereNumber('sessionId')
+            ->whereNumber('sourceAssetId')
+            ->name('archive');
+
+        Route::patch(
+            '/sesiones/{sessionId}/fuentes/{sourceAssetId}/estructura',
+            'updateSourceAssetStructure'
+        )
+            ->whereNumber('sessionId')
+            ->whereNumber('sourceAssetId')
+            ->name('structure');
+
+        Route::post(
+            '/sesiones/{sessionId}/fuentes/{sourceAssetId}/archivo',
+            'uploadSourceAssetData'
+        )
+            ->whereNumber('sessionId')
+            ->whereNumber('sourceAssetId')
+            ->name('data_file.upload');
+
+        Route::post(
+            '/sesiones/{sessionId}/fuentes/{sourceAssetId}/extraccion-sql-server/previsualizar',
+            'previewSourceAssetSqlServerExtraction'
+        )
+            ->whereNumber('sessionId')
+            ->whereNumber('sourceAssetId')
+            ->name('sql_server_extraction.preview');
+    });
+
+/*
     |--------------------------------------------------------------------------
     | Tenant Definition review · solicitar cambios
     |--------------------------------------------------------------------------
@@ -223,16 +302,19 @@ Route::middleware(['auth', 'verified'])
         'app.transformation.data_bi.definition.request_changes'
     );
 
-    Route::post(
-        '/app/transformacion-360/datos-bi/definition/acordar',
-        [
-            \App\Http\Controllers\AppHubDataTransformationBiDefinitionReviewController::class,
-            'agree',
-        ]
-    )
-        ->name(
-            'app.transformation.data_bi.definition.agree'
-        );
+Route::middleware(['auth', 'verified'])
+    ->group(function (): void {
+        Route::post(
+            '/app/transformacion-360/datos-bi/definition/acordar',
+            [
+                \App\Http\Controllers\AppHubDataTransformationBiDefinitionReviewController::class,
+                'agree',
+            ]
+        )
+            ->name(
+                'app.transformation.data_bi.definition.agree'
+            );
+    });
 
 
 Route::middleware(['auth', 'verified'])
