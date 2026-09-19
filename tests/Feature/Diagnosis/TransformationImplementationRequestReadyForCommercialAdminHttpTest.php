@@ -24,12 +24,14 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
 use Inertia\Testing\AssertableInertia as Assert;
+use Tests\Support\CreatesDataTransformationBiSourceReadinessFixture;
 use Tests\TestCase;
 
 final class TransformationImplementationRequestReadyForCommercialAdminHttpTest
     extends TestCase
 {
     use DatabaseTransactions;
+    use CreatesDataTransformationBiSourceReadinessFixture;
 
     protected function setUp(): void
     {
@@ -215,6 +217,15 @@ final class TransformationImplementationRequestReadyForCommercialAdminHttpTest
                     }
                 )
                 ->all();
+
+        /*
+         * Dynamic Data BI source readiness required by the current
+         * server-owned review contract.
+         */
+        $this->createCompleteDataBiSourceReadinessFixture(
+            $implementationRequest,
+            $admin
+        );
 
         /** @var TransformationImplementationRequestDefinitionReviewService $reviews */
         $reviews =

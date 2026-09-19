@@ -1,8 +1,10 @@
 <?php
 
-uses(Tests\TestCase::class);
+use Tests\TestCase;
 
-it('renders BI validation evidence from the canonical capability prop', function () {
+uses(TestCase::class);
+
+it('uses the dynamic source workspace instead of editable legacy BI evidence', function () {
     $path =
         resource_path(
             'js/pages/Admin/Transformation360/ImplementationRequests/Show.vue'
@@ -15,16 +17,28 @@ it('renders BI validation evidence from the canonical capability prop', function
 
     expect($source)
         ->toContain(
-            "props.capability.key"
+            'props.capability.key'
         )
         ->toContain(
             "=== 'data_transformation_bi'"
         )
         ->toContain(
-            'Evidencia de insumos'
+            'D17_DYNAMIC_SOURCE_WORKSPACE_UI'
         )
         ->toContain(
-            'Evidencia de entrega / acceso'
+            'Fuentes de datos'
+        )
+        ->toContain(
+            'Modelo objetivo LAUDA · procesamiento interno'
+        )
+        ->not->toContain(
+            'Evidencia de insumos'
+        )
+        ->not->toContain(
+            'Evidencia de entrega de datos'
+        )
+        ->not->toContain(
+            'Agregar evidencia de origen'
         )
         ->not->toContain(
             'props.implementation_request.capability_key'

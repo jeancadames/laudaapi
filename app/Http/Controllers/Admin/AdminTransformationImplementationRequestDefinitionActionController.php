@@ -7,18 +7,17 @@ use App\Models\TransformationImplementationDefinition;
 use App\Models\TransformationImplementationRequest;
 use App\Services\Diagnosis\TransformationImplementationDefinitionAutogenerator;
 use App\Services\Diagnosis\TransformationImplementationRequestContract;
-use App\Services\Diagnosis\TransformationImplementationRequestDefinitionService;
+use App\Services\Diagnosis\TransformationImplementationRequestDefinitionFunctionalClosureService;
 use App\Services\Diagnosis\TransformationImplementationRequestDefinitionReviewService;
 use App\Services\Diagnosis\TransformationImplementationRequestDefinitionRevisionService;
-use App\Services\Diagnosis\TransformationImplementationRequestDefinitionFunctionalClosureService;
-use App\Services\Diagnosis\TransformationImplementationRequestReadyForCommercialService;
+use App\Services\Diagnosis\TransformationImplementationRequestDefinitionService;
 use App\Services\Diagnosis\TransformationImplementationRequestDefinitionTenantReviewService;
+use App\Services\Diagnosis\TransformationImplementationRequestReadyForCommercialService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\ValidationException;
 
-final class AdminTransformationImplementationRequestDefinitionActionController
-    extends Controller
+final class AdminTransformationImplementationRequestDefinitionActionController extends Controller
 {
     public function store(
         Request $request,
@@ -179,142 +178,35 @@ final class AdminTransformationImplementationRequestDefinitionActionController
 
         $validated =
             $request->validate([
-                'implementation_scope' =>
-                    ['sometimes', 'array'],
+                'implementation_scope' => ['sometimes', 'array'],
 
-                'deliverables' =>
-                    ['sometimes', 'array', 'min:1'],
+                'deliverables' => ['sometimes', 'array', 'min:1'],
 
-                'dependencies' =>
-                    ['sometimes', 'array'],
+                'dependencies' => ['sometimes', 'array'],
 
-                'responsibility_model' =>
-                    ['required', 'array'],
+                'responsibility_model' => ['required', 'array'],
 
-                'responsibility_model.assignments' =>
-                    ['required', 'array'],
+                'responsibility_model.assignments' => ['required', 'array'],
 
-                'responsibility_model.assignments.*' =>
-                    ['required', 'array'],
+                'responsibility_model.assignments.*' => ['required', 'array'],
 
-                'responsibility_model.assignments.*.initiative_id' =>
-                    ['required', 'string', 'max:255'],
+                'responsibility_model.assignments.*.initiative_id' => ['required', 'string', 'max:255'],
 
-                'responsibility_model.assignments.*.initiative_title' =>
-                    ['nullable', 'string', 'max:1000'],
+                'responsibility_model.assignments.*.initiative_title' => ['nullable', 'string', 'max:1000'],
 
-                'responsibility_model.assignments.*.suggested_owner_role' =>
-                    ['nullable', 'string', 'max:255'],
+                'responsibility_model.assignments.*.suggested_owner_role' => ['nullable', 'string', 'max:255'],
 
-                'responsibility_model.assignments.*.responsible_party' =>
-                    ['required', 'in:lauda,client,shared'],
+                'responsibility_model.assignments.*.responsible_party' => ['required', 'in:lauda,client,shared'],
 
-                'readiness' =>
-                    ['required', 'array'],
+                'readiness' => ['required', 'array'],
 
-                'readiness.scope_confirmed' =>
-                    ['required', 'boolean'],
+                'readiness.scope_confirmed' => ['required', 'boolean'],
 
-                'readiness.deliverables_confirmed' =>
-                    ['required', 'boolean'],
+                'readiness.deliverables_confirmed' => ['required', 'boolean'],
 
-                'readiness.dependencies_confirmed' =>
-                    ['required', 'boolean'],
+                'readiness.dependencies_confirmed' => ['required', 'boolean'],
 
-                'readiness.inputs_validated' =>
-                    ['required', 'boolean'],
-
-                'readiness.accesses_validated' =>
-                    ['required', 'boolean'],
-
-                'readiness.validation_evidence' =>
-                    ['sometimes', 'array'],
-
-                'readiness.validation_evidence.inputs' =>
-                    ['sometimes', 'array'],
-
-                'readiness.validation_evidence.inputs.*' =>
-                    ['required', 'array'],
-
-                'readiness.validation_evidence.inputs.*.source_name' =>
-                    ['required', 'string', 'max:255'],
-
-                /*
-                 * Compatibilidad histórica solamente.
-                 * El intake estándar no exige ni expone source_type.
-                 */
-                'readiness.validation_evidence.inputs.*.source_type' =>
-                    [
-                        'sometimes',
-                        'nullable',
-                        'string',
-                        'in:sql_server,mysql,postgresql,dbf,quickbooks,excel,csv,api,other',
-                    ],
-
-                'readiness.validation_evidence.inputs.*.source_role' =>
-                    [
-                        'nullable',
-                        'string',
-                        'in:primary,historical,complementary,derived',
-                    ],
-
-                'readiness.validation_evidence.inputs.*.delivery_format' =>
-                    [
-                        'nullable',
-                        'string',
-                        'in:csv,xlsx',
-                    ],
-
-                'readiness.validation_evidence.inputs.*.extraction_assistance_required' =>
-                    ['sometimes', 'nullable', 'boolean'],
-
-                'readiness.validation_evidence.inputs.*.data_domains' =>
-                    ['required', 'array', 'min:1'],
-
-                'readiness.validation_evidence.inputs.*.data_domains.*' =>
-                    ['required', 'string', 'max:255'],
-
-                'readiness.validation_evidence.inputs.*.owner' =>
-                    ['nullable', 'string', 'max:255'],
-
-                'readiness.validation_evidence.inputs.*.historical_coverage' =>
-                    ['nullable', 'string', 'max:255'],
-
-                'readiness.validation_evidence.inputs.*.granularity' =>
-                    ['nullable', 'string', 'max:255'],
-
-                'readiness.validation_evidence.inputs.*.status' =>
-                    ['required', 'in:pending,validated,blocked,not_applicable'],
-
-                'readiness.validation_evidence.inputs.*.notes' =>
-                    ['nullable', 'string', 'max:2000'],
-
-                'readiness.validation_evidence.accesses' =>
-                    ['sometimes', 'array'],
-
-                'readiness.validation_evidence.accesses.*' =>
-                    ['required', 'array'],
-
-                'readiness.validation_evidence.accesses.*.source_name' =>
-                    ['required', 'string', 'max:255'],
-
-                'readiness.validation_evidence.accesses.*.access_method' =>
-                    ['nullable', 'string', 'max:255'],
-
-                'readiness.validation_evidence.accesses.*.authorized' =>
-                    ['required', 'boolean'],
-
-                'readiness.validation_evidence.accesses.*.verified' =>
-                    ['required', 'boolean'],
-
-                'readiness.validation_evidence.accesses.*.status' =>
-                    ['required', 'in:pending,validated,blocked,not_applicable'],
-
-                'readiness.validation_evidence.accesses.*.notes' =>
-                    ['nullable', 'string', 'max:2000'],
-
-                'readiness.responsibilities_confirmed' =>
-                    ['required', 'boolean'],
+                'readiness.responsibilities_confirmed' => ['required', 'boolean'],
             ]);
 
         $definition =
@@ -350,8 +242,7 @@ final class AdminTransformationImplementationRequestDefinitionActionController
 
         $validated =
             $request->validate([
-                'notes' =>
-                    ['nullable', 'string', 'max:4000'],
+                'notes' => ['nullable', 'string', 'max:4000'],
             ]);
 
         $transitioned =
@@ -458,7 +349,6 @@ final class AdminTransformationImplementationRequestDefinitionActionController
         );
     }
 
-
     /**
      * Finaliza funcionalmente la Definition exacta acordada
      * por el tenant.
@@ -496,7 +386,6 @@ final class AdminTransformationImplementationRequestDefinitionActionController
         );
     }
 
-
     /**
      * Marca la solicitud como lista únicamente para que una etapa
      * comercial separada pueda iniciarse posteriormente.
@@ -531,7 +420,6 @@ final class AdminTransformationImplementationRequestDefinitionActionController
             'Ciclo funcional completado. La solicitud quedó lista únicamente para iniciar posteriormente una etapa comercial separada.'
         );
     }
-
 
     private function authorizeAdmin(
         Request $request

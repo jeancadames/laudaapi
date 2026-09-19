@@ -12,9 +12,9 @@ use Illuminate\Validation\ValidationException;
 final class TransformationImplementationRequestDefinitionReviewService
 {
     public function __construct(
-        private readonly TransformationImplementationDefinitionReviewService $reviews
-    ) {
-    }
+        private readonly TransformationImplementationDefinitionReviewService $reviews,
+        private readonly DataTransformationBiSourceReadinessService $sourceReadiness
+    ) {}
 
     /**
      * Guarda revisión humana LAUDA de una Definition
@@ -118,65 +118,46 @@ final class TransformationImplementationRequestDefinitionReviewService
                  */
                 TransformationImplementationRequestEvent::query()
                     ->create([
-                        'transformation_implementation_request_id' =>
-                            $lockedRequest->id,
+                        'transformation_implementation_request_id' => $lockedRequest->id,
 
-                        'event_type' =>
-                            'definition_review_saved',
+                        'event_type' => 'definition_review_saved',
 
-                        'from_status' =>
-                            $lockedRequest->status,
+                        'from_status' => $lockedRequest->status,
 
-                        'to_status' =>
-                            $lockedRequest->status,
+                        'to_status' => $lockedRequest->status,
 
-                        'actor_type' =>
-                            'lauda_admin',
+                        'actor_type' => 'lauda_admin',
 
-                        'actor_user_id' =>
-                            $actor->id,
+                        'actor_user_id' => $actor->id,
 
-                        'notes' =>
-                            'LAUDA guardó revisión humana de la Definition funcional solicitada.',
+                        'notes' => 'LAUDA guardó revisión humana de la Definition funcional solicitada.',
 
                         'metadata' => [
-                            'definition_id' =>
-                                $reviewed->id,
+                            'definition_id' => $reviewed->id,
 
-                            'definition_version' =>
-                                $reviewed->version,
+                            'definition_version' => $reviewed->version,
 
-                            'definition_status' =>
-                                $reviewed->status,
+                            'definition_status' => $reviewed->status,
 
-                            'phase_capability_id' =>
-                                $reviewed
-                                    ->transformation_implementation_phase_capability_id,
+                            'phase_capability_id' => $reviewed
+                                ->transformation_implementation_phase_capability_id,
 
-                            'capability_key' =>
-                                $reviewed->capability_key,
+                            'capability_key' => $reviewed->capability_key,
 
-                            'scope_mode' =>
-                                TransformationImplementationDefinitionRequestScopeContract::SCOPE_MODE,
+                            'scope_mode' => TransformationImplementationDefinitionRequestScopeContract::SCOPE_MODE,
 
-                            'definition_ready' =>
-                                false,
+                            'definition_ready' => false,
 
-                            'request_status_changed' =>
-                                false,
+                            'request_status_changed' => false,
 
-                            'tenant_review_started' =>
-                                false,
+                            'tenant_review_started' => false,
 
-                            'commercial_stage_started' =>
-                                false,
+                            'commercial_stage_started' => false,
 
-                            'execution_started' =>
-                                false,
+                            'execution_started' => false,
                         ],
 
-                        'occurred_at' =>
-                            now(),
+                        'occurred_at' => now(),
                     ]);
 
                 return $reviewed->fresh();
@@ -345,33 +326,56 @@ final class TransformationImplementationRequestDefinitionReviewService
                 ]);
             }
 
-            $validationEvidence =
+            /*
+             * Dynamic SourceAsset state is authoritative for Data BI.
+             *
+             * Browser-provided inputs_validated/accesses_validated and
+             * validation_evidence are deliberately ignored.
+             */
+            $sourceReadiness =
+                $this
+                    ->sourceReadiness
+                    ->forRequest(
+                        $request
+                    );
+
+            /*
+             * Keep old Definition evidence only as historical/internal
+             * compatibility data. It no longer gates source readiness.
+             */
+            $historicalValidationEvidence =
                 TransformationImplementationDefinitionValidationEvidence::normalize(
-                    $readiness[
-                        'validation_evidence'
-                    ]
-                    ?? data_get(
+                    data_get(
                         $definition->readiness,
                         'validation_evidence'
                     )
                 );
 
-            TransformationImplementationDefinitionValidationEvidence::assertSupportsConfirmations(
-                $readiness,
-                $validationEvidence
-            );
-
             $data[
                 'readiness'
-            ][
-                'validation_evidence'
             ] =
-                $validationEvidence;
+                array_merge(
+                    $readiness,
+                    [
+                        'inputs_validated' => $sourceReadiness[
+                                'inputs_validated'
+                            ],
+
+                        /*
+                         * Generic review compatibility alias.
+                         * This is NOT remote-access verification.
+                         */
+                        'accesses_validated' => $sourceReadiness[
+                                'accesses_validated'
+                            ],
+
+                        'validation_evidence' => $historicalValidationEvidence,
+                    ]
+                );
         }
 
         return $data;
     }
-
 
     private function assertDefinitionContext(
         TransformationImplementationRequest $request,

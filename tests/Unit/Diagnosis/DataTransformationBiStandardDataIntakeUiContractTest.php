@@ -5,7 +5,7 @@ use Tests\TestCase;
 uses(TestCase::class);
 
 test(
-    'bi admin ui exposes file based standard intake',
+    'bi admin ui uses dynamic source assets as the data intake surface',
     function () {
         $source =
             file_get_contents(
@@ -16,40 +16,28 @@ test(
 
         expect($source)
             ->toContain(
-                'Sistema de origen (informativo)'
-            )
-            ->toContain('item.source_role')
-            ->toContain('item.delivery_format')
-            ->toContain(
-                'item.extraction_assistance_required'
-            )
-            ->toContain('Rol de los datos')
-            ->toContain(
-                'Formato de entrega a LAUDA'
+                'D17_DYNAMIC_SOURCE_WORKSPACE_UI'
             )
             ->toContain(
-                'Asistencia de extracción'
+                'Fuentes de datos'
             )
             ->toContain(
-                'archivos CSV/XLSX'
+                '+ Agregar fuente'
             )
-            ->toContain('CSV')
-            ->toContain('Excel (.xlsx)');
-
-        expect($source)
-            ->not
             ->toContain(
-                'v-model="item.source_type"'
+                'Referencia canónica Excel'
+            )
+            ->toContain(
+                'Referencia canónica CSV'
+            )
+            ->toContain(
+                'Modelo objetivo LAUDA · procesamiento interno'
             );
-
-        expect($source)
-            ->not
-            ->toContain('Tipo de fuente');
     }
 );
 
 test(
-    'standard intake ui treats access as file delivery mechanism',
+    'legacy evidence editors and manual data validation confirmations are not rendered',
     function () {
         $source =
             file_get_contents(
@@ -59,64 +47,90 @@ test(
             );
 
         expect($source)
-            ->toContain(
+            ->not->toContain(
+                'Evidencia de insumos'
+            )
+            ->not->toContain(
+                'Agregar evidencia de origen'
+            )
+            ->not->toContain(
                 'Evidencia de entrega de datos'
             )
-            ->toContain(
-                'Mecanismo de entrega'
+            ->not->toContain(
+                'v-model="humanReviewForm.readiness.inputs_validated"'
             )
-            ->toContain(
-                'no requiere'
+            ->not->toContain(
+                'v-model="humanReviewForm.readiness.accesses_validated"'
             )
-            ->toContain(
-                'conexión directa al sistema fuente'
+            ->not->toContain(
+                'function addInputValidationEvidence(): void'
             )
-            ->toContain(
-                'Agregar entrega'
-            )
-            ->toContain(
-                'Entrega autorizada'
-            )
-            ->toContain(
-                'Entrega verificada'
-            )
-            ->toContain(
-                'Entrega de datos validada'
+            ->not->toContain(
+                'function addAccessValidationEvidence(): void'
             );
     }
 );
 
 test(
-    'human review keeps source type only for legacy compatibility',
+    'data bi review keeps machine readiness server owned',
     function () {
-        $source =
+        $controller =
             file_get_contents(
                 app_path(
-                    'Http/Controllers/Admin/AdminTransformationImplementationRequestDefinitionActionController.php'
+                    'Http/Controllers/Admin/'
+                    .'AdminTransformationImplementationRequestDefinitionActionController.php'
                 )
             );
 
-        expect($source)
+        $review =
+            file_get_contents(
+                app_path(
+                    'Services/Diagnosis/'
+                    .'TransformationImplementationRequestDefinitionReviewService.php'
+                )
+            );
+
+        expect($controller)
             ->toContain(
-                'readiness.validation_evidence.inputs.*.source_type'
+                "'readiness.scope_confirmed'"
             )
             ->toContain(
-                'Compatibilidad histórica solamente.'
+                "'readiness.deliverables_confirmed'"
             )
             ->toContain(
-                'readiness.validation_evidence.inputs.*.source_role'
+                "'readiness.dependencies_confirmed'"
             )
             ->toContain(
-                'readiness.validation_evidence.inputs.*.delivery_format'
+                "'readiness.responsibilities_confirmed'"
+            )
+            ->not->toContain(
+                "'readiness.inputs_validated'"
+            )
+            ->not->toContain(
+                "'readiness.accesses_validated'"
+            )
+            ->not->toContain(
+                "'readiness.validation_evidence'"
+            );
+
+        expect($review)
+            ->toContain(
+                'DataTransformationBiSourceReadinessService'
             )
             ->toContain(
-                'readiness.validation_evidence.inputs.*.extraction_assistance_required'
+                '$sourceReadiness'
             )
             ->toContain(
-                'in:primary,historical,complementary,derived'
+                "'inputs_validated'"
             )
             ->toContain(
-                'in:csv,xlsx'
+                "'accesses_validated'"
+            )
+            ->toContain(
+                '$historicalValidationEvidence'
+            )
+            ->not->toContain(
+                'assertSupportsConfirmations'
             );
     }
 );

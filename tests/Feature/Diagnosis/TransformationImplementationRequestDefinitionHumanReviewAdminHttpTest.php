@@ -267,7 +267,7 @@ final class TransformationImplementationRequestDefinitionHumanReviewAdminHttpTes
                     'inputs' => [
                         [
                             'source_name' =>
-                                'ERP principal',
+                                'D2B_TAMPERED_MACHINE_EVIDENCE',
 
                             'data_domains' => [
                                 'clientes',
@@ -296,10 +296,10 @@ final class TransformationImplementationRequestDefinitionHumanReviewAdminHttpTes
                     'accesses' => [
                         [
                             'source_name' =>
-                                'ERP principal',
+                                'D2B_TAMPERED_MACHINE_EVIDENCE',
 
                             'access_method' =>
-                                'lectura SQL',
+                                'D2B_REMOTE_ACCESS_SHOULD_BE_IGNORED',
 
                             'authorized' =>
                                 true,
@@ -416,44 +416,15 @@ final class TransformationImplementationRequestDefinitionHumanReviewAdminHttpTes
 
         /*
          * ==========================================================
-         * 6B. BI TRUE WITHOUT EVIDENCE IS REJECTED
+         * 6B. MACHINE-OWNED PAYLOAD TAMPERING
          * ==========================================================
+         *
+         * The payload deliberately sends TRUE for the legacy
+         * machine-owned readiness fields plus fake evidence.
+         *
+         * They must be ignored. With zero dynamic sources,
+         * server-derived readiness must persist FALSE/FALSE.
          */
-        $reviewWithoutEvidence =
-            $reviewPayload;
-
-        unset(
-            $reviewWithoutEvidence[
-                'readiness'
-            ][
-                'validation_evidence'
-            ]
-        );
-
-        $this
-            ->actingAs(
-                $admin
-            )
-            ->from(
-                $detailUrl
-            )
-            ->patch(
-                $reviewUrl,
-                $reviewWithoutEvidence
-            )
-            ->assertRedirect(
-                $detailUrl
-            )
-            ->assertSessionHasErrors(
-                'readiness.inputs_validated'
-            );
-
-        $definition->refresh();
-
-        $this->assertSame(
-            TransformationImplementationDefinition::STATUS_DRAFT,
-            $definition->status
-        );
 
         /*
          * ==========================================================
@@ -518,8 +489,6 @@ final class TransformationImplementationRequestDefinitionHumanReviewAdminHttpTes
             'scope_confirmed',
             'deliverables_confirmed',
             'dependencies_confirmed',
-            'inputs_validated',
-            'accesses_validated',
             'responsibilities_confirmed',
         ] as $confirmation) {
             $this->assertTrue(
@@ -532,6 +501,36 @@ final class TransformationImplementationRequestDefinitionHumanReviewAdminHttpTes
                 .$confirmation
             );
         }
+
+        $this->assertFalse(
+            (bool) data_get(
+                $definition->readiness,
+                'human_validation.inputs_validated'
+            )
+        );
+
+        $this->assertFalse(
+            (bool) data_get(
+                $definition->readiness,
+                'human_validation.accesses_validated'
+            )
+        );
+
+        $readinessJson =
+            json_encode(
+                $definition->readiness,
+                JSON_THROW_ON_ERROR
+            );
+
+        $this->assertStringNotContainsString(
+            'D2B_TAMPERED_MACHINE_EVIDENCE',
+            $readinessJson
+        );
+
+        $this->assertStringNotContainsString(
+            'D2B_REMOTE_ACCESS_SHOULD_BE_IGNORED',
+            $readinessJson
+        );
 
         $this->assertFalse(
             (bool) data_get(
@@ -735,11 +734,11 @@ final class TransformationImplementationRequestDefinitionHumanReviewAdminHttpTes
                         )
                         ->where(
                             'definition_review.readiness.human_validation.inputs_validated',
-                            true
+                            false
                         )
                         ->where(
                             'definition_review.readiness.human_validation.accesses_validated',
-                            true
+                            false
                         )
                         ->where(
                             'definition_review.readiness.human_validation.responsibilities_confirmed',

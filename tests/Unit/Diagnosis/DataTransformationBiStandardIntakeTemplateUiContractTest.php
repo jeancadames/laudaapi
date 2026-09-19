@@ -69,7 +69,7 @@ test(
 );
 
 test(
-    'data bi admin ui exposes both template download actions',
+    'data bi admin ui keeps canonical references beside the dynamic source workspace',
     function () {
         $source =
             file_get_contents(
@@ -79,6 +79,15 @@ test(
             );
 
         expect($source)
+            ->toContain(
+                'D17_DYNAMIC_SOURCE_WORKSPACE_UI'
+            )
+            ->toContain(
+                'Fuentes de datos'
+            )
+            ->toContain(
+                '+ Agregar fuente'
+            )
             ->toContain(
                 'Referencia canónica Excel'
             )
@@ -92,31 +101,16 @@ test(
                 '/standard-intake-template/csv'
             )
             ->toContain(
-                '<!-- D17_DYNAMIC_SOURCE_WORKSPACE_UI -->'
+                'Modelo objetivo LAUDA · procesamiento interno'
             )
-            ->toContain(
-                'Fuentes de datos'
+            ->not->toContain(
+                'Evidencia de insumos'
             )
-            ->toContain(
-                'cursor-pointer'
+            ->not->toContain(
+                'Evidencia de entrega de datos'
             )
-            ->toContain(
-                'disabled:cursor-not-allowed'
-            )
-            ->toContain(
-                'nextTick'
-            )
-            ->toContain(
-                'scrollIntoView'
-            )
-            ->toContain(
-                ':id="`input-evidence-${index}`"'
-            )
-            ->toContain(
-                '/standard-intake-template/xlsx'
-            )
-            ->toContain(
-                '/standard-intake-template/csv'
+            ->not->toContain(
+                'input-evidence-${index}'
             );
     }
 );

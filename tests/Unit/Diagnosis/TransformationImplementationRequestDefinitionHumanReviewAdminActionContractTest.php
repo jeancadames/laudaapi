@@ -4,8 +4,7 @@ namespace Tests\Unit\Diagnosis;
 
 use PHPUnit\Framework\TestCase;
 
-final class TransformationImplementationRequestDefinitionHumanReviewAdminActionContractTest
-    extends TestCase
+final class TransformationImplementationRequestDefinitionHumanReviewAdminActionContractTest extends TestCase
 {
     private function project(
         string $path
@@ -40,7 +39,7 @@ final class TransformationImplementationRequestDefinitionHumanReviewAdminActionC
         );
     }
 
-    public function test_admin_action_uses_request_scoped_review_service(): void
+    public function test_admin_action_accepts_only_human_owned_review_fields(): void
     {
         $controller =
             $this->project(
@@ -56,8 +55,6 @@ final class TransformationImplementationRequestDefinitionHumanReviewAdminActionC
             "'readiness.scope_confirmed'",
             "'readiness.deliverables_confirmed'",
             "'readiness.dependencies_confirmed'",
-            "'readiness.inputs_validated'",
-            "'readiness.accesses_validated'",
             "'readiness.responsibilities_confirmed'",
         ] as $required) {
             $this->assertStringContainsString(
@@ -65,6 +62,42 @@ final class TransformationImplementationRequestDefinitionHumanReviewAdminActionC
                 $controller
             );
         }
+
+        foreach ([
+            "'readiness.inputs_validated'",
+            "'readiness.accesses_validated'",
+            "'readiness.validation_evidence'",
+        ] as $forbidden) {
+            $this->assertStringNotContainsString(
+                $forbidden,
+                $controller
+            );
+        }
+
+        $review =
+            $this->project(
+                'app/Services/Diagnosis/'
+                .'TransformationImplementationRequestDefinitionReviewService.php'
+            );
+
+        foreach ([
+            'DataTransformationBiSourceReadinessService',
+            '$sourceReadiness',
+            '->forRequest(',
+            "'inputs_validated'",
+            "'accesses_validated'",
+            '$historicalValidationEvidence',
+        ] as $required) {
+            $this->assertStringContainsString(
+                $required,
+                $review
+            );
+        }
+
+        $this->assertStringNotContainsString(
+            'assertSupportsConfirmations',
+            $review
+        );
     }
 
     public function test_request_detail_exposes_human_review_read_model(): void
@@ -90,7 +123,7 @@ final class TransformationImplementationRequestDefinitionHumanReviewAdminActionC
         }
     }
 
-    public function test_admin_ui_exposes_responsibility_and_six_human_confirmations(): void
+    public function test_admin_ui_exposes_responsibility_and_four_editable_human_confirmations(): void
     {
         $ui =
             $this->project(
@@ -109,12 +142,22 @@ final class TransformationImplementationRequestDefinitionHumanReviewAdminActionC
             'scope_confirmed',
             'deliverables_confirmed',
             'dependencies_confirmed',
-            'inputs_validated',
-            'accesses_validated',
             'responsibilities_confirmed',
         ] as $required) {
             $this->assertStringContainsString(
                 $required,
+                $ui
+            );
+        }
+
+        foreach ([
+            'v-model="humanReviewForm.readiness.inputs_validated"',
+            'v-model="humanReviewForm.readiness.accesses_validated"',
+            'Evidencia de insumos',
+            'Evidencia de entrega de datos',
+        ] as $forbidden) {
+            $this->assertStringNotContainsString(
+                $forbidden,
                 $ui
             );
         }

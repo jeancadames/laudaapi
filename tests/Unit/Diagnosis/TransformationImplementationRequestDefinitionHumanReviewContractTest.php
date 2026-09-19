@@ -4,8 +4,7 @@ namespace Tests\Unit\Diagnosis;
 
 use PHPUnit\Framework\TestCase;
 
-final class TransformationImplementationRequestDefinitionHumanReviewContractTest
-    extends TestCase
+final class TransformationImplementationRequestDefinitionHumanReviewContractTest extends TestCase
 {
     private function project(
         string $path
@@ -154,8 +153,8 @@ final class TransformationImplementationRequestDefinitionHumanReviewContractTest
             $source
         );
 
-        $this->assertStringContainsString(
-            "'definition_ready' =>\n                                false",
+        $this->assertMatchesRegularExpression(
+            "/'definition_ready'\\s*=>\\s*false/",
             $source
         );
     }
