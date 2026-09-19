@@ -18,6 +18,7 @@ use App\Services\Subscribers\CompanyContextResolver;
 use App\Services\Subscribers\SubscriberResolver;
 use App\Services\Subscribers\TenantAccessService;
 use App\Services\Diagnosis\DataTransformationBiTenantSourceWorkspaceProjection;
+use App\Services\Diagnosis\DataTransformationBiTenantSourceWorkspaceGate;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\ValidationException;
@@ -620,6 +621,12 @@ final class AppHubDataTransformationBiSourceWorkspaceController
         $this->authorization->assertCanManage(
             $implementationRequest,
             $actor
+        );
+
+        app(
+            DataTransformationBiTenantSourceWorkspaceGate::class
+        )->assertCanManage(
+            $implementationRequest
         );
 
         return [

@@ -17,6 +17,7 @@ use App\Services\Subscribers\CompanyContextResolver;
 use App\Services\Subscribers\SubscriberResolver;
 use App\Services\Subscribers\TenantAccessService;
 use App\Services\Diagnosis\DataTransformationBiTenantSourceWorkspaceProjection;
+use App\Services\Diagnosis\DataTransformationBiTenantSourceWorkspaceGate;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -200,7 +201,16 @@ final class AppHubDataTransformationBiController
                 $transformation360
             );
 
-        $dataPreparation =
+
+        $sourceWorkspaceAccess =
+            app(
+                DataTransformationBiTenantSourceWorkspaceGate::class
+            )->state(
+                $implementationRequest['status']
+                ?? null
+            );
+
+$dataPreparation =
             ($implementationRequest['id'] ?? null)
                 ? $preparationStatus->forRequest(
                     (int) $company->id,
@@ -254,7 +264,10 @@ final class AppHubDataTransformationBiController
                     ->first();
         }
 
-        if ($sourceWorkspaceRequest !== null) {
+        if (
+            $sourceWorkspaceRequest !== null
+            && $sourceWorkspaceAccess['can_manage']
+        ) {
             $sourceWorkspaceState =
                 $intakeState->forRequest(
                     $sourceWorkspaceRequest
@@ -274,6 +287,8 @@ final class AppHubDataTransformationBiController
          * configuration here.
          */
         $sourceWorkspace = [
+            'access' =>
+                $sourceWorkspaceAccess,
             'session' =>
                 is_array(
                     $sourceWorkspaceState['session']

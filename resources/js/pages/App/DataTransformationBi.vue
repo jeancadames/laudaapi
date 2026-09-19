@@ -97,6 +97,16 @@ type UsableDatasetStatus = {
 
 
 type SourceWorkspace = {
+    access: {
+        visible: boolean;
+        can_manage: boolean;
+        state:
+            | 'not_requested'
+            | 'cancelled'
+            | 'pending_definition_agreement'
+            | 'enabled';
+        message: string | null;
+    };
     session: {
         id: number;
         status: string;
@@ -2639,9 +2649,43 @@ function processingHistoryDate(
                     </section>
 
 
+                    <!-- T1_TENANT_SOURCE_WORKSPACE_ACTIVATION_GATE -->
+                    <section
+                        v-if="
+                            source_workspace.access.visible
+                            && !source_workspace.access.can_manage
+                        "
+                        class="rounded-[2rem] border border-amber-200/70 bg-amber-50/40 p-6 shadow-sm sm:p-8 dark:border-amber-900/70 dark:bg-amber-950/10"
+                    >
+                        <p
+                            class="text-[10px] font-black tracking-widest text-amber-700 uppercase dark:text-amber-400"
+                        >
+                            Entrega de información
+                        </p>
+
+                        <h2
+                            class="mt-1 text-xl font-black text-slate-950 dark:text-white"
+                        >
+                            Fuentes de datos
+                        </h2>
+
+                        <p
+                            class="mt-3 max-w-3xl text-sm leading-6 text-slate-600 dark:text-slate-300"
+                        >
+                            {{ source_workspace.access.message }}
+                        </p>
+
+                        <div
+                            class="mt-4 inline-flex rounded-full border border-amber-200 bg-white px-3 py-1.5 text-xs font-bold text-amber-800 dark:border-amber-900 dark:bg-slate-950 dark:text-amber-300"
+                        >
+                            Estado:
+                            {{ implementation_request.status_label }}
+                        </div>
+                    </section>
+
                     <!-- T1_TENANT_SOURCE_WORKSPACE -->
                     <section
-                        v-if="implementation_request.id"
+                        v-if="source_workspace.access.can_manage"
                         class="rounded-[2rem] border border-cyan-200/70 bg-white p-6 shadow-sm sm:p-8 dark:border-cyan-950 dark:bg-slate-950"
                     >
                         <div
@@ -4323,7 +4367,7 @@ function processingHistoryDate(
 
                     <!-- P13_USABLE_DATASET_STATUS -->
                     <section
-                        v-if="implementation_request.id"
+                        v-if="source_workspace.access.can_manage"
                         class="rounded-[2rem] border border-emerald-200/70 bg-white p-6 shadow-sm sm:p-8 dark:border-emerald-950 dark:bg-slate-950"
                     >
                         <div
