@@ -449,7 +449,9 @@ final class TransformationImplementationRequestDefinitionTenantReviewService
             );
 
         foreach (
-            self::REQUIRED_CONFIRMATIONS
+            $this->requiredConfirmations(
+                $definition
+            )
             as $confirmation
         ) {
             if (
@@ -503,6 +505,38 @@ final class TransformationImplementationRequestDefinitionTenantReviewService
                 ],
             ]);
         }
+    }
+
+    /**
+     * Confirmaciones necesarias para presentar la Definition al tenant.
+     *
+     * En Datos BI, inputs_validated/accesses_validated representan
+     * readiness real de entrega de fuentes y son server-owned.
+     * No forman parte del acuerdo funcional previo que precisamente
+     * habilita al tenant a comenzar esa entrega.
+     *
+     * Las demás capacidades conservan el contrato histórico de seis
+     * confirmaciones.
+     *
+     * @return array<int, string>
+     */
+    private function requiredConfirmations(
+        TransformationImplementationDefinition $definition
+    ): array {
+        if (
+            trim(
+                (string) $definition->capability_key
+            ) === 'data_transformation_bi'
+        ) {
+            return [
+                'scope_confirmed',
+                'deliverables_confirmed',
+                'dependencies_confirmed',
+                'responsibilities_confirmed',
+            ];
+        }
+
+        return self::REQUIRED_CONFIRMATIONS;
     }
 
     private function normalizeNotes(

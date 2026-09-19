@@ -1708,14 +1708,21 @@ final class AdminTransformationImplementationRequestController
                 $latestDefinition->readiness,
                 'human_validation.dependencies_confirmed'
             ) === true
-            && data_get(
-                $latestDefinition->readiness,
-                'human_validation.inputs_validated'
-            ) === true
-            && data_get(
-                $latestDefinition->readiness,
-                'human_validation.accesses_validated'
-            ) === true
+            && (
+                trim(
+                    (string) $implementationRequest->capability_key
+                ) === 'data_transformation_bi'
+                || (
+                    data_get(
+                        $latestDefinition->readiness,
+                        'human_validation.inputs_validated'
+                    ) === true
+                    && data_get(
+                        $latestDefinition->readiness,
+                        'human_validation.accesses_validated'
+                    ) === true
+                )
+            )
             && data_get(
                 $latestDefinition->readiness,
                 'human_validation.responsibilities_confirmed'
