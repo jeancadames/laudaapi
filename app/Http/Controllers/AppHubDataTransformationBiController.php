@@ -912,11 +912,28 @@ $dataPreparation =
                 ) === true,
         ];
 
+        /*
+         * En Datos BI, el acuerdo funcional precede a la
+         * entrega y validación efectiva de fuentes.
+         *
+         * inputs_validated/accesses_validated continúan
+         * proyectados como readiness técnico, pero no
+         * bloquean la revisión funcional presentada.
+         */
+        $functionalConfirmationKeys = [
+            'scope_confirmed',
+            'deliverables_confirmed',
+            'dependencies_confirmed',
+            'responsibilities_confirmed',
+        ];
+
         $humanReviewCompleted =
             ! in_array(
                 false,
-                array_values(
-                    $confirmations
+                array_map(
+                    static fn (string $key): bool =>
+                        ($confirmations[$key] ?? false) === true,
+                    $functionalConfirmationKeys
                 ),
                 true
             )

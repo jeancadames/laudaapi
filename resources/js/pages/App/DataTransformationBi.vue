@@ -533,18 +533,6 @@ const humanReviewChecks = computed(() => {
                     ?.dependencies_confirmed ?? false,
         },
         {
-            label: 'Insumos validados',
-            confirmed:
-                confirmations
-                    ?.inputs_validated ?? false,
-        },
-        {
-            label: 'Accesos validados',
-            confirmed:
-                confirmations
-                    ?.accesses_validated ?? false,
-        },
-        {
             label: 'Responsabilidades confirmadas',
             confirmed:
                 confirmations

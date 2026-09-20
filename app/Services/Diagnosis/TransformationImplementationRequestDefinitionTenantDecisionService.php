@@ -713,16 +713,16 @@ final class TransformationImplementationRequestDefinitionTenantDecisionService
         }
 
         /*
-         * Las seis confirmaciones humanas de LAUDA deben existir.
+         * El acuerdo exige las confirmaciones funcionales aplicables
+         * a la capability. Datos BI separa agreement funcional de
+         * readiness de entrega de fuentes.
          */
-        foreach ([
-            'scope_confirmed',
-            'deliverables_confirmed',
-            'dependencies_confirmed',
-            'inputs_validated',
-            'accesses_validated',
-            'responsibilities_confirmed',
-        ] as $confirmation) {
+        foreach (
+            $this->requiredAgreementConfirmations(
+                $definition
+            )
+            as $confirmation
+        ) {
             if (
                 data_get(
                     $definition->readiness,
@@ -768,6 +768,49 @@ final class TransformationImplementationRequestDefinitionTenantDecisionService
         }
     }
 
+
+    /**
+     * Confirmaciones requeridas para que el tenant acuerde
+     * la Definition funcional.
+     *
+     * Datos BI:
+     * - alcance;
+     * - entregables;
+     * - dependencias;
+     * - responsabilidades.
+     *
+     * inputs_validated/accesses_validated pertenecen al
+     * readiness real de fuentes y se validan posteriormente.
+     *
+     * Otras capabilities conservan el contrato histórico.
+     *
+     * @return array<int, string>
+     */
+    private function requiredAgreementConfirmations(
+        TransformationImplementationDefinition $definition
+    ): array {
+        if (
+            trim(
+                (string) $definition->capability_key
+            ) === 'data_transformation_bi'
+        ) {
+            return [
+                'scope_confirmed',
+                'deliverables_confirmed',
+                'dependencies_confirmed',
+                'responsibilities_confirmed',
+            ];
+        }
+
+        return [
+            'scope_confirmed',
+            'deliverables_confirmed',
+            'dependencies_confirmed',
+            'inputs_validated',
+            'accesses_validated',
+            'responsibilities_confirmed',
+        ];
+    }
 
     private function assertReason(
         string $reason
