@@ -4592,7 +4592,7 @@ async function normalizeStandardIntakeBatch(): Promise<void> {
                         type="button"
                         class="inline-flex shrink-0 items-center justify-center rounded-xl bg-slate-950 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-white dark:text-slate-950 dark:hover:bg-slate-200"
                         :disabled="!props.actions.definition_generate_endpoint"
-                        @click="generateImplementationDefinition"
+                        @click="generateImplementationDefinition(false)"
                     >
                         Preparar contenido de la Definición
                     </button>
