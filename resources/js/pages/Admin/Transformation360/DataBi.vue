@@ -271,8 +271,7 @@ function planStatusLabel(status: string): string {
                     </CardTitle>
 
                     <CardDescription>
-                        Alcance definido en el catálogo profesional
-                        de LAUDA 360.
+                        Áreas de referencia del servicio profesional de LAUDA 360.
                     </CardDescription>
                 </CardHeader>
 
@@ -298,7 +297,7 @@ function planStatusLabel(status: string): string {
                     </CardTitle>
 
                     <CardDescription>
-                        Solo aparecen Planes que incluyen la capacidad de Datos e Inteligencia BI.
+                        Solo aparecen empresas cuyo Plan 360 identifica Datos e Inteligencia BI como una capacidad profesional aplicable a su contexto.
                     </CardDescription>
                 </CardHeader>
 
