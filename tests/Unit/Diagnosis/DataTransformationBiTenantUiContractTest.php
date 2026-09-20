@@ -83,7 +83,7 @@ final class DataTransformationBiTenantUiContractTest extends TestCase
         $source = $this->source();
 
         $this->assertStringContainsString(
-            'Solicitar implementación',
+            'Solicitar evaluación para implementación',
             $source
         );
 
@@ -98,7 +98,7 @@ final class DataTransformationBiTenantUiContractTest extends TestCase
         );
 
         $this->assertStringContainsString(
-            'La solicitud no activa el servicio ni genera',
+            'Enviar la solicitud no genera cargos ni contrata',
             $source
         );
 

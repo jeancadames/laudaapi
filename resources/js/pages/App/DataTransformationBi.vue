@@ -1848,7 +1848,7 @@ function processingHistoryDate(
                                     v-if="capability.recommended_in_plan"
                                     class="text-sm font-bold leading-6 text-emerald-700 dark:text-emerald-300"
                                 >
-                                    Incluida en tu Plan de Implementación
+                                    Recomendada en tu Plan de Implementación
                                 </p>
 
                                 <p
@@ -1971,7 +1971,7 @@ function processingHistoryDate(
                                     v-else
                                     class="text-sm leading-6 text-slate-500 dark:text-slate-400"
                                 >
-                                    Esta capacidad todavía no está incluida en
+                                    Esta capacidad todavía no está recomendada en
                                     un Plan de Implementación vigente.
                                 </p>
                             </div>
@@ -4927,18 +4927,17 @@ function processingHistoryDate(
                                 {{
                                     implementation_request.status ===
                                     'cancelled'
-                                        ? 'Volver a solicitar implementación'
-                                        : 'Solicitar implementación'
+                                        ? 'Volver a solicitar evaluación para implementación'
+                                        : 'Solicitar evaluación para implementación'
                                 }}
                             </h2>
 
                             <p
                                 class="mt-3 text-sm leading-6 text-slate-600 dark:text-slate-300"
                             >
-                                Cuando decidas avanzar, envía una solicitud
-                                expresa para que LAUDA revise el alcance de
-                                Datos e Inteligencia BI antes de preparar la
-                                definición de implementación.
+                                Cuando decidas avanzar, solicita a LAUDA la evaluación y
+                                delimitación del alcance. Esta solicitud inicia la revisión
+                                funcional y no constituye contratación del servicio.
                             </p>
 
                             <button
@@ -4952,17 +4951,19 @@ function processingHistoryDate(
                                         ? 'Enviando solicitud...'
                                         : implementation_request.status ===
                                             'cancelled'
-                                          ? 'Volver a solicitar implementación'
-                                          : 'Solicitar implementación'
+                                          ? 'Volver a solicitar evaluación para implementación'
+                                          : 'Solicitar evaluación para implementación'
                                 }}
                             </button>
 
                             <div
                                 class="mt-4 rounded-xl border border-blue-200/70 bg-white/70 p-4 text-xs leading-5 text-slate-600 dark:border-blue-950 dark:bg-slate-950/40 dark:text-slate-400"
                             >
-                                La solicitud no activa el servicio ni genera
-                                cargos. LAUDA revisará el alcance antes de
-                                avanzar.
+                                Enviar la solicitud no genera cargos ni contrata
+                                el servicio. Si la revisión funcional avanza,
+                                LAUDA podrá presentar alcance comercial, precio y
+                                condiciones para tu aprobación antes de cualquier
+                                contratación o ejecución.
                             </div>
                         </template>
 
@@ -4977,9 +4978,9 @@ function processingHistoryDate(
                             <p
                                 class="mt-3 text-sm leading-6 text-slate-600 dark:text-slate-300"
                             >
-                                Para solicitar esta implementación, Datos e
-                                Inteligencia BI debe formar parte de un Plan
-                                de Implementación presentado para tu empresa.
+                                Para solicitar esta evaluación, Datos e
+                                    Inteligencia BI debe estar recomendada en un Plan
+                                    de Implementación presentado para tu empresa.
                             </p>
                         </template>
                     </section>

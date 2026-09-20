@@ -221,9 +221,9 @@ final class DataTransformationBiAppHubWorkspaceContractTest
          */
         foreach ([
             'Servicio profesional',
-            'Solicitar implementación',
-            'La solicitud no activa el servicio ni genera',
-            'cargos. LAUDA revisará el alcance antes de',
+            'Solicitar evaluación para implementación',
+            'Enviar la solicitud no genera cargos ni contrata',
+            'LAUDA podrá presentar alcance comercial, precio y',
             'Definition funcional presentada',
             'No contiene precios',
         ] as $required) {

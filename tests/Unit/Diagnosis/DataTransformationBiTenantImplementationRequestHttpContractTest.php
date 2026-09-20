@@ -138,7 +138,7 @@ final class DataTransformationBiTenantImplementationRequestHttpContractTest
         $source = $this->page();
 
         foreach ([
-            'Solicitar implementación',
+            'Solicitar evaluación para implementación',
             'Solicitud recibida',
             'Revisión LAUDA',
             'Definición',
@@ -159,7 +159,7 @@ final class DataTransformationBiTenantImplementationRequestHttpContractTest
         $source = $this->page();
 
         $this->assertStringContainsString(
-            'La solicitud no activa el servicio ni genera',
+            'Enviar la solicitud no genera cargos ni contrata',
             $source
         );
 
