@@ -389,23 +389,6 @@ const breadcrumbs = [
     },
 ];
 
-const recommendationLabel = computed(() => {
-    if (
-        props.capability.recommendation_status ===
-        'recommended'
-    ) {
-        return 'Recomendado por tu Diagnóstico 360';
-    }
-
-    if (
-        props.capability.recommendation_status ===
-        'not_evaluated'
-    ) {
-        return 'Pendiente de Diagnóstico 360';
-    }
-
-    return 'No recomendado actualmente';
-});
 
 const priorityLabel = computed(() => {
     const labels: Record<string, string> = {
@@ -1801,7 +1784,7 @@ function processingHistoryDate(
                                 <span
                                     class="rounded-full bg-red-50 px-2.5 py-1 text-[10px] font-black tracking-wide text-red-700 uppercase dark:bg-red-950/30 dark:text-red-300"
                                 >
-                                    {{ recommendationLabel }}
+                                    Opcional
                                 </span>
                             </div>
 
@@ -1838,7 +1821,7 @@ function processingHistoryDate(
                             <p
                                 class="mt-3 text-base font-black leading-6 text-slate-950 dark:text-white"
                             >
-                                {{ recommendationLabel }}
+                                Servicio profesional opcional
                             </p>
 
                             <div
@@ -1848,14 +1831,14 @@ function processingHistoryDate(
                                     v-if="capability.recommended_in_plan"
                                     class="text-sm font-bold leading-6 text-emerald-700 dark:text-emerald-300"
                                 >
-                                    Recomendada en tu Plan de Implementación
+                                    Evaluación y propuesta comercial requeridas.
                                 </p>
 
                                 <p
                                     v-else
                                     class="text-sm leading-6 text-slate-500 dark:text-slate-400"
                                 >
-                                    Sin recomendación vigente dentro del Plan.
+                                    Evaluación y propuesta comercial requeridas.
                                 </p>
                             </div>
                         </div>
@@ -1954,7 +1937,7 @@ function processingHistoryDate(
                                     <p
                                         class="text-base font-black leading-6 text-slate-950 dark:text-white"
                                     >
-                                        Recomendado en tu Plan de Implementación
+                                        Fase de referencia
                                     </p>
 
                                     <p
@@ -1971,8 +1954,7 @@ function processingHistoryDate(
                                     v-else
                                     class="text-sm leading-6 text-slate-500 dark:text-slate-400"
                                 >
-                                    Esta capacidad todavía no está recomendada en
-                                    un Plan de Implementación vigente.
+                                    Sin fase de referencia en el Plan 360 actual.
                                 </p>
                             </div>
                         </div>
@@ -2006,7 +1988,7 @@ function processingHistoryDate(
                                 <h2
                                     class="mt-1 text-xl font-black text-slate-950 dark:text-white"
                                 >
-                                    ¿Por qué se recomienda?
+                                    ¿Por qué puede ser relevante?
                                 </h2>
                             </div>
                         </div>
@@ -2062,15 +2044,15 @@ function processingHistoryDate(
                                 <h2
                                     class="mt-1 text-xl font-black text-slate-950 dark:text-white"
                                 >
-                                    Alcance considerado
+                                    Alcance potencial del servicio
                                 </h2>
 
                                 <p
                                     class="mt-2 max-w-3xl text-sm leading-6 text-slate-500 dark:text-slate-400"
                                 >
-                                    Áreas de información que pueden formar
-                                    parte de la capa fundacional de datos de
-                                    tu empresa.
+                                    El alcance definitivo se delimita durante la
+                                    evaluación y puede incluir las siguientes áreas,
+                                    según las necesidades y datos disponibles de tu empresa.
                                 </p>
                             </div>
                         </div>
@@ -4979,7 +4961,7 @@ function processingHistoryDate(
                                 class="mt-3 text-sm leading-6 text-slate-600 dark:text-slate-300"
                             >
                                 Para solicitar esta evaluación, Datos e
-                                    Inteligencia BI debe estar recomendada en un Plan
+                                    Inteligencia BI debe contar con contexto en un Plan
                                     de Implementación presentado para tu empresa.
                             </p>
                         </template>
@@ -4997,9 +4979,9 @@ function processingHistoryDate(
                         <p
                             class="mt-3 text-sm leading-6 text-slate-600 dark:text-slate-300"
                         >
-                            Aquí puedes consultar la recomendación,
-                            prioridad, fase y alcance funcional de Datos e
-                            Inteligencia BI dentro de Transformación 360.
+                            Aquí puedes consultar el contexto del Diagnóstico 360,
+                            la prioridad, la fase de referencia y el alcance
+                            potencial del servicio.
                         </p>
 
                         <p

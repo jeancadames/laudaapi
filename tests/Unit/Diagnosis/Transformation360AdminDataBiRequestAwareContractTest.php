@@ -46,9 +46,9 @@ final class Transformation360AdminDataBiRequestAwareContractTest
 
         foreach ([
             'implementation_request:',
-            'Empresas con BI recomendado en Plan 360',
+            'Empresas con alcance BI identificado en Plan 360',
             'Solicitudes activas',
-            'Recomendado en Plan 360',
+            'Servicio profesional opcional',
             'Sin solicitud BI',
             'Ver Diagnóstico 360',
             'Ver Plan 360 completo',

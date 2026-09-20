@@ -486,16 +486,15 @@ function declineBranding(): void {
                             <h2
                                 class="mt-1 text-xl font-black text-slate-950 dark:text-white"
                             >
-                                Recomendaciones para la Etapa de Implementación
+                                Servicios profesionales opcionales
                             </h2>
 
                             <p
                                 class="mt-2 max-w-3xl text-sm leading-6 text-slate-500 dark:text-slate-400"
                             >
-                                Estas capacidades pueden ser identificadas por
-                                tu Diagnóstico 360. No se activan
-                                automáticamente: su alcance, tiempo y precio se
-                                definen durante la Etapa de Implementación.
+                                Estas capacidades son servicios profesionales opcionales.
+                                Su alcance, tiempo, precio y condiciones se definen
+                                antes de cualquier contratación o ejecución.
                             </p>
                         </div>
 
@@ -524,21 +523,7 @@ function declineBranding(): void {
                                         <span
                                             class="rounded-full border border-blue-200 bg-blue-50 px-2.5 py-1 text-[10px] font-black text-blue-700 uppercase dark:border-blue-900 dark:bg-blue-950/30 dark:text-blue-300"
                                         >
-                                            Servicio profesional
-                                        </span>
-
-                                        <span
-                                            v-if="capability.recommended"
-                                            class="rounded-full bg-red-50 px-2.5 py-1 text-[10px] font-black text-red-700 uppercase dark:bg-red-950/30 dark:text-red-300"
-                                        >
-                                            Recomendado por tu Diagnóstico 360
-                                        </span>
-
-                                        <span
-                                            v-if="capability.recommended_in_plan"
-                                            class="rounded-full bg-emerald-50 px-2.5 py-1 text-[10px] font-black text-emerald-700 uppercase dark:bg-emerald-950/30 dark:text-emerald-300"
-                                        >
-                                            Recomendado en tu Plan de Implementación
+                                            Servicio profesional · Opcional
                                         </span>
                                     </div>
 

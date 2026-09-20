@@ -231,7 +231,7 @@ function planStatusLabel(status: string): string {
                 <Card>
                     <CardHeader class="pb-2">
                         <CardDescription>
-                            Empresas con BI recomendado en Plan 360
+                            Empresas con alcance BI identificado en Plan 360
                         </CardDescription>
                         <CardTitle class="text-3xl">
                             {{ props.stats.total }}
@@ -267,7 +267,7 @@ function planStatusLabel(status: string): string {
             >
                 <CardHeader>
                     <CardTitle>
-                        Alcance funcional
+                        Alcance potencial del servicio
                     </CardTitle>
 
                     <CardDescription>
@@ -294,7 +294,7 @@ function planStatusLabel(status: string): string {
             <Card>
                 <CardHeader>
                     <CardTitle>
-                        Empresas con BI recomendado en Plan 360
+                        Empresas con alcance BI identificado en Plan 360
                     </CardTitle>
 
                     <CardDescription>
@@ -331,7 +331,7 @@ function planStatusLabel(status: string): string {
                                         </h2>
 
                                         <Badge variant="secondary">
-                                            Recomendado en Plan 360
+                                            Servicio profesional opcional
                                         </Badge>
 
                                         <Badge variant="outline">

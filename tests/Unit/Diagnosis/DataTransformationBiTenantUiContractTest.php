@@ -23,8 +23,8 @@ final class DataTransformationBiTenantUiContractTest extends TestCase
             'Diagnóstico · Datos e Inteligencia',
             'Prioridad',
             'Plan de Implementación',
-            '¿Por qué se recomienda?',
-            'Alcance considerado',
+            '¿Por qué puede ser relevante?',
+            'Alcance potencial del servicio',
             'Próximo paso',
             'Alcance de esta vista',
         ] as $token) {
@@ -43,7 +43,7 @@ final class DataTransformationBiTenantUiContractTest extends TestCase
             1,
             substr_count(
                 $source,
-                'Recomendado en tu Plan de Implementación'
+                'Fase de referencia'
             )
         );
 
