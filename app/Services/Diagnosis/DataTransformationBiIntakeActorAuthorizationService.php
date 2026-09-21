@@ -35,6 +35,19 @@ final class DataTransformationBiIntakeActorAuthorizationService
         User $actor
     ): void {
         /*
+         * Lifecycle is server-owned and applies equally to
+         * LAUDA Admin and Tenant Admin.
+         *
+         * Actor authorization answers WHO may operate.
+         * This gate answers WHEN the workspace may operate.
+         */
+        app(
+            DataTransformationBiTenantSourceWorkspaceGate::class
+        )->assertCanManage(
+            $implementationRequest
+        );
+
+        /*
          * LAUDA Admin keeps its existing operational capability.
          *
          * Request/session/source integrity continues to be validated by

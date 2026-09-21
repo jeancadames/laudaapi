@@ -1142,125 +1142,220 @@ final class TransformationImplementationDefinitionAutogenerator
                 ->all();
 
         /*
-         * No inferimos automáticamente LAUDA / cliente / shared.
+         * Responsabilidades funcionales.
          *
-         * Cada elemento funcional queda pendiente de
-         * confirmación humana en la revisión.
+         * Para Data BI:
+         * - la Definition define únicamente responsabilidades
+         *   generales Empresa ↔ LAUDA;
+         * - el responsable operativo de cada fuente concreta vive
+         *   en DataTransformationBiSourceAsset.owner;
+         * - los entregables NO generan responsables individuales.
+         *
+         * Las demás capabilities request-scoped conservan el
+         * comportamiento histórico por entregable.
          */
-        $suggestedOwnerRole =
-            $catalog[
-                'suggested_owner_role'
-            ]
-            ?? data_get(
-                $sourceCapability,
-                'source_snapshot.suggested_owner_role'
-            );
-
-        $assignments =
-            collect(
-                $deliverableStrings
-            )
-                ->values()
-                ->map(
-                    function (
-                        string $deliverable,
-                        int $index
-                    ) use (
+        if (
+            $capabilityKey
+            === 'data_transformation_bi'
+        ) {
+            $assignments = [
+                [
+                    'phase_id' =>
                         $phaseId,
+
+                    'phase_sequence' =>
                         $phaseSequence,
+
+                    'phase_name' =>
                         $phaseName,
+
+                    'phase_capability_id' =>
                         $phaseCapabilityId,
+
+                    'capability_key' =>
                         $capabilityKey,
-                        $suggestedOwnerRole
-                    ): array {
-                        return [
-                            'phase_id' =>
-                                $phaseId,
 
-                            'phase_sequence' =>
-                                $phaseSequence,
+                    'initiative_id' =>
+                        'data_transformation_bi:client_source_delivery',
 
-                            'phase_name' =>
-                                $phaseName,
+                    'initiative_title' =>
+                        'Empresa · identificación y entrega de fuentes',
 
-                            'phase_capability_id' =>
-                                $phaseCapabilityId,
+                    'suggested_owner_role' =>
+                        null,
 
-                            'capability_key' =>
-                                $capabilityKey,
+                    'responsible_party' =>
+                        'client',
 
-                            /*
-                             * El ReviewService necesita una
-                             * identidad funcional estable para
-                             * cada asignación.
-                             */
-                            'initiative_id' =>
-                                $capabilityKey
-                                .':deliverable:'
-                                .($index + 1),
+                    /*
+                     * El rol general ya está definido por contrato,
+                     * pero todavía requiere confirmación humana.
+                     */
+                    'confirmation_status' =>
+                        'pending',
+                ],
 
-                            'initiative_title' =>
-                                $deliverable,
+                [
+                    'phase_id' =>
+                        $phaseId,
 
-                            'suggested_owner_role' =>
-                                is_string(
-                                    $suggestedOwnerRole
-                                )
-                                    && trim(
+                    'phase_sequence' =>
+                        $phaseSequence,
+
+                    'phase_name' =>
+                        $phaseName,
+
+                    'phase_capability_id' =>
+                        $phaseCapabilityId,
+
+                    'capability_key' =>
+                        $capabilityKey,
+
+                    'initiative_id' =>
+                        'data_transformation_bi:lauda_transformation',
+
+                    'initiative_title' =>
+                        'LAUDA · transformación y preparación analítica',
+
+                    'suggested_owner_role' =>
+                        null,
+
+                    'responsible_party' =>
+                        'lauda',
+
+                    /*
+                     * El rol general ya está definido por contrato,
+                     * pero todavía requiere confirmación humana.
+                     */
+                    'confirmation_status' =>
+                        'pending',
+                ],
+            ];
+
+            /*
+             * No existen responsabilidades por descubrir.
+             *
+             * La confirmación sigue pendiente, pero la asignación
+             * general Empresa / LAUDA ya está determinada.
+             */
+            $unresolved = [];
+
+            $responsibilitySuggestionsAvailable =
+                false;
+        } else {
+            /*
+             * Contrato histórico de las demás capabilities.
+             */
+            $suggestedOwnerRole =
+                $catalog[
+                    'suggested_owner_role'
+                ]
+                ?? data_get(
+                    $sourceCapability,
+                    'source_snapshot.suggested_owner_role'
+                );
+
+            $assignments =
+                collect(
+                    $deliverableStrings
+                )
+                    ->values()
+                    ->map(
+                        function (
+                            string $deliverable,
+                            int $index
+                        ) use (
+                            $phaseId,
+                            $phaseSequence,
+                            $phaseName,
+                            $phaseCapabilityId,
+                            $capabilityKey,
+                            $suggestedOwnerRole
+                        ): array {
+                            return [
+                                'phase_id' =>
+                                    $phaseId,
+
+                                'phase_sequence' =>
+                                    $phaseSequence,
+
+                                'phase_name' =>
+                                    $phaseName,
+
+                                'phase_capability_id' =>
+                                    $phaseCapabilityId,
+
+                                'capability_key' =>
+                                    $capabilityKey,
+
+                                'initiative_id' =>
+                                    $capabilityKey
+                                    .':deliverable:'
+                                    .($index + 1),
+
+                                'initiative_title' =>
+                                    $deliverable,
+
+                                'suggested_owner_role' =>
+                                    is_string(
                                         $suggestedOwnerRole
-                                    ) !== ''
-                                        ? trim(
+                                    )
+                                        && trim(
                                             $suggestedOwnerRole
-                                        )
-                                        : null,
+                                        ) !== ''
+                                            ? trim(
+                                                $suggestedOwnerRole
+                                            )
+                                            : null,
 
-                            'responsible_party' =>
-                                null,
+                                'responsible_party' =>
+                                    null,
 
-                            'confirmation_status' =>
-                                'pending',
-                        ];
-                    }
+                                'confirmation_status' =>
+                                    'pending',
+                            ];
+                        }
+                    )
+                    ->all();
+
+            $unresolved =
+                collect(
+                    $assignments
                 )
-                ->all();
+                    ->filter(
+                        fn (
+                            array $assignment
+                        ): bool =>
+                            (
+                                $assignment[
+                                    'suggested_owner_role'
+                                ] ?? null
+                            ) === null
+                    )
+                    ->values()
+                    ->all();
 
-        $unresolved =
-            collect(
-                $assignments
-            )
-                ->filter(
-                    fn (
-                        array $assignment
-                    ): bool =>
-                        (
-                            $assignment[
-                                'suggested_owner_role'
-                            ] ?? null
-                        ) === null
+            $responsibilitySuggestionsAvailable =
+                collect(
+                    $assignments
                 )
-                ->values()
-                ->all();
+                    ->contains(
+                        fn (
+                            array $assignment
+                        ): bool =>
+                            (
+                                $assignment[
+                                    'suggested_owner_role'
+                                ] ?? null
+                            ) !== null
+                    );
+        }
 
         $scopeDefined =
             $scopeItems !== [];
 
         $deliverablesPrepared =
             $deliverables !== [];
-
-        $responsibilitySuggestionsAvailable =
-            collect(
-                $assignments
-            )
-                ->contains(
-                    fn (
-                        array $assignment
-                    ): bool =>
-                        (
-                            $assignment[
-                                'suggested_owner_role'
-                            ] ?? null
-                        ) !== null
-                );
 
         $blockers = [
             [

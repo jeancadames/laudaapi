@@ -6,15 +6,18 @@ use App\Models\TransformationImplementationRequest;
 use Illuminate\Validation\ValidationException;
 
 /**
- * Tenant lifecycle gate for the client-owned Data BI source workspace.
+ * Server-owned lifecycle gate for the operational Data BI workspace.
  *
  * Recommendation alone never opens the workspace.
- * Request existence makes the implementation process visible.
- * Source delivery becomes operational only after the functional
- * definition has been explicitly agreed.
+ * Request existence may make the process visible, but source delivery
+ * and intake operations become available only after the functional
+ * Definition has been explicitly agreed.
  *
- * This gate is Tenant-facing only. It does not change the technical
- * capabilities available to LAUDA Admin through the admin workflow.
+ * state() provides the Tenant-facing projection.
+ * assertCanManage() is the shared operational guard for both
+ * Tenant Admin and LAUDA Admin.
+ *
+ * Browser visibility never grants operational access.
  */
 final class DataTransformationBiTenantSourceWorkspaceGate
 {

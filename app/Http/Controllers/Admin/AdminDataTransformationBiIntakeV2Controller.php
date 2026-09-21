@@ -18,6 +18,7 @@ use App\Services\Diagnosis\DataTransformationBiIntakeV2SessionResolutionService;
 use App\Services\Diagnosis\DataTransformationBiIntakeV2SessionService;
 use App\Services\Diagnosis\DataTransformationBiIntakeV2StagingMaterializationService;
 use App\Services\Diagnosis\DataTransformationBiIntakeV2StateService;
+use App\Services\Diagnosis\DataTransformationBiTenantSourceWorkspaceGate;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
@@ -526,6 +527,12 @@ final class AdminDataTransformationBiIntakeV2Controller extends Controller
                     'string',
                     'max:191',
                 ],
+                'owner' => [
+                    'sometimes',
+                    'nullable',
+                    'string',
+                    'max:191',
+                ],
                 'structure_format' => [
                     'nullable',
                     'string',
@@ -610,6 +617,12 @@ final class AdminDataTransformationBiIntakeV2Controller extends Controller
                     'max:4000',
                 ],
                 'origin_system' => [
+                    'sometimes',
+                    'nullable',
+                    'string',
+                    'max:191',
+                ],
+                'owner' => [
                     'sometimes',
                     'nullable',
                     'string',
@@ -1299,6 +1312,19 @@ final class AdminDataTransformationBiIntakeV2Controller extends Controller
                 === 'data_transformation_bi',
             404
         );
+
+        /*
+         * All Admin intake operations share the same lifecycle
+         * boundary as Tenant Admin.
+         *
+         * This also protects controller-level operations that do
+         * not delegate to one of the mutation services.
+         */
+        app(
+            DataTransformationBiTenantSourceWorkspaceGate::class
+        )->assertCanManage(
+            $request
+        );
     }
 
     private function scopedSession(
@@ -1415,7 +1441,13 @@ final class AdminDataTransformationBiIntakeV2Controller extends Controller
                     ? (string) $asset->origin_system
                     : null,
 
-            'structure_format' =>
+
+            'owner' =>
+                $asset->owner !== null
+                    ? (string) $asset->owner
+                    : null,
+
+'structure_format' =>
                 $asset->structure_format !== null
                     ? (string) $asset->structure_format
                     : null,

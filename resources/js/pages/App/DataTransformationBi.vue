@@ -139,6 +139,7 @@ type DynamicSourceAsset = {
     source_object_name: string;
     description: string | null;
     origin_system: string | null;
+    owner: string | null;
     structure_format:
         | 'field_type_list'
         | 'sql_server_ddl'
@@ -787,6 +788,7 @@ const createSourceForm = ref({
     source_object_name: '',
     description: '',
     origin_system: '',
+    owner: '',
     delivery_format: 'csv' as 'csv' | 'xlsx',
 });
 
@@ -795,6 +797,7 @@ const editSourceForm = ref({
     source_object_name: '',
     description: '',
     origin_system: '',
+    owner: '',
     delivery_format: 'csv' as 'csv' | 'xlsx',
 });
 
@@ -872,6 +875,7 @@ watch(
                 source_object_name: '',
                 description: '',
                 origin_system: '',
+                owner: '',
                 delivery_format: 'csv',
             };
 
@@ -902,6 +906,10 @@ watch(
 
             origin_system:
                 sourceAsset.origin_system
+                ?? '',
+
+            owner:
+                sourceAsset.owner
                 ?? '',
 
             delivery_format:
@@ -1226,6 +1234,12 @@ async function createSourceAsset(): Promise<void> {
                                 .trim()
                             || null,
 
+                        owner:
+                            createSourceForm.value
+                                .owner
+                                .trim()
+                            || null,
+
                         delivery_format:
                             createSourceForm.value
                                 .delivery_format,
@@ -1254,6 +1268,7 @@ async function createSourceAsset(): Promise<void> {
         source_object_name: '',
         description: '',
         origin_system: '',
+        owner: '',
         delivery_format: 'csv',
     };
 
@@ -1316,6 +1331,12 @@ async function updateSourceAsset(): Promise<void> {
                         origin_system:
                             editSourceForm.value
                                 .origin_system
+                                .trim()
+                            || null,
+
+                        owner:
+                            editSourceForm.value
+                                .owner
                                 .trim()
                             || null,
 
@@ -2875,6 +2896,29 @@ function processingHistoryDate(
                                         <span
                                             class="text-xs font-bold text-slate-600 dark:text-slate-300"
                                         >
+                                            Responsable de la fuente
+                                        </span>
+
+                                        <input
+                                            v-model="createSourceForm.owner"
+                                            type="text"
+                                            maxlength="191"
+                                            class="mt-2 w-full rounded-xl border border-slate-200 bg-background px-3 py-2.5 text-sm dark:border-slate-800"
+                                            placeholder="Ej. Contabilidad · Sistemas · Administración"
+                                        />
+
+                                        <span
+                                            class="mt-1 block text-[11px] leading-5 text-slate-500 dark:text-slate-400"
+                                        >
+                                            Persona o área que conoce la fuente
+                                            y puede coordinar su entrega.
+                                        </span>
+                                    </label>
+
+                                    <label class="block">
+                                        <span
+                                            class="text-xs font-bold text-slate-600 dark:text-slate-300"
+                                        >
                                             Formato previsto
                                         </span>
 
@@ -2981,6 +3025,16 @@ function processingHistoryDate(
                                                     sourceAsset.source_object_name
                                                     || 'Objeto pendiente'
                                                 }}
+                                            </p>
+
+                                            <p
+                                                v-if="sourceAsset.owner"
+                                                class="mt-1 truncate text-xs text-slate-500 dark:text-slate-400"
+                                            >
+                                                Responsable:
+                                                <strong>
+                                                    {{ sourceAsset.owner }}
+                                                </strong>
                                             </p>
 
                                             <p
@@ -3135,6 +3189,23 @@ function processingHistoryDate(
                                                 maxlength="191"
                                                 class="mt-2 w-full rounded-xl border border-slate-200 bg-background px-3 py-2.5 text-sm disabled:opacity-60 dark:border-slate-800"
                                                 :disabled="!canManageSources"
+                                            />
+                                        </label>
+
+                                        <label class="block">
+                                            <span
+                                                class="text-xs font-bold text-slate-600 dark:text-slate-300"
+                                            >
+                                                Responsable de la fuente
+                                            </span>
+
+                                            <input
+                                                v-model="editSourceForm.owner"
+                                                type="text"
+                                                maxlength="191"
+                                                class="mt-2 w-full rounded-xl border border-slate-200 bg-background px-3 py-2.5 text-sm disabled:opacity-60 dark:border-slate-800"
+                                                :disabled="!canManageSources"
+                                                placeholder="Ej. Contabilidad · Sistemas · Administración"
                                             />
                                         </label>
 

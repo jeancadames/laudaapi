@@ -222,7 +222,7 @@ final class DataTransformationBiSourceAssetDataArtifactContractTest
         $end =
             strpos(
                 $this->service,
-                'private function assertAdmin(',
+                'private function assertCanManage(',
                 $start
             );
 

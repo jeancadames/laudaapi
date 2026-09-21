@@ -159,7 +159,8 @@ final class TransformationImplementationRequestDefinitionRevisionFunctionalEditC
         $ui =
             $this->project(
                 'resources/js/pages/Admin/'
-                .'Transformation360/ImplementationRequests/Show.vue'
+                .'Transformation360/'
+                .'ImplementationRequests/Show.vue'
             );
 
         foreach ([
@@ -167,16 +168,26 @@ final class TransformationImplementationRequestDefinitionRevisionFunctionalEditC
             'implementation_scope',
             'deliverables',
             'dependencies',
-            'functionalScopeJson',
-            'functionalDeliverablesJson',
-            'functionalDependenciesJson',
-            'parseFunctionalEditors',
-            'Edición funcional de la nueva versión',
-            'La versión anterior permanece preservada.',
+            'functionalStringList',
+            'functionalRecordText',
+            'Contenido funcional',
+            'Alcance funcional',
             'Guardar revisión humana',
         ] as $required) {
             $this->assertStringContainsString(
                 $required,
+                $ui
+            );
+        }
+
+        foreach ([
+            'functionalScopeJson',
+            'functionalDeliverablesJson',
+            'functionalDependenciesJson',
+            'parseFunctionalEditors',
+        ] as $legacyEditor) {
+            $this->assertStringNotContainsString(
+                $legacyEditor,
                 $ui
             );
         }
@@ -187,23 +198,38 @@ final class TransformationImplementationRequestDefinitionRevisionFunctionalEditC
         $ui =
             $this->project(
                 'resources/js/pages/Admin/'
-                .'Transformation360/ImplementationRequests/Show.vue'
+                .'Transformation360/'
+                .'ImplementationRequests/Show.vue'
             );
 
-        $this->assertStringContainsString(
-            'estructuras funcionales existentes',
-            $ui
-        );
+        /*
+         * The readable Data BI UI continues to submit the existing
+         * implementation_scope / deliverables / dependencies contract.
+         * It does not create parallel JSON editor state.
+         */
+        foreach ([
+            'humanReviewForm',
+            'implementation_scope',
+            'deliverables',
+            'dependencies',
+        ] as $existingContract) {
+            $this->assertStringContainsString(
+                $existingContract,
+                $ui
+            );
+        }
 
-        $this->assertStringContainsString(
-            'sin introducir',
-            $ui
-        );
-
-        $this->assertStringContainsString(
-            'un segundo esquema paralelo',
-            $ui
-        );
+        foreach ([
+            'functionalScopeJson',
+            'functionalDeliverablesJson',
+            'functionalDependenciesJson',
+            'parseFunctionalEditors',
+        ] as $parallelEditorState) {
+            $this->assertStringNotContainsString(
+                $parallelEditorState,
+                $ui
+            );
+        }
     }
 
     public function test_d3_has_no_revision_or_downstream_action(): void

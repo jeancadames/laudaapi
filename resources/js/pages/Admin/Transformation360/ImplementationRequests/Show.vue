@@ -427,6 +427,7 @@ type DynamicSourceAsset = {
     source_object_name: string;
     description?: string | null;
     origin_system?: string | null;
+    owner?: string | null;
     structure_format?: string | null;
     structure_text?: string | null;
     delivery_format?: 'csv' | 'xlsx' | null;
@@ -481,6 +482,7 @@ type DynamicSourceAssetForm = {
     source_object_name: string;
     description: string;
     origin_system: string;
+    owner: string;
     delivery_format: 'csv' | 'xlsx' | null;
 };
 
@@ -645,6 +647,7 @@ const dynamicSourceForm =
         source_object_name: '',
         description: '',
         origin_system: '',
+        owner: '',
         delivery_format: null,
     });
 
@@ -673,6 +676,7 @@ function dynamicSourceResetForm(): void {
         source_object_name: '',
         description: '',
         origin_system: '',
+        owner: '',
         delivery_format: null,
     };
 
@@ -706,6 +710,10 @@ function openDynamicSourceEditForm(
 
         origin_system:
             asset.origin_system
+            ?? '',
+
+        owner:
+            asset.owner
             ?? '',
 
         delivery_format:
@@ -889,6 +897,12 @@ async function saveDynamicSourceAsset(): Promise<void> {
                             origin_system:
                                 dynamicSourceForm.value
                                     .origin_system
+                                    .trim()
+                                || null,
+
+                            owner:
+                                dynamicSourceForm.value
+                                    .owner
                                     .trim()
                                 || null,
 
@@ -3511,81 +3525,99 @@ const humanReviewForm = useForm({
     },
 });
 
-const functionalScopeJson = ref('');
-const functionalDeliverablesJson = ref('');
-const functionalDependenciesJson = ref('');
-const functionalEditorError = ref<string | null>(null);
+const DATA_BI_CAPABILITY =
+    'data_transformation_bi';
 
-function prettyFunctionalJson(value: unknown): string {
-    return JSON.stringify(
-        value ?? null,
-        null,
-        2,
-    );
+function functionalStringList(
+    value: unknown,
+): string[] {
+    if (!Array.isArray(value)) {
+        return [];
+    }
+
+    return value
+        .filter(
+            (item): item is string =>
+                typeof item === 'string'
+                && item.trim() !== '',
+        )
+        .map(
+            (item) =>
+                item.trim(),
+        );
 }
 
-function parseFunctionalEditors(): boolean {
-    functionalEditorError.value = null;
+function functionalRecordText(
+    item: Record<string, any>,
+    preferredKey: string,
+): string {
+    const preferred =
+        item?.[preferredKey];
 
-    try {
-        const scope =
-            JSON.parse(
-                functionalScopeJson.value,
-            );
-
-        const deliverables =
-            JSON.parse(
-                functionalDeliverablesJson.value,
-            );
-
-        const dependencies =
-            JSON.parse(
-                functionalDependenciesJson.value,
-            );
-
-        if (
-            !scope
-            || typeof scope !== 'object'
-            || Array.isArray(scope)
-        ) {
-            throw new Error(
-                'El alcance debe ser un objeto JSON.',
-            );
-        }
-
-        if (
-            !Array.isArray(deliverables)
-            || !deliverables.length
-        ) {
-            throw new Error(
-                'Los entregables deben ser una lista JSON con al menos un elemento.',
-            );
-        }
-
-        if (!Array.isArray(dependencies)) {
-            throw new Error(
-                'Las dependencias deben ser una lista JSON.',
-            );
-        }
-
-        humanReviewForm.implementation_scope =
-            scope;
-
-        humanReviewForm.deliverables =
-            deliverables;
-
-        humanReviewForm.dependencies =
-            dependencies;
-
-        return true;
-    } catch (error) {
-        functionalEditorError.value =
-            error instanceof Error
-                ? error.message
-                : 'Revisa la estructura JSON funcional.';
-
-        return false;
+    if (
+        typeof preferred === 'string'
+        && preferred.trim() !== ''
+    ) {
+        return preferred.trim();
     }
+
+    for (const key of [
+        'title',
+        'label',
+        'name',
+        'objective',
+        'description',
+    ]) {
+        const value =
+            item?.[key];
+
+        if (
+            typeof value === 'string'
+            && value.trim() !== ''
+        ) {
+            return value.trim();
+        }
+    }
+
+    return 'Contenido funcional';
+}
+
+function dataBiGeneralResponsibilityAssignments():
+    Array<Record<string, any>> {
+    return [
+        {
+            initiative_id:
+                'data_transformation_bi:client_source_delivery',
+
+            initiative_title:
+                'Empresa · identificación y entrega de fuentes',
+
+            suggested_owner_role:
+                null,
+
+            responsible_party:
+                'client',
+
+            confirmation_status:
+                'confirmed',
+        },
+        {
+            initiative_id:
+                'data_transformation_bi:lauda_transformation',
+
+            initiative_title:
+                'LAUDA · transformación y preparación analítica',
+
+            suggested_owner_role:
+                null,
+
+            responsible_party:
+                'lauda',
+
+            confirmation_status:
+                'confirmed',
+        },
+    ];
 }
 
 
@@ -3605,36 +3637,22 @@ function syncHumanReviewForm(): void {
         source?.dependencies
         ?? [];
 
-    functionalScopeJson.value =
-        prettyFunctionalJson(
-            humanReviewForm.implementation_scope,
-        );
-
-    functionalDeliverablesJson.value =
-        prettyFunctionalJson(
-            humanReviewForm.deliverables,
-        );
-
-    functionalDependenciesJson.value =
-        prettyFunctionalJson(
-            humanReviewForm.dependencies,
-        );
-
-    functionalEditorError.value = null;
-
     const assignments =
         source?.responsibility_model
             ?.assignments ?? [];
 
     humanReviewForm.responsibility_model.assignments =
-        assignments.map(
-            (assignment) => ({
-                ...assignment,
-                responsible_party:
-                    assignment.responsible_party
-                    ?? '',
-            }),
-        );
+        props.capability.key
+            === DATA_BI_CAPABILITY
+            ? dataBiGeneralResponsibilityAssignments()
+            : assignments.map(
+                (assignment) => ({
+                    ...assignment,
+                    responsible_party:
+                        assignment.responsible_party
+                        ?? '',
+                }),
+            );
 
     const validation =
         source?.readiness
@@ -3678,10 +3696,6 @@ function saveImplementationDefinitionHumanReview(): void {
         !props.actions.can_review_definition
         || !endpoint
     ) {
-        return;
-    }
-
-    if (!parseFunctionalEditors()) {
         return;
     }
 
@@ -4657,9 +4671,9 @@ async function normalizeStandardIntakeBatch(): Promise<void> {
                     </h2>
 
                     <p class="mt-2 text-sm leading-6 text-muted-foreground">
-                        Revisa responsables, alcance, entregables,
-                        dependencias, insumos y accesos antes de
-                        continuar con el proceso.
+                        Revisa el alcance, los entregables, las
+                        dependencias y el modelo general de
+                        responsabilidades antes de continuar.
                     </p>
 
                     <p class="mt-2 text-xs leading-5 text-muted-foreground">
@@ -4715,172 +4729,355 @@ async function normalizeStandardIntakeBatch(): Promise<void> {
                     </p>
                 </div>
 
-                <div class="mt-6">
+                <div class="mt-6 space-y-6">
                     <div class="max-w-3xl">
                         <p class="text-sm font-bold">
-                            Edición funcional de la nueva versión
+                            Contenido funcional
                         </p>
 
                         <p
                             class="mt-2 text-xs leading-5 text-muted-foreground"
                         >
-                            Estos campos muestran exactamente las
-                            estructuras funcionales existentes de la
-                            Definition. El editor JSON permite conservar
-                            cualquier estructura anidada sin introducir
-                            un segundo esquema paralelo.
+                            La estructura técnica permanece internamente,
+                            pero la revisión se presenta de forma funcional
+                            y legible.
                         </p>
+                    </div>
 
-                        <p
-                            class="mt-2 text-xs leading-5 text-muted-foreground"
+                    <section
+                        class="rounded-2xl border bg-background p-5"
+                    >
+                        <div
+                            class="flex flex-wrap items-start justify-between gap-3"
                         >
-                            scope_mode, capability_key y el bloqueo
-                            request-scoped se vuelven a fijar en el
-                            servidor al guardar.
-                        </p>
-                    </div>
+                            <div>
+                                <p class="text-sm font-black">
+                                    Alcance funcional
+                                </p>
 
-                    <div class="mt-5 grid gap-5">
-                        <label class="block">
-                            <span class="text-sm font-semibold">
-                                Alcance funcional
-                            </span>
+                                <p
+                                    v-if="
+                                        humanReviewForm
+                                            .implementation_scope
+                                            .phase_name
+                                    "
+                                    class="mt-1 text-xs text-muted-foreground"
+                                >
+                                    {{
+                                        humanReviewForm
+                                            .implementation_scope
+                                            .phase_name
+                                    }}
+                                </p>
+                            </div>
 
-                            <textarea
-                                v-model="functionalScopeJson"
-                                rows="12"
-                                spellcheck="false"
-                                class="mt-2 w-full rounded-xl border bg-background px-4 py-3 font-mono text-xs leading-5"
-                                :disabled="
-                                    humanReviewForm.processing
-                                    || !props.actions.can_review_definition
-                                "
-                            />
-                        </label>
-
-                        <label class="block">
-                            <span class="text-sm font-semibold">
-                                Entregables
-                            </span>
-
-                            <textarea
-                                v-model="functionalDeliverablesJson"
-                                rows="12"
-                                spellcheck="false"
-                                class="mt-2 w-full rounded-xl border bg-background px-4 py-3 font-mono text-xs leading-5"
-                                :disabled="
-                                    humanReviewForm.processing
-                                    || !props.actions.can_review_definition
-                                "
-                            />
-                        </label>
-
-                        <label class="block">
-                            <span class="text-sm font-semibold">
-                                Dependencias
-                            </span>
-
-                            <textarea
-                                v-model="functionalDependenciesJson"
-                                rows="10"
-                                spellcheck="false"
-                                class="mt-2 w-full rounded-xl border bg-background px-4 py-3 font-mono text-xs leading-5"
-                                :disabled="
-                                    humanReviewForm.processing
-                                    || !props.actions.can_review_definition
-                                "
-                            />
-                        </label>
-                    </div>
-
-                    <div
-                        v-if="functionalEditorError"
-                        class="mt-4 rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700 dark:border-red-900 dark:bg-red-950/30 dark:text-red-300"
-                    >
-                        {{ functionalEditorError }}
-                    </div>
-                </div>
-
-
-                <div
-                    v-if="
-                        humanReviewForm
-                            .responsibility_model
-                            .assignments
-                            .length
-                    "
-                    class="mt-6 space-y-3"
-                >
-                    <p class="text-sm font-bold">
-                        Responsabilidades
-                    </p>
-
-                    <div
-                        v-for="(
-                            assignment,
-                            index
-                        ) in humanReviewForm.responsibility_model.assignments"
-                        :key="
-                            assignment.initiative_id
-                            ?? index
-                        "
-                        class="grid gap-3 rounded-xl border p-4 lg:grid-cols-[1fr_260px] dark:border-slate-800"
-                    >
-                        <div>
-                            <p class="text-sm font-semibold">
-                                {{
-                                    assignment.initiative_title
-                                    ?? assignment.initiative_id
-                                }}
-                            </p>
-
-                            <p
-                                v-if="assignment.suggested_owner_role"
-                                class="mt-1 text-xs text-muted-foreground"
+                            <span
+                                class="rounded-full border px-3 py-1 text-[10px] font-bold uppercase text-muted-foreground"
                             >
-                                Sugerencia:
-                                {{
-                                    assignment.suggested_owner_role
-                                }}
-                            </p>
+                                Definition funcional
+                            </span>
                         </div>
 
-                        <select
-                            v-model="
+                        <p
+                            v-if="
                                 humanReviewForm
-                                    .responsibility_model
-                                    .assignments[index]
-                                    .responsible_party
+                                    .implementation_scope
+                                    .purpose
                             "
-                            class="w-full rounded-lg border bg-background px-3 py-2 text-sm"
-                            :disabled="
-                                humanReviewForm.processing
-                                || !props.actions.can_review_definition
-                            "
+                            class="mt-4 text-sm leading-6"
                         >
-                            <option value="">
-                                Seleccionar responsable
-                            </option>
+                            {{
+                                humanReviewForm
+                                    .implementation_scope
+                                    .purpose
+                            }}
+                        </p>
 
-                            <option value="lauda">
-                                LAUDA
-                            </option>
+                        <div
+                            v-if="
+                                functionalStringList(
+                                    humanReviewForm
+                                        .implementation_scope
+                                        .includes,
+                                ).length
+                            "
+                            class="mt-5"
+                        >
+                            <p
+                                class="text-xs font-black uppercase tracking-wide text-muted-foreground"
+                            >
+                                Incluye
+                            </p>
 
-                            <option value="client">
-                                Cliente
-                            </option>
+                            <ul
+                                class="mt-2 space-y-2 text-sm leading-6"
+                            >
+                                <li
+                                    v-for="(
+                                        item,
+                                        index
+                                    ) in functionalStringList(
+                                        humanReviewForm
+                                            .implementation_scope
+                                            .includes,
+                                    )"
+                                    :key="`scope-include-${index}`"
+                                    class="flex gap-2"
+                                >
+                                    <span
+                                        class="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-emerald-500"
+                                    ></span>
 
-                            <option value="shared">
-                                Compartido
-                            </option>
-                        </select>
-                    </div>
+                                    <span>{{ item }}</span>
+                                </li>
+                            </ul>
+                        </div>
+
+                        <div
+                            v-if="
+                                functionalStringList(
+                                    humanReviewForm
+                                        .implementation_scope
+                                        .excludes,
+                                ).length
+                            "
+                            class="mt-5"
+                        >
+                            <p
+                                class="text-xs font-black uppercase tracking-wide text-muted-foreground"
+                            >
+                                No incluye en esta etapa
+                            </p>
+
+                            <ul
+                                class="mt-2 space-y-2 text-sm leading-6 text-muted-foreground"
+                            >
+                                <li
+                                    v-for="(
+                                        item,
+                                        index
+                                    ) in functionalStringList(
+                                        humanReviewForm
+                                            .implementation_scope
+                                            .excludes,
+                                    )"
+                                    :key="`scope-exclude-${index}`"
+                                    class="flex gap-2"
+                                >
+                                    <span
+                                        class="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-slate-400"
+                                    ></span>
+
+                                    <span>{{ item }}</span>
+                                </li>
+                            </ul>
+                        </div>
+                    </section>
+
+                    <section
+                        class="rounded-2xl border bg-background p-5"
+                    >
+                        <p class="text-sm font-black">
+                            Entregables
+                        </p>
+
+                        <p
+                            class="mt-1 text-xs leading-5 text-muted-foreground"
+                        >
+                            Resultados funcionales del servicio. No son
+                            tablas, archivos ni fuentes específicas del
+                            cliente.
+                        </p>
+
+                        <div
+                            class="mt-4 grid gap-3 lg:grid-cols-2"
+                        >
+                            <article
+                                v-for="(
+                                    deliverable,
+                                    index
+                                ) in humanReviewForm.deliverables"
+                                :key="`functional-deliverable-${index}`"
+                                class="rounded-xl border p-4"
+                            >
+                                <p class="text-sm leading-6">
+                                    {{
+                                        functionalRecordText(
+                                            deliverable,
+                                            'deliverable',
+                                        )
+                                    }}
+                                </p>
+                            </article>
+                        </div>
+                    </section>
+
+                    <section
+                        class="rounded-2xl border bg-background p-5"
+                    >
+                        <p class="text-sm font-black">
+                            Dependencias
+                        </p>
+
+                        <p
+                            class="mt-1 text-xs leading-5 text-muted-foreground"
+                        >
+                            Condiciones funcionales para desarrollar el
+                            alcance. La gestión concreta de fuentes ocurre
+                            posteriormente en el workspace dinámico.
+                        </p>
+
+                        <div
+                            v-if="humanReviewForm.dependencies.length"
+                            class="mt-4 space-y-3"
+                        >
+                            <article
+                                v-for="(
+                                    dependency,
+                                    index
+                                ) in humanReviewForm.dependencies"
+                                :key="`functional-dependency-${index}`"
+                                class="rounded-xl border p-4"
+                            >
+                                <p class="text-sm leading-6">
+                                    {{
+                                        functionalRecordText(
+                                            dependency,
+                                            'dependency',
+                                        )
+                                    }}
+                                </p>
+                            </article>
+                        </div>
+
+                        <p
+                            v-else
+                            class="mt-4 rounded-xl border border-dashed p-4 text-sm text-muted-foreground"
+                        >
+                            No hay dependencias funcionales registradas.
+                        </p>
+                    </section>
+
+                    <section
+                        v-if="
+                            props.capability.key
+                                === DATA_BI_CAPABILITY
+                        "
+                        class="rounded-2xl border border-violet-200 bg-violet-50/40 p-5 dark:border-violet-900/70 dark:bg-violet-950/10"
+                    >
+                        <p class="text-sm font-black">
+                            Modelo general de responsabilidades
+                        </p>
+
+                        <p
+                            class="mt-1 max-w-3xl text-xs leading-5 text-muted-foreground"
+                        >
+                            La Definition confirma el reparto general entre
+                            la Empresa y LAUDA. El responsable concreto de
+                            cada fuente se administra en su SourceAsset.
+                        </p>
+
+                        <div
+                            class="mt-4 grid gap-4 lg:grid-cols-2"
+                        >
+                            <article
+                                class="rounded-xl border bg-background p-4"
+                            >
+                                <p class="text-sm font-black">
+                                    Empresa
+                                </p>
+
+                                <ul
+                                    class="mt-3 space-y-2 text-sm leading-6 text-muted-foreground"
+                                >
+                                    <li>
+                                        Identificar y registrar las fuentes
+                                        reales de información.
+                                    </li>
+
+                                    <li>
+                                        Definir el responsable de cada
+                                        SourceAsset.
+                                    </li>
+
+                                    <li>
+                                        Ejecutar o coordinar localmente la
+                                        extracción.
+                                    </li>
+
+                                    <li>
+                                        Entregar CSV/XLSX y atender
+                                        aclaraciones o correcciones.
+                                    </li>
+                                </ul>
+                            </article>
+
+                            <article
+                                class="rounded-xl border bg-background p-4"
+                            >
+                                <p class="text-sm font-black">
+                                    LAUDA
+                                </p>
+
+                                <ul
+                                    class="mt-3 space-y-2 text-sm leading-6 text-muted-foreground"
+                                >
+                                    <li>
+                                        Inspeccionar y perfilar los datos.
+                                    </li>
+
+                                    <li>
+                                        Definir el mapeo canónico aplicable.
+                                    </li>
+
+                                    <li>
+                                        Normalizar, relacionar y materializar
+                                        los datos preparados.
+                                    </li>
+
+                                    <li>
+                                        Documentar calidad, reglas y
+                                        resultados del procesamiento.
+                                    </li>
+                                </ul>
+                            </article>
+                        </div>
+                    </section>
+
+                    <section
+                        v-if="
+                            props.capability.key
+                                === DATA_BI_CAPABILITY
+                        "
+                        class="rounded-2xl border border-sky-200 bg-sky-50/40 p-5 dark:border-sky-900/70 dark:bg-sky-950/10"
+                    >
+                        <p class="text-sm font-black">
+                            Fuentes dinámicas
+                        </p>
+
+                        <p
+                            class="mt-2 max-w-3xl text-sm leading-6 text-muted-foreground"
+                        >
+                            Las fuentes no se administran desde esta
+                            Definition. Después del acuerdo funcional se
+                            habilita el workspace de SourceAssets con
+                            Información, Estructura, Extracción, Archivo y
+                            Resultado.
+                        </p>
+                    </section>
                 </div>
+
 
                 <div
                     v-if="
                         props.capability.key
-                            === 'data_transformation_bi'
+                            === DATA_BI_CAPABILITY
+                        && [
+                            'definition_agreed',
+                            'ready_for_commercial',
+                        ].includes(
+                            props.implementation_request.status,
+                        )
                     "
                     class="mt-8 space-y-8"
                 >
@@ -5101,6 +5298,30 @@ async function normalizeStandardIntakeBatch(): Promise<void> {
                                         </span>
                                     </label>
 
+                                    <label class="block">
+                                        <span class="text-xs font-semibold">
+                                            Responsable de la fuente
+                                        </span>
+
+                                        <input
+                                            v-model="
+                                                dynamicSourceForm.owner
+                                            "
+                                            type="text"
+                                            maxlength="191"
+                                            class="mt-1 w-full rounded-lg border bg-background px-3 py-2 text-sm"
+                                            placeholder="Ej. Contabilidad, Sistemas, Administración"
+                                        />
+
+                                        <span
+                                            class="mt-1 block text-[11px] leading-5 text-muted-foreground"
+                                        >
+                                            Persona o área que conoce esta fuente
+                                            y puede coordinar su extracción,
+                                            entrega o aclaraciones.
+                                        </span>
+                                    </label>
+
                                     <div>
                                         <span class="text-xs font-semibold">
                                             Formato de entrega
@@ -5267,6 +5488,16 @@ async function normalizeStandardIntakeBatch(): Promise<void> {
                                                     class="mt-1 truncate font-mono text-xs text-muted-foreground"
                                                 >
                                                     {{ asset.source_object_name }}
+                                                </p>
+
+                                                <p
+                                                    v-if="asset.owner"
+                                                    class="mt-1 truncate text-xs text-muted-foreground"
+                                                >
+                                                    Responsable:
+                                                    <strong>
+                                                        {{ asset.owner }}
+                                                    </strong>
                                                 </p>
                                             </div>
 
@@ -6693,7 +6924,16 @@ async function normalizeStandardIntakeBatch(): Promise<void> {
                         </section>
 
                         <!-- D15C_INTAKE_V2_UI -->
+
+                        <!--
+                            LEGACY_CANONICAL_DOMAIN_WORKBENCH_HIDDEN
+
+                            Dynamic SourceAsset intake is authoritative.
+                            Canonical domains remain internal transformation
+                            targets, not client-owned source definitions.
+                        -->
                         <section
+                            v-if="false"
                             class="mt-5 rounded-2xl border border-sky-200 bg-sky-50/40 p-4 dark:border-sky-900/70 dark:bg-sky-950/10"
                         >
                             <div

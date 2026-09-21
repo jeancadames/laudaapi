@@ -20,7 +20,7 @@ it('uses the dynamic source workspace instead of editable legacy BI evidence', f
             'props.capability.key'
         )
         ->toContain(
-            "=== 'data_transformation_bi'"
+            '=== DATA_BI_CAPABILITY'
         )
         ->toContain(
             'D17_DYNAMIC_SOURCE_WORKSPACE_UI'
@@ -29,7 +29,7 @@ it('uses the dynamic source workspace instead of editable legacy BI evidence', f
             'Fuentes de datos'
         )
         ->toContain(
-            'Modelo objetivo LAUDA · procesamiento interno'
+            'LEGACY_CANONICAL_DOMAIN_WORKBENCH_HIDDEN'
         )
         ->not->toContain(
             'Evidencia de insumos'

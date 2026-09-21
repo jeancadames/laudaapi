@@ -822,6 +822,7 @@ final class DataTransformationBiIntakeV2StateService
                 'source_object_name',
                 'description',
                 'origin_system',
+                'owner',
                 'structure_format',
                 'structure_text',
                 'delivery_format',
@@ -868,6 +869,11 @@ final class DataTransformationBiIntakeV2StateService
                         'origin_system' =>
                             $asset->origin_system !== null
                                 ? (string) $asset->origin_system
+                                : null,
+
+                        'owner' =>
+                            $asset->owner !== null
+                                ? (string) $asset->owner
                                 : null,
 
                         'structure_format' =>

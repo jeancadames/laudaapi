@@ -16,6 +16,7 @@ final class DataTransformationBiSourceAssetService
     private const MAX_SOURCE_OBJECT_NAME_LENGTH = 255;
     private const MAX_DESCRIPTION_LENGTH = 4000;
     private const MAX_ORIGIN_SYSTEM_LENGTH = 191;
+    private const MAX_OWNER_LENGTH = 191;
     private const MAX_STRUCTURE_FORMAT_LENGTH = 64;
 
     /**
@@ -532,6 +533,21 @@ final class DataTransformationBiSourceAssetService
                     self::MAX_ORIGIN_SYSTEM_LENGTH,
                     'origin_system',
                     'El origen de los datos es demasiado largo.'
+                );
+        }
+
+        if (
+            array_key_exists(
+                'owner',
+                $input
+            )
+        ) {
+            $payload['owner'] =
+                $this->nullableText(
+                    $input['owner'],
+                    self::MAX_OWNER_LENGTH,
+                    'owner',
+                    'El responsable de la fuente es demasiado largo.'
                 );
         }
 

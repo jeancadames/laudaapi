@@ -106,6 +106,7 @@ final class AppHubDataTransformationBiSourceWorkspaceController
                 'source_object_name',
                 'description',
                 'origin_system',
+                'owner',
                 'delivery_format',
             ]);
 
@@ -154,6 +155,7 @@ final class AppHubDataTransformationBiSourceWorkspaceController
                 'source_object_name',
                 'description',
                 'origin_system',
+                'owner',
                 'delivery_format',
             ]);
 

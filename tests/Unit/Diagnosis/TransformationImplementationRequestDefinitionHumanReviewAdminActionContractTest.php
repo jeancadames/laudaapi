@@ -123,7 +123,7 @@ final class TransformationImplementationRequestDefinitionHumanReviewAdminActionC
         }
     }
 
-    public function test_admin_ui_exposes_responsibility_and_four_editable_human_confirmations(): void
+    public function test_admin_ui_exposes_general_responsibility_and_four_editable_human_confirmations(): void
     {
         $ui =
             $this->project(
@@ -136,9 +136,9 @@ final class TransformationImplementationRequestDefinitionHumanReviewAdminActionC
             'Guardar revisión humana',
             'saveImplementationDefinitionHumanReview',
             'humanReviewForm',
-            'value="lauda"',
-            'value="client"',
-            'value="shared"',
+            'Modelo general de responsabilidades',
+            'data_transformation_bi:client_source_delivery',
+            'data_transformation_bi:lauda_transformation',
             'scope_confirmed',
             'deliverables_confirmed',
             'dependencies_confirmed',
@@ -151,6 +151,9 @@ final class TransformationImplementationRequestDefinitionHumanReviewAdminActionC
         }
 
         foreach ([
+            'value="lauda"',
+            'value="client"',
+            'value="shared"',
             'v-model="humanReviewForm.readiness.inputs_validated"',
             'v-model="humanReviewForm.readiness.accesses_validated"',
             'Evidencia de insumos',
