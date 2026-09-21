@@ -305,11 +305,11 @@ class DiagnosisDetailedRoadmapGenerator
                     $dataPriority,
 
                 'purpose' =>
-                    'Crear una capa fundacional de datos confiable y reutilizable para BI y progresivamente para CRM, pricing, inventario, compras, CxC, planificación, alertas e inteligencia de LAUDA.',
+                    'Crear una capa fundacional de datos confiable y reutilizable para BI y progresivamente para CRM, precios, inventario, compras, CxC, planificación, alertas e inteligencia de LAUDA.',
 
                 'includes' => [
                     'Clientes, calidad de datos, comportamiento, segmentos e industrias.',
-                    'Riesgo y oportunidad de segmentos y clientes mediante scores explicables y señales internas/externas.',
+                    'Riesgo y oportunidad de segmentos y clientes mediante indicadores explicables y señales internas/externas.',
                     'Productos, categorías, inventario, movimientos, costos, precios, rotación, margen y exposición.',
                     'Relación producto ↔ materia prima, costos históricos, tendencias de mercado e impacto potencial.',
                     'Suplidores: confiabilidad, riesgo, oportunidad, concentración, dependencia y exposición.',

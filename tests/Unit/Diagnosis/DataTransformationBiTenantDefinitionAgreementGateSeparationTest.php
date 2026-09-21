@@ -239,7 +239,7 @@ final class DataTransformationBiTenantDefinitionAgreementGateSeparationTest
         );
 
         self::assertStringContainsString(
-            'Acordar esta Definition',
+            'Acordar esta definición',
             $ui
         );
     }

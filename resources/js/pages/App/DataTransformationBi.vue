@@ -233,6 +233,9 @@ const props = defineProps<{
             scope: {
                 scope_mode: string | null;
                 capability_key: string | null;
+                purpose: string | null;
+                includes: string[];
+                excludes: string[];
                 phases: Array<Record<string, any>>;
             };
             deliverables: Array<Record<string, any>>;
@@ -483,6 +486,47 @@ const tenantDefinitionReview = computed(
         props.implementation_request
             .definition_review,
 );
+
+/*
+ * Presentation compatibility for historical Plan/capability snapshots.
+ *
+ * This only changes tenant-facing wording. It does not mutate the
+ * persisted Plan, Definition or source snapshot.
+ */
+function humanFacingDataBiText(
+    value: string | null | undefined,
+): string {
+    return String(
+        value ?? '',
+    )
+        .replaceAll(
+            'pricing',
+            'precios',
+        )
+        .replaceAll(
+            'scores explicables',
+            'indicadores explicables',
+        );
+}
+
+const capabilityPurposeForDisplay =
+    computed(
+        () =>
+            humanFacingDataBiText(
+                props.capability.purpose,
+            ),
+    );
+
+const capabilityIncludesForDisplay =
+    computed(
+        () =>
+            props.capability.includes.map(
+                (item) =>
+                    humanFacingDataBiText(
+                        item,
+                    ),
+            ),
+    );
 
 const definitionScopePhases = computed(
     () =>
@@ -1195,7 +1239,7 @@ async function createSourceAsset(): Promise<void> {
 
     if (!sessionId) {
         sourceWorkspaceError.value =
-            'Prepara primero el workspace de fuentes.';
+            'Prepara primero el espacio de trabajo de fuentes.';
         return;
     }
 
@@ -1434,7 +1478,7 @@ async function archiveSourceAsset(): Promise<void> {
     const confirmed =
         window.confirm(
             `¿Archivar la fuente "${sourceAsset.display_name}"?`
-            + ' Se conservará su historial, pero dejará de formar parte del workspace activo.',
+            + ' Se conservará su historial, pero dejará de formar parte del espacio de trabajo activo.',
         );
 
     if (!confirmed) {
@@ -1826,7 +1870,7 @@ function processingHistoryDate(
                                 v-if="capability.purpose"
                                 class="mt-5 max-w-3xl text-base leading-7 text-slate-600 dark:text-slate-300"
                             >
-                                {{ capability.purpose }}
+                                {{ capabilityPurposeForDisplay }}
                             </p>
                         </div>
 
@@ -2082,7 +2126,7 @@ function processingHistoryDate(
                             class="mt-6 grid gap-3 md:grid-cols-2"
                         >
                             <li
-                                v-for="item in capability.includes"
+                                v-for="item in capabilityIncludesForDisplay"
                                 :key="item"
                                 class="flex h-full gap-3 rounded-2xl border border-slate-200/70 bg-slate-50/50 p-4 text-sm leading-6 text-slate-600 dark:border-slate-800 dark:bg-slate-900/20 dark:text-slate-300"
                             >
@@ -2112,7 +2156,7 @@ function processingHistoryDate(
                                 <h2
                                     class="mt-1 text-xl font-black text-slate-950 dark:text-white"
                                 >
-                                    Definition funcional presentada
+                                    Definición funcional presentada
                                 </h2>
 
                                 <p
@@ -2188,14 +2232,20 @@ function processingHistoryDate(
 
                                     <p
                                         v-if="
-                                            definitionItemDescription(
+                                            tenantDefinitionReview
+                                                .scope
+                                                .purpose
+                                            ?? definitionItemDescription(
                                                 phase,
                                             )
                                         "
                                         class="mt-1 text-xs leading-5 text-slate-500 dark:text-slate-400"
                                     >
                                         {{
-                                            definitionItemDescription(
+                                            tenantDefinitionReview
+                                                .scope
+                                                .purpose
+                                            ?? definitionItemDescription(
                                                 phase,
                                             )
                                         }}
@@ -2225,6 +2275,46 @@ function processingHistoryDate(
                                     </ul>
                                 </div>
                             </div>
+                        </div>
+
+                        <div
+                            v-if="
+                                tenantDefinitionReview
+                                    .scope
+                                    .excludes
+                                    .length
+                            "
+                            class="mt-5 rounded-2xl border border-slate-200/70 bg-slate-50/40 p-4 dark:border-slate-800 dark:bg-slate-900/20"
+                        >
+                            <p
+                                class="text-[10px] font-black tracking-widest text-slate-500 uppercase dark:text-slate-400"
+                            >
+                                No incluye esta etapa
+                            </p>
+
+                            <ul
+                                class="mt-3 space-y-2 text-sm leading-6 text-slate-500 dark:text-slate-400"
+                            >
+                                <li
+                                    v-for="
+                                        item in tenantDefinitionReview
+                                            .scope
+                                            .excludes
+                                    "
+                                    :key="item"
+                                    class="flex gap-2"
+                                >
+                                    <span>•</span>
+
+                                    <span>
+                                        {{
+                                            humanFacingDataBiText(
+                                                item,
+                                            )
+                                        }}
+                                    </span>
+                                </li>
+                            </ul>
                         </div>
 
                         <div
@@ -2347,55 +2437,85 @@ function processingHistoryDate(
                                 Responsabilidades
                             </h3>
 
-                            <div class="mt-4 space-y-3">
-                                <div
-                                    v-for="(
-                                        assignment,
-                                        index
-                                    ) in tenantDefinitionReview.responsibilities.assignments"
-                                    :key="
-                                        assignment.initiative_id ??
-                                        index
-                                    "
-                                    class="flex flex-col gap-2 rounded-2xl border border-slate-200/70 p-4 sm:flex-row sm:items-start sm:justify-between dark:border-slate-800"
+                            <p
+                                class="mt-2 max-w-3xl text-xs leading-5 text-slate-500 dark:text-slate-400"
+                            >
+                                La definición funcional confirma el reparto
+                                general entre tu empresa y LAUDA. El responsable
+                                concreto de cada fuente se administra posteriormente
+                                en su ficha de fuente.
+                            </p>
+
+                            <div
+                                class="mt-4 grid gap-4 md:grid-cols-2"
+                            >
+                                <article
+                                    class="rounded-2xl border border-slate-200/70 p-4 dark:border-slate-800"
                                 >
-                                    <div>
-                                        <p
-                                            class="text-sm font-bold text-slate-900 dark:text-slate-100"
-                                        >
-                                            {{
-                                                definitionItemTitle(
-                                                    assignment,
-                                                    `Responsabilidad ${index + 1}`,
-                                                )
-                                            }}
-                                        </p>
-
-                                        <p
-                                            v-if="
-                                                assignment.suggested_owner_role
-                                            "
-                                            class="mt-1 text-xs text-slate-500 dark:text-slate-400"
-                                        >
-                                            Referencia LAUDA:
-                                            {{
-                                                assignment.suggested_owner_role
-                                            }}
-                                        </p>
-                                    </div>
-
-                                    <span
-                                        class="shrink-0 rounded-full border border-slate-200 px-3 py-1 text-[10px] font-black tracking-wide text-slate-700 uppercase dark:border-slate-700 dark:text-slate-300"
+                                    <p
+                                        class="text-sm font-black text-slate-950 dark:text-white"
                                     >
-                                        {{
-                                            responsibilityPartyLabel(
-                                                assignment.responsible_party,
-                                            )
-                                        }}
-                                    </span>
-                                </div>
+                                        Empresa
+                                    </p>
+
+                                    <ul
+                                        class="mt-3 space-y-2 text-sm leading-6 text-slate-600 dark:text-slate-300"
+                                    >
+                                        <li>
+                                            Identificar y registrar las fuentes
+                                            reales de información.
+                                        </li>
+
+                                        <li>
+                                            Definir el responsable de cada fuente
+                                            de datos.
+                                        </li>
+
+                                        <li>
+                                            Ejecutar o coordinar localmente la
+                                            extracción.
+                                        </li>
+
+                                        <li>
+                                            Entregar CSV/XLSX y atender
+                                            aclaraciones o correcciones.
+                                        </li>
+                                    </ul>
+                                </article>
+
+                                <article
+                                    class="rounded-2xl border border-slate-200/70 p-4 dark:border-slate-800"
+                                >
+                                    <p
+                                        class="text-sm font-black text-slate-950 dark:text-white"
+                                    >
+                                        LAUDA
+                                    </p>
+
+                                    <ul
+                                        class="mt-3 space-y-2 text-sm leading-6 text-slate-600 dark:text-slate-300"
+                                    >
+                                        <li>
+                                            Inspeccionar y perfilar los datos.
+                                        </li>
+
+                                        <li>
+                                            Definir el mapeo canónico aplicable.
+                                        </li>
+
+                                        <li>
+                                            Normalizar, relacionar y materializar
+                                            los datos preparados.
+                                        </li>
+
+                                        <li>
+                                            Documentar calidad, reglas y resultados
+                                            del procesamiento.
+                                        </li>
+                                    </ul>
+                                </article>
                             </div>
-                        </div>
+                    </div>
 
                         <div
                             class="mt-7 border-t border-slate-200/70 pt-6 dark:border-slate-800"
@@ -2454,7 +2574,7 @@ function processingHistoryDate(
                         <div
                             class="mt-7 rounded-2xl border border-blue-200/70 bg-blue-50/50 p-4 text-xs leading-5 text-slate-600 dark:border-blue-950 dark:bg-blue-950/10 dark:text-slate-300"
                         >
-                            Esta Definition corresponde únicamente
+                            Esta definición corresponde únicamente
                             al alcance funcional y técnico de esta
                             capacidad. No contiene precios ni implica
                             contratación, facturación, activación,
@@ -2479,7 +2599,7 @@ function processingHistoryDate(
                                 <p
                                     class="text-[10px] font-black tracking-widest text-emerald-600 uppercase dark:text-emerald-400"
                                 >
-                                    Definition acordada
+                                    Definición acordada
                                 </p>
 
                                 <h2
@@ -2492,7 +2612,7 @@ function processingHistoryDate(
                                     class="mt-2 max-w-3xl text-sm leading-6 text-slate-600 dark:text-slate-300"
                                 >
                                     Esta versión queda registrada como
-                                    la Definition funcional acordada por
+                                    la definición funcional acordada por
                                     tu empresa. El acuerdo no activa el
                                     servicio, no inicia ejecución, no
                                     constituye aceptación comercial y
@@ -2515,7 +2635,7 @@ function processingHistoryDate(
                         <h2
                             class="mt-1 text-xl font-black text-slate-950 dark:text-white"
                         >
-                            ¿Esta Definition representa lo acordado?
+                            ¿Esta definición representa lo acordado?
                         </h2>
 
                         <p
@@ -2531,7 +2651,7 @@ function processingHistoryDate(
                         <div
                             class="mt-5 rounded-2xl border border-emerald-200/70 bg-emerald-50/60 p-4 text-xs leading-5 text-slate-600 dark:border-emerald-950 dark:bg-emerald-950/10 dark:text-slate-300"
                         >
-                            Acordar esta Definition no activa el
+                            Acordar esta definición no activa el
                             servicio, no inicia implementación o
                             ejecución, no constituye aceptación
                             comercial y no crea una suscripción.
@@ -2549,7 +2669,7 @@ function processingHistoryDate(
                                 {{
                                     agreementSubmitting
                                         ? 'Registrando acuerdo...'
-                                        : 'Acordar esta Definition'
+                                        : 'Acordar esta definición'
                                 }}
                             </button>
                         </div>
@@ -2575,7 +2695,7 @@ function processingHistoryDate(
                             class="mt-2 max-w-3xl text-sm leading-6 text-slate-500 dark:text-slate-400"
                         >
                             Describe de forma concreta los cambios que
-                            necesitas en esta versión de la Definition.
+                            necesitas en esta versión de la definición.
                             LAUDA conservará esta versión y preparará
                             posteriormente una nueva versión para revisión.
                         </p>
@@ -2587,7 +2707,7 @@ function processingHistoryDate(
                                 minlength="10"
                                 maxlength="4000"
                                 class="w-full rounded-2xl border border-slate-200 bg-background px-4 py-3 text-sm leading-6 dark:border-slate-800"
-                                placeholder="Describe los cambios que necesitas en esta Definition..."
+                                placeholder="Describe los cambios que necesitas en esta definición..."
                                 :disabled="changesRequestForm.processing"
                             />
 

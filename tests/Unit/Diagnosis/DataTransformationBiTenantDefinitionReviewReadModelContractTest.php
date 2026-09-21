@@ -221,7 +221,7 @@ final class DataTransformationBiTenantDefinitionReviewReadModelContractTest
             );
 
         foreach ([
-            'Definition funcional presentada',
+            'Definición funcional presentada',
             'Versión presentada',
             'Alcance funcional',
             'Entregables',

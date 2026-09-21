@@ -972,6 +972,48 @@ $dataPreparation =
                         'capability_key'
                     ),
 
+                /*
+                 * Functional content reviewed by LAUDA.
+                 *
+                 * The tenant must review the exact Definition scope,
+                 * not the generic objective of the containing Plan phase.
+                 */
+                'purpose' =>
+                    data_get(
+                        $scope,
+                        'purpose'
+                    ),
+
+                'includes' =>
+                    is_array(
+                        data_get(
+                            $scope,
+                            'includes'
+                        )
+                    )
+                        ? array_values(
+                            data_get(
+                                $scope,
+                                'includes'
+                            )
+                        )
+                        : [],
+
+                'excludes' =>
+                    is_array(
+                        data_get(
+                            $scope,
+                            'excludes'
+                        )
+                    )
+                        ? array_values(
+                            data_get(
+                                $scope,
+                                'excludes'
+                            )
+                        )
+                        : [],
+
                 'phases' =>
                     is_array(
                         data_get(

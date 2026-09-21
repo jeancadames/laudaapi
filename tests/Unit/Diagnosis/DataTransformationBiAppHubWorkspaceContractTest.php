@@ -224,7 +224,7 @@ final class DataTransformationBiAppHubWorkspaceContractTest
             'Solicitar evaluación para implementación',
             'Enviar la solicitud no genera cargos ni contrata',
             'LAUDA podrá presentar alcance comercial, precio y',
-            'Definition funcional presentada',
+            'Definición funcional presentada',
             'No contiene precios',
         ] as $required) {
             $this->assertStringContainsString(

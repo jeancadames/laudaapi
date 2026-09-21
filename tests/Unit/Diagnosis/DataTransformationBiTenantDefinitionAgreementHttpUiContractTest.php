@@ -196,8 +196,8 @@ final class DataTransformationBiTenantDefinitionAgreementHttpUiContractTest
             '?.completed',
             'function agreeDefinition(): void',
             'router.post(',
-            'Acordar esta Definition',
-            'Definition acordada',
+            'Acordar esta definición',
+            'Definición acordada',
         ] as $required) {
             $this->assertStringContainsString(
                 $required,
