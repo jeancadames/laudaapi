@@ -3528,6 +3528,61 @@ const humanReviewForm = useForm({
 const DATA_BI_CAPABILITY =
     'data_transformation_bi';
 
+/*
+ * DATA_BI_FUNCTIONAL_PRESENTATION_COPY_MAP
+ *
+ * Compatibilidad de presentación para contenido funcional
+ * persistido antes del vocabulario vigente.
+ *
+ * No modifica el snapshot histórico. El formulario de revisión
+ * recibe el texto normalizado y solo una revisión humana explícita
+ * puede persistir posteriormente ese contenido.
+ */
+const DATA_BI_FUNCTIONAL_PRESENTATION_COPY_MAP:
+    Record<string, string> = {
+        'Acceso autorizado o mecanismo acordado de extracción o entrega para las fuentes requeridas.':
+            'Mecanismo acordado para que la empresa extraiga y entregue las fuentes requeridas en CSV/XLSX.',
+
+        'Preparación de datos reutilizables para BI, CRM, pricing, inventario, compras, CxC, planificación y alertas.':
+            'Preparación de datos reutilizables para BI, CRM, precios, inventario, compras, CxC, planificación y alertas.',
+    };
+
+function normalizeDataBiFunctionalRecordList(
+    value: unknown,
+): Array<Record<string, any>> {
+    if (!Array.isArray(value)) {
+        return [];
+    }
+
+    return value
+        .filter(
+            (item): item is Record<string, any> =>
+                Boolean(
+                    item
+                    && typeof item === 'object'
+                    && !Array.isArray(item),
+                ),
+        )
+        .map(
+            (item) =>
+                Object.fromEntries(
+                    Object.entries(item).map(
+                        ([key, fieldValue]) => [
+                            key,
+                            typeof fieldValue === 'string'
+                                ? (
+                                    DATA_BI_FUNCTIONAL_PRESENTATION_COPY_MAP[
+                                        fieldValue
+                                    ]
+                                    ?? fieldValue
+                                )
+                                : fieldValue,
+                        ],
+                    ),
+                ),
+        );
+}
+
 function functionalStringList(
     value: unknown,
 ): string[] {
@@ -3630,12 +3685,28 @@ function syncHumanReviewForm(): void {
         ?? {};
 
     humanReviewForm.deliverables =
-        source?.deliverables
-        ?? [];
+        props.capability.key
+            === DATA_BI_CAPABILITY
+            ? normalizeDataBiFunctionalRecordList(
+                source?.deliverables
+                ?? [],
+            )
+            : (
+                source?.deliverables
+                ?? []
+            );
 
     humanReviewForm.dependencies =
-        source?.dependencies
-        ?? [];
+        props.capability.key
+            === DATA_BI_CAPABILITY
+            ? normalizeDataBiFunctionalRecordList(
+                source?.dependencies
+                ?? [],
+            )
+            : (
+                source?.dependencies
+                ?? []
+            );
 
     const assignments =
         source?.responsibility_model
@@ -4447,12 +4518,12 @@ async function normalizeStandardIntakeBatch(): Promise<void> {
                         </p>
 
                         <h2 class="mt-2 text-lg font-bold">
-                            Preparar nueva versión de la Definition
+                            Preparar nueva versión de la definición
                         </h2>
 
                         <p class="mt-2 text-sm leading-6 text-muted-foreground">
                             La empresa solicitó ajustes sobre la
-                            Definition V{{
+                            Definición V{{
                                 props.definition_revision_context
                                     .previous_definition_version
                             }}.
@@ -4667,7 +4738,7 @@ async function normalizeStandardIntakeBatch(): Promise<void> {
                     </p>
 
                     <h2 class="mt-2 text-lg font-bold">
-                        Confirmar Definition funcional
+                        Confirmar definición funcional
                     </h2>
 
                     <p class="mt-2 text-sm leading-6 text-muted-foreground">
@@ -4677,8 +4748,7 @@ async function normalizeStandardIntakeBatch(): Promise<void> {
                     </p>
 
                     <p class="mt-2 text-xs leading-5 text-muted-foreground">
-                        Guardar esta revisión no marca la Definition
-                        como lista y no la envía al tenant. La solicitud
+                        Guardar esta revisión no marca la definición como lista y no la envía a la empresa. La solicitud
                         permanece en preparación de definición.
                     </p>
                 </div>
@@ -4698,7 +4768,7 @@ async function normalizeStandardIntakeBatch(): Promise<void> {
                     </p>
 
                     <p class="mt-2 text-sm leading-6">
-                        Estás editando la Definition V{{
+                        Estás editando la definición funcional V{{
                             props.definition_revision_context
                                 .current_definition_version
                         }}
@@ -4774,7 +4844,7 @@ async function normalizeStandardIntakeBatch(): Promise<void> {
                             <span
                                 class="rounded-full border px-3 py-1 text-[10px] font-bold uppercase text-muted-foreground"
                             >
-                                Definition funcional
+                                Definición funcional
                             </span>
                         </div>
 
@@ -4922,9 +4992,7 @@ async function normalizeStandardIntakeBatch(): Promise<void> {
                         <p
                             class="mt-1 text-xs leading-5 text-muted-foreground"
                         >
-                            Condiciones funcionales para desarrollar el
-                            alcance. La gestión concreta de fuentes ocurre
-                            posteriormente en el workspace dinámico.
+                            Condiciones funcionales para desarrollar el alcance. La gestión concreta de las fuentes ocurre posteriormente en el espacio de trabajo de fuentes de datos.
                         </p>
 
                         <div
@@ -4972,8 +5040,7 @@ async function normalizeStandardIntakeBatch(): Promise<void> {
                         <p
                             class="mt-1 max-w-3xl text-xs leading-5 text-muted-foreground"
                         >
-                            La Definition confirma el reparto general entre
-                            la Empresa y LAUDA. El responsable concreto de
+                            La definición funcional confirma el reparto general entre la Empresa y LAUDA. El responsable concreto de
                             cada fuente se administra en su ficha de fuente.
                         </p>
 
@@ -5051,15 +5118,13 @@ async function normalizeStandardIntakeBatch(): Promise<void> {
                         class="rounded-2xl border border-sky-200 bg-sky-50/40 p-5 dark:border-sky-900/70 dark:bg-sky-950/10"
                     >
                         <p class="text-sm font-black">
-                            Fuentes dinámicas
+                            Fuentes de datos
                         </p>
 
                         <p
                             class="mt-2 max-w-3xl text-sm leading-6 text-muted-foreground"
                         >
-                            Las fuentes no se administran desde esta
-                            Definition. Después del acuerdo funcional se
-                            habilita el espacio de trabajo de fuentes de datos con
+                            Las fuentes no se administran desde esta definición funcional. Después del acuerdo funcional se habilita el espacio de trabajo de fuentes de datos con
                             Información, Estructura, Extracción, Archivo y
                             Resultado.
                         </p>
@@ -9780,13 +9845,13 @@ async function normalizeStandardIntakeBatch(): Promise<void> {
                 </p>
 
                 <h2 class="mt-2 text-lg font-bold">
-                    Definition V{{ props.ready_for_commercial_context.definition_version }}
+                    Definición V{{ props.ready_for_commercial_context.definition_version }}
                 </h2>
 
                 <p
                     class="mt-2 max-w-3xl text-sm leading-6 text-muted-foreground"
                 >
-                    La Definition exacta acordada ya completó su cierre
+                    La definición exacta acordada ya completó su cierre
                     funcional. El siguiente gate únicamente registra que
                     esta solicitud puede pasar, más adelante, a un proceso
                     comercial independiente.
@@ -9873,18 +9938,18 @@ async function normalizeStandardIntakeBatch(): Promise<void> {
                         <p
                             class="text-xs font-semibold uppercase tracking-[0.18em] text-emerald-700 dark:text-emerald-400"
                         >
-                            Definition acordada por la empresa
+                            Definición acordada por la empresa
                         </p>
 
                         <h2 class="mt-2 text-lg font-bold">
-                            Definition V{{ props.functional_closure_context.definition_version }}
+                            Definición V{{ props.functional_closure_context.definition_version }}
                         </h2>
 
                         <p
                             class="mt-2 max-w-3xl text-sm leading-6 text-muted-foreground"
                         >
-                            Esta es la versión exacta fijada por el acuerdo del tenant.
-                            El cierre funcional se aplicará a esta Definition, no a una
+                            Esta es la versión exacta fijada por el acuerdo de la empresa.
+                            El cierre funcional se aplicará a esta definición, no a una
                             versión posterior que pudiera existir.
                         </p>
 
@@ -9902,7 +9967,7 @@ async function normalizeStandardIntakeBatch(): Promise<void> {
 
                             <div>
                                 <p class="text-xs font-semibold text-muted-foreground">
-                                    Definition ready
+                                    Definición lista
                                 </p>
                                 <p class="mt-1 font-semibold">
                                     {{
@@ -9915,7 +9980,7 @@ async function normalizeStandardIntakeBatch(): Promise<void> {
 
                             <div>
                                 <p class="text-xs font-semibold text-muted-foreground">
-                                    Acuerdo del tenant
+                                    Acuerdo de la empresa
                                 </p>
                                 <p class="mt-1 font-semibold">
                                     {{
@@ -9940,7 +10005,7 @@ async function normalizeStandardIntakeBatch(): Promise<void> {
                             <p
                                 class="mt-1 max-w-3xl text-xs leading-5 text-muted-foreground"
                             >
-                                Finalizar esta Definition la marcará como funcionalmente
+                                Finalizar esta definición la marcará como funcionalmente
                                 lista. No activa el servicio, no inicia ejecución, no crea
                                 una suscripción y no mueve la solicitud a etapa comercial.
                             </p>
@@ -9961,7 +10026,7 @@ async function normalizeStandardIntakeBatch(): Promise<void> {
                                     {{
                                         functionalClosureForm.processing
                                             ? 'Finalizando...'
-                                            : 'Finalizar Definition funcional'
+                                            : 'Finalizar Definición funcional'
                                     }}
                                 </button>
                             </div>
@@ -9975,11 +10040,11 @@ async function normalizeStandardIntakeBatch(): Promise<void> {
                             class="mt-5 rounded-xl border border-emerald-200 bg-white/70 p-4 text-sm dark:border-emerald-950 dark:bg-slate-950/60"
                         >
                             <p class="font-semibold">
-                                Definition funcional finalizada
+                                Definición funcional finalizada
                             </p>
 
                             <p class="mt-1 text-xs leading-5 text-muted-foreground">
-                                La Definition acordada ya está lista funcionalmente.
+                                La definición acordada ya está lista funcionalmente.
                                 La solicitud permanece en “Definición acordada” hasta
                                 que LAUDA ejecute, por separado, el gate hacia etapa comercial.
                             </p>
@@ -10007,18 +10072,18 @@ async function normalizeStandardIntakeBatch(): Promise<void> {
                     </p>
 
                     <h2 class="mt-2 text-lg font-bold">
-                        Enviar Definition a la empresa
+                        Enviar definición a la empresa
                     </h2>
 
                     <p class="mt-2 text-sm leading-6 text-muted-foreground">
                         La revisión humana de LAUDA está completa.
-                        Puedes enviar esta versión de la Definition
+                        Puedes enviar esta versión de la definición
                         a la empresa para que la revise.
                     </p>
 
                     <p class="mt-2 text-xs leading-5 text-muted-foreground">
                         Este envío no significa que la empresa haya
-                        aceptado la Definition, no la marca como ready
+                        aceptado la definición, no la marca como lista
                         y no inicia contratación, facturación,
                         activación ni ejecución.
                     </p>
@@ -10041,7 +10106,7 @@ async function normalizeStandardIntakeBatch(): Promise<void> {
                         rows="4"
                         maxlength="4000"
                         class="mt-2 w-full rounded-xl border bg-background px-3 py-2 text-sm"
-                        placeholder="Contexto adicional para la revisión de esta Definition..."
+                        placeholder="Contexto adicional para la revisión de esta definición..."
                         :disabled="tenantReviewSubmissionForm.processing"
                     />
                 </div>
