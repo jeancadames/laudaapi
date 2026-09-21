@@ -221,6 +221,57 @@ final class DataTransformationBiDefinitionGeneralResponsibilityAutogeneratorCont
         );
     }
 
+    public function test_legacy_data_bi_source_delivery_dependency_is_normalized_on_reprepare(): void
+    {
+        $definition =
+            $this->definition();
+
+        $snapshot =
+            $definition->source_snapshot;
+
+        $snapshot[
+            'capability'
+        ][
+            'source_snapshot'
+        ][
+            'dependencies'
+        ] = [
+            'Acceso autorizado o mecanismo acordado de extracción o entrega para las fuentes requeridas.',
+        ];
+
+        $definition->forceFill([
+            'source_snapshot' =>
+                $snapshot,
+        ]);
+
+        $generated =
+            (
+                new TransformationImplementationDefinitionAutogenerator()
+            )->preview(
+                $definition
+            );
+
+        $dependencies =
+            array_column(
+                data_get(
+                    $generated,
+                    'dependencies',
+                    []
+                ),
+                'dependency'
+            );
+
+        self::assertContains(
+            'Mecanismo acordado para que la empresa extraiga y entregue las fuentes requeridas en CSV/XLSX.',
+            $dependencies
+        );
+
+        self::assertNotContains(
+            'Acceso autorizado o mecanismo acordado de extracción o entrega para las fuentes requeridas.',
+            $dependencies
+        );
+    }
+
     public function test_human_confirmation_remains_required(): void
     {
         $generated =

@@ -980,6 +980,42 @@ final class TransformationImplementationDefinitionAutogenerator
                 )
             );
 
+        /*
+         * LEGACY_DATA_BI_SOURCE_DELIVERY_DEPENDENCY
+         *
+         * Definitions creadas antes de la corrección de copy pueden
+         * conservar esta dependencia dentro de snapshots funcionales.
+         *
+         * La repreparación no modifica el snapshot histórico: únicamente
+         * normaliza este texto exacto al contrato funcional vigente.
+         */
+        if (
+            $capabilityKey
+            === 'data_transformation_bi'
+        ) {
+            $legacyDependency =
+                'Acceso autorizado o mecanismo acordado de extracción o entrega para las fuentes requeridas.';
+
+            $currentDependency =
+                'Mecanismo acordado para que la empresa extraiga y entregue las fuentes requeridas en CSV/XLSX.';
+
+            $dependencyStrings =
+                collect(
+                    $dependencyStrings
+                )
+                    ->map(
+                        fn (
+                            string $dependency
+                        ): string =>
+                            $dependency === $legacyDependency
+                                ? $currentDependency
+                                : $dependency
+                    )
+                    ->unique()
+                    ->values()
+                    ->all();
+        }
+
         $phaseId =
             (int) (
                 $initialScope[
