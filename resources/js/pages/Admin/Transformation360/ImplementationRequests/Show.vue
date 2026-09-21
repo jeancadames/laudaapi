@@ -3547,6 +3547,40 @@ const DATA_BI_FUNCTIONAL_PRESENTATION_COPY_MAP:
             'Preparación de datos reutilizables para BI, CRM, precios, inventario, compras, CxC, planificación y alertas.',
     };
 
+function normalizeDataBiFunctionalValue(
+    value: unknown,
+): unknown {
+    if (typeof value === 'string') {
+        return DATA_BI_FUNCTIONAL_PRESENTATION_COPY_MAP[value]
+            ?? value;
+    }
+
+    if (Array.isArray(value)) {
+        return value.map(
+            (item) =>
+                normalizeDataBiFunctionalValue(item),
+        );
+    }
+
+    if (
+        value
+        && typeof value === 'object'
+    ) {
+        return Object.fromEntries(
+            Object.entries(
+                value as Record<string, unknown>,
+            ).map(
+                ([key, item]) => [
+                    key,
+                    normalizeDataBiFunctionalValue(item),
+                ],
+            ),
+        );
+    }
+
+    return value;
+}
+
 function normalizeDataBiFunctionalRecordList(
     value: unknown,
 ): Array<Record<string, any>> {
@@ -3565,21 +3599,9 @@ function normalizeDataBiFunctionalRecordList(
         )
         .map(
             (item) =>
-                Object.fromEntries(
-                    Object.entries(item).map(
-                        ([key, fieldValue]) => [
-                            key,
-                            typeof fieldValue === 'string'
-                                ? (
-                                    DATA_BI_FUNCTIONAL_PRESENTATION_COPY_MAP[
-                                        fieldValue
-                                    ]
-                                    ?? fieldValue
-                                )
-                                : fieldValue,
-                        ],
-                    ),
-                ),
+                normalizeDataBiFunctionalValue(
+                    item,
+                ) as Record<string, any>,
         );
 }
 
@@ -3681,8 +3703,18 @@ function syncHumanReviewForm(): void {
         props.definition_review;
 
     humanReviewForm.implementation_scope =
-        source?.implementation_scope
-        ?? {};
+        props.capability.key
+            === DATA_BI_CAPABILITY
+            ? (
+                normalizeDataBiFunctionalValue(
+                    source?.implementation_scope
+                    ?? {},
+                ) as Record<string, any>
+            )
+            : (
+                source?.implementation_scope
+                ?? {}
+            );
 
     humanReviewForm.deliverables =
         props.capability.key

@@ -72,6 +72,12 @@ test(
                 'normalizeDataBiFunctionalRecordList('
             )
             ->toContain(
+                'normalizeDataBiFunctionalValue('
+            )
+            ->toContain(
+                'humanReviewForm.implementation_scope'
+            )
+            ->toContain(
                 'Mecanismo acordado para que la empresa extraiga y entregue las fuentes requeridas en CSV/XLSX.'
             )
             ->toContain(
