@@ -153,7 +153,7 @@ class TransformationProfessionalCapabilityCatalog
                  */
                 'dependencies' => [
                     'Fuentes de datos necesarias para el alcance identificadas y disponibles para evaluación.',
-                    'Acceso autorizado o mecanismo acordado de extracción o entrega para las fuentes requeridas.',
+                    'Mecanismo acordado para que la empresa extraiga y entregue las fuentes requeridas en CSV/XLSX.',
                     'Responsables o propietarios de datos identificados para validar definiciones, calidad y reglas de negocio.',
                     'Históricos y granularidad requeridos disponibles según los indicadores y análisis acordados.',
                     'Reglas de negocio, catálogos y criterios de calidad necesarios para interpretar, relacionar y validar los datos.',

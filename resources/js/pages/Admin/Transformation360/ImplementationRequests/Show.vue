@@ -4974,7 +4974,7 @@ async function normalizeStandardIntakeBatch(): Promise<void> {
                         >
                             La Definition confirma el reparto general entre
                             la Empresa y LAUDA. El responsable concreto de
-                            cada fuente se administra en su SourceAsset.
+                            cada fuente se administra en su ficha de fuente.
                         </p>
 
                         <div
@@ -4996,8 +4996,7 @@ async function normalizeStandardIntakeBatch(): Promise<void> {
                                     </li>
 
                                     <li>
-                                        Definir el responsable de cada
-                                        SourceAsset.
+                                        Definir el responsable de cada fuente de datos.
                                     </li>
 
                                     <li>
@@ -5060,7 +5059,7 @@ async function normalizeStandardIntakeBatch(): Promise<void> {
                         >
                             Las fuentes no se administran desde esta
                             Definition. Después del acuerdo funcional se
-                            habilita el workspace de SourceAssets con
+                            habilita el espacio de trabajo de fuentes de datos con
                             Información, Estructura, Extracción, Archivo y
                             Resultado.
                         </p>

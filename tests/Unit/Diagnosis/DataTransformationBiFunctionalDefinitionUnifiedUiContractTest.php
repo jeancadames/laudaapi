@@ -57,8 +57,9 @@ final class DataTransformationBiFunctionalDefinitionUnifiedUiContractTest
             'data_transformation_bi:client_source_delivery',
             'data_transformation_bi:lauda_transformation',
             'Modelo general de responsabilidades',
-            'Definir el responsable de cada',
-            'SourceAsset.',
+            'Definir el responsable de cada fuente de datos.',
+            'ficha de fuente.',
+            'espacio de trabajo de fuentes de datos',
         ] as $required) {
             self::assertStringContainsString(
                 $required,

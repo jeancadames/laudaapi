@@ -16,7 +16,7 @@ it('defines canonical capability-specific dependencies for data transformation b
             'Fuentes de datos necesarias para el alcance identificadas y disponibles para evaluación.'
         )
         ->toContain(
-            'Acceso autorizado o mecanismo acordado de extracción o entrega para las fuentes requeridas.'
+            'Mecanismo acordado para que la empresa extraiga y entregue las fuentes requeridas en CSV/XLSX.'
         )
         ->toContain(
             'Responsables o propietarios de datos identificados para validar definiciones, calidad y reglas de negocio.'
