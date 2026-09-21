@@ -827,6 +827,11 @@ const extractionPreview =
         null,
     );
 
+const extractionCopyState =
+    ref<'copied' | 'error' | null>(
+        null,
+    );
+
 const createSourceForm = ref({
     display_name: '',
     source_object_name: '',
@@ -911,6 +916,7 @@ watch(
     selectedSource,
     (sourceAsset) => {
         extractionPreview.value = null;
+        extractionCopyState.value = null;
         sourceFile.value = null;
 
         if (!sourceAsset) {
@@ -1595,6 +1601,9 @@ async function previewSourceExtraction(): Promise<void> {
         return;
     }
 
+    extractionCopyState.value =
+        null;
+
     const result =
         await runSourceWorkspaceAction(
             'extraction',
@@ -1689,6 +1698,12 @@ async function copyExtractionQuery(): Promise<void> {
         return;
     }
 
+    extractionCopyState.value =
+        null;
+
+    sourceWorkspaceError.value =
+        null;
+
     try {
         await navigator
             .clipboard
@@ -1696,9 +1711,15 @@ async function copyExtractionQuery(): Promise<void> {
                 query,
             );
 
+        extractionCopyState.value =
+            'copied';
+
         sourceWorkspaceNotice.value =
             'Consulta copiada al portapapeles.';
     } catch {
+        extractionCopyState.value =
+            'error';
+
         sourceWorkspaceError.value =
             'No se pudo copiar automáticamente. Selecciona la consulta y cópiala manualmente.';
     }
@@ -2660,7 +2681,7 @@ function processingHistoryDate(
                         <div class="mt-6 flex justify-end">
                             <button
                                 type="button"
-                                class="inline-flex items-center justify-center gap-2 rounded-xl bg-emerald-700 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-emerald-800 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-emerald-600 dark:hover:bg-emerald-500"
+                                class="cursor-pointer inline-flex items-center justify-center gap-2 rounded-xl bg-emerald-700 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-emerald-800 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-emerald-600 dark:hover:bg-emerald-500"
                                 :disabled="agreementSubmitting"
                                 @click="agreeDefinition"
                             >
@@ -2747,7 +2768,7 @@ function processingHistoryDate(
                         <div class="mt-6 flex justify-end">
                             <button
                                 type="button"
-                                class="inline-flex items-center justify-center rounded-xl bg-slate-950 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-white dark:text-slate-950 dark:hover:bg-slate-200"
+                                class="cursor-pointer inline-flex items-center justify-center rounded-xl bg-slate-950 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-white dark:text-slate-950 dark:hover:bg-slate-200"
                                 :disabled="
                                     changesRequestForm.processing
                                     || changesRequestForm.reason.trim().length < 10
@@ -2909,7 +2930,7 @@ function processingHistoryDate(
                                         .can_start_or_resume
                                 "
                                 type="button"
-                                class="mt-5 inline-flex items-center justify-center rounded-xl bg-cyan-700 px-4 py-2.5 text-sm font-black text-white transition hover:bg-cyan-800 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-cyan-600 dark:hover:bg-cyan-500"
+                                class="cursor-pointer mt-5 inline-flex items-center justify-center rounded-xl bg-cyan-700 px-4 py-2.5 text-sm font-black text-white transition hover:bg-cyan-800 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-cyan-600 dark:hover:bg-cyan-500"
                                 :disabled="
                                     sourceWorkspaceBusy !== null
                                 "
@@ -3076,7 +3097,7 @@ function processingHistoryDate(
                                     >
                                         <button
                                             type="submit"
-                                            class="rounded-xl bg-slate-950 px-4 py-2.5 text-sm font-black text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-white dark:text-slate-950"
+                                            class="cursor-pointer rounded-xl bg-slate-950 px-4 py-2.5 text-sm font-black text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-white dark:text-slate-950"
                                             :disabled="
                                                 sourceWorkspaceBusy !== null
                                             "
@@ -3120,7 +3141,7 @@ function processingHistoryDate(
                                     >
                                         <button
                                             type="button"
-                                            class="w-full text-left"
+                                            class="cursor-pointer w-full text-left"
                                             @click="
                                                 selectSource(
                                                     sourceAsset.id,
@@ -3180,7 +3201,7 @@ function processingHistoryDate(
                                         >
                                             <button
                                                 type="button"
-                                                class="rounded-lg border border-slate-200 px-2.5 py-1.5 text-xs font-bold disabled:opacity-30 dark:border-slate-800"
+                                                class="cursor-pointer rounded-lg border border-slate-200 px-2.5 py-1.5 text-xs font-bold disabled:opacity-30 dark:border-slate-800 disabled:cursor-not-allowed"
                                                 :disabled="
                                                     sourceIndex === 0
                                                     || sourceWorkspaceBusy !== null
@@ -3197,7 +3218,7 @@ function processingHistoryDate(
 
                                             <button
                                                 type="button"
-                                                class="rounded-lg border border-slate-200 px-2.5 py-1.5 text-xs font-bold disabled:opacity-30 dark:border-slate-800"
+                                                class="cursor-pointer rounded-lg border border-slate-200 px-2.5 py-1.5 text-xs font-bold disabled:opacity-30 dark:border-slate-800 disabled:cursor-not-allowed"
                                                 :disabled="
                                                     sourceIndex === source_assets.length - 1
                                                     || sourceWorkspaceBusy !== null
@@ -3237,7 +3258,7 @@ function processingHistoryDate(
                                         v-for="tab in sourceTabs"
                                         :key="tab.key"
                                         type="button"
-                                        class="shrink-0 rounded-xl px-3 py-2 text-xs font-black transition"
+                                        class="cursor-pointer shrink-0 rounded-xl px-3 py-2 text-xs font-black transition"
                                         :class="
                                             activeSourceTab === tab.key
                                                 ? 'bg-white text-cyan-700 shadow-sm dark:bg-slate-950 dark:text-cyan-300'
@@ -3372,7 +3393,7 @@ function processingHistoryDate(
                                         >
                                             <button
                                                 type="button"
-                                                class="rounded-xl border border-red-200 px-4 py-2.5 text-sm font-bold text-red-600 hover:bg-red-50 disabled:opacity-50 dark:border-red-950 dark:text-red-400 dark:hover:bg-red-950/20"
+                                                class="cursor-pointer rounded-xl border border-red-200 px-4 py-2.5 text-sm font-bold text-red-600 hover:bg-red-50 disabled:opacity-50 dark:border-red-950 dark:text-red-400 dark:hover:bg-red-950/20 disabled:cursor-not-allowed"
                                                 :disabled="
                                                     sourceWorkspaceBusy !== null
                                                 "
@@ -3383,7 +3404,7 @@ function processingHistoryDate(
 
                                             <button
                                                 type="submit"
-                                                class="rounded-xl bg-slate-950 px-4 py-2.5 text-sm font-black text-white disabled:opacity-50 dark:bg-white dark:text-slate-950"
+                                                class="cursor-pointer rounded-xl bg-slate-950 px-4 py-2.5 text-sm font-black text-white disabled:opacity-50 dark:bg-white dark:text-slate-950 disabled:cursor-not-allowed"
                                                 :disabled="
                                                     sourceWorkspaceBusy !== null
                                                 "
@@ -3461,7 +3482,7 @@ function processingHistoryDate(
                                             >
                                                 <button
                                                     type="button"
-                                                    class="rounded-xl bg-slate-950 px-4 py-2.5 text-sm font-black text-white disabled:opacity-50 dark:bg-white dark:text-slate-950"
+                                                    class="cursor-pointer rounded-xl bg-slate-950 px-4 py-2.5 text-sm font-black text-white disabled:opacity-50 dark:bg-white dark:text-slate-950 disabled:cursor-not-allowed"
                                                     :disabled="
                                                         sourceWorkspaceBusy !== null
                                                     "
@@ -3539,7 +3560,7 @@ function processingHistoryDate(
                                         <div class="mt-4 flex justify-end">
                                             <button
                                                 type="button"
-                                                class="rounded-xl bg-cyan-700 px-4 py-2.5 text-sm font-black text-white disabled:cursor-not-allowed disabled:opacity-50 dark:bg-cyan-600"
+                                                class="cursor-pointer rounded-xl bg-cyan-700 px-4 py-2.5 text-sm font-black text-white disabled:cursor-not-allowed disabled:opacity-50 dark:bg-cyan-600"
                                                 :disabled="
                                                     sourceWorkspaceBusy !== null
                                                     || !selectedSource.structure_text
@@ -3569,13 +3590,37 @@ function processingHistoryDate(
                                                     campos
                                                 </p>
 
-                                                <button
-                                                    type="button"
-                                                    class="rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-bold dark:border-slate-800"
-                                                    @click="copyExtractionQuery"
+                                                <div
+                                                    class="flex flex-wrap items-center gap-2"
                                                 >
-                                                    Copiar consulta
-                                                </button>
+                                                    <span
+                                                        v-if="
+                                                            extractionCopyState ===
+                                                            'copied'
+                                                        "
+                                                        class="text-xs font-bold text-emerald-700 dark:text-emerald-400"
+                                                    >
+                                                        ✓ Consulta copiada
+                                                    </span>
+
+                                                    <span
+                                                        v-else-if="
+                                                            extractionCopyState ===
+                                                            'error'
+                                                        "
+                                                        class="text-xs font-bold text-red-600 dark:text-red-400"
+                                                    >
+                                                        No se pudo copiar
+                                                    </span>
+
+                                                    <button
+                                                        type="button"
+                                                        class="cursor-pointer rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-bold dark:border-slate-800"
+                                                        @click="copyExtractionQuery"
+                                                    >
+                                                        Copiar consulta
+                                                    </button>
+                                                </div>
                                             </div>
 
                                             <textarea
@@ -3678,7 +3723,7 @@ function processingHistoryDate(
                                             >
                                                 <button
                                                     type="button"
-                                                    class="rounded-xl bg-slate-950 px-4 py-2.5 text-sm font-black text-white disabled:cursor-not-allowed disabled:opacity-50 dark:bg-white dark:text-slate-950"
+                                                    class="cursor-pointer rounded-xl bg-slate-950 px-4 py-2.5 text-sm font-black text-white disabled:cursor-not-allowed disabled:opacity-50 dark:bg-white dark:text-slate-950"
                                                     :disabled="
                                                         sourceWorkspaceBusy !== null
                                                         || !sourceFile
@@ -5115,7 +5160,7 @@ function processingHistoryDate(
 
                             <button
                                 type="button"
-                                class="mt-5 inline-flex w-full items-center justify-center rounded-xl bg-slate-950 px-4 py-3 text-sm font-black text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60 dark:bg-white dark:text-slate-950 dark:hover:bg-slate-200"
+                                class="cursor-pointer mt-5 inline-flex w-full items-center justify-center rounded-xl bg-slate-950 px-4 py-3 text-sm font-black text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60 dark:bg-white dark:text-slate-950 dark:hover:bg-slate-200"
                                 :disabled="requestSubmitting"
                                 @click="requestImplementation"
                             >
