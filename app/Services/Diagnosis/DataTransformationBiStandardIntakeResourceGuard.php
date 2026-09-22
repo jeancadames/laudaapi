@@ -10,11 +10,32 @@ class DataTransformationBiStandardIntakeResourceGuard
 
     public const MAX_CSV_ZIP_ENTRIES = 32;
 
+    /*
+     * Legacy CSV/ZIP resource limits.
+     *
+     * Keep these unchanged for backwards compatibility and for
+     * generic ZIP deliveries, where a much smaller expansion
+     * envelope is appropriate.
+     */
     public const MAX_ENTRY_UNCOMPRESSED_BYTES =
         16 * 1024 * 1024;
 
     public const MAX_TOTAL_UNCOMPRESSED_BYTES =
         32 * 1024 * 1024;
+
+    /*
+     * XLSX worksheets are XML documents inside a ZIP container.
+     * A normal client workbook can therefore contain worksheet XML
+     * substantially larger than the compressed .xlsx file itself.
+     *
+     * These limits remain bounded and continue to work together with
+     * the entry-count and compression-ratio protections below.
+     */
+    public const MAX_XLSX_ENTRY_UNCOMPRESSED_BYTES =
+        128 * 1024 * 1024;
+
+    public const MAX_XLSX_TOTAL_UNCOMPRESSED_BYTES =
+        256 * 1024 * 1024;
 
     public const MAX_COMPRESSION_RATIO = 200.0;
 
@@ -81,6 +102,16 @@ class DataTransformationBiStandardIntakeResourceGuard
                     ? self::MAX_XLSX_ENTRIES
                     : self::MAX_CSV_ZIP_ENTRIES;
 
+            $maxEntryUncompressedBytes =
+                $extension === 'xlsx'
+                    ? self::MAX_XLSX_ENTRY_UNCOMPRESSED_BYTES
+                    : self::MAX_ENTRY_UNCOMPRESSED_BYTES;
+
+            $maxTotalUncompressedBytes =
+                $extension === 'xlsx'
+                    ? self::MAX_XLSX_TOTAL_UNCOMPRESSED_BYTES
+                    : self::MAX_TOTAL_UNCOMPRESSED_BYTES;
+
             if (
                 $zip->numFiles
                 > $maxEntries
@@ -141,20 +172,33 @@ class DataTransformationBiStandardIntakeResourceGuard
 
                 if (
                     $size
-                    > self::MAX_ENTRY_UNCOMPRESSED_BYTES
+                    > $maxEntryUncompressedBytes
                 ) {
+                    $maxEntryMegabytes =
+                        (int) (
+                            $maxEntryUncompressedBytes
+                            / (1024 * 1024)
+                        );
+
                     $errors[] =
                         "{$name}: supera el máximo permitido "
-                        ."de 16 MB sin comprimir.";
+                        ."de {$maxEntryMegabytes} MB sin comprimir.";
                 }
 
                 if (
                     $totalUncompressed
-                    > self::MAX_TOTAL_UNCOMPRESSED_BYTES
+                    > $maxTotalUncompressedBytes
                 ) {
+                    $maxTotalMegabytes =
+                        (int) (
+                            $maxTotalUncompressedBytes
+                            / (1024 * 1024)
+                        );
+
                     $errors[] =
                         'El contenido total del archivo supera '
-                        .'el máximo permitido de 32 MB sin comprimir.';
+                        ."el máximo permitido de {$maxTotalMegabytes} MB "
+                        .'sin comprimir.';
 
                     break;
                 }
@@ -219,10 +263,14 @@ class DataTransformationBiStandardIntakeResourceGuard
                     self::MAX_CSV_ZIP_ENTRIES,
 
                 'entry_uncompressed_bytes' =>
-                    self::MAX_ENTRY_UNCOMPRESSED_BYTES,
+                    $format === 'xlsx'
+                        ? self::MAX_XLSX_ENTRY_UNCOMPRESSED_BYTES
+                        : self::MAX_ENTRY_UNCOMPRESSED_BYTES,
 
                 'total_uncompressed_bytes' =>
-                    self::MAX_TOTAL_UNCOMPRESSED_BYTES,
+                    $format === 'xlsx'
+                        ? self::MAX_XLSX_TOTAL_UNCOMPRESSED_BYTES
+                        : self::MAX_TOTAL_UNCOMPRESSED_BYTES,
 
                 'compression_ratio' =>
                     self::MAX_COMPRESSION_RATIO,
