@@ -87,7 +87,7 @@ final class DataTransformationBiTenantSourceWorkspaceUxPolishContractTest
         }
     }
 
-    public function test_extraction_instructions_refer_to_the_source_not_a_domain(): void
+    public function test_extraction_instructions_follow_the_source_stepper(): void
     {
         $assistant = file_get_contents(
             $this->root()
@@ -95,16 +95,22 @@ final class DataTransformationBiTenantSourceWorkspaceUxPolishContractTest
             .'DataTransformationBiSqlServerExtractionAssistant.php'
         );
 
-        self::assertStringNotContainsString(
+        foreach ([
             'archivo fuente del dominio',
-            $assistant
-        );
+            'archivo de esta fuente',
+            'Regresa a LAUDA',
+        ] as $obsolete) {
+            self::assertStringNotContainsString(
+                $obsolete,
+                $assistant
+            );
+        }
 
         self::assertSame(
             2,
             substr_count(
                 $assistant,
-                'archivo de esta fuente'
+                'Cuando tengas el archivo listo, continúa al paso Archivo.'
             )
         );
     }

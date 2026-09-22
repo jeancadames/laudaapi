@@ -526,7 +526,7 @@ final class DataTransformationBiSqlServerExtractionAssistant
                     'Ejecuta el SELECT en SQL Server Management Studio o en la herramienta habitual del cliente.',
                     'Exporta el resultado completo conservando los nombres originales de las columnas.',
                     'Guarda el archivo como CSV con encabezados.',
-                    'Regresa a LAUDA y súbelo como archivo de esta fuente.',
+                    'Cuando tengas el archivo listo, continúa al paso Archivo.',
                 ],
             ],
 
@@ -541,7 +541,7 @@ final class DataTransformationBiSqlServerExtractionAssistant
                     'Ejecuta el SELECT en SQL Server Management Studio o en la herramienta habitual del cliente.',
                     'Copia o exporta el resultado completo con encabezados.',
                     'Guarda el resultado en un archivo Excel XLSX sin renombrar las columnas.',
-                    'Regresa a LAUDA y súbelo como archivo de esta fuente.',
+                    'Cuando tengas el archivo listo, continúa al paso Archivo.',
                 ],
             ],
         ];

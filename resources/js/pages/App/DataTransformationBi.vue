@@ -768,26 +768,32 @@ const sourceWorkspaceBase =
 const sourceTabs: Array<{
     key: SourceWorkspaceTab;
     label: string;
+    helper: string;
 }> = [
     {
         key: 'information',
         label: 'Información',
+        helper: 'Datos de la fuente',
     },
     {
         key: 'structure',
         label: 'Estructura',
+        helper: 'Opcional',
     },
     {
         key: 'extraction',
         label: 'Extracción',
+        helper: 'Generar archivo',
     },
     {
         key: 'file',
         label: 'Archivo',
+        helper: 'Subir archivo',
     },
     {
         key: 'result',
         label: 'Resultado',
+        helper: 'Revisar análisis',
     },
 ];
 
@@ -801,6 +807,68 @@ const activeSourceTab =
     ref<SourceWorkspaceTab>(
         'information',
     );
+
+const activeSourceStepIndex =
+    computed(() =>
+        Math.max(
+            0,
+            sourceTabs.findIndex(
+                (tab) =>
+                    tab.key
+                    === activeSourceTab.value,
+            ),
+        ),
+    );
+
+const activeSourceStep =
+    computed(
+        () =>
+            sourceTabs[
+                activeSourceStepIndex.value
+            ]
+            ?? sourceTabs[0]!,
+    );
+
+const nextSourceStep =
+    computed(
+        () =>
+            sourceTabs[
+                activeSourceStepIndex.value
+                + 1
+            ]
+            ?? null,
+    );
+
+function goToSourceStep(
+    step: SourceWorkspaceTab,
+): void {
+    activeSourceTab.value =
+        step;
+
+    sourceWorkspaceError.value =
+        null;
+
+    sourceWorkspaceNotice.value =
+        null;
+
+    if (step !== 'extraction') {
+        extractionCopyState.value =
+            null;
+    }
+}
+
+function goToNextSourceStep(): void {
+    const next =
+        nextSourceStep.value;
+
+    if (!next) {
+        return;
+    }
+
+    goToSourceStep(
+        next.key,
+    );
+}
 
 const sourceWorkspaceBusy =
     ref<string | null>(
@@ -3252,25 +3320,158 @@ function processingHistoryDate(
                                 class="mt-6 overflow-hidden rounded-2xl border border-slate-200/70 dark:border-slate-800"
                             >
                                 <div
-                                    class="flex gap-1 overflow-x-auto border-b border-slate-200/70 bg-slate-50/50 p-2 dark:border-slate-800 dark:bg-slate-900/20"
+                                    class="border-b border-slate-200/70 bg-slate-50/50 px-4 py-4 dark:border-slate-800 dark:bg-slate-900/20"
                                 >
-                                    <button
-                                        v-for="tab in sourceTabs"
-                                        :key="tab.key"
-                                        type="button"
-                                        class="cursor-pointer shrink-0 rounded-xl px-3 py-2 text-xs font-black transition"
-                                        :class="
-                                            activeSourceTab === tab.key
-                                                ? 'bg-white text-cyan-700 shadow-sm dark:bg-slate-950 dark:text-cyan-300'
-                                                : 'text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white'
-                                        "
-                                        @click="
-                                            activeSourceTab =
-                                                tab.key
-                                        "
+                                    <div class="overflow-x-auto">
+                                        <ol
+                                            class="flex min-w-[760px] items-start"
+                                            aria-label="Pasos de entrega de la fuente"
+                                        >
+                                            <li
+                                                v-for="(tab, tabIndex) in sourceTabs"
+                                                :key="tab.key"
+                                                class="relative flex flex-1 items-start"
+                                            >
+                                                <div
+                                                    v-if="
+                                                        tabIndex <
+                                                        sourceTabs.length - 1
+                                                    "
+                                                    class="absolute left-[calc(50%+1.25rem)] right-[calc(-50%+1.25rem)] top-5 h-0.5"
+                                                    :class="
+                                                        tabIndex <
+                                                        activeSourceStepIndex
+                                                            ? 'bg-cyan-500'
+                                                            : 'bg-slate-200 dark:bg-slate-700'
+                                                    "
+                                                    aria-hidden="true"
+                                                />
+
+                                                <button
+                                                    type="button"
+                                                    class="group relative z-10 flex w-full cursor-pointer flex-col items-center px-2 text-center"
+                                                    :aria-current="
+                                                        activeSourceTab ===
+                                                        tab.key
+                                                            ? 'step'
+                                                            : undefined
+                                                    "
+                                                    @click="
+                                                        goToSourceStep(
+                                                            tab.key,
+                                                        )
+                                                    "
+                                                >
+                                                    <span
+                                                        class="flex h-10 w-10 items-center justify-center rounded-full border-2 text-sm font-black transition"
+                                                        :class="
+                                                            activeSourceTab ===
+                                                            tab.key
+                                                                ? 'border-cyan-600 bg-cyan-600 text-white shadow-sm'
+                                                                : tabIndex <
+                                                                    activeSourceStepIndex
+                                                                  ? 'border-cyan-500 bg-cyan-50 text-cyan-700 dark:bg-cyan-950/30 dark:text-cyan-300'
+                                                                  : 'border-slate-300 bg-white text-slate-500 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-400'
+                                                        "
+                                                    >
+                                                        {{ tabIndex + 1 }}
+                                                    </span>
+
+                                                    <span
+                                                        class="mt-2 text-xs font-black"
+                                                        :class="
+                                                            activeSourceTab ===
+                                                            tab.key
+                                                                ? 'text-cyan-700 dark:text-cyan-300'
+                                                                : 'text-slate-700 dark:text-slate-300'
+                                                        "
+                                                    >
+                                                        {{ tab.label }}
+                                                    </span>
+
+                                                    <span
+                                                        class="mt-0.5 text-[11px] font-medium"
+                                                        :class="
+                                                            activeSourceTab ===
+                                                            tab.key
+                                                                ? 'text-cyan-600 dark:text-cyan-400'
+                                                                : 'text-slate-400 dark:text-slate-500'
+                                                        "
+                                                    >
+                                                        {{
+                                                            activeSourceTab ===
+                                                            tab.key
+                                                                ? 'Paso actual'
+                                                                : tab.helper
+                                                        }}
+                                                    </span>
+                                                </button>
+                                            </li>
+                                        </ol>
+                                    </div>
+
+                                    <div
+                                        class="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-slate-200/70 bg-white px-4 py-3 dark:border-slate-800 dark:bg-slate-950"
                                     >
-                                        {{ tab.label }}
-                                    </button>
+                                        <p
+                                            class="text-xs text-slate-600 dark:text-slate-300"
+                                        >
+                                            Paso
+                                            <strong>
+                                                {{
+                                                    activeSourceStepIndex
+                                                    + 1
+                                                }}
+                                                de
+                                                {{ sourceTabs.length }}
+                                            </strong>
+                                            ·
+                                            <strong
+                                                class="text-slate-900 dark:text-white"
+                                            >
+                                                {{
+                                                    activeSourceStep.label
+                                                }}
+                                            </strong>
+                                        </p>
+
+                                        <div
+                                            v-if="nextSourceStep"
+                                            class="flex flex-wrap items-center gap-2"
+                                        >
+                                            <span
+                                                class="text-xs text-slate-500 dark:text-slate-400"
+                                            >
+                                                Siguiente paso:
+                                                <strong
+                                                    class="text-slate-800 dark:text-slate-200"
+                                                >
+                                                    {{
+                                                        nextSourceStep.label
+                                                    }}
+                                                </strong>
+                                            </span>
+
+                                            <button
+                                                type="button"
+                                                class="cursor-pointer rounded-lg border border-cyan-200 bg-cyan-50 px-3 py-1.5 text-xs font-black text-cyan-700 transition hover:bg-cyan-100 dark:border-cyan-900 dark:bg-cyan-950/30 dark:text-cyan-300 dark:hover:bg-cyan-950/50"
+                                                @click="goToNextSourceStep"
+                                            >
+                                                Continuar a
+                                                {{
+                                                    nextSourceStep.label
+                                                }}
+                                                →
+                                            </button>
+                                        </div>
+
+                                        <p
+                                            v-else
+                                            class="text-xs font-bold text-emerald-700 dark:text-emerald-400"
+                                        >
+                                            Último paso del flujo.
+                                        </p>
+                                    </div>
                                 </div>
 
                                 <div class="p-5 sm:p-6">
