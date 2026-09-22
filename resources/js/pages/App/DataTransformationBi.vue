@@ -2227,6 +2227,10 @@ function processingHistoryDate(
                             </li>
                         </ul>
                     </section>
+                </div>
+
+                <!-- Contenido posterior al alcance · ancho completo -->
+                <div class="space-y-6 xl:col-span-2">
                     <!-- Definition presentada al tenant -->
                     <section
                         v-if="tenantDefinitionReview"
@@ -5214,7 +5218,9 @@ function processingHistoryDate(
                 </div>
 
                 <!-- Columna de contexto -->
-                <aside class="space-y-6 xl:sticky xl:top-6">
+                <aside
+                    class="space-y-6 xl:col-start-2 xl:row-start-1 xl:sticky xl:top-6"
+                >
                     <section
                         class="rounded-[2rem] border border-blue-200/70 bg-blue-50/50 p-6 shadow-sm dark:border-blue-950 dark:bg-blue-950/10"
                     >
