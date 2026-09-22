@@ -641,6 +641,15 @@ const dynamicSourceBusy =
 const dynamicSourceError =
     ref<string | null>(null);
 
+const dynamicSourceProfilingError =
+    ref<string | null>(null);
+
+const dynamicSourceProfilingMessage =
+    ref<string | null>(null);
+
+const dynamicSourceProfilingFeedbackId =
+    ref<number | null>(null);
+
 const dynamicSourceForm =
     ref<DynamicSourceAssetForm>({
         display_name: '',
@@ -781,6 +790,41 @@ function dynamicSourceDeliveryLabel(
     return 'Por definir';
 }
 
+function dynamicSourceProfileNumber(
+    asset: DynamicSourceAsset,
+    key: string,
+): number {
+    const snapshot =
+        asset.profiling_snapshot;
+
+    if (!snapshot) {
+        return 0;
+    }
+
+    const value =
+        snapshot[key];
+
+    return typeof value === 'number'
+        && Number.isFinite(value)
+        ? value
+        : 0;
+}
+
+function dynamicSourceProfileFullScanLabel(
+    asset: DynamicSourceAsset,
+): string {
+    const snapshot =
+        asset.profiling_snapshot;
+
+    if (!snapshot) {
+        return 'Pendiente';
+    }
+
+    return snapshot.full_scan === false
+        ? 'Perfil acotado'
+        : 'Lectura completa';
+}
+
 function upsertDynamicSourceAsset(
     asset: DynamicSourceAsset,
 ): void {
@@ -818,6 +862,74 @@ function upsertDynamicSourceAsset(
                 left.sort_order - right.sort_order
                 || left.id - right.id,
         );
+}
+
+async function profileDynamicSourceAsset(
+    asset: DynamicSourceAsset,
+): Promise<void> {
+    const sessionId =
+        standardIntakeV2SessionId();
+
+    dynamicSourceProfilingFeedbackId.value =
+        asset.id;
+
+    dynamicSourceProfilingError.value =
+        null;
+
+    dynamicSourceProfilingMessage.value =
+        null;
+
+    if (
+        sessionId === null
+        || !dynamicSourceCanManage()
+    ) {
+        dynamicSourceProfilingError.value =
+            'La sesión no permite ejecutar profiling técnico en este momento.';
+
+        return;
+    }
+
+    if (!asset.data_file) {
+        dynamicSourceProfilingError.value =
+            'La fuente necesita un archivo CSV/XLSX vigente antes de ejecutar el profiling.';
+
+        return;
+    }
+
+    dynamicSourceBusy.value =
+        `profile:${asset.id}`;
+
+    try {
+        const payload =
+            await standardIntakeV2Request(
+                `${standardIntakeV2BaseUrl}/sessions/${sessionId}/source-assets/${asset.id}/profile`,
+                {
+                    method: 'POST',
+                },
+            );
+
+        if (!payload.source_asset) {
+            throw new Error(
+                'La respuesta no contiene la fuente perfilada.',
+            );
+        }
+
+        upsertDynamicSourceAsset(
+            payload.source_asset,
+        );
+
+        dynamicSourceProfilingMessage.value =
+            payload.message
+            ?? 'Profiling técnico completado correctamente.';
+    } catch (error) {
+        dynamicSourceProfilingError.value =
+            error instanceof Error
+                ? error.message
+                : 'No se pudo completar el profiling técnico.';
+    } finally {
+        dynamicSourceBusy.value =
+            null;
+    }
 }
 
 async function saveDynamicSourceAsset(): Promise<void> {
@@ -5860,6 +5972,52 @@ async function normalizeStandardIntakeBatch(): Promise<void> {
                                         </div>
                                     </div>
 
+                                    <span
+                                        v-if="
+                                            dynamicSourceSelectedAsset()
+                                                ?.profiling_snapshot
+                                        "
+                                        class="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-xs font-bold text-emerald-700 dark:border-emerald-900/70 dark:bg-emerald-950/20 dark:text-emerald-300"
+                                    >
+                                        Perfilado:
+                                        {{
+                                            dynamicSourceProfileNumber(
+                                                dynamicSourceSelectedAsset()!,
+                                                'profiled_row_count',
+                                            )
+                                        }}
+                                        filas
+                                    </span>
+
+                                    <button
+                                        v-if="
+                                            dynamicSourceSelectedAsset()
+                                                ?.data_file
+                                        "
+                                        type="button"
+                                        class="cursor-pointer rounded-lg bg-sky-700 px-3 py-1.5 text-xs font-bold text-white disabled:cursor-not-allowed disabled:opacity-50"
+                                        :disabled="
+                                            dynamicSourceBusy
+                                            !== null
+                                        "
+                                        @click="
+                                            profileDynamicSourceAsset(
+                                                dynamicSourceSelectedAsset()!,
+                                            )
+                                        "
+                                    >
+                                        {{
+                                            dynamicSourceBusy
+                                                === `profile:${dynamicSourceSelectedAsset()?.id}`
+                                                ? 'Perfilando...'
+                                                : dynamicSourceSelectedAsset()
+                                                    ?.data_status
+                                                    === 'analyzed'
+                                                  ? 'Volver a perfilar'
+                                                  : 'Perfilar fuente'
+                                        }}
+                                    </button>
+
                                     <button
                                         type="button"
                                         class="cursor-pointer rounded-lg border px-3 py-1.5 text-xs font-bold"
@@ -5870,6 +6028,178 @@ async function normalizeStandardIntakeBatch(): Promise<void> {
                                     >
                                         Cerrar detalle
                                     </button>
+                                </div>
+
+                                <div
+                                    v-if="
+                                        (
+                                            dynamicSourceProfilingFeedbackId
+                                                === dynamicSourceSelectedAsset()?.id
+                                            && (
+                                                dynamicSourceProfilingError
+                                                || dynamicSourceProfilingMessage
+                                            )
+                                        )
+                                        || dynamicSourceSelectedAsset()
+                                            ?.profiling_snapshot
+                                    "
+                                    class="border-b bg-muted/5 px-4 py-3"
+                                >
+                                    <p
+                                        class="text-[10px] font-bold uppercase tracking-wide text-muted-foreground"
+                                    >
+                                        Profiling técnico LAUDA
+                                    </p>
+
+                                    <div
+                                        v-if="
+                                            dynamicSourceProfilingFeedbackId
+                                                === dynamicSourceSelectedAsset()?.id
+                                            && dynamicSourceProfilingError
+                                        "
+                                        class="mt-2 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700 dark:border-red-900/60 dark:bg-red-950/30 dark:text-red-300"
+                                    >
+                                        {{
+                                            dynamicSourceProfilingError
+                                        }}
+                                    </div>
+
+                                    <div
+                                        v-if="
+                                            dynamicSourceProfilingFeedbackId
+                                                === dynamicSourceSelectedAsset()?.id
+                                            && dynamicSourceProfilingMessage
+                                        "
+                                        class="mt-2 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs text-emerald-700 dark:border-emerald-900/60 dark:bg-emerald-950/30 dark:text-emerald-300"
+                                    >
+                                        {{
+                                            dynamicSourceProfilingMessage
+                                        }}
+                                    </div>
+
+                                    <div
+                                        v-if="
+                                            dynamicSourceSelectedAsset()
+                                                ?.profiling_snapshot
+                                        "
+                                        class="mt-2 grid gap-2 sm:grid-cols-2 xl:grid-cols-5"
+                                    >
+                                        <div
+                                            class="rounded-lg border bg-background p-2"
+                                        >
+                                            <p
+                                                class="text-[10px] font-bold uppercase text-muted-foreground"
+                                            >
+                                                Filas fuente
+                                            </p>
+
+                                            <p
+                                                class="mt-1 text-sm font-black"
+                                            >
+                                                {{
+                                                    dynamicSourceProfileNumber(
+                                                        dynamicSourceSelectedAsset()!,
+                                                        'source_row_count',
+                                                    )
+                                                }}
+                                            </p>
+                                        </div>
+
+                                        <div
+                                            class="rounded-lg border bg-background p-2"
+                                        >
+                                            <p
+                                                class="text-[10px] font-bold uppercase text-muted-foreground"
+                                            >
+                                                Filas perfiladas
+                                            </p>
+
+                                            <p
+                                                class="mt-1 text-sm font-black"
+                                            >
+                                                {{
+                                                    dynamicSourceProfileNumber(
+                                                        dynamicSourceSelectedAsset()!,
+                                                        'profiled_row_count',
+                                                    )
+                                                }}
+                                            </p>
+                                        </div>
+
+                                        <div
+                                            class="rounded-lg border bg-background p-2"
+                                        >
+                                            <p
+                                                class="text-[10px] font-bold uppercase text-muted-foreground"
+                                            >
+                                                Hojas
+                                            </p>
+
+                                            <p
+                                                class="mt-1 text-sm font-black"
+                                            >
+                                                {{
+                                                    dynamicSourceProfileNumber(
+                                                        dynamicSourceSelectedAsset()!,
+                                                        'sheet_count',
+                                                    )
+                                                }}
+                                            </p>
+                                        </div>
+
+                                        <div
+                                            class="rounded-lg border bg-background p-2"
+                                        >
+                                            <p
+                                                class="text-[10px] font-bold uppercase text-muted-foreground"
+                                            >
+                                                Cobertura
+                                            </p>
+
+                                            <p
+                                                class="mt-1 text-sm font-black"
+                                            >
+                                                {{
+                                                    dynamicSourceProfileFullScanLabel(
+                                                        dynamicSourceSelectedAsset()!,
+                                                    )
+                                                }}
+                                            </p>
+                                        </div>
+
+                                        <div
+                                            class="rounded-lg border bg-background p-2"
+                                        >
+                                            <p
+                                                class="text-[10px] font-bold uppercase text-muted-foreground"
+                                            >
+                                                Analizado
+                                            </p>
+
+                                            <p
+                                                class="mt-1 text-xs font-semibold"
+                                            >
+                                                {{
+                                                    dynamicSourceDateTimeLabel(
+                                                        dynamicSourceSelectedAsset()
+                                                            ?.profiled_at,
+                                                    )
+                                                }}
+                                            </p>
+                                        </div>
+                                    </div>
+
+                                    <p
+                                        v-if="
+                                            dynamicSourceSelectedAsset()
+                                                ?.profiling_snapshot
+                                        "
+                                        class="mt-2 text-[11px] leading-5 text-muted-foreground"
+                                    >
+                                        El resultado contiene únicamente estadísticas
+                                        técnicas agregadas. No guarda muestras ni valores
+                                        crudos del archivo del cliente.
+                                    </p>
                                 </div>
 
                                 <div

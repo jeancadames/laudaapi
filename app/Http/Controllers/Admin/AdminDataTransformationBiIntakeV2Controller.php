@@ -12,6 +12,7 @@ use App\Services\Diagnosis\DataTransformationBiSourceDomainRegistry;
 use App\Services\Diagnosis\DataTransformationBiSourceAssetService;
 use App\Services\Diagnosis\DataTransformationBiSourceAssetStructureService;
 use App\Services\Diagnosis\DataTransformationBiSourceAssetDataUploadService;
+use App\Services\Diagnosis\DataTransformationBiSourceAssetProfilingService;
 use App\Services\Diagnosis\DataTransformationBiSourceDomainUploadService;
 use App\Services\Diagnosis\DataTransformationBiSqlServerExtractionAssistant;
 use App\Services\Diagnosis\DataTransformationBiIntakeV2SessionResolutionService;
@@ -916,6 +917,82 @@ final class AdminDataTransformationBiIntakeV2Controller extends Controller
                 $dataFile,
         ]);
     }
+
+    /**
+     * Execute LAUDA-owned technical profiling for one client-native source.
+     *
+     * This action deliberately does not assign a canonical domain and does
+     * not perform mapping, normalization or staging materialization.
+     */
+    public function profileSourceAsset(
+        Request $request,
+        TransformationImplementationRequest $implementationRequest,
+        int $sessionId,
+        int $sourceAssetId,
+        DataTransformationBiSourceAssetProfilingService $service
+    ): JsonResponse {
+        $actor =
+            $this->actor(
+                $request
+            );
+
+        $this->assertRequest(
+            $implementationRequest
+        );
+
+        $session =
+            $this->scopedSession(
+                $implementationRequest,
+                $sessionId
+            );
+
+        $asset =
+            $this->scopedSourceAsset(
+                $implementationRequest,
+                $session,
+                $sourceAssetId
+            );
+
+        try {
+            $service->profile(
+                $implementationRequest,
+                $session,
+                $asset,
+                $actor
+            );
+        } catch (
+            ValidationException $exception
+        ) {
+            return $this->validationError(
+                $exception,
+                'No se pudo completar el profiling técnico de la fuente.'
+            );
+        } catch (
+            RuntimeException $exception
+        ) {
+            return $this->runtimeError(
+                $exception
+            );
+        }
+
+        $updatedAsset =
+            $asset->fresh()
+            ?? $asset;
+
+        return response()->json([
+            'ok' =>
+                true,
+
+            'message' =>
+                'Profiling técnico de la fuente completado correctamente.',
+
+            'source_asset' =>
+                $this->sourceAssetPayload(
+                    $updatedAsset
+                ),
+        ]);
+    }
+
 
     public function updateSourceAssetStructure(
         Request $request,
