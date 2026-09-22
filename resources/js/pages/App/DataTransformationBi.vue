@@ -803,6 +803,72 @@ const selectedSourceId =
         ?? null,
     );
 
+const sourceStepStoragePrefix =
+    'lauda:data-bi:source-step:';
+
+function sourceStepStorageKey(
+    sourceAssetId: number,
+): string {
+    return `${sourceStepStoragePrefix}${sourceAssetId}`;
+}
+
+function isSourceWorkspaceTab(
+    value: string | null,
+): value is SourceWorkspaceTab {
+    return (
+        value !== null
+        && sourceTabs.some(
+            (tab) =>
+                tab.key === value,
+        )
+    );
+}
+
+function readLastSourceStep(
+    sourceAssetId: number,
+): SourceWorkspaceTab {
+    if (typeof window === 'undefined') {
+        return 'information';
+    }
+
+    try {
+        const stored =
+            window.localStorage.getItem(
+                sourceStepStorageKey(
+                    sourceAssetId,
+                ),
+            );
+
+        return isSourceWorkspaceTab(
+            stored,
+        )
+            ? stored
+            : 'information';
+    } catch {
+        return 'information';
+    }
+}
+
+function rememberSourceStep(
+    sourceAssetId: number,
+    step: SourceWorkspaceTab,
+): void {
+    if (typeof window === 'undefined') {
+        return;
+    }
+
+    try {
+        window.localStorage.setItem(
+            sourceStepStorageKey(
+                sourceAssetId,
+            ),
+            step,
+        );
+    } catch {
+        // La memoria visual no debe bloquear el flujo.
+    }
+}
+
 const activeSourceTab =
     ref<SourceWorkspaceTab>(
         'information',
@@ -844,6 +910,16 @@ function goToSourceStep(
 ): void {
     activeSourceTab.value =
         step;
+
+    if (
+        selectedSourceId.value
+        !== null
+    ) {
+        rememberSourceStep(
+            selectedSourceId.value,
+            step,
+        );
+    }
 
     sourceWorkspaceError.value =
         null;
@@ -987,6 +1063,13 @@ watch(
         extractionCopyState.value = null;
         sourceFile.value = null;
 
+        activeSourceTab.value =
+            sourceAsset
+                ? readLastSourceStep(
+                    sourceAsset.id,
+                )
+                : 'information';
+
         if (!sourceAsset) {
             editSourceForm.value = {
                 display_name: '',
@@ -1086,7 +1169,9 @@ function selectSource(
         sourceAssetId;
 
     activeSourceTab.value =
-        'information';
+        readLastSourceStep(
+            sourceAssetId,
+        );
 
     sourceWorkspaceError.value =
         null;
