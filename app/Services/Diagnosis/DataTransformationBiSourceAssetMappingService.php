@@ -435,6 +435,20 @@ final class DataTransformationBiSourceAssetMappingService
                         (string) $artifact->source_sha256
                     );
 
+                $sourceProfileVersion =
+                    (int) (
+                        $profile['version']
+                        ?? 0
+                    );
+
+                if ($sourceProfileVersion <= 0) {
+                    throw ValidationException::withMessages([
+                        'mapping' => [
+                            'El profiling vigente no tiene una versión técnica válida.',
+                        ],
+                    ]);
+                }
+
                 $existing =
                     DataTransformationBiSourceAssetMapping::query()
                         ->where(
@@ -456,6 +470,10 @@ final class DataTransformationBiSourceAssetMappingService
                         ->where(
                             'source_sha256',
                             $sourceSha256
+                        )
+                        ->where(
+                            'source_profile_version',
+                            $sourceProfileVersion
                         )
                         ->orderByDesc(
                             'mapping_version'
@@ -494,7 +512,51 @@ final class DataTransformationBiSourceAssetMappingService
                  * Older mappings for the same logical source/entity/sheet are
                  * historical once a different artifact SHA is current.
                  */
+                                /*
+                 * The same physical bytes may be re-profiled by a newer
+                 * profiler contract. An editable mapping created against an
+                 * older profile version must never be silently reused.
+                 */
                 DataTransformationBiSourceAssetMapping::query()
+                    ->where(
+                        'data_transformation_bi_source_asset_id',
+                        (int) $lockedAsset->getKey()
+                    )
+                    ->where(
+                        'canonical_entity_key',
+                        $canonicalEntityKey
+                    )
+                    ->where(
+                        'source_sheet_index',
+                        $sourceSheetIndex
+                    )
+                    ->where(
+                        'source_profile_version',
+                        '<>',
+                        $sourceProfileVersion
+                    )
+                    ->where(
+                        'status',
+                        '<>',
+                        DataTransformationBiSourceAssetMapping
+                            ::STATUS_STALE
+                    )
+                    ->update([
+                        'status' =>
+                            DataTransformationBiSourceAssetMapping
+                                ::STATUS_STALE,
+
+                        'validated_at' =>
+                            null,
+
+                        'validated_by_user_id' =>
+                            null,
+
+                        'updated_by_user_id' =>
+                            (int) $actor->getKey(),
+                    ]);
+
+DataTransformationBiSourceAssetMapping::query()
                     ->where(
                         'data_transformation_bi_source_asset_id',
                         (int) $lockedAsset->getKey()
@@ -598,10 +660,7 @@ final class DataTransformationBiSourceAssetMappingService
                         $sourceSha256,
 
                     'source_profile_version' =>
-                        (int) (
-                            $profile['version']
-                            ?? 1
-                        ),
+                        $sourceProfileVersion,
 
                     'source_sheet_index' =>
                         $sourceSheetIndex,
