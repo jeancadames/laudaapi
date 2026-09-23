@@ -55,7 +55,7 @@ final class DataTransformationBiSourceAssetAsyncProfilingContractTest
         );
 
         self::assertStringContainsString(
-            'public int $timeout = 110',
+            'public int $timeout = 840',
             $source
         );
 

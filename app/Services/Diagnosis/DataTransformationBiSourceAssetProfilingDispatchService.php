@@ -199,8 +199,11 @@ final class DataTransformationBiSourceAssetProfilingDispatchService
                 (int) $actor->getKey(),
                 (string) $queued['run_uuid']
             )
+                ->onConnection(
+                    'data_bi'
+                )
                 ->onQueue(
-                    'default'
+                    'data-bi'
                 );
         } catch (Throwable $exception) {
             $this->markDispatchFailure(

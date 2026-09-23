@@ -44,6 +44,25 @@ return [
             'after_commit' => false,
         ],
 
+        /*
+         * Dedicated connection for long-running Data BI source profiling.
+         *
+         * It intentionally shares the database jobs table while using its
+         * own queue name and retry window. retry_after must remain greater
+         * than the dedicated worker/job timeout.
+         */
+        'data_bi' => [
+            'driver' => 'database',
+            'connection' => env('DB_QUEUE_CONNECTION'),
+            'table' => env('DB_QUEUE_TABLE', 'jobs'),
+            'queue' => env('DATA_BI_QUEUE', 'data-bi'),
+            'retry_after' => (int) env(
+                'DATA_BI_QUEUE_RETRY_AFTER',
+                900
+            ),
+            'after_commit' => false,
+        ],
+
         'beanstalkd' => [
             'driver' => 'beanstalkd',
             'host' => env('BEANSTALKD_QUEUE_HOST', 'localhost'),

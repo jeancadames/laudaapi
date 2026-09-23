@@ -166,4 +166,41 @@ final class DataTransformationBiDynamicSourceAsyncProfilingUiContractTest
         );
     }
 
+
+    public function test_ui_preserves_data_file_during_async_status_updates(): void
+    {
+        self::assertStringContainsString(
+            'asset.data_file',
+            $this->source
+        );
+
+        self::assertStringContainsString(
+            'item.data_file',
+            $this->source
+        );
+    }
+
+    public function test_ui_polling_horizon_covers_dedicated_worker_timeout(): void
+    {
+        self::assertStringContainsString(
+            'DYNAMIC_SOURCE_PROFILE_POLL_INTERVAL_MS =',
+            $this->source
+        );
+
+        self::assertStringContainsString(
+            '3000',
+            $this->source
+        );
+
+        self::assertStringContainsString(
+            'DYNAMIC_SOURCE_PROFILE_POLL_ATTEMPTS =',
+            $this->source
+        );
+
+        self::assertStringContainsString(
+            '320',
+            $this->source
+        );
+    }
+
 }

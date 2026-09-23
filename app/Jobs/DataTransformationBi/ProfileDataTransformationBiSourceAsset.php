@@ -28,9 +28,10 @@ final class ProfileDataTransformationBiSourceAsset implements ShouldQueue
     public int $tries = 1;
 
     /*
-     * Must remain below the current LAUDA worker --timeout=120.
+     * Dedicated Data BI worker timeout is 900 seconds.
+     * Keep the job limit below the worker and retry_after=900 boundary.
      */
-    public int $timeout = 110;
+    public int $timeout = 840;
 
     public bool $failOnTimeout = true;
 

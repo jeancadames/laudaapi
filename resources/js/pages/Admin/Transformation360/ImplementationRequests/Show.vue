@@ -866,7 +866,14 @@ function upsertDynamicSourceAsset(
             : current.map(
                 (item) =>
                     item.id === asset.id
-                        ? asset
+                        ? {
+                            ...item,
+                            ...asset,
+                            data_file:
+                                asset.data_file
+                                ?? item.data_file
+                                ?? null,
+                        }
                         : item,
             );
 
@@ -879,10 +886,10 @@ function upsertDynamicSourceAsset(
 }
 
 const DYNAMIC_SOURCE_PROFILE_POLL_INTERVAL_MS =
-    2000;
+    3000;
 
 const DYNAMIC_SOURCE_PROFILE_POLL_ATTEMPTS =
-    75;
+    320;
 
 const dynamicSourceProfilePollers =
     new Map<number, Promise<void>>();
