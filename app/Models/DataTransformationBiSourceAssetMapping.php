@@ -23,6 +23,7 @@ class DataTransformationBiSourceAssetMapping extends Model
         'data_transformation_bi_intake_session_id',
         'company_id',
         'canonical_entity_key',
+        'canonical_registry_version',
         'source_sha256',
         'source_profile_version',
         'source_sheet_index',
@@ -49,6 +50,9 @@ class DataTransformationBiSourceAssetMapping extends Model
                 'integer',
 
             'company_id' =>
+                'integer',
+
+            'canonical_registry_version' =>
                 'integer',
 
             'source_profile_version' =>

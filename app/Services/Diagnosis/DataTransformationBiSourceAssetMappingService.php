@@ -21,7 +21,10 @@ final class DataTransformationBiSourceAssetMappingService
 
     public function __construct(
         private readonly DataTransformationBiIntakeActorAuthorizationService
-            $authorization
+            $authorization,
+
+        private readonly DataTransformationBiCanonicalRegistry
+            $canonicalRegistry
     ) {
     }
 
@@ -46,6 +49,24 @@ final class DataTransformationBiSourceAssetMappingService
                 'canonical_entity_key'
             );
 
+        if (
+            ! $this->canonicalRegistry
+                ->supportsEntity(
+                    $canonicalEntityKey
+                )
+        ) {
+            throw ValidationException::withMessages([
+                'canonical_entity_key' => [
+                    'La entidad objetivo no existe en el '
+                    .'modelo canónico vigente de LAUDA.',
+                ],
+            ]);
+        }
+
+        $currentRegistryVersion =
+            $this->canonicalRegistry
+                ->version();
+
         if ($sourceSheetIndex < 0) {
             throw ValidationException::withMessages([
                 'source_sheet_index' => [
@@ -60,6 +81,7 @@ final class DataTransformationBiSourceAssetMappingService
                 $session,
                 $asset,
                 $canonicalEntityKey,
+                $currentRegistryVersion,
                 $sourceSheetIndex,
                 $actor
             ): DataTransformationBiSourceAssetMapping {
@@ -111,6 +133,10 @@ final class DataTransformationBiSourceAssetMappingService
                         ->where(
                             'canonical_entity_key',
                             $canonicalEntityKey
+                        )
+                        ->where(
+                            'canonical_registry_version',
+                            $currentRegistryVersion
                         )
                         ->where(
                             'source_sheet_index',
@@ -171,9 +197,22 @@ final class DataTransformationBiSourceAssetMappingService
                         $sourceSheetIndex
                     )
                     ->where(
-                        'source_sha256',
-                        '<>',
-                        $sourceSha256
+                        function ($query) use (
+                            $sourceSha256,
+                            $currentRegistryVersion
+                        ): void {
+                            $query
+                                ->where(
+                                    'source_sha256',
+                                    '<>',
+                                    $sourceSha256
+                                )
+                                ->orWhere(
+                                    'canonical_registry_version',
+                                    '<>',
+                                    $currentRegistryVersion
+                                );
+                        }
                     )
                     ->where(
                         'status',
@@ -241,6 +280,9 @@ final class DataTransformationBiSourceAssetMappingService
                     'canonical_entity_key' =>
                         $canonicalEntityKey,
 
+                    'canonical_registry_version' =>
+                        $currentRegistryVersion,
+
                     'source_sha256' =>
                         $sourceSha256,
 
@@ -303,6 +345,10 @@ final class DataTransformationBiSourceAssetMappingService
             $implementationRequest,
             $session,
             $asset,
+            $mapping
+        );
+
+        $this->assertCurrentCanonicalRegistry(
             $mapping
         );
 
@@ -390,6 +436,21 @@ final class DataTransformationBiSourceAssetMappingService
                     ),
                     "decisions.$index.canonical_field_key"
                 );
+
+            if (
+                ! $this->canonicalRegistry
+                    ->supportsField(
+                        (string) $mapping->canonical_entity_key,
+                        $canonicalFieldKey
+                    )
+            ) {
+                throw ValidationException::withMessages([
+                    "decisions.$index.canonical_field_key" => [
+                        'El campo objetivo no pertenece a la '
+                        .'entidad canónica seleccionada.',
+                    ],
+                ]);
+            }
 
             if (isset($targetKeys[$canonicalFieldKey])) {
                 throw ValidationException::withMessages([
@@ -671,6 +732,10 @@ final class DataTransformationBiSourceAssetMappingService
                     );
                 }
 
+                $this->assertCurrentCanonicalRegistry(
+                    $locked
+                );
+
                 if (
                     (string) $locked->status
                         === DataTransformationBiSourceAssetMapping
@@ -809,6 +874,26 @@ final class DataTransformationBiSourceAssetMappingService
             ->findOrFail(
                 (int) $mapping->getKey()
             );
+    }
+
+    private function assertCurrentCanonicalRegistry(
+        DataTransformationBiSourceAssetMapping $mapping
+    ): void {
+        if (
+            (int) $mapping->canonical_registry_version
+                !== $this->canonicalRegistry->version()
+            || ! $this->canonicalRegistry
+                ->supportsEntity(
+                    (string) $mapping->canonical_entity_key
+                )
+        ) {
+            throw ValidationException::withMessages([
+                'mapping' => [
+                    'El mapeo pertenece a una versión anterior '
+                    .'del modelo canónico de LAUDA.',
+                ],
+            ]);
+        }
     }
 
     private function assertAdminScope(
