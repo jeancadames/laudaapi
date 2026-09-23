@@ -5,6 +5,7 @@ namespace App\Services\Diagnosis;
 use App\Models\DataTransformationBiIntakeSession;
 use App\Models\DataTransformationBiSourceAsset;
 use App\Models\DataTransformationBiSourceAssetFile;
+use App\Models\DataTransformationBiSourceAssetMapping;
 use App\Models\TransformationImplementationRequest;
 use App\Models\User;
 use Illuminate\Auth\Access\AuthorizationException;
@@ -427,6 +428,51 @@ final class DataTransformationBiSourceAssetDataUploadService
                         ]);
 
                         $artifact->save();
+
+                        /*
+                         * Mapping decisions are pinned to the exact profiled
+                         * artifact SHA.
+                         *
+                         * Replacing the source bytes invalidates every mapping
+                         * created from an older SHA immediately, in the same
+                         * transaction that replaces the current artifact.
+                         *
+                         * Re-uploading the exact same bytes does not stale the
+                         * mapping because its source_sha256 still matches.
+                         */
+                        DataTransformationBiSourceAssetMapping::query()
+                            ->where(
+                                'data_transformation_bi_source_asset_id',
+                                (int) $lockedAsset->getKey()
+                            )
+                            ->where(
+                                'source_sha256',
+                                '<>',
+                                $sourceSha256
+                            )
+                            ->where(
+                                'status',
+                                '<>',
+                                DataTransformationBiSourceAssetMapping
+                                    ::STATUS_STALE
+                            )
+                            ->update([
+                                'status' =>
+                                    DataTransformationBiSourceAssetMapping
+                                        ::STATUS_STALE,
+
+                                'validated_at' =>
+                                    null,
+
+                                'validated_by_user_id' =>
+                                    null,
+
+                                'updated_by_user_id' =>
+                                    (int) $actor->getKey(),
+
+                                'updated_at' =>
+                                    now(),
+                            ]);
 
                         $existingStructureSnapshot =
                             is_array(

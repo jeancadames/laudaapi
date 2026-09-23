@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class DataTransformationBiSourceAssetFile extends Model
 {
@@ -85,6 +86,14 @@ class DataTransformationBiSourceAssetFile extends Model
         return $this->belongsTo(
             DataTransformationBiSourceAsset::class,
             'data_transformation_bi_source_asset_id'
+        );
+    }
+
+    public function mappings(): HasMany
+    {
+        return $this->hasMany(
+            DataTransformationBiSourceAssetMapping::class,
+            'data_transformation_bi_source_asset_file_id'
         );
     }
 

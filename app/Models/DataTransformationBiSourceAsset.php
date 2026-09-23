@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 
 class DataTransformationBiSourceAsset extends Model
@@ -150,6 +151,14 @@ class DataTransformationBiSourceAsset extends Model
         return $this->belongsTo(
             User::class,
             'updated_by_user_id'
+        );
+    }
+
+    public function mappings(): HasMany
+    {
+        return $this->hasMany(
+            DataTransformationBiSourceAssetMapping::class,
+            'data_transformation_bi_source_asset_id'
         );
     }
 
