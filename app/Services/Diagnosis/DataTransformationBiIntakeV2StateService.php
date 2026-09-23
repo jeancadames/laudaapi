@@ -831,6 +831,10 @@ final class DataTransformationBiIntakeV2StateService
                 'data_status',
                 'structure_snapshot',
                 'profiling_snapshot',
+                'profiling_status',
+                'profiling_queued_at',
+                'profiling_started_at',
+                'profiling_finished_at',
                 'sort_order',
                 'structure_analyzed_at',
                 'data_received_at',
@@ -905,6 +909,25 @@ final class DataTransformationBiIntakeV2StateService
 
                         'profiling_snapshot' =>
                             $asset->profiling_snapshot,
+
+                        'profiling_status' =>
+                            (string) (
+                                $asset->profiling_status
+                                ?? DataTransformationBiSourceAsset
+                                    ::PROFILING_IDLE
+                            ),
+
+                        'profiling_queued_at' =>
+                            $asset->profiling_queued_at
+                                ?->toISOString(),
+
+                        'profiling_started_at' =>
+                            $asset->profiling_started_at
+                                ?->toISOString(),
+
+                        'profiling_finished_at' =>
+                            $asset->profiling_finished_at
+                                ?->toISOString(),
 
                         'data_file' =>
                             $dataFile !== null
