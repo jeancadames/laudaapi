@@ -28,6 +28,317 @@ final class DataTransformationBiSourceAssetMappingService
     ) {
     }
 
+    /**
+     * Build the Admin LAUDA mapping workspace for one profiled source.
+     *
+     * READ ONLY:
+     * - does not create a mapping;
+     * - does not update mapping state;
+     * - does not materialize or normalize data;
+     * - exposes structural/profile metadata only, never source values.
+     *
+     * @return array<string,mixed>
+     */
+    public function workspace(
+        TransformationImplementationRequest $implementationRequest,
+        DataTransformationBiIntakeSession $session,
+        DataTransformationBiSourceAsset $asset,
+        User $actor
+    ): array {
+        $this->assertAdminScope(
+            $implementationRequest,
+            $session,
+            $asset,
+            $actor
+        );
+
+        $profile =
+            is_array(
+                $asset->profiling_snapshot
+            )
+                ? $asset->profiling_snapshot
+                : [];
+
+        $profileSheets =
+            is_array(
+                $profile['sheets']
+                ?? null
+            )
+                ? $profile['sheets']
+                : [];
+
+        $firstSheetIndex =
+            null;
+
+        foreach ($profileSheets as $candidate) {
+            if (
+                is_array($candidate)
+                && array_key_exists(
+                    'index',
+                    $candidate
+                )
+            ) {
+                $firstSheetIndex =
+                    (int) $candidate['index'];
+
+                break;
+            }
+        }
+
+        if ($firstSheetIndex === null) {
+            throw ValidationException::withMessages([
+                'source_asset' => [
+                    'El profiling técnico no contiene hojas disponibles para mapear.',
+                ],
+            ]);
+        }
+
+        /*
+         * Reuse the same integrity gate as write operations so the workspace
+         * is never built from an obsolete profile/artifact combination.
+         */
+        $context =
+            $this->currentProfileContext(
+                $implementationRequest,
+                $asset,
+                $firstSheetIndex
+            );
+
+        $currentProfile =
+            $context['profile'];
+
+        $sheets =
+            is_array(
+                $currentProfile['sheets']
+                ?? null
+            )
+                ? $currentProfile['sheets']
+                : [];
+
+        $safeSheets =
+            [];
+
+        foreach ($sheets as $sheet) {
+            if (
+                ! is_array($sheet)
+                || ! array_key_exists(
+                    'index',
+                    $sheet
+                )
+            ) {
+                continue;
+            }
+
+            $safeColumns =
+                [];
+
+            $columns =
+                is_array(
+                    $sheet['columns']
+                    ?? null
+                )
+                    ? $sheet['columns']
+                    : [];
+
+            foreach ($columns as $column) {
+                if (! is_array($column)) {
+                    continue;
+                }
+
+                $columnKey =
+                    trim(
+                        (string) (
+                            $column['key']
+                            ?? ''
+                        )
+                    );
+
+                if ($columnKey === '') {
+                    continue;
+                }
+
+                $safeColumns[] = [
+                    'key' =>
+                        $columnKey,
+
+                    'index' =>
+                        isset($column['index'])
+                            ? (int) $column['index']
+                            : null,
+
+                    'header' =>
+                        array_key_exists(
+                            'header',
+                            $column
+                        )
+                        && $column['header'] !== null
+                            ? (string) $column['header']
+                            : null,
+
+                    'primitive_types' =>
+                        is_array(
+                            $column['primitive_types']
+                            ?? null
+                        )
+                            ? $column['primitive_types']
+                            : [],
+
+                    'empty_count' =>
+                        isset($column['empty_count'])
+                            ? (int) $column['empty_count']
+                            : null,
+
+                    'non_empty_count' =>
+                        isset($column['non_empty_count'])
+                            ? (int) $column['non_empty_count']
+                            : null,
+
+                    'empty_ratio' =>
+                        isset($column['empty_ratio'])
+                            ? (float) $column['empty_ratio']
+                            : null,
+
+                    'non_empty_ratio' =>
+                        isset($column['non_empty_ratio'])
+                            ? (float) $column['non_empty_ratio']
+                            : null,
+
+                    'min_length' =>
+                        isset($column['min_length'])
+                            ? (int) $column['min_length']
+                            : null,
+
+                    'max_length' =>
+                        isset($column['max_length'])
+                            ? (int) $column['max_length']
+                            : null,
+
+                    'profiled_value_count' =>
+                        isset($column['profiled_value_count'])
+                            ? (int) $column['profiled_value_count']
+                            : null,
+                ];
+            }
+
+            $safeSheets[] = [
+                'index' =>
+                    (int) $sheet['index'],
+
+                'name' =>
+                    isset($sheet['name'])
+                    && $sheet['name'] !== null
+                        ? (string) $sheet['name']
+                        : null,
+
+                'source_row_count' =>
+                    isset($sheet['source_row_count'])
+                        ? (int) $sheet['source_row_count']
+                        : null,
+
+                'profiled_row_count' =>
+                    isset($sheet['profiled_row_count'])
+                        ? (int) $sheet['profiled_row_count']
+                        : null,
+
+                'column_count' =>
+                    count(
+                        $safeColumns
+                    ),
+
+                'columns' =>
+                    $safeColumns,
+            ];
+        }
+
+        $mappings =
+            DataTransformationBiSourceAssetMapping::query()
+                ->where(
+                    'company_id',
+                    (int) $implementationRequest->company_id
+                )
+                ->where(
+                    'data_transformation_bi_intake_session_id',
+                    (int) $session->getKey()
+                )
+                ->where(
+                    'data_transformation_bi_source_asset_id',
+                    (int) $asset->getKey()
+                )
+                ->with([
+                    'fieldMappings' =>
+                        static function ($query): void {
+                            $query
+                                ->orderBy(
+                                    'canonical_field_key'
+                                )
+                                ->orderBy(
+                                    'id'
+                                );
+                        },
+                ])
+                ->orderBy(
+                    'canonical_entity_key'
+                )
+                ->orderBy(
+                    'source_sheet_index'
+                )
+                ->orderByDesc(
+                    'mapping_version'
+                )
+                ->get();
+
+        return [
+            'canonical_registry' => [
+                'version' =>
+                    $this->canonicalRegistry
+                        ->version(),
+
+                'entities' =>
+                    array_values(
+                        $this->canonicalRegistry
+                            ->entities()
+                    ),
+
+                'relationships' =>
+                    $this->canonicalRegistry
+                        ->relationships(),
+            ],
+
+            'source' => [
+                'id' =>
+                    (int) $asset->getKey(),
+
+                'display_name' =>
+                    (string) $asset->display_name,
+
+                'source_object_name' =>
+                    (string) $asset->source_object_name,
+
+                'profile_version' =>
+                    (int) (
+                        $currentProfile['version']
+                        ?? 0
+                    ),
+
+                'sheets' =>
+                    $safeSheets,
+            ],
+
+            'mappings' =>
+                $mappings
+                    ->map(
+                        fn (
+                            DataTransformationBiSourceAssetMapping $mapping
+                        ): array =>
+                            $this->mappingPayload(
+                                $mapping
+                            )
+                    )
+                    ->values()
+                    ->all(),
+        ];
+    }
+
     public function startDraft(
         TransformationImplementationRequest $implementationRequest,
         DataTransformationBiIntakeSession $session,
@@ -874,6 +1185,139 @@ final class DataTransformationBiSourceAssetMappingService
             ->findOrFail(
                 (int) $mapping->getKey()
             );
+    }
+
+    /**
+     * Safe Admin representation of one source-centric mapping.
+     *
+     * Source SHA, private storage location and raw/sample values are not
+     * exposed to the browser.
+     *
+     * @return array<string,mixed>
+     */
+    private function mappingPayload(
+        DataTransformationBiSourceAssetMapping $mapping
+    ): array {
+        $fields =
+            $mapping->relationLoaded(
+                'fieldMappings'
+            )
+                ? $mapping->fieldMappings
+                : $mapping
+                    ->fieldMappings()
+                    ->orderBy(
+                        'canonical_field_key'
+                    )
+                    ->orderBy(
+                        'id'
+                    )
+                    ->get();
+
+        return [
+            'id' =>
+                (int) $mapping->getKey(),
+
+            'canonical_entity_key' =>
+                (string) $mapping->canonical_entity_key,
+
+            'canonical_registry_version' =>
+                (int) $mapping->canonical_registry_version,
+
+            'source_profile_version' =>
+                (int) $mapping->source_profile_version,
+
+            'source_sheet_index' =>
+                (int) $mapping->source_sheet_index,
+
+            'source_sheet_name' =>
+                $mapping->source_sheet_name !== null
+                    ? (string) $mapping->source_sheet_name
+                    : null,
+
+            'mapping_version' =>
+                (int) $mapping->mapping_version,
+
+            'status' =>
+                (string) $mapping->status,
+
+            'notes' =>
+                $mapping->notes !== null
+                    ? (string) $mapping->notes
+                    : null,
+
+            'validated_at' =>
+                $mapping->validated_at
+                    ?->toISOString(),
+
+            'created_at' =>
+                $mapping->created_at
+                    ?->toISOString(),
+
+            'updated_at' =>
+                $mapping->updated_at
+                    ?->toISOString(),
+
+            'fields' =>
+                $fields
+                    ->map(
+                        static function (
+                            DataTransformationBiSourceAssetFieldMapping $field
+                        ): array {
+                            return [
+                                'id' =>
+                                    (int) $field->getKey(),
+
+                                'canonical_field_key' =>
+                                    (string) $field->canonical_field_key,
+
+                                'source_column_key' =>
+                                    $field->source_column_key !== null
+                                        ? (string) $field->source_column_key
+                                        : null,
+
+                                'source_column_index' =>
+                                    $field->source_column_index !== null
+                                        ? (int) $field->source_column_index
+                                        : null,
+
+                                'source_header' =>
+                                    $field->source_header !== null
+                                        ? (string) $field->source_header
+                                        : null,
+
+                                'mapping_type' =>
+                                    (string) $field->mapping_type,
+
+                                'default_value' =>
+                                    $field->default_value !== null
+                                        ? (string) $field->default_value
+                                        : null,
+
+                                'transformation_key' =>
+                                    $field->transformation_key !== null
+                                        ? (string) $field->transformation_key
+                                        : null,
+
+                                'configuration_snapshot' =>
+                                    is_array(
+                                        $field->configuration_snapshot
+                                    )
+                                        ? $field->configuration_snapshot
+                                        : null,
+
+                                'status' =>
+                                    (string) $field->status,
+
+                                'notes' =>
+                                    $field->notes !== null
+                                        ? (string) $field->notes
+                                        : null,
+                            ];
+                        }
+                    )
+                    ->values()
+                    ->all(),
+        ];
     }
 
     private function assertCurrentCanonicalRegistry(

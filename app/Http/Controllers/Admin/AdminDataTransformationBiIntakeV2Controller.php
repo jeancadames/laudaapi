@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\DataTransformationBiIntakeSession;
 use App\Models\DataTransformationBiSourceAsset;
+use App\Models\DataTransformationBiSourceAssetMapping;
 use App\Models\TransformationImplementationRequest;
 use App\Models\User;
 use App\Services\Diagnosis\DataTransformationBiIntakeV2DomainDeliveryService;
@@ -13,6 +14,7 @@ use App\Services\Diagnosis\DataTransformationBiSourceAssetService;
 use App\Services\Diagnosis\DataTransformationBiSourceAssetStructureService;
 use App\Services\Diagnosis\DataTransformationBiSourceAssetDataUploadService;
 use App\Services\Diagnosis\DataTransformationBiSourceAssetProfilingDispatchService;
+use App\Services\Diagnosis\DataTransformationBiSourceAssetMappingService;
 use App\Services\Diagnosis\DataTransformationBiSourceDomainUploadService;
 use App\Services\Diagnosis\DataTransformationBiSqlServerExtractionAssistant;
 use App\Services\Diagnosis\DataTransformationBiIntakeV2SessionResolutionService;
@@ -1033,6 +1035,309 @@ final class AdminDataTransformationBiIntakeV2Controller extends Controller
     }
 
 
+    /**
+     * Read-only Admin LAUDA mapping workspace.
+     *
+     * GET must never create or resume a mapping implicitly.
+     */
+    public function sourceAssetMappingWorkspace(
+        Request $request,
+        TransformationImplementationRequest $implementationRequest,
+        int $sessionId,
+        int $sourceAssetId,
+        DataTransformationBiSourceAssetMappingService $service
+    ): JsonResponse {
+        $actor =
+            $this->actor(
+                $request
+            );
+
+        $this->assertRequest(
+            $implementationRequest
+        );
+
+        $session =
+            $this->scopedSession(
+                $implementationRequest,
+                $sessionId
+            );
+
+        $asset =
+            $this->scopedSourceAsset(
+                $implementationRequest,
+                $session,
+                $sourceAssetId
+            );
+
+        try {
+            $workspace =
+                $service->workspace(
+                    $implementationRequest,
+                    $session,
+                    $asset,
+                    $actor
+                );
+        } catch (
+            ValidationException $exception
+        ) {
+            return $this->validationError(
+                $exception,
+                'No se pudo preparar la vista de Mapeo LAUDA.'
+            );
+        } catch (
+            RuntimeException $exception
+        ) {
+            return $this->runtimeError(
+                $exception
+            );
+        }
+
+        return response()->json([
+            'ok' =>
+                true,
+
+            'workspace' =>
+                $workspace,
+        ]);
+    }
+
+    /**
+     * Explicitly create or resume one mapping draft for entity + sheet.
+     */
+    public function startSourceAssetMapping(
+        Request $request,
+        TransformationImplementationRequest $implementationRequest,
+        int $sessionId,
+        int $sourceAssetId,
+        DataTransformationBiSourceAssetMappingService $service
+    ): JsonResponse {
+        $actor =
+            $this->actor(
+                $request
+            );
+
+        $this->assertRequest(
+            $implementationRequest
+        );
+
+        $session =
+            $this->scopedSession(
+                $implementationRequest,
+                $sessionId
+            );
+
+        $asset =
+            $this->scopedSourceAsset(
+                $implementationRequest,
+                $session,
+                $sourceAssetId
+            );
+
+        $validated =
+            $request->validate([
+                'canonical_entity_key' => [
+                    'required',
+                    'string',
+                    'max:100',
+                ],
+
+                'source_sheet_index' => [
+                    'required',
+                    'integer',
+                    'min:0',
+                ],
+            ]);
+
+        try {
+            $mapping =
+                $service->startDraft(
+                    $implementationRequest,
+                    $session,
+                    $asset,
+                    (string) $validated[
+                        'canonical_entity_key'
+                    ],
+                    (int) $validated[
+                        'source_sheet_index'
+                    ],
+                    $actor
+                );
+
+            $workspace =
+                $service->workspace(
+                    $implementationRequest,
+                    $session,
+                    $asset,
+                    $actor
+                );
+        } catch (
+            ValidationException $exception
+        ) {
+            return $this->validationError(
+                $exception,
+                'No se pudo iniciar el mapeo LAUDA.'
+            );
+        } catch (
+            RuntimeException $exception
+        ) {
+            return $this->runtimeError(
+                $exception
+            );
+        }
+
+        return response()->json([
+            'ok' =>
+                true,
+
+            'message' =>
+                'Mapeo LAUDA preparado correctamente.',
+
+            'mapping_id' =>
+                (int) $mapping->getKey(),
+
+            'workspace' =>
+                $workspace,
+        ]);
+    }
+
+    /**
+     * Replace the complete field-decision set of one editable mapping.
+     */
+    public function replaceSourceAssetMappingFields(
+        Request $request,
+        TransformationImplementationRequest $implementationRequest,
+        int $sessionId,
+        int $sourceAssetId,
+        int $mappingId,
+        DataTransformationBiSourceAssetMappingService $service
+    ): JsonResponse {
+        $actor =
+            $this->actor(
+                $request
+            );
+
+        $this->assertRequest(
+            $implementationRequest
+        );
+
+        $session =
+            $this->scopedSession(
+                $implementationRequest,
+                $sessionId
+            );
+
+        $asset =
+            $this->scopedSourceAsset(
+                $implementationRequest,
+                $session,
+                $sourceAssetId
+            );
+
+        $mapping =
+            $this->scopedSourceAssetMapping(
+                $implementationRequest,
+                $session,
+                $asset,
+                $mappingId
+            );
+
+        $validated =
+            $request->validate([
+                'decisions' => [
+                    'present',
+                    'array',
+                    'max:1000',
+                ],
+
+                'decisions.*.canonical_field_key' => [
+                    'required',
+                    'string',
+                    'max:100',
+                ],
+
+                'decisions.*.mapping_type' => [
+                    'required',
+                    'string',
+                    'in:direct,default,transform,unmapped',
+                ],
+
+                'decisions.*.source_column_key' => [
+                    'nullable',
+                    'string',
+                    'max:191',
+                ],
+
+                'decisions.*.default_value' => [
+                    'nullable',
+                    'string',
+                    'max:4000',
+                ],
+
+                'decisions.*.transformation_key' => [
+                    'nullable',
+                    'string',
+                    'max:100',
+                ],
+
+                'decisions.*.configuration_snapshot' => [
+                    'nullable',
+                    'array',
+                ],
+
+                'decisions.*.notes' => [
+                    'nullable',
+                    'string',
+                    'max:4000',
+                ],
+            ]);
+
+        try {
+            $service->replaceFieldMappings(
+                $implementationRequest,
+                $session,
+                $asset,
+                $mapping,
+                $validated['decisions'],
+                $actor
+            );
+
+            $workspace =
+                $service->workspace(
+                    $implementationRequest,
+                    $session,
+                    $asset,
+                    $actor
+                );
+        } catch (
+            ValidationException $exception
+        ) {
+            return $this->validationError(
+                $exception,
+                'No se pudieron guardar las decisiones de mapeo.'
+            );
+        } catch (
+            RuntimeException $exception
+        ) {
+            return $this->runtimeError(
+                $exception
+            );
+        }
+
+        return response()->json([
+            'ok' =>
+                true,
+
+            'message' =>
+                'Decisiones de mapeo guardadas correctamente.',
+
+            'mapping_id' =>
+                (int) $mapping->getKey(),
+
+            'workspace' =>
+                $workspace,
+        ]);
+    }
+
     public function updateSourceAssetStructure(
         Request $request,
         TransformationImplementationRequest $implementationRequest,
@@ -1527,6 +1832,39 @@ final class AdminDataTransformationBiIntakeV2Controller extends Controller
         );
 
         return $asset;
+    }
+
+    private function scopedSourceAssetMapping(
+        TransformationImplementationRequest $implementationRequest,
+        DataTransformationBiIntakeSession $session,
+        DataTransformationBiSourceAsset $asset,
+        int $mappingId
+    ): DataTransformationBiSourceAssetMapping {
+        $mapping =
+            DataTransformationBiSourceAssetMapping::query()
+                ->whereKey(
+                    $mappingId
+                )
+                ->where(
+                    'company_id',
+                    (int) $implementationRequest->company_id
+                )
+                ->where(
+                    'data_transformation_bi_intake_session_id',
+                    (int) $session->getKey()
+                )
+                ->where(
+                    'data_transformation_bi_source_asset_id',
+                    (int) $asset->getKey()
+                )
+                ->first();
+
+        abort_unless(
+            $mapping !== null,
+            404
+        );
+
+        return $mapping;
     }
 
     /**

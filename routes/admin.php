@@ -532,6 +532,57 @@ Route::middleware(['auth', 'verified', 'role:admin'])
                 );
 
 
+          /*
+          |--------------------------------------------------------------------------
+          | Data BI · Admin LAUDA · Source-centric canonical mapping
+          |--------------------------------------------------------------------------
+          |
+          | GET is strictly read-only.
+          | Draft creation/resume and field decisions require explicit writes.
+          |
+          */
+
+          \Illuminate\Support\Facades\Route::get(
+              '/transformation-360/implementation-requests/{implementationRequest}/standard-intake-v2/sessions/{sessionId}/source-assets/{sourceAssetId}/mapping-workspace',
+              [
+                  \App\Http\Controllers\Admin\AdminDataTransformationBiIntakeV2Controller::class,
+                  'sourceAssetMappingWorkspace',
+              ]
+          )
+              ->whereNumber('sessionId')
+              ->whereNumber('sourceAssetId')
+              ->name(
+                  'transformation360.implementation_requests.standard_intake_v2.source_assets.mapping.workspace'
+              );
+
+          \Illuminate\Support\Facades\Route::post(
+              '/transformation-360/implementation-requests/{implementationRequest}/standard-intake-v2/sessions/{sessionId}/source-assets/{sourceAssetId}/mappings',
+              [
+                  \App\Http\Controllers\Admin\AdminDataTransformationBiIntakeV2Controller::class,
+                  'startSourceAssetMapping',
+              ]
+          )
+              ->whereNumber('sessionId')
+              ->whereNumber('sourceAssetId')
+              ->name(
+                  'transformation360.implementation_requests.standard_intake_v2.source_assets.mappings.start'
+              );
+
+          \Illuminate\Support\Facades\Route::put(
+              '/transformation-360/implementation-requests/{implementationRequest}/standard-intake-v2/sessions/{sessionId}/source-assets/{sourceAssetId}/mappings/{mappingId}/fields',
+              [
+                  \App\Http\Controllers\Admin\AdminDataTransformationBiIntakeV2Controller::class,
+                  'replaceSourceAssetMappingFields',
+              ]
+          )
+              ->whereNumber('sessionId')
+              ->whereNumber('sourceAssetId')
+              ->whereNumber('mappingId')
+              ->name(
+                  'transformation360.implementation_requests.standard_intake_v2.source_assets.mappings.fields.replace'
+              );
+
+
           \Illuminate\Support\Facades\Route::post(
               '/transformation-360/implementation-requests/{implementationRequest}/standard-intake-v2/sessions/{sessionId}/source-assets/{sourceAssetId}/sql-server-extraction/preview',
               [
