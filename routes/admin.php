@@ -518,6 +518,20 @@ Route::middleware(['auth', 'verified', 'role:admin'])
                   'transformation360.implementation_requests.standard_intake_v2.source_assets.profile'
               );
 
+            \Illuminate\Support\Facades\Route::get(
+                '/transformation-360/implementation-requests/{implementationRequest}/standard-intake-v2/sessions/{sessionId}/source-assets/{sourceAssetId}/profile-status',
+                [
+                    \App\Http\Controllers\Admin\AdminDataTransformationBiIntakeV2Controller::class,
+                    'profileSourceAssetStatus',
+                ]
+            )
+                ->whereNumber('sessionId')
+                ->whereNumber('sourceAssetId')
+                ->name(
+                    'transformation360.implementation_requests.standard_intake_v2.source_assets.profile.status'
+                );
+
+
           \Illuminate\Support\Facades\Route::post(
               '/transformation-360/implementation-requests/{implementationRequest}/standard-intake-v2/sessions/{sessionId}/source-assets/{sourceAssetId}/sql-server-extraction/preview',
               [

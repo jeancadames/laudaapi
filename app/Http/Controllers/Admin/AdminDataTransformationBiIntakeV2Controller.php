@@ -12,7 +12,7 @@ use App\Services\Diagnosis\DataTransformationBiSourceDomainRegistry;
 use App\Services\Diagnosis\DataTransformationBiSourceAssetService;
 use App\Services\Diagnosis\DataTransformationBiSourceAssetStructureService;
 use App\Services\Diagnosis\DataTransformationBiSourceAssetDataUploadService;
-use App\Services\Diagnosis\DataTransformationBiSourceAssetProfilingService;
+use App\Services\Diagnosis\DataTransformationBiSourceAssetProfilingDispatchService;
 use App\Services\Diagnosis\DataTransformationBiSourceDomainUploadService;
 use App\Services\Diagnosis\DataTransformationBiSqlServerExtractionAssistant;
 use App\Services\Diagnosis\DataTransformationBiIntakeV2SessionResolutionService;
@@ -929,7 +929,7 @@ final class AdminDataTransformationBiIntakeV2Controller extends Controller
         TransformationImplementationRequest $implementationRequest,
         int $sessionId,
         int $sourceAssetId,
-        DataTransformationBiSourceAssetProfilingService $service
+        DataTransformationBiSourceAssetProfilingDispatchService $service
     ): JsonResponse {
         $actor =
             $this->actor(
@@ -954,18 +954,19 @@ final class AdminDataTransformationBiIntakeV2Controller extends Controller
             );
 
         try {
-            $service->profile(
-                $implementationRequest,
-                $session,
-                $asset,
-                $actor
-            );
+            $queuedAsset =
+                $service->dispatch(
+                    $implementationRequest,
+                    $session,
+                    $asset,
+                    $actor
+                );
         } catch (
             ValidationException $exception
         ) {
             return $this->validationError(
                 $exception,
-                'No se pudo completar el profiling técnico de la fuente.'
+                'No se pudo iniciar el profiling técnico de la fuente.'
             );
         } catch (
             RuntimeException $exception
@@ -975,20 +976,58 @@ final class AdminDataTransformationBiIntakeV2Controller extends Controller
             );
         }
 
-        $updatedAsset =
-            $asset->fresh()
-            ?? $asset;
+        return response()->json(
+            [
+                'ok' =>
+                    true,
+
+                'message' =>
+                    'Profiling técnico encolado correctamente.',
+
+                'source_asset' =>
+                    $this->sourceAssetPayload(
+                        $queuedAsset
+                    ),
+            ],
+            202
+        );
+    }
+
+    public function profileSourceAssetStatus(
+        Request $request,
+        TransformationImplementationRequest $implementationRequest,
+        int $sessionId,
+        int $sourceAssetId
+    ): JsonResponse {
+        $this->actor(
+            $request
+        );
+
+        $this->assertRequest(
+            $implementationRequest
+        );
+
+        $session =
+            $this->scopedSession(
+                $implementationRequest,
+                $sessionId
+            );
+
+        $asset =
+            $this->scopedSourceAsset(
+                $implementationRequest,
+                $session,
+                $sourceAssetId
+            );
 
         return response()->json([
             'ok' =>
                 true,
 
-            'message' =>
-                'Profiling técnico de la fuente completado correctamente.',
-
             'source_asset' =>
                 $this->sourceAssetPayload(
-                    $updatedAsset
+                    $asset->fresh()
+                    ?? $asset
                 ),
         ]);
     }
@@ -1553,6 +1592,25 @@ final class AdminDataTransformationBiIntakeV2Controller extends Controller
 
             'profiling_snapshot' =>
                 $asset->profiling_snapshot,
+
+            'profiling_status' =>
+                (string) (
+                    $asset->profiling_status
+                    ?? DataTransformationBiSourceAsset
+                        ::PROFILING_IDLE
+                ),
+
+            'profiling_queued_at' =>
+                $asset->profiling_queued_at
+                    ?->toISOString(),
+
+            'profiling_started_at' =>
+                $asset->profiling_started_at
+                    ?->toISOString(),
+
+            'profiling_finished_at' =>
+                $asset->profiling_finished_at
+                    ?->toISOString(),
 
             'sort_order' =>
                 (int) $asset->sort_order,

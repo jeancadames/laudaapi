@@ -1,4 +1,8 @@
 <script setup lang="ts">
+import {
+    onBeforeUnmount as onBeforeUnmountDynamicProfile,
+    watch as watchDynamicProfile,
+} from 'vue';
 import AppLayout from '@/layouts/AppLayout.vue';
 import { Head, Link, router, useForm } from '@inertiajs/vue3';
 import {
@@ -436,6 +440,16 @@ type DynamicSourceAsset = {
     data_status: string;
     structure_snapshot?: Record<string, unknown> | null;
     profiling_snapshot?: Record<string, unknown> | null;
+    profiling_status?:
+        | 'idle'
+        | 'queued'
+        | 'processing'
+        | 'completed'
+        | 'failed'
+        | string;
+    profiling_queued_at?: string | null;
+    profiling_started_at?: string | null;
+    profiling_finished_at?: string | null;
     data_file?: DynamicSourceDataFile | null;
     sort_order: number;
     structure_analyzed_at?: string | null;
@@ -864,6 +878,249 @@ function upsertDynamicSourceAsset(
         );
 }
 
+const DYNAMIC_SOURCE_PROFILE_POLL_INTERVAL_MS =
+    2000;
+
+const DYNAMIC_SOURCE_PROFILE_POLL_ATTEMPTS =
+    75;
+
+const dynamicSourceProfilePollers =
+    new Map<number, Promise<void>>();
+
+let dynamicSourceProfilePollingStopped =
+    false;
+
+function dynamicSourceProfilingRunning(
+    asset?: DynamicSourceAsset | null,
+): boolean {
+    return (
+        asset?.profiling_status === 'queued'
+        || asset?.profiling_status === 'processing'
+    );
+}
+
+function dynamicSourceProfileDelay(
+    milliseconds: number,
+): Promise<void> {
+    return new Promise(
+        (resolve) => {
+            window.setTimeout(
+                resolve,
+                milliseconds,
+            );
+        },
+    );
+}
+
+async function runDynamicSourceAssetProfilingPoll(
+    assetId: number,
+    sessionId: number,
+): Promise<void> {
+    for (
+        let attempt = 0;
+        attempt < DYNAMIC_SOURCE_PROFILE_POLL_ATTEMPTS;
+        attempt += 1
+    ) {
+        if (dynamicSourceProfilePollingStopped) {
+            return;
+        }
+
+        await dynamicSourceProfileDelay(
+            DYNAMIC_SOURCE_PROFILE_POLL_INTERVAL_MS,
+        );
+
+        if (dynamicSourceProfilePollingStopped) {
+            return;
+        }
+
+        const payload =
+            await standardIntakeV2Request(
+                `${standardIntakeV2BaseUrl}/sessions/${sessionId}/source-assets/${assetId}/profile-status`,
+                {
+                    method: 'GET',
+                },
+            );
+
+        if (!payload.source_asset) {
+            throw new Error(
+                'La respuesta de estado no contiene la fuente.',
+            );
+        }
+
+        const current =
+            payload.source_asset;
+
+        upsertDynamicSourceAsset(
+            current,
+        );
+
+        if (
+            current.profiling_status === 'completed'
+            || (
+                current.data_status === 'analyzed'
+                && current.profiling_snapshot
+            )
+        ) {
+            dynamicSourceProfilingFeedbackId.value =
+                assetId;
+
+            dynamicSourceProfilingMessage.value =
+                'Profiling técnico completado correctamente.';
+
+            dynamicSourceProfilingError.value =
+                null;
+
+            return;
+        }
+
+        if (current.profiling_status === 'failed') {
+            throw new Error(
+                current.failure_message
+                ?? 'No se pudo completar el profiling técnico.',
+            );
+        }
+
+        if (
+            current.profiling_status !== 'queued'
+            && current.profiling_status !== 'processing'
+        ) {
+            throw new Error(
+                'El profiling técnico quedó en un estado inesperado.',
+            );
+        }
+    }
+
+    throw new Error(
+        'No fue posible confirmar la finalización del profiling técnico dentro del tiempo esperado.',
+    );
+}
+
+function pollDynamicSourceAssetProfiling(
+    assetId: number,
+    sessionId: number,
+): Promise<void> {
+    const existing =
+        dynamicSourceProfilePollers.get(
+            assetId,
+        );
+
+    if (existing) {
+        return existing;
+    }
+
+    const poll =
+        runDynamicSourceAssetProfilingPoll(
+            assetId,
+            sessionId,
+        )
+            .finally(
+                () => {
+                    dynamicSourceProfilePollers.delete(
+                        assetId,
+                    );
+                },
+            );
+
+    dynamicSourceProfilePollers.set(
+        assetId,
+        poll,
+    );
+
+    return poll;
+}
+
+function resumeDynamicSourceAssetProfiling(): void {
+    if (dynamicSourceProfilePollingStopped) {
+        return;
+    }
+
+    const sessionId =
+        standardIntakeV2SessionId();
+
+    if (sessionId === null) {
+        return;
+    }
+
+    const sourceAssets =
+        standardIntakeV2State.value
+            ?.source_assets
+        ?? [];
+
+    for (const asset of sourceAssets) {
+        if (
+            !dynamicSourceProfilingRunning(asset)
+            || dynamicSourceProfilePollers.has(
+                asset.id,
+            )
+        ) {
+            continue;
+        }
+
+        dynamicSourceProfilingFeedbackId.value =
+            asset.id;
+
+        dynamicSourceProfilingError.value =
+            null;
+
+        dynamicSourceProfilingMessage.value =
+            'Profiling técnico en proceso. Esperando resultado...';
+
+        void pollDynamicSourceAssetProfiling(
+            asset.id,
+            sessionId,
+        )
+            .catch(
+                (error) => {
+                    if (
+                        dynamicSourceProfilePollingStopped
+                    ) {
+                        return;
+                    }
+
+                    dynamicSourceProfilingFeedbackId.value =
+                        asset.id;
+
+                    dynamicSourceProfilingError.value =
+                        error instanceof Error
+                            ? error.message
+                            : 'No se pudo completar el profiling técnico.';
+
+                    dynamicSourceProfilingMessage.value =
+                        null;
+                },
+            );
+    }
+}
+
+watchDynamicProfile(
+    () =>
+        (
+            standardIntakeV2State.value
+                ?.source_assets
+            ?? []
+        )
+            .map(
+                (asset) =>
+                    `${asset.id}:${asset.profiling_status ?? 'idle'}`,
+            )
+            .join('|'),
+    () => {
+        resumeDynamicSourceAssetProfiling();
+    },
+    {
+        immediate: true,
+    },
+);
+
+onBeforeUnmountDynamicProfile(
+    () => {
+        dynamicSourceProfilePollingStopped =
+            true;
+
+        dynamicSourceProfilePollers.clear();
+    },
+);
+
 async function profileDynamicSourceAsset(
     asset: DynamicSourceAsset,
 ): Promise<void> {
@@ -896,6 +1153,13 @@ async function profileDynamicSourceAsset(
         return;
     }
 
+    if (dynamicSourceProfilingRunning(asset)) {
+        dynamicSourceProfilingMessage.value =
+            'El profiling técnico de esta fuente ya está en proceso.';
+
+        return;
+    }
+
     dynamicSourceBusy.value =
         `profile:${asset.id}`;
 
@@ -910,7 +1174,7 @@ async function profileDynamicSourceAsset(
 
         if (!payload.source_asset) {
             throw new Error(
-                'La respuesta no contiene la fuente perfilada.',
+                'La respuesta no contiene la fuente encolada.',
             );
         }
 
@@ -918,9 +1182,45 @@ async function profileDynamicSourceAsset(
             payload.source_asset,
         );
 
+        if (
+            payload.source_asset.profiling_status
+            === 'failed'
+        ) {
+            throw new Error(
+                payload.source_asset.failure_message
+                ?? 'No se pudo iniciar el profiling técnico.',
+            );
+        }
+
+        if (
+            payload.source_asset.profiling_status
+            === 'completed'
+        ) {
+            dynamicSourceProfilingMessage.value =
+                'Profiling técnico completado correctamente.';
+
+            return;
+        }
+
+        if (
+            payload.source_asset.profiling_status
+            !== 'queued'
+            && payload.source_asset.profiling_status
+            !== 'processing'
+        ) {
+            throw new Error(
+                'La fuente no quedó encolada para profiling técnico.',
+            );
+        }
+
         dynamicSourceProfilingMessage.value =
             payload.message
-            ?? 'Profiling técnico completado correctamente.';
+            ?? 'Profiling técnico encolado. Esperando resultado...';
+
+        await pollDynamicSourceAssetProfiling(
+            asset.id,
+            sessionId,
+        );
     } catch (error) {
         dynamicSourceProfilingError.value =
             error instanceof Error
@@ -5400,6 +5700,9 @@ async function normalizeStandardIntakeBatch(): Promise<void> {
                                         :disabled="
                                             dynamicSourceBusy
                                             !== null
+                                            || dynamicSourceProfilingRunning(
+                                                dynamicSourceSelectedAsset(),
+                                            )
                                         "
                                         @click="openDynamicSourceCreateForm"
                                     >
@@ -6009,6 +6312,9 @@ async function normalizeStandardIntakeBatch(): Promise<void> {
                                         {{
                                             dynamicSourceBusy
                                                 === `profile:${dynamicSourceSelectedAsset()?.id}`
+                                                || dynamicSourceProfilingRunning(
+                                                    dynamicSourceSelectedAsset(),
+                                                )
                                                 ? 'Perfilando...'
                                                 : dynamicSourceSelectedAsset()
                                                     ?.data_status

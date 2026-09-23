@@ -484,6 +484,28 @@ final class DataTransformationBiSourceAssetDataUploadService
                             'profiling_snapshot' =>
                                 null,
 
+                            'profiling_status' =>
+                                DataTransformationBiSourceAsset
+                                    ::PROFILING_IDLE,
+
+                            /*
+                             * Replacing the artifact makes any queued/running
+                             * job obsolete. Jobs are pinned to this UUID and
+                             * will fail closed when the token no longer
+                             * matches.
+                             */
+                            'profiling_job_uuid' =>
+                                null,
+
+                            'profiling_queued_at' =>
+                                null,
+
+                            'profiling_started_at' =>
+                                null,
+
+                            'profiling_finished_at' =>
+                                null,
+
                             'structure_analyzed_at' =>
                                 now(),
 

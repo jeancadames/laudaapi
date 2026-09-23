@@ -60,6 +60,16 @@ final class DataTransformationBiSourceAssetProfilingHttpContractTest
         );
 
         self::assertStringContainsString(
+            '/source-assets/{sourceAssetId}/profile-status',
+            $this->routes
+        );
+
+        self::assertStringContainsString(
+            "'profileSourceAssetStatus'",
+            $this->routes
+        );
+
+        self::assertStringContainsString(
             "->whereNumber('sessionId')",
             $this->routes
         );
@@ -81,8 +91,8 @@ final class DataTransformationBiSourceAssetProfilingHttpContractTest
                 '$this->assertRequest(',
                 '$this->scopedSession(',
                 '$this->scopedSourceAsset(',
-                'DataTransformationBiSourceAssetProfilingService $service',
-                '$service->profile(',
+                'DataTransformationBiSourceAssetProfilingDispatchService $service',
+                '$service->dispatch(',
             ]
             as $required
         ) {

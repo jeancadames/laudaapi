@@ -22,6 +22,12 @@ class DataTransformationBiSourceAsset extends Model
     public const DATA_RECEIVED = 'received';
     public const DATA_ANALYZED = 'analyzed';
 
+    public const PROFILING_IDLE = 'idle';
+    public const PROFILING_QUEUED = 'queued';
+    public const PROFILING_PROCESSING = 'processing';
+    public const PROFILING_COMPLETED = 'completed';
+    public const PROFILING_FAILED = 'failed';
+
     public const DELIVERY_CSV = 'csv';
     public const DELIVERY_XLSX = 'xlsx';
 
@@ -53,6 +59,11 @@ class DataTransformationBiSourceAsset extends Model
         'data_status',
         'structure_snapshot',
         'profiling_snapshot',
+        'profiling_status',
+        'profiling_job_uuid',
+        'profiling_queued_at',
+        'profiling_started_at',
+        'profiling_finished_at',
         'sort_order',
         'created_by_user_id',
         'updated_by_user_id',
@@ -78,6 +89,15 @@ class DataTransformationBiSourceAsset extends Model
 
             'profiling_snapshot' =>
                 'array',
+
+            'profiling_queued_at' =>
+                'datetime',
+
+            'profiling_started_at' =>
+                'datetime',
+
+            'profiling_finished_at' =>
+                'datetime',
 
             'sort_order' =>
                 'integer',
