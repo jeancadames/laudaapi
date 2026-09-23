@@ -23,8 +23,18 @@ final class DataTransformationBiSourceValueProfiler
     /*
      * XLSX is read in bounded row windows instead of loading an entire
      * potentially large worksheet into memory.
+     *
+     * The row window alone is not sufficient because worksheet width can
+     * vary dramatically. A 10,000-row chunk with 148 columns can create
+     * well over one million PhpSpreadsheet cell objects.
+     *
+     * Keep both:
+     * - an upper bound on physical rows scanned per load;
+     * - an upper bound on sampled cells materialized per load.
      */
-    private const XLSX_CHUNK_PHYSICAL_ROWS = 10000;
+    private const MAX_XLSX_CHUNK_PHYSICAL_ROWS = 10000;
+
+    private const MAX_XLSX_CELLS_PER_CHUNK = 32768;
 
     public function __construct(
         private readonly DataTransformationBiStandardIntakeResourceGuard
@@ -463,17 +473,32 @@ final class DataTransformationBiSourceValueProfiler
                 continue;
             }
 
+            $columnCount =
+                max(
+                    1,
+                    (int) (
+                        $profile['column_count']
+                        ?? 0
+                    )
+                );
+
+            $chunkPhysicalRows =
+                $this->xlsxChunkPhysicalRows(
+                    $columnCount,
+                    $stride
+                );
+
             for (
                 $chunkStart = $dataStartRow;
                 $chunkStart <= $lastPhysicalRow;
                 $chunkStart +=
-                    self::XLSX_CHUNK_PHYSICAL_ROWS
+                    $chunkPhysicalRows
             ) {
                 $chunkEnd =
                     min(
                         $lastPhysicalRow,
                         $chunkStart
-                            + self::XLSX_CHUNK_PHYSICAL_ROWS
+                            + $chunkPhysicalRows
                             - 1
                     );
 
@@ -496,14 +521,16 @@ final class DataTransformationBiSourceValueProfiler
                         $chunkStart,
                         $chunkEnd,
                         $dataStartRow,
-                        $stride
+                        $stride,
+                        $columnCount
                     ) implements IReadFilter {
                         public function __construct(
                             private readonly string $sheetName,
                             private readonly int $startRow,
                             private readonly int $endRow,
                             private readonly int $dataStartRow,
-                            private readonly int $stride
+                            private readonly int $stride,
+                            private readonly int $maxColumnIndex
                         ) {
                         }
 
@@ -526,6 +553,15 @@ final class DataTransformationBiSourceValueProfiler
                                 return false;
                             }
 
+                            if (
+                                Coordinate::columnIndexFromString(
+                                    $columnAddress
+                                )
+                                > $this->maxColumnIndex
+                            ) {
+                                return false;
+                            }
+
                             return (
                                 (
                                     $row
@@ -538,6 +574,7 @@ final class DataTransformationBiSourceValueProfiler
                 );
 
                 $spreadsheet = null;
+                $worksheet = null;
 
                 try {
                     $spreadsheet =
@@ -595,10 +632,15 @@ final class DataTransformationBiSourceValueProfiler
 
                             $row[] =
                                 $worksheet
-                                    ->getCell(
+                                    ->cellExists(
                                         $coordinate
                                     )
-                                    ->getValue();
+                                    ? $worksheet
+                                        ->getCell(
+                                            $coordinate
+                                        )
+                                        ->getValue()
+                                    : null;
                         }
 
                         $this->profileRow(
@@ -620,8 +662,12 @@ final class DataTransformationBiSourceValueProfiler
                     }
 
                     unset(
-                        $spreadsheet
+                        $worksheet,
+                        $spreadsheet,
+                        $reader
                     );
+
+                    gc_collect_cycles();
                 }
             }
 
@@ -632,6 +678,49 @@ final class DataTransformationBiSourceValueProfiler
         }
 
         return $profiles;
+    }
+
+    private function xlsxChunkPhysicalRows(
+        int $columnCount,
+        int $stride
+    ): int {
+        $safeColumnCount =
+            max(
+                1,
+                $columnCount
+            );
+
+        $safeStride =
+            max(
+                1,
+                $stride
+            );
+
+        $sampledRowsPerChunk =
+            max(
+                1,
+                intdiv(
+                    self::MAX_XLSX_CELLS_PER_CHUNK,
+                    $safeColumnCount
+                )
+            );
+
+        /*
+         * A sampled row represents one physical row every $stride rows.
+         * Keeping the chunk length aligned to stride preserves deterministic
+         * sampling across chunk boundaries.
+         */
+        $physicalRows =
+            $sampledRowsPerChunk
+            * $safeStride;
+
+        return max(
+            $safeStride,
+            min(
+                self::MAX_XLSX_CHUNK_PHYSICAL_ROWS,
+                $physicalRows
+            )
+        );
     }
 
     private function profileStride(

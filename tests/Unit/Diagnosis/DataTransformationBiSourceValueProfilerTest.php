@@ -683,4 +683,90 @@ final class DataTransformationBiSourceValueProfilerTest
         }
     }
 
+
+    public function test_xlsx_chunk_size_is_bounded_by_source_width(): void
+    {
+        $guard =
+            new DataTransformationBiStandardIntakeResourceGuard();
+
+        $profiler =
+            new DataTransformationBiSourceValueProfiler(
+                $guard
+            );
+
+        $method =
+            new \ReflectionMethod(
+                DataTransformationBiSourceValueProfiler::class,
+                'xlsxChunkPhysicalRows'
+            );
+
+        $wideChunk =
+            $method->invoke(
+                $profiler,
+                148,
+                1
+            );
+
+        self::assertIsInt(
+            $wideChunk
+        );
+
+        self::assertGreaterThan(
+            0,
+            $wideChunk
+        );
+
+        self::assertLessThan(
+            10000,
+            $wideChunk
+        );
+
+        self::assertLessThanOrEqual(
+            32768,
+            $wideChunk * 148
+        );
+
+        /*
+         * For the real CTES width, one profiling load must now stay around
+         * tens of thousands of cells rather than loading all 5,309 x 148
+         * source positions at once.
+         */
+        self::assertLessThan(
+            5309,
+            $wideChunk
+        );
+
+        $sampledChunk =
+            $method->invoke(
+                $profiler,
+                148,
+                5
+            );
+
+        self::assertSame(
+            0,
+            $sampledChunk % 5
+        );
+
+        self::assertLessThanOrEqual(
+            32768,
+            intdiv(
+                $sampledChunk,
+                5
+            ) * 148
+        );
+
+        $narrowChunk =
+            $method->invoke(
+                $profiler,
+                3,
+                1
+            );
+
+        self::assertSame(
+            10000,
+            $narrowChunk
+        );
+    }
+
 }
