@@ -286,6 +286,8 @@ type StandardIntakeIngestionHttpResponse = {
     message?: string;
     errors?: Record<string, string[]>;
     ingestion?: StandardIntakeIngestionResult;
+    workspace?: DynamicSourceMappingWorkspace;
+    mapping_id?: number;
 };
 
 // D15C_INTAKE_V2_TYPES
@@ -459,6 +461,117 @@ type DynamicSourceAsset = {
     failure_message?: string | null;
     created_at?: string | null;
     updated_at?: string | null;
+};
+
+type DynamicSourceMappingType =
+    | ''
+    | 'direct'
+    | 'default'
+    | 'transform'
+    | 'unmapped';
+
+type DynamicSourceCanonicalField = {
+    key: string;
+    required: boolean;
+    type: string;
+    description: string;
+};
+
+type DynamicSourceCanonicalEntity = {
+    key: string;
+    label: string;
+    description: string;
+    identity_keys: string[];
+    fields: Record<string, DynamicSourceCanonicalField>;
+    source?: string;
+};
+
+type DynamicSourceMappingColumn = {
+    key: string;
+    index: number | null;
+    header: string | null;
+    primitive_types:
+        | Record<string, unknown>
+        | unknown[];
+    empty_count: number | null;
+    non_empty_count: number | null;
+    empty_ratio: number | null;
+    non_empty_ratio: number | null;
+    min_length: number | null;
+    max_length: number | null;
+    profiled_value_count: number | null;
+};
+
+type DynamicSourceMappingSheet = {
+    index: number;
+    name: string | null;
+    source_row_count: number | null;
+    profiled_row_count: number | null;
+    column_count: number;
+    columns: DynamicSourceMappingColumn[];
+};
+
+type DynamicSourceFieldMapping = {
+    id: number;
+    canonical_field_key: string;
+    source_column_key: string | null;
+    source_column_index: number | null;
+    source_header: string | null;
+    mapping_type:
+        | 'direct'
+        | 'default'
+        | 'transform'
+        | 'unmapped';
+    default_value: string | null;
+    transformation_key: string | null;
+    configuration_snapshot:
+        | Record<string, unknown>
+        | null;
+    status: string;
+    notes: string | null;
+};
+
+type DynamicSourceMapping = {
+    id: number;
+    canonical_entity_key: string;
+    canonical_registry_version: number;
+    source_profile_version: number;
+    source_sheet_index: number;
+    source_sheet_name: string | null;
+    mapping_version: number;
+    status: string;
+    notes: string | null;
+    validated_at: string | null;
+    created_at: string | null;
+    updated_at: string | null;
+    fields: DynamicSourceFieldMapping[];
+};
+
+type DynamicSourceMappingWorkspace = {
+    canonical_registry: {
+        version: number;
+        entities: DynamicSourceCanonicalEntity[];
+        relationships: unknown[];
+    };
+    source: {
+        id: number;
+        display_name: string;
+        source_object_name: string;
+        profile_version: number;
+        sheets: DynamicSourceMappingSheet[];
+    };
+    mappings: DynamicSourceMapping[];
+};
+
+type DynamicSourceMappingDecisionState = {
+    mapping_type: DynamicSourceMappingType;
+    source_column_key: string;
+    default_value: string;
+    transformation_key: string;
+    configuration_snapshot:
+        | Record<string, unknown>
+        | null;
+    notes: string;
 };
 
 type DynamicSourceWorkspaceTab =
@@ -1512,6 +1625,59 @@ async function moveDynamicSourceAsset(
     }
 }
 
+const dynamicSourceMappingWorkspace =
+    ref<DynamicSourceMappingWorkspace | null>(
+        null,
+    );
+
+const dynamicSourceMappingAssetId =
+    ref<number | null>(
+        null,
+    );
+
+const dynamicSourceMappingBusy =
+    ref<
+        | 'load'
+        | 'start'
+        | 'save'
+        | null
+    >(
+        null,
+    );
+
+const dynamicSourceMappingError =
+    ref<string | null>(
+        null,
+    );
+
+const dynamicSourceMappingMessage =
+    ref<string | null>(
+        null,
+    );
+
+const dynamicSourceMappingSelectedEntityKey =
+    ref<string>(
+        '',
+    );
+
+const dynamicSourceMappingSelectedSheetIndex =
+    ref<number | null>(
+        null,
+    );
+
+const dynamicSourceMappingSelectedMappingId =
+    ref<number | null>(
+        null,
+    );
+
+const dynamicSourceMappingDecisions =
+    ref<
+        Record<
+            string,
+            DynamicSourceMappingDecisionState
+        >
+    >({});
+
 const dynamicSourceSelectedId =
     ref<number | null>(null);
 
@@ -1546,6 +1712,14 @@ function openDynamicSourceWorkspace(
     asset: DynamicSourceAsset,
     tab: DynamicSourceWorkspaceTab = 'information',
 ): void {
+    if (
+        dynamicSourceMappingAssetId.value !== null
+        && dynamicSourceMappingAssetId.value
+            !== asset.id
+    ) {
+        resetDynamicSourceMappingWorkspace();
+    }
+
     dynamicSourceSelectedId.value =
         asset.id;
 
@@ -1559,7 +1733,900 @@ function openDynamicSourceWorkspace(
     dynamicSourceSqlServerForm(
         asset,
     );
+
+    if (tab === 'mapping') {
+        void loadDynamicSourceMappingWorkspace(
+            asset,
+        );
+    }
 }
+
+function selectDynamicSourceWorkspaceTab(
+    tab: DynamicSourceWorkspaceTab,
+): void {
+    dynamicSourceActiveTab.value =
+        tab;
+
+    if (tab !== 'mapping') {
+        return;
+    }
+
+    const asset =
+        dynamicSourceSelectedAsset();
+
+    if (asset) {
+        void loadDynamicSourceMappingWorkspace(
+            asset,
+        );
+    }
+}
+
+function resetDynamicSourceMappingWorkspace(): void {
+    dynamicSourceMappingWorkspace.value =
+        null;
+
+    dynamicSourceMappingAssetId.value =
+        null;
+
+    dynamicSourceMappingBusy.value =
+        null;
+
+    dynamicSourceMappingError.value =
+        null;
+
+    dynamicSourceMappingMessage.value =
+        null;
+
+    dynamicSourceMappingSelectedEntityKey.value =
+        '';
+
+    dynamicSourceMappingSelectedSheetIndex.value =
+        null;
+
+    dynamicSourceMappingSelectedMappingId.value =
+        null;
+
+    dynamicSourceMappingDecisions.value =
+        {};
+}
+
+function dynamicSourceMappingSelectedEntity():
+    DynamicSourceCanonicalEntity | null {
+    const workspace =
+        dynamicSourceMappingWorkspace.value;
+
+    if (
+        ! workspace
+        || dynamicSourceMappingSelectedEntityKey.value
+            === ''
+    ) {
+        return null;
+    }
+
+    return workspace
+        .canonical_registry
+        .entities
+        .find(
+            (entity) =>
+                entity.key
+                    === dynamicSourceMappingSelectedEntityKey.value,
+        )
+        ?? null;
+}
+
+function dynamicSourceMappingSelectedEntityFields():
+    DynamicSourceCanonicalField[] {
+    const entity =
+        dynamicSourceMappingSelectedEntity();
+
+    if (!entity) {
+        return [];
+    }
+
+    return Object.values(
+        entity.fields
+        ?? {},
+    );
+}
+
+function dynamicSourceMappingSelectedSheet():
+    DynamicSourceMappingSheet | null {
+    const workspace =
+        dynamicSourceMappingWorkspace.value;
+
+    if (
+        ! workspace
+        || dynamicSourceMappingSelectedSheetIndex.value
+            === null
+    ) {
+        return null;
+    }
+
+    return workspace
+        .source
+        .sheets
+        .find(
+            (sheet) =>
+                sheet.index
+                    === dynamicSourceMappingSelectedSheetIndex.value,
+        )
+        ?? null;
+}
+
+function dynamicSourceMappingCurrent():
+    DynamicSourceMapping | null {
+    const workspace =
+        dynamicSourceMappingWorkspace.value;
+
+    if (
+        ! workspace
+        || dynamicSourceMappingSelectedEntityKey.value
+            === ''
+        || dynamicSourceMappingSelectedSheetIndex.value
+            === null
+    ) {
+        return null;
+    }
+
+    const matches =
+        workspace.mappings
+            .filter(
+                (mapping) =>
+                    mapping.canonical_entity_key
+                        === dynamicSourceMappingSelectedEntityKey.value
+                    && mapping.source_sheet_index
+                        === dynamicSourceMappingSelectedSheetIndex.value,
+            )
+            .sort(
+                (left, right) =>
+                    right.mapping_version
+                    - left.mapping_version,
+            );
+
+    if (
+        dynamicSourceMappingSelectedMappingId.value
+        !== null
+    ) {
+        const explicitlySelected =
+            matches.find(
+                (mapping) =>
+                    mapping.id
+                        === dynamicSourceMappingSelectedMappingId.value,
+            );
+
+        if (explicitlySelected) {
+            return explicitlySelected;
+        }
+    }
+
+    return matches.find(
+        (mapping) =>
+            mapping.status !== 'stale',
+    )
+        ?? matches[0]
+        ?? null;
+}
+
+function dynamicSourceMappingDecision(
+    canonicalFieldKey: string,
+): DynamicSourceMappingDecisionState {
+    if (
+        ! dynamicSourceMappingDecisions.value[
+            canonicalFieldKey
+        ]
+    ) {
+        dynamicSourceMappingDecisions.value[
+            canonicalFieldKey
+        ] = {
+            mapping_type:
+                '',
+
+            source_column_key:
+                '',
+
+            default_value:
+                '',
+
+            transformation_key:
+                '',
+
+            configuration_snapshot:
+                null,
+
+            notes:
+                '',
+        };
+    }
+
+    return dynamicSourceMappingDecisions.value[
+        canonicalFieldKey
+    ];
+}
+
+function hydrateDynamicSourceMappingDecisions(
+    mapping: DynamicSourceMapping | null,
+): void {
+    const next:
+        Record<
+            string,
+            DynamicSourceMappingDecisionState
+        > = {};
+
+    for (
+        const field
+        of dynamicSourceMappingSelectedEntityFields()
+    ) {
+        next[field.key] = {
+            mapping_type:
+                '',
+
+            source_column_key:
+                '',
+
+            default_value:
+                '',
+
+            transformation_key:
+                '',
+
+            configuration_snapshot:
+                null,
+
+            notes:
+                '',
+        };
+    }
+
+    if (mapping) {
+        for (const field of mapping.fields) {
+            next[field.canonical_field_key] = {
+                mapping_type:
+                    field.mapping_type,
+
+                source_column_key:
+                    field.source_column_key
+                    ?? '',
+
+                default_value:
+                    field.default_value
+                    ?? '',
+
+                transformation_key:
+                    field.transformation_key
+                    ?? '',
+
+                configuration_snapshot:
+                    field.configuration_snapshot,
+
+                notes:
+                    field.notes
+                    ?? '',
+            };
+        }
+    }
+
+    dynamicSourceMappingDecisions.value =
+        next;
+}
+
+function dynamicSourceMappingSelectionChanged(): void {
+    dynamicSourceMappingError.value =
+        null;
+
+    dynamicSourceMappingMessage.value =
+        null;
+
+    /*
+     * Entity/sheet selection means "use the current mapping for this
+     * target". A historical version is selected only when the user
+     * explicitly clicks that version.
+     */
+    dynamicSourceMappingSelectedMappingId.value =
+        null;
+
+    hydrateDynamicSourceMappingDecisions(
+        dynamicSourceMappingCurrent(),
+    );
+}
+
+function selectDynamicSourceExistingMapping(
+    mapping: DynamicSourceMapping,
+): void {
+    dynamicSourceMappingSelectedEntityKey.value =
+        mapping.canonical_entity_key;
+
+    dynamicSourceMappingSelectedSheetIndex.value =
+        mapping.source_sheet_index;
+
+    dynamicSourceMappingSelectedMappingId.value =
+        mapping.id;
+
+    hydrateDynamicSourceMappingDecisions(
+        mapping,
+    );
+}
+
+function dynamicSourceMappingEditable(
+    mapping?: DynamicSourceMapping | null,
+): boolean {
+    if (!mapping) {
+        return false;
+    }
+
+    return [
+        'draft',
+        'ready',
+        'blocked',
+    ].includes(
+        mapping.status,
+    );
+}
+
+function dynamicSourceMappingStatusLabel(
+    status?: string | null,
+): string {
+    const labels:
+        Record<string, string> = {
+            draft:
+                'Borrador',
+
+            ready:
+                'Listo para validar',
+
+            validated:
+                'Validado',
+
+            blocked:
+                'Bloqueado',
+
+            stale:
+                'Versión anterior',
+        };
+
+    return status
+        ? labels[status]
+            ?? status
+        : 'Sin mapeo';
+}
+
+function dynamicSourceCanonicalTypeLabel(
+    type: string,
+): string {
+    const labels:
+        Record<string, string> = {
+            text:
+                'Texto',
+
+            integer:
+                'Entero',
+
+            decimal:
+                'Decimal',
+
+            date:
+                'Fecha',
+
+            datetime:
+                'Fecha y hora',
+
+            boolean:
+                'Sí / No',
+        };
+
+    return labels[type]
+        ?? type;
+}
+
+function dynamicSourceMappingColumnLabel(
+    column: DynamicSourceMappingColumn,
+): string {
+    const header =
+        column.header?.trim()
+        || column.key;
+
+    return `${header} · ${column.key}`;
+}
+
+function dynamicSourceMappingStartLabel(): string {
+    const mapping =
+        dynamicSourceMappingCurrent();
+
+    if (!mapping) {
+        return 'Iniciar mapeo';
+    }
+
+    if (
+        mapping.status === 'validated'
+        || mapping.status === 'stale'
+    ) {
+        return 'Abrir nueva versión';
+    }
+
+    return 'Reanudar borrador';
+}
+
+async function loadDynamicSourceMappingWorkspace(
+    asset: DynamicSourceAsset,
+    force = false,
+): Promise<void> {
+    const sessionId =
+        standardIntakeV2SessionId();
+
+    if (sessionId === null) {
+        dynamicSourceMappingError.value =
+            'No existe una sesión de fuentes disponible.';
+
+        return;
+    }
+
+    if (
+        asset.profiling_status !== 'completed'
+        || asset.data_status !== 'analyzed'
+    ) {
+        dynamicSourceMappingWorkspace.value =
+            null;
+
+        dynamicSourceMappingAssetId.value =
+            asset.id;
+
+        dynamicSourceMappingError.value =
+            'Completa primero el profiling técnico de esta fuente.';
+
+        return;
+    }
+
+    if (
+        ! force
+        && dynamicSourceMappingWorkspace.value
+        && dynamicSourceMappingAssetId.value
+            === asset.id
+    ) {
+        return;
+    }
+
+    dynamicSourceMappingBusy.value =
+        'load';
+
+    dynamicSourceMappingError.value =
+        null;
+
+    dynamicSourceMappingMessage.value =
+        null;
+
+    const previousEntity =
+        dynamicSourceMappingAssetId.value
+            === asset.id
+            ? dynamicSourceMappingSelectedEntityKey.value
+            : '';
+
+    const previousSheet =
+        dynamicSourceMappingAssetId.value
+            === asset.id
+            ? dynamicSourceMappingSelectedSheetIndex.value
+            : null;
+
+    const previousMappingId =
+        dynamicSourceMappingAssetId.value
+            === asset.id
+            ? dynamicSourceMappingSelectedMappingId.value
+            : null;
+
+    try {
+        const payload =
+            await standardIntakeV2Request(
+                `${standardIntakeV2BaseUrl}/sessions/${sessionId}/source-assets/${asset.id}/mapping-workspace`,
+                {
+                    method:
+                        'GET',
+                },
+            );
+
+        if (!payload.workspace) {
+            throw new Error(
+                'La respuesta no contiene el espacio de mapeo.',
+            );
+        }
+
+        const workspace =
+            payload.workspace;
+
+        dynamicSourceMappingWorkspace.value =
+            workspace;
+
+        dynamicSourceMappingAssetId.value =
+            asset.id;
+
+        const previousEntityStillExists =
+            previousEntity !== ''
+            && workspace
+                .canonical_registry
+                .entities
+                .some(
+                    (entity) =>
+                        entity.key
+                            === previousEntity,
+                );
+
+        const previousSheetStillExists =
+            previousSheet !== null
+            && workspace
+                .source
+                .sheets
+                .some(
+                    (sheet) =>
+                        sheet.index
+                            === previousSheet,
+                );
+
+        if (previousSheetStillExists) {
+            dynamicSourceMappingSelectedSheetIndex.value =
+                previousSheet;
+        } else {
+            dynamicSourceMappingSelectedSheetIndex.value =
+                workspace
+                    .source
+                    .sheets[0]
+                    ?.index
+                ?? null;
+        }
+
+        if (previousEntityStillExists) {
+            dynamicSourceMappingSelectedEntityKey.value =
+                previousEntity;
+
+            dynamicSourceMappingSelectedMappingId.value =
+                previousMappingId !== null
+                && workspace.mappings.some(
+                    (mapping) =>
+                        mapping.id === previousMappingId
+                        && mapping.canonical_entity_key
+                            === previousEntity
+                        && mapping.source_sheet_index
+                            === dynamicSourceMappingSelectedSheetIndex.value,
+                )
+                    ? previousMappingId
+                    : null;
+        } else {
+            const currentMappings =
+                workspace
+                    .mappings
+                    .filter(
+                        (mapping) =>
+                            mapping.status
+                                !== 'stale',
+                    )
+                    .sort(
+                        (left, right) =>
+                            right.mapping_version
+                            - left.mapping_version,
+                    );
+
+            if (currentMappings.length === 1) {
+                dynamicSourceMappingSelectedEntityKey.value =
+                    currentMappings[0]
+                        .canonical_entity_key;
+
+                dynamicSourceMappingSelectedSheetIndex.value =
+                    currentMappings[0]
+                        .source_sheet_index;
+
+                dynamicSourceMappingSelectedMappingId.value =
+                    currentMappings[0]
+                        .id;
+            } else {
+                dynamicSourceMappingSelectedEntityKey.value =
+                    '';
+
+                dynamicSourceMappingSelectedMappingId.value =
+                    null;
+            }
+        }
+
+        hydrateDynamicSourceMappingDecisions(
+            dynamicSourceMappingCurrent(),
+        );
+    } catch (error) {
+        dynamicSourceMappingError.value =
+            error instanceof Error
+                ? error.message
+                : 'No se pudo cargar el espacio de Mapeo LAUDA.';
+    } finally {
+        dynamicSourceMappingBusy.value =
+            null;
+    }
+}
+
+async function startDynamicSourceMapping(
+    asset: DynamicSourceAsset,
+): Promise<void> {
+    const sessionId =
+        standardIntakeV2SessionId();
+
+    if (sessionId === null) {
+        dynamicSourceMappingError.value =
+            'No existe una sesión de fuentes disponible.';
+
+        return;
+    }
+
+    const canonicalEntityKey =
+        dynamicSourceMappingSelectedEntityKey.value;
+
+    const sourceSheetIndex =
+        dynamicSourceMappingSelectedSheetIndex.value;
+
+    if (canonicalEntityKey === '') {
+        dynamicSourceMappingError.value =
+            'Selecciona la entidad objetivo de LAUDA.';
+
+        return;
+    }
+
+    if (sourceSheetIndex === null) {
+        dynamicSourceMappingError.value =
+            'Selecciona la hoja de origen.';
+
+        return;
+    }
+
+    dynamicSourceMappingBusy.value =
+        'start';
+
+    dynamicSourceMappingError.value =
+        null;
+
+    dynamicSourceMappingMessage.value =
+        null;
+
+    try {
+        const payload =
+            await standardIntakeV2Request(
+                `${standardIntakeV2BaseUrl}/sessions/${sessionId}/source-assets/${asset.id}/mappings`,
+                {
+                    method:
+                        'POST',
+
+                    body:
+                        JSON.stringify({
+                            canonical_entity_key:
+                                canonicalEntityKey,
+
+                            source_sheet_index:
+                                sourceSheetIndex,
+                        }),
+                },
+            );
+
+        if (
+            ! payload.workspace
+            || ! payload.mapping_id
+        ) {
+            throw new Error(
+                'La respuesta no contiene el mapeo preparado.',
+            );
+        }
+
+        dynamicSourceMappingWorkspace.value =
+            payload.workspace;
+
+        dynamicSourceMappingAssetId.value =
+            asset.id;
+
+        const mapping =
+            payload
+                .workspace
+                .mappings
+                .find(
+                    (item) =>
+                        item.id
+                            === payload.mapping_id,
+                )
+            ?? null;
+
+        if (!mapping) {
+            throw new Error(
+                'El mapeo preparado no está disponible en el workspace.',
+            );
+        }
+
+        dynamicSourceMappingSelectedEntityKey.value =
+            mapping.canonical_entity_key;
+
+        dynamicSourceMappingSelectedSheetIndex.value =
+            mapping.source_sheet_index;
+
+        dynamicSourceMappingSelectedMappingId.value =
+            mapping.id;
+
+        hydrateDynamicSourceMappingDecisions(
+            mapping,
+        );
+
+        dynamicSourceMappingMessage.value =
+            payload.message
+            ?? 'Mapeo LAUDA preparado correctamente.';
+    } catch (error) {
+        dynamicSourceMappingError.value =
+            error instanceof Error
+                ? error.message
+                : 'No se pudo iniciar el mapeo LAUDA.';
+    } finally {
+        dynamicSourceMappingBusy.value =
+            null;
+    }
+}
+
+async function saveDynamicSourceMappingFields(
+    asset: DynamicSourceAsset,
+): Promise<void> {
+    const sessionId =
+        standardIntakeV2SessionId();
+
+    const mapping =
+        dynamicSourceMappingCurrent();
+
+    if (
+        sessionId === null
+        || ! mapping
+    ) {
+        dynamicSourceMappingError.value =
+            'Inicia primero un mapeo para esta entidad y hoja.';
+
+        return;
+    }
+
+    if (!dynamicSourceMappingEditable(mapping)) {
+        dynamicSourceMappingError.value =
+            'Esta versión del mapeo ya no admite cambios.';
+
+        return;
+    }
+
+    const decisions:
+        Array<Record<string, unknown>> = [];
+
+    for (
+        const field
+        of dynamicSourceMappingSelectedEntityFields()
+    ) {
+        const decision =
+            dynamicSourceMappingDecision(
+                field.key,
+            );
+
+        if (decision.mapping_type === '') {
+            continue;
+        }
+
+        if (
+            decision.mapping_type === 'direct'
+            && decision.source_column_key.trim()
+                === ''
+        ) {
+            dynamicSourceMappingError.value =
+                `Selecciona una columna para ${field.key}.`;
+
+            return;
+        }
+
+        if (
+            decision.mapping_type === 'default'
+            && decision.default_value.trim()
+                === ''
+        ) {
+            dynamicSourceMappingError.value =
+                `Indica el valor fijo para ${field.key}.`;
+
+            return;
+        }
+
+        if (
+            decision.mapping_type === 'transform'
+            && decision.transformation_key.trim()
+                === ''
+        ) {
+            dynamicSourceMappingError.value =
+                `La transformación existente de ${field.key} no tiene una clave válida.`;
+
+            return;
+        }
+
+        decisions.push({
+            canonical_field_key:
+                field.key,
+
+            mapping_type:
+                decision.mapping_type,
+
+            source_column_key:
+                decision.mapping_type === 'direct'
+                || decision.mapping_type === 'transform'
+                    ? decision.source_column_key.trim()
+                        || null
+                    : null,
+
+            default_value:
+                decision.mapping_type === 'default'
+                    ? decision.default_value
+                    : null,
+
+            transformation_key:
+                decision.mapping_type === 'transform'
+                    ? decision.transformation_key
+                    : null,
+
+            configuration_snapshot:
+                decision.mapping_type === 'transform'
+                    ? decision.configuration_snapshot
+                    : null,
+
+            notes:
+                decision.notes.trim()
+                || null,
+        });
+    }
+
+    dynamicSourceMappingBusy.value =
+        'save';
+
+    dynamicSourceMappingError.value =
+        null;
+
+    dynamicSourceMappingMessage.value =
+        null;
+
+    try {
+        const payload =
+            await standardIntakeV2Request(
+                `${standardIntakeV2BaseUrl}/sessions/${sessionId}/source-assets/${asset.id}/mappings/${mapping.id}/fields`,
+                {
+                    method:
+                        'PUT',
+
+                    body:
+                        JSON.stringify({
+                            decisions,
+                        }),
+                },
+            );
+
+        if (!payload.workspace) {
+            throw new Error(
+                'La respuesta no contiene el mapeo actualizado.',
+            );
+        }
+
+        dynamicSourceMappingWorkspace.value =
+            payload.workspace;
+
+        dynamicSourceMappingAssetId.value =
+            asset.id;
+
+        hydrateDynamicSourceMappingDecisions(
+            dynamicSourceMappingCurrent(),
+        );
+
+        dynamicSourceMappingMessage.value =
+            payload.message
+            ?? 'Decisiones de mapeo guardadas correctamente.';
+    } catch (error) {
+        dynamicSourceMappingError.value =
+            error instanceof Error
+                ? error.message
+                : 'No se pudieron guardar las decisiones de mapeo.';
+    } finally {
+        dynamicSourceMappingBusy.value =
+            null;
+    }
+}
+
+/*
+ * TRANSFORM_CATALOG_PENDING
+ *
+ * El backend conserva TYPE_TRANSFORM para contratos existentes, pero
+ * la UI no ofrece creación libre de transformaciones hasta contar con
+ * un catálogo LAUDA explícito y versionado.
+ */
 
 function dynamicSourceDataUploadForm(
     asset: DynamicSourceAsset,
@@ -6558,8 +7625,9 @@ async function normalizeStandardIntakeBatch(): Promise<void> {
                                                     : 'border bg-background text-muted-foreground'
                                             "
                                             @click="
-                                                dynamicSourceActiveTab =
-                                                    tab.key as DynamicSourceWorkspaceTab
+                                                selectDynamicSourceWorkspaceTab(
+                                                    tab.key as DynamicSourceWorkspaceTab,
+                                                )
                                             "
                                         >
                                             {{ tab.label }}
@@ -7622,20 +8690,732 @@ async function normalizeStandardIntakeBatch(): Promise<void> {
                                             dynamicSourceActiveTab
                                             === 'mapping'
                                         "
-                                        class="rounded-xl border border-dashed p-6"
+                                        class="space-y-4"
                                     >
-                                        <p class="text-sm font-black">
-                                            Mapeo al modelo LAUDA
-                                        </p>
-
-                                        <p
-                                            class="mt-2 max-w-2xl text-xs leading-5 text-muted-foreground"
+                                        <div
+                                            class="flex flex-wrap items-start justify-between gap-3 rounded-xl border p-4"
                                         >
-                                            Aquí relacionaremos posteriormente los
-                                            campos y fuentes reales con el modelo
-                                            canónico usado por staging, normalización,
-                                            BI e inteligencia empresarial.
-                                        </p>
+                                            <div class="max-w-3xl">
+                                                <p class="text-sm font-black">
+                                                    Mapeo al modelo LAUDA
+                                                </p>
+
+                                                <p
+                                                    class="mt-1 text-xs leading-5 text-muted-foreground"
+                                                >
+                                                    Relaciona las columnas de esta
+                                                    fuente con las entidades y campos
+                                                    canónicos administrados por LAUDA.
+                                                    Una fuente puede alimentar varias
+                                                    entidades y una entidad puede recibir
+                                                    información de varias fuentes.
+                                                </p>
+                                            </div>
+
+                                            <button
+                                                type="button"
+                                                class="cursor-pointer rounded-lg border px-3 py-2 text-xs font-bold disabled:cursor-not-allowed disabled:opacity-50"
+                                                :disabled="
+                                                    dynamicSourceMappingBusy
+                                                    !== null
+                                                    || !dynamicSourceSelectedAsset()
+                                                "
+                                                @click="
+                                                    loadDynamicSourceMappingWorkspace(
+                                                        dynamicSourceSelectedAsset()!,
+                                                        true,
+                                                    )
+                                                "
+                                            >
+                                                {{
+                                                    dynamicSourceMappingBusy
+                                                        === 'load'
+                                                        ? 'Actualizando...'
+                                                        : 'Actualizar'
+                                                }}
+                                            </button>
+                                        </div>
+
+                                        <div
+                                            v-if="
+                                                dynamicSourceSelectedAsset()
+                                                    ?.profiling_status
+                                                !== 'completed'
+                                                || dynamicSourceSelectedAsset()
+                                                    ?.data_status
+                                                !== 'analyzed'
+                                            "
+                                            class="rounded-xl border border-amber-200 bg-amber-50 p-4 text-xs leading-5 text-amber-800 dark:border-amber-900 dark:bg-amber-950/20 dark:text-amber-200"
+                                        >
+                                            Completa primero el profiling técnico
+                                            de esta fuente. El mapeo solo trabaja
+                                            contra el archivo y perfil vigentes.
+                                        </div>
+
+                                        <div
+                                            v-else-if="
+                                                dynamicSourceMappingBusy
+                                                === 'load'
+                                                && !dynamicSourceMappingWorkspace
+                                            "
+                                            class="rounded-xl border border-dashed p-6 text-center text-sm text-muted-foreground"
+                                        >
+                                            Cargando modelo canónico y estructura
+                                            perfilada...
+                                        </div>
+
+                                        <div
+                                            v-if="dynamicSourceMappingError"
+                                            class="rounded-xl border border-red-200 bg-red-50 p-4 text-xs font-semibold leading-5 text-red-700 dark:border-red-900 dark:bg-red-950/20 dark:text-red-300"
+                                        >
+                                            {{ dynamicSourceMappingError }}
+                                        </div>
+
+                                        <div
+                                            v-if="dynamicSourceMappingMessage"
+                                            class="rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-xs font-semibold leading-5 text-emerald-700 dark:border-emerald-900 dark:bg-emerald-950/20 dark:text-emerald-300"
+                                        >
+                                            {{ dynamicSourceMappingMessage }}
+                                        </div>
+
+                                        <template
+                                            v-if="
+                                                dynamicSourceMappingWorkspace
+                                                && dynamicSourceMappingAssetId
+                                                    === dynamicSourceSelectedAsset()
+                                                        ?.id
+                                            "
+                                        >
+                                            <div
+                                                class="grid gap-3 sm:grid-cols-2 lg:grid-cols-4"
+                                            >
+                                                <div
+                                                    class="rounded-xl border bg-muted/20 p-3"
+                                                >
+                                                    <p
+                                                        class="text-[10px] font-bold uppercase text-muted-foreground"
+                                                    >
+                                                        Modelo LAUDA
+                                                    </p>
+
+                                                    <p
+                                                        class="mt-1 text-sm font-black"
+                                                    >
+                                                        V{{
+                                                            dynamicSourceMappingWorkspace
+                                                                .canonical_registry
+                                                                .version
+                                                        }}
+                                                    </p>
+                                                </div>
+
+                                                <div
+                                                    class="rounded-xl border bg-muted/20 p-3"
+                                                >
+                                                    <p
+                                                        class="text-[10px] font-bold uppercase text-muted-foreground"
+                                                    >
+                                                        Perfil de origen
+                                                    </p>
+
+                                                    <p
+                                                        class="mt-1 text-sm font-black"
+                                                    >
+                                                        V{{
+                                                            dynamicSourceMappingWorkspace
+                                                                .source
+                                                                .profile_version
+                                                        }}
+                                                    </p>
+                                                </div>
+
+                                                <div
+                                                    class="rounded-xl border bg-muted/20 p-3"
+                                                >
+                                                    <p
+                                                        class="text-[10px] font-bold uppercase text-muted-foreground"
+                                                    >
+                                                        Hojas
+                                                    </p>
+
+                                                    <p
+                                                        class="mt-1 text-sm font-black"
+                                                    >
+                                                        {{
+                                                            dynamicSourceMappingWorkspace
+                                                                .source
+                                                                .sheets
+                                                                .length
+                                                        }}
+                                                    </p>
+                                                </div>
+
+                                                <div
+                                                    class="rounded-xl border bg-muted/20 p-3"
+                                                >
+                                                    <p
+                                                        class="text-[10px] font-bold uppercase text-muted-foreground"
+                                                    >
+                                                        Mapeos registrados
+                                                    </p>
+
+                                                    <p
+                                                        class="mt-1 text-sm font-black"
+                                                    >
+                                                        {{
+                                                            dynamicSourceMappingWorkspace
+                                                                .mappings
+                                                                .length
+                                                        }}
+                                                    </p>
+                                                </div>
+                                            </div>
+
+                                            <div
+                                                v-if="
+                                                    dynamicSourceMappingWorkspace
+                                                        .mappings
+                                                        .length
+                                                "
+                                                class="rounded-xl border p-4"
+                                            >
+                                                <p class="text-xs font-black">
+                                                    Versiones existentes
+                                                </p>
+
+                                                <div
+                                                    class="mt-3 flex flex-wrap gap-2"
+                                                >
+                                                    <button
+                                                        v-for="mapping in dynamicSourceMappingWorkspace.mappings"
+                                                        :key="mapping.id"
+                                                        type="button"
+                                                        class="cursor-pointer rounded-lg border px-3 py-2 text-left text-xs"
+                                                        :class="
+                                                            dynamicSourceMappingCurrent()
+                                                                ?.id
+                                                                === mapping.id
+                                                                ? 'border-sky-500 bg-sky-50 dark:bg-sky-950/30'
+                                                                : 'bg-background'
+                                                        "
+                                                        @click="
+                                                            selectDynamicSourceExistingMapping(
+                                                                mapping,
+                                                            )
+                                                        "
+                                                    >
+                                                        <span class="font-black">
+                                                            {{
+                                                                mapping.canonical_entity_key
+                                                            }}
+                                                        </span>
+
+                                                        · Hoja
+                                                        {{
+                                                            mapping.source_sheet_name
+                                                            || mapping.source_sheet_index
+                                                        }}
+
+                                                        · V{{
+                                                            mapping.mapping_version
+                                                        }}
+
+                                                        ·
+                                                        {{
+                                                            dynamicSourceMappingStatusLabel(
+                                                                mapping.status,
+                                                            )
+                                                        }}
+                                                    </button>
+                                                </div>
+                                            </div>
+
+                                            <div
+                                                class="rounded-xl border p-4"
+                                            >
+                                                <div
+                                                    class="grid gap-4 md:grid-cols-2"
+                                                >
+                                                    <label class="block">
+                                                        <span
+                                                            class="text-xs font-black"
+                                                        >
+                                                            Hoja de origen
+                                                        </span>
+
+                                                        <select
+                                                            v-model.number="
+                                                                dynamicSourceMappingSelectedSheetIndex
+                                                            "
+                                                            class="mt-2 w-full rounded-lg border bg-background px-3 py-2 text-sm"
+                                                            @change="
+                                                                dynamicSourceMappingSelectionChanged
+                                                            "
+                                                        >
+                                                            <option
+                                                                v-for="sheet in dynamicSourceMappingWorkspace.source.sheets"
+                                                                :key="sheet.index"
+                                                                :value="sheet.index"
+                                                            >
+                                                                {{
+                                                                    sheet.name
+                                                                    || `Hoja ${sheet.index + 1}`
+                                                                }}
+                                                                ·
+                                                                {{
+                                                                    sheet.column_count
+                                                                }}
+                                                                columnas
+                                                            </option>
+                                                        </select>
+                                                    </label>
+
+                                                    <label class="block">
+                                                        <span
+                                                            class="text-xs font-black"
+                                                        >
+                                                            Entidad objetivo LAUDA
+                                                        </span>
+
+                                                        <select
+                                                            v-model="
+                                                                dynamicSourceMappingSelectedEntityKey
+                                                            "
+                                                            class="mt-2 w-full rounded-lg border bg-background px-3 py-2 text-sm"
+                                                            @change="
+                                                                dynamicSourceMappingSelectionChanged
+                                                            "
+                                                        >
+                                                            <option value="">
+                                                                Selecciona una entidad
+                                                            </option>
+
+                                                            <option
+                                                                v-for="entity in dynamicSourceMappingWorkspace.canonical_registry.entities"
+                                                                :key="entity.key"
+                                                                :value="entity.key"
+                                                            >
+                                                                {{ entity.label }}
+                                                                · {{ entity.key }}
+                                                            </option>
+                                                        </select>
+                                                    </label>
+                                                </div>
+
+                                                <div
+                                                    v-if="
+                                                        dynamicSourceMappingSelectedEntity()
+                                                    "
+                                                    class="mt-4 rounded-lg bg-muted/30 p-3"
+                                                >
+                                                    <p
+                                                        class="text-sm font-black"
+                                                    >
+                                                        {{
+                                                            dynamicSourceMappingSelectedEntity()
+                                                                ?.label
+                                                        }}
+                                                    </p>
+
+                                                    <p
+                                                        class="mt-1 text-xs leading-5 text-muted-foreground"
+                                                    >
+                                                        {{
+                                                            dynamicSourceMappingSelectedEntity()
+                                                                ?.description
+                                                        }}
+                                                    </p>
+
+                                                    <p
+                                                        v-if="
+                                                            dynamicSourceMappingSelectedEntity()
+                                                                ?.identity_keys
+                                                                ?.length
+                                                        "
+                                                        class="mt-2 text-[11px] text-muted-foreground"
+                                                    >
+                                                        Identidad canónica:
+                                                        {{
+                                                            dynamicSourceMappingSelectedEntity()
+                                                                ?.identity_keys
+                                                                .join(', ')
+                                                        }}
+                                                    </p>
+                                                </div>
+
+                                                <div
+                                                    class="mt-4 flex flex-wrap items-center gap-3"
+                                                >
+                                                    <Button
+                                                        type="button"
+                                                        :disabled="
+                                                            dynamicSourceMappingBusy
+                                                            !== null
+                                                            || dynamicSourceMappingSelectedEntityKey
+                                                                === ''
+                                                            || dynamicSourceMappingSelectedSheetIndex
+                                                                === null
+                                                        "
+                                                        @click="
+                                                            startDynamicSourceMapping(
+                                                                dynamicSourceSelectedAsset()!,
+                                                            )
+                                                        "
+                                                    >
+                                                        {{
+                                                            dynamicSourceMappingBusy
+                                                                === 'start'
+                                                                ? 'Preparando...'
+                                                                : dynamicSourceMappingStartLabel()
+                                                        }}
+                                                    </Button>
+
+                                                    <span
+                                                        v-if="
+                                                            dynamicSourceMappingCurrent()
+                                                        "
+                                                        class="rounded-full border px-3 py-1 text-[10px] font-black uppercase"
+                                                    >
+                                                        {{
+                                                            dynamicSourceMappingStatusLabel(
+                                                                dynamicSourceMappingCurrent()
+                                                                    ?.status,
+                                                            )
+                                                        }}
+                                                        · V{{
+                                                            dynamicSourceMappingCurrent()
+                                                                ?.mapping_version
+                                                        }}
+                                                    </span>
+                                                </div>
+                                            </div>
+
+                                            <div
+                                                v-if="
+                                                    dynamicSourceMappingCurrent()
+                                                    && dynamicSourceMappingSelectedEntity()
+                                                "
+                                                class="rounded-xl border"
+                                            >
+                                                <div
+                                                    class="border-b bg-muted/20 p-4"
+                                                >
+                                                    <div
+                                                        class="flex flex-wrap items-start justify-between gap-3"
+                                                    >
+                                                        <div>
+                                                            <p
+                                                                class="text-sm font-black"
+                                                            >
+                                                                Decisiones por campo
+                                                            </p>
+
+                                                            <p
+                                                                class="mt-1 max-w-3xl text-xs leading-5 text-muted-foreground"
+                                                            >
+                                                                Define de dónde proviene
+                                                                cada campo canónico.
+                                                                Puedes dejar campos sin
+                                                                decisión mientras el
+                                                                mapeo siga en borrador.
+                                                            </p>
+                                                        </div>
+
+                                                        <p
+                                                            class="text-xs text-muted-foreground"
+                                                        >
+                                                            {{
+                                                                dynamicSourceMappingSelectedSheet()
+                                                                    ?.columns
+                                                                    .length
+                                                                ?? 0
+                                                            }}
+                                                            columnas de origen
+                                                        </p>
+                                                    </div>
+                                                </div>
+
+                                                <div
+                                                    class="divide-y"
+                                                >
+                                                    <div
+                                                        v-for="field in dynamicSourceMappingSelectedEntityFields()"
+                                                        :key="field.key"
+                                                        class="grid gap-4 p-4 lg:grid-cols-[minmax(0,1.2fr)_minmax(220px,0.8fr)_minmax(0,1.2fr)]"
+                                                    >
+                                                        <div>
+                                                            <div
+                                                                class="flex flex-wrap items-center gap-2"
+                                                            >
+                                                                <p
+                                                                    class="font-mono text-sm font-black"
+                                                                >
+                                                                    {{ field.key }}
+                                                                </p>
+
+                                                                <span
+                                                                    v-if="field.required"
+                                                                    class="rounded-full border border-amber-300 bg-amber-50 px-2 py-0.5 text-[9px] font-black uppercase text-amber-700 dark:border-amber-900 dark:bg-amber-950/20 dark:text-amber-300"
+                                                                >
+                                                                    Requerido
+                                                                </span>
+
+                                                                <span
+                                                                    class="rounded-full border px-2 py-0.5 text-[9px] font-bold uppercase text-muted-foreground"
+                                                                >
+                                                                    {{
+                                                                        dynamicSourceCanonicalTypeLabel(
+                                                                            field.type,
+                                                                        )
+                                                                    }}
+                                                                </span>
+                                                            </div>
+
+                                                            <p
+                                                                class="mt-2 text-xs leading-5 text-muted-foreground"
+                                                            >
+                                                                {{
+                                                                    field.description
+                                                                }}
+                                                            </p>
+                                                        </div>
+
+                                                        <label class="block">
+                                                            <span
+                                                                class="text-[10px] font-black uppercase text-muted-foreground"
+                                                            >
+                                                                Decisión
+                                                            </span>
+
+                                                            <select
+                                                                v-model="
+                                                                    dynamicSourceMappingDecision(
+                                                                        field.key,
+                                                                    ).mapping_type
+                                                                "
+                                                                class="mt-2 w-full rounded-lg border bg-background px-3 py-2 text-sm"
+                                                                :disabled="
+                                                                    !dynamicSourceMappingEditable(
+                                                                        dynamicSourceMappingCurrent(),
+                                                                    )
+                                                                "
+                                                            >
+                                                                <option value="">
+                                                                    Sin decisión
+                                                                </option>
+
+                                                                <option value="direct">
+                                                                    Columna de origen
+                                                                </option>
+
+                                                                <option value="default">
+                                                                    Valor fijo
+                                                                </option>
+
+                                                                <option value="unmapped">
+                                                                    No mapear
+                                                                </option>
+
+                                                                <option
+                                                                    v-if="
+                                                                        dynamicSourceMappingDecision(
+                                                                            field.key,
+                                                                        ).mapping_type
+                                                                        === 'transform'
+                                                                    "
+                                                                    value="transform"
+                                                                >
+                                                                    Transformación LAUDA existente
+                                                                </option>
+                                                            </select>
+                                                        </label>
+
+                                                        <div>
+                                                            <label
+                                                                v-if="
+                                                                    dynamicSourceMappingDecision(
+                                                                        field.key,
+                                                                    ).mapping_type
+                                                                    === 'direct'
+                                                                "
+                                                                class="block"
+                                                            >
+                                                                <span
+                                                                    class="text-[10px] font-black uppercase text-muted-foreground"
+                                                                >
+                                                                    Columna
+                                                                </span>
+
+                                                                <select
+                                                                    v-model="
+                                                                        dynamicSourceMappingDecision(
+                                                                            field.key,
+                                                                        ).source_column_key
+                                                                    "
+                                                                    class="mt-2 w-full rounded-lg border bg-background px-3 py-2 text-sm"
+                                                                    :disabled="
+                                                                        !dynamicSourceMappingEditable(
+                                                                            dynamicSourceMappingCurrent(),
+                                                                        )
+                                                                    "
+                                                                >
+                                                                    <option value="">
+                                                                        Selecciona una columna
+                                                                    </option>
+
+                                                                    <option
+                                                                        v-for="column in dynamicSourceMappingSelectedSheet()?.columns ?? []"
+                                                                        :key="column.key"
+                                                                        :value="column.key"
+                                                                    >
+                                                                        {{
+                                                                            dynamicSourceMappingColumnLabel(
+                                                                                column,
+                                                                            )
+                                                                        }}
+                                                                    </option>
+                                                                </select>
+                                                            </label>
+
+                                                            <label
+                                                                v-else-if="
+                                                                    dynamicSourceMappingDecision(
+                                                                        field.key,
+                                                                    ).mapping_type
+                                                                    === 'default'
+                                                                "
+                                                                class="block"
+                                                            >
+                                                                <span
+                                                                    class="text-[10px] font-black uppercase text-muted-foreground"
+                                                                >
+                                                                    Valor fijo
+                                                                </span>
+
+                                                                <input
+                                                                    v-model="
+                                                                        dynamicSourceMappingDecision(
+                                                                            field.key,
+                                                                        ).default_value
+                                                                    "
+                                                                    type="text"
+                                                                    class="mt-2 w-full rounded-lg border bg-background px-3 py-2 text-sm"
+                                                                    :disabled="
+                                                                        !dynamicSourceMappingEditable(
+                                                                            dynamicSourceMappingCurrent(),
+                                                                        )
+                                                                    "
+                                                                    placeholder="Valor aplicado a todas las filas"
+                                                                />
+                                                            </label>
+
+                                                            <div
+                                                                v-else-if="
+                                                                    dynamicSourceMappingDecision(
+                                                                        field.key,
+                                                                    ).mapping_type
+                                                                    === 'transform'
+                                                                "
+                                                                class="rounded-lg border border-amber-200 bg-amber-50 p-3 text-xs leading-5 text-amber-800 dark:border-amber-900 dark:bg-amber-950/20 dark:text-amber-200"
+                                                            >
+                                                                Transformación LAUDA:
+                                                                <span class="font-mono font-bold">
+                                                                    {{
+                                                                        dynamicSourceMappingDecision(
+                                                                            field.key,
+                                                                        ).transformation_key
+                                                                    }}
+                                                                </span>
+
+                                                                <br />
+
+                                                                La edición de reglas de
+                                                                transformación se habilitará
+                                                                mediante el catálogo controlado.
+                                                            </div>
+
+                                                            <p
+                                                                v-else-if="
+                                                                    dynamicSourceMappingDecision(
+                                                                        field.key,
+                                                                    ).mapping_type
+                                                                    === 'unmapped'
+                                                                "
+                                                                class="mt-2 text-xs leading-5 text-muted-foreground"
+                                                            >
+                                                                Este campo queda explícitamente
+                                                                fuera de esta fuente.
+                                                            </p>
+
+                                                            <p
+                                                                v-else
+                                                                class="mt-2 text-xs leading-5 text-muted-foreground"
+                                                            >
+                                                                Todavía no se ha tomado una
+                                                                decisión para este campo.
+                                                            </p>
+                                                        </div>
+                                                    </div>
+                                                </div>
+
+                                                <div
+                                                    class="flex flex-wrap items-center justify-between gap-3 border-t bg-muted/10 p-4"
+                                                >
+                                                    <p
+                                                        class="max-w-2xl text-xs leading-5 text-muted-foreground"
+                                                    >
+                                                        Guardar conserva el mapeo como
+                                                        borrador. La validación técnica
+                                                        definitiva se implementará como
+                                                        una acción separada.
+                                                    </p>
+
+                                                    <Button
+                                                        type="button"
+                                                        :disabled="
+                                                            dynamicSourceMappingBusy
+                                                            !== null
+                                                            || !dynamicSourceMappingEditable(
+                                                                dynamicSourceMappingCurrent(),
+                                                            )
+                                                        "
+                                                        @click="
+                                                            saveDynamicSourceMappingFields(
+                                                                dynamicSourceSelectedAsset()!,
+                                                            )
+                                                        "
+                                                    >
+                                                        {{
+                                                            dynamicSourceMappingBusy
+                                                                === 'save'
+                                                                ? 'Guardando...'
+                                                                : 'Guardar decisiones'
+                                                        }}
+                                                    </Button>
+                                                </div>
+                                            </div>
+
+                                            <div
+                                                v-else-if="
+                                                    dynamicSourceMappingSelectedEntityKey
+                                                    !== ''
+                                                "
+                                                class="rounded-xl border border-dashed p-6 text-center"
+                                            >
+                                                <p class="text-sm font-black">
+                                                    Todavía no existe un borrador
+                                                </p>
+
+                                                <p
+                                                    class="mx-auto mt-2 max-w-2xl text-xs leading-5 text-muted-foreground"
+                                                >
+                                                    Selecciona la hoja y entidad y usa
+                                                    “Iniciar mapeo”. Abrir la pestaña
+                                                    Mapeo LAUDA por sí sola nunca crea
+                                                    registros.
+                                                </p>
+                                            </div>
+                                        </template>
                                     </div>
                                 </div>
                             </section>
