@@ -7764,26 +7764,7 @@ if (canonicalModelUiAvailable()) {
                     class="mt-8 space-y-8"
                 >
                     <section>
-                          <div
-                              class="flex flex-wrap items-center justify-end gap-2"
-                          >
-                              <a
-                                  :href="`/admin/transformation-360/implementation-requests/${props.implementation_request.id}/standard-intake-template/xlsx`"
-                                  class="rounded-lg border px-3 py-2 text-xs font-semibold"
-                              >
-                                  Referencia canónica Excel
-                              </a>
-
-                              <a
-                                  :href="`/admin/transformation-360/implementation-requests/${props.implementation_request.id}/standard-intake-template/csv`"
-                                  class="rounded-lg border px-3 py-2 text-xs font-semibold"
-                              >
-                                  Referencia canónica CSV
-                              </a>
-                          </div>
-
-
-                        <!-- CANONICAL_MODEL_V2_ADMIN_UI -->
+<!-- CANONICAL_MODEL_V2_ADMIN_UI -->
                         <section
                             class="mt-5 rounded-2xl border border-violet-200 bg-violet-50/40 p-4 dark:border-violet-900/70 dark:bg-violet-950/10"
                         >
