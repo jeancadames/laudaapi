@@ -90,6 +90,69 @@ final class DataTransformationBiCanonicalModelService
     }
 
     /**
+     * Resolve the immutable canonical model currently published
+     * for this company.
+     *
+     * READ ONLY unless the caller explicitly requests a row lock
+     * from inside an existing transaction.
+     */
+    public function publishedRegistry(
+        TransformationImplementationRequest $request,
+        User $actor,
+        bool $lockForUpdate = false
+    ): ?DataTransformationBiCanonicalRegistryVersion {
+        $this->assertAdmin(
+            $request,
+            $actor
+        );
+
+        $query =
+            DataTransformationBiCanonicalRegistryVersion::query()
+                ->where(
+                    'company_id',
+                    (int) $request->company_id
+                )
+                ->where(
+                    'status',
+                    DataTransformationBiCanonicalRegistryVersion
+                        ::STATUS_PUBLISHED
+                )
+                ->orderByDesc(
+                    'version'
+                );
+
+        if ($lockForUpdate) {
+            $query->lockForUpdate();
+        }
+
+        return $query->first();
+    }
+
+    /**
+     * Mapping-facing published registry payload.
+     *
+     * Draft canonical models are intentionally invisible to mapping.
+     *
+     * @return array<string,mixed>|null
+     */
+    public function publishedWorkspace(
+        TransformationImplementationRequest $request,
+        User $actor
+    ): ?array {
+        $registry =
+            $this->publishedRegistry(
+                $request,
+                $actor
+            );
+
+        return $registry !== null
+            ? $this->registryPayload(
+                $registry
+            )
+            : null;
+    }
+
+    /**
      * Explicitly prepare a mutable company-owned canonical model version.
      *
      * The first version starts empty. A later draft clones the last

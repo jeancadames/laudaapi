@@ -23,8 +23,8 @@ final class DataTransformationBiSourceAssetMappingService
         private readonly DataTransformationBiIntakeActorAuthorizationService
             $authorization,
 
-        private readonly DataTransformationBiCanonicalRegistry
-            $canonicalRegistry
+        private readonly DataTransformationBiCanonicalModelService
+            $canonicalModelService
     ) {
     }
 
@@ -287,22 +287,16 @@ final class DataTransformationBiSourceAssetMappingService
                 )
                 ->get();
 
+        $publishedCanonicalRegistry =
+            $this->canonicalModelService
+                ->publishedWorkspace(
+                    $implementationRequest,
+                    $actor
+                );
+
         return [
-            'canonical_registry' => [
-                'version' =>
-                    $this->canonicalRegistry
-                        ->version(),
-
-                'entities' =>
-                    array_values(
-                        $this->canonicalRegistry
-                            ->entities()
-                    ),
-
-                'relationships' =>
-                    $this->canonicalRegistry
-                        ->relationships(),
-            ],
+            'canonical_registry' =>
+                $publishedCanonicalRegistry,
 
             'source' => [
                 'id' =>
@@ -360,24 +354,6 @@ final class DataTransformationBiSourceAssetMappingService
                 'canonical_entity_key'
             );
 
-        if (
-            ! $this->canonicalRegistry
-                ->supportsEntity(
-                    $canonicalEntityKey
-                )
-        ) {
-            throw ValidationException::withMessages([
-                'canonical_entity_key' => [
-                    'La entidad objetivo no existe en el '
-                    .'modelo canónico vigente de LAUDA.',
-                ],
-            ]);
-        }
-
-        $currentRegistryVersion =
-            $this->canonicalRegistry
-                ->version();
-
         if ($sourceSheetIndex < 0) {
             throw ValidationException::withMessages([
                 'source_sheet_index' => [
@@ -392,7 +368,6 @@ final class DataTransformationBiSourceAssetMappingService
                 $session,
                 $asset,
                 $canonicalEntityKey,
-                $currentRegistryVersion,
                 $sourceSheetIndex,
                 $actor
             ): DataTransformationBiSourceAssetMapping {
@@ -417,6 +392,30 @@ final class DataTransformationBiSourceAssetMappingService
                         'La fuente no pertenece a esta solicitud y sesión.'
                     );
                 }
+
+                $currentCanonicalRegistry =
+                    $this->requirePublishedCanonicalRegistry(
+                        $implementationRequest,
+                        $actor,
+                        true
+                    );
+
+                if (
+                    ! $this->canonicalRegistrySupportsEntity(
+                        $currentCanonicalRegistry,
+                        $canonicalEntityKey
+                    )
+                ) {
+                    throw ValidationException::withMessages([
+                        'canonical_entity_key' => [
+                            'La entidad objetivo no existe en el '
+                            .'modelo canónico publicado de esta empresa.',
+                        ],
+                    ]);
+                }
+
+                $currentRegistryVersion =
+                    (int) $currentCanonicalRegistry['version'];
 
                 [
                     'artifact' => $artifact,
@@ -718,9 +717,12 @@ DataTransformationBiSourceAssetMapping::query()
             $mapping
         );
 
-        $this->assertCurrentCanonicalRegistry(
-            $mapping
-        );
+        $currentCanonicalRegistry =
+            $this->assertCurrentCanonicalRegistry(
+                $implementationRequest,
+                $mapping,
+                $actor
+            );
 
         if (
             (string) $mapping->status
@@ -808,11 +810,11 @@ DataTransformationBiSourceAssetMapping::query()
                 );
 
             if (
-                ! $this->canonicalRegistry
-                    ->supportsField(
-                        (string) $mapping->canonical_entity_key,
-                        $canonicalFieldKey
-                    )
+                ! $this->canonicalRegistrySupportsField(
+                    $currentCanonicalRegistry,
+                    (string) $mapping->canonical_entity_key,
+                    $canonicalFieldKey
+                )
             ) {
                 throw ValidationException::withMessages([
                     "decisions.$index.canonical_field_key" => [
@@ -1103,7 +1105,10 @@ DataTransformationBiSourceAssetMapping::query()
                 }
 
                 $this->assertCurrentCanonicalRegistry(
-                    $locked
+                    $implementationRequest,
+                    $locked,
+                    $actor,
+                    true
                 );
 
                 if (
@@ -1379,24 +1384,139 @@ DataTransformationBiSourceAssetMapping::query()
         ];
     }
 
+    /**
+     * @return array<string,mixed>
+     */
+    private function requirePublishedCanonicalRegistry(
+        TransformationImplementationRequest $implementationRequest,
+        User $actor,
+        bool $lockForUpdate = false
+    ): array {
+        $registry =
+            $this->canonicalModelService
+                ->publishedRegistry(
+                    $implementationRequest,
+                    $actor,
+                    $lockForUpdate
+                );
+
+        if ($registry === null) {
+            throw ValidationException::withMessages([
+                'canonical_registry' => [
+                    'Publica primero un modelo canónico para esta empresa.',
+                ],
+            ]);
+        }
+
+        return $this->canonicalModelService
+            ->registryPayload(
+                $registry
+            );
+    }
+
+    /**
+     * @param array<string,mixed> $registry
+     */
+    private function canonicalRegistrySupportsEntity(
+        array $registry,
+        string $entityKey
+    ): bool {
+        foreach (
+            is_array($registry['entities'] ?? null)
+                ? $registry['entities']
+                : []
+            as $entity
+        ) {
+            if (
+                is_array($entity)
+                && (string) (
+                    $entity['key']
+                    ?? ''
+                ) === $entityKey
+            ) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * @param array<string,mixed> $registry
+     */
+    private function canonicalRegistrySupportsField(
+        array $registry,
+        string $entityKey,
+        string $fieldKey
+    ): bool {
+        foreach (
+            is_array($registry['entities'] ?? null)
+                ? $registry['entities']
+                : []
+            as $entity
+        ) {
+            if (
+                ! is_array($entity)
+                || (string) (
+                    $entity['key']
+                    ?? ''
+                ) !== $entityKey
+            ) {
+                continue;
+            }
+
+            $fields =
+                is_array(
+                    $entity['fields']
+                    ?? null
+                )
+                    ? $entity['fields']
+                    : [];
+
+            return isset(
+                $fields[$fieldKey]
+            );
+        }
+
+        return false;
+    }
+
+    /**
+     * @return array<string,mixed>
+     */
     private function assertCurrentCanonicalRegistry(
-        DataTransformationBiSourceAssetMapping $mapping
-    ): void {
+        TransformationImplementationRequest $implementationRequest,
+        DataTransformationBiSourceAssetMapping $mapping,
+        User $actor,
+        bool $lockForUpdate = false
+    ): array {
+        $registry =
+            $this->requirePublishedCanonicalRegistry(
+                $implementationRequest,
+                $actor,
+                $lockForUpdate
+            );
+
         if (
             (int) $mapping->canonical_registry_version
-                !== $this->canonicalRegistry->version()
-            || ! $this->canonicalRegistry
-                ->supportsEntity(
-                    (string) $mapping->canonical_entity_key
+                !== (int) (
+                    $registry['version']
+                    ?? 0
                 )
+            || ! $this->canonicalRegistrySupportsEntity(
+                $registry,
+                (string) $mapping->canonical_entity_key
+            )
         ) {
             throw ValidationException::withMessages([
                 'mapping' => [
                     'El mapeo pertenece a una versión anterior '
-                    .'del modelo canónico de LAUDA.',
+                    .'del modelo canónico publicado de la empresa.',
                 ],
             ]);
         }
+
+        return $registry;
     }
 
     private function assertAdminScope(

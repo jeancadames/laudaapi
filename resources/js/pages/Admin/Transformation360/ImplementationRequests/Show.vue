@@ -486,6 +486,155 @@ type DynamicSourceCanonicalEntity = {
     source?: string;
 };
 
+// CANONICAL_MODEL_V2_UI_STATE
+
+type CanonicalModelField = {
+    id?: number;
+    field_key?: string;
+    key?: string;
+    label: string;
+    type?: string;
+    data_type?: string;
+    required: boolean;
+    is_identity: boolean;
+    description?: string | null;
+    status?: string;
+    sort_order?: number;
+};
+
+type CanonicalModelEntity = {
+    id: number;
+    entity_key?: string;
+    key?: string;
+    label: string;
+    description?: string | null;
+    status?: string;
+    sort_order?: number;
+    fields:
+        | CanonicalModelField[]
+        | Record<string, CanonicalModelField>;
+};
+
+type CanonicalRelationshipType =
+    | 'one_to_one'
+    | 'one_to_many'
+    | 'many_to_one'
+    | 'many_to_many';
+
+type CanonicalModelRelationship = {
+    id?: number;
+    from_entity_key?: string;
+    from_field_key?: string;
+    to_entity_key?: string;
+    to_field_key?: string;
+    relationship_type?: CanonicalRelationshipType | string;
+    label?: string | null;
+    description?: string | null;
+    from_entity?: {
+        entity_key?: string;
+        key?: string;
+    } | null;
+    from_field?: {
+        field_key?: string;
+        key?: string;
+    } | null;
+    to_entity?: {
+        entity_key?: string;
+        key?: string;
+    } | null;
+    to_field?: {
+        field_key?: string;
+        key?: string;
+    } | null;
+};
+
+type CanonicalModelRegistry = {
+    id: number;
+    company_id?: number;
+    version: number;
+    status: string;
+    notes?: string | null;
+    published_at?: string | null;
+    entities:
+        | CanonicalModelEntity[]
+        | Record<string, CanonicalModelEntity>;
+    relationships: CanonicalModelRelationship[];
+};
+
+type CanonicalModelWorkspace = {
+    registry: CanonicalModelRegistry | null;
+};
+
+type CanonicalModelHttpResponse = {
+    ok: boolean;
+    message?: string;
+    errors?: Record<string, string[]>;
+    workspace?: CanonicalModelWorkspace;
+    registry_id?: number;
+    version?: number;
+};
+
+type CanonicalFieldDraft = {
+    field_key: string;
+    label: string;
+    data_type:
+        | 'text'
+        | 'integer'
+        | 'decimal'
+        | 'boolean'
+        | 'date'
+        | 'datetime';
+    required: boolean;
+    is_identity: boolean;
+    description: string;
+};
+
+type CanonicalRelationshipDraft = {
+    from_entity_key: string;
+    from_field_key: string;
+    to_entity_key: string;
+    to_field_key: string;
+    relationship_type: CanonicalRelationshipType;
+    label: string;
+    description: string;
+};
+
+const canonicalModelBaseUrl =
+    `/admin/transformation-360/implementation-requests/${props.implementation_request.id}/canonical-model`;
+
+const canonicalModelWorkspace =
+    ref<CanonicalModelWorkspace | null>(
+        null,
+    );
+
+const canonicalModelBusy =
+    ref<string | null>(
+        null,
+    );
+
+const canonicalModelError =
+    ref<string | null>(
+        null,
+    );
+
+const canonicalModelMessage =
+    ref<string | null>(
+        null,
+    );
+
+const canonicalEntityForm =
+    ref({
+        entity_key: '',
+        label: '',
+        description: '',
+    });
+
+const canonicalFieldDrafts =
+    ref<Record<number, CanonicalFieldDraft[]>>({});
+
+const canonicalRelationshipDrafts =
+    ref<CanonicalRelationshipDraft[]>([]);
+
 type DynamicSourceMappingColumn = {
     key: string;
     index: number | null;
@@ -3700,6 +3849,950 @@ function standardIntakeV2SourceColumnLabels(
     return [];
 }
 
+// CANONICAL_MODEL_V2_UI_HTTP
+
+function canonicalModelUiAvailable(): boolean {
+    return props.capability.key === DATA_BI_CAPABILITY
+        && [
+            'definition_agreed',
+            'ready_for_commercial',
+        ].includes(
+            props.implementation_request.status,
+        );
+}
+
+function canonicalModelRegistry():
+    CanonicalModelRegistry | null {
+    return canonicalModelWorkspace.value
+        ?.registry
+        ?? null;
+}
+
+function canonicalModelEntities():
+    CanonicalModelEntity[] {
+    const entities =
+        canonicalModelRegistry()
+            ?.entities
+        ?? [];
+
+    return Array.isArray(
+        entities,
+    )
+        ? entities
+        : Object.values(
+            entities,
+        );
+}
+
+function canonicalModelEntityKey(
+    entity: CanonicalModelEntity,
+): string {
+    return entity.entity_key
+        ?? entity.key
+        ?? '';
+}
+
+function canonicalModelFieldKey(
+    field: CanonicalModelField,
+): string {
+    return field.field_key
+        ?? field.key
+        ?? '';
+}
+
+function canonicalModelFieldType(
+    field: CanonicalModelField,
+): CanonicalFieldDraft['data_type'] {
+    const value =
+        field.type
+        ?? field.data_type
+        ?? 'text';
+
+    return [
+        'text',
+        'integer',
+        'decimal',
+        'boolean',
+        'date',
+        'datetime',
+    ].includes(
+        value,
+    )
+        ? value as CanonicalFieldDraft['data_type']
+        : 'text';
+}
+
+function canonicalModelEntityFields(
+    entity: CanonicalModelEntity,
+): CanonicalModelField[] {
+    const fields =
+        entity.fields
+        ?? [];
+
+    return Array.isArray(
+        fields,
+    )
+        ? fields
+        : Object.values(
+            fields,
+        );
+}
+
+function canonicalModelEntityByKey(
+    entityKey: string,
+): CanonicalModelEntity | null {
+    return canonicalModelEntities()
+        .find(
+            (entity) =>
+                canonicalModelEntityKey(
+                    entity,
+                ) === entityKey,
+        )
+        ?? null;
+}
+
+function canonicalModelFieldsByEntityKey(
+    entityKey: string,
+): CanonicalModelField[] {
+    const entity =
+        canonicalModelEntityByKey(
+            entityKey,
+        );
+
+    return entity
+        ? canonicalModelEntityFields(
+            entity,
+        )
+        : [];
+}
+
+function canonicalModelStatusLabel(
+    status?: string | null,
+): string {
+    const labels:
+        Record<string, string> = {
+            draft:
+                'Borrador',
+
+            published:
+                'Publicado',
+
+            retired:
+                'Retirado',
+        };
+
+    return status
+        ? labels[status]
+            ?? status
+        : 'Sin modelo';
+}
+
+function canonicalModelRelationshipTypeLabel(
+    type?: string | null,
+): string {
+    const labels:
+        Record<string, string> = {
+            one_to_one:
+                'Uno a uno',
+
+            one_to_many:
+                'Uno a muchos',
+
+            many_to_one:
+                'Muchos a uno',
+
+            many_to_many:
+                'Muchos a muchos',
+        };
+
+    return type
+        ? labels[type]
+            ?? type
+        : '—';
+}
+
+function canonicalModelRelationshipEntityKey(
+    relationship: CanonicalModelRelationship,
+    side: 'from' | 'to',
+): string {
+    if (side === 'from') {
+        return relationship.from_entity_key
+            ?? relationship.from_entity
+                ?.entity_key
+            ?? relationship.from_entity
+                ?.key
+            ?? '';
+    }
+
+    return relationship.to_entity_key
+        ?? relationship.to_entity
+            ?.entity_key
+        ?? relationship.to_entity
+            ?.key
+        ?? '';
+}
+
+function canonicalModelRelationshipFieldKey(
+    relationship: CanonicalModelRelationship,
+    side: 'from' | 'to',
+): string {
+    if (side === 'from') {
+        return relationship.from_field_key
+            ?? relationship.from_field
+                ?.field_key
+            ?? relationship.from_field
+                ?.key
+            ?? '';
+    }
+
+    return relationship.to_field_key
+        ?? relationship.to_field
+            ?.field_key
+        ?? relationship.to_field
+            ?.key
+        ?? '';
+}
+
+function canonicalModelErrorMessage(
+    payload: CanonicalModelHttpResponse | null,
+    fallback: string,
+): string {
+    const validation =
+        Object.values(
+            payload?.errors
+            ?? {},
+        )
+            .flatMap(
+                (messages) =>
+                    Array.isArray(messages)
+                        ? messages
+                        : [],
+            )
+            .filter(
+                (message) =>
+                    typeof message === 'string'
+                    && message.trim() !== '',
+            )
+            .join(' ');
+
+    return [
+        payload?.message
+            ?.trim()
+        ?? '',
+        validation,
+    ]
+        .filter(Boolean)
+        .join(' ')
+        || fallback;
+}
+
+function hydrateCanonicalModelDrafts(): void {
+    const fieldDrafts:
+        Record<number, CanonicalFieldDraft[]> = {};
+
+    for (
+        const entity
+        of canonicalModelEntities()
+    ) {
+        fieldDrafts[
+            entity.id
+        ] =
+            canonicalModelEntityFields(
+                entity,
+            )
+                .map(
+                    (field) => ({
+                        field_key:
+                            canonicalModelFieldKey(
+                                field,
+                            ),
+
+                        label:
+                            field.label,
+
+                        data_type:
+                            canonicalModelFieldType(
+                                field,
+                            ),
+
+                        required:
+                            Boolean(
+                                field.required,
+                            ),
+
+                        is_identity:
+                            Boolean(
+                                field.is_identity,
+                            ),
+
+                        description:
+                            field.description
+                            ?? '',
+                    }),
+                );
+    }
+
+    canonicalFieldDrafts.value =
+        fieldDrafts;
+
+    canonicalRelationshipDrafts.value =
+        (
+            canonicalModelRegistry()
+                ?.relationships
+            ?? []
+        ).map(
+            (
+                relationship,
+            ): CanonicalRelationshipDraft => ({
+                from_entity_key:
+                    canonicalModelRelationshipEntityKey(
+                        relationship,
+                        'from',
+                    ),
+
+                from_field_key:
+                    canonicalModelRelationshipFieldKey(
+                        relationship,
+                        'from',
+                    ),
+
+                to_entity_key:
+                    canonicalModelRelationshipEntityKey(
+                        relationship,
+                        'to',
+                    ),
+
+                to_field_key:
+                    canonicalModelRelationshipFieldKey(
+                        relationship,
+                        'to',
+                    ),
+
+                relationship_type:
+                    (
+                        [
+                            'one_to_one',
+                            'one_to_many',
+                            'many_to_one',
+                            'many_to_many',
+                        ].includes(
+                            relationship.relationship_type
+                            ?? '',
+                        )
+                            ? relationship.relationship_type
+                            : 'many_to_one'
+                    ) as CanonicalRelationshipType,
+
+                label:
+                    relationship.label
+                    ?? '',
+
+                description:
+                    relationship.description
+                    ?? '',
+            }),
+        );
+}
+
+async function canonicalModelRequest(
+    url: string,
+    options: RequestInit = {},
+): Promise<CanonicalModelHttpResponse> {
+    const headers =
+        new Headers(
+            options.headers
+            ?? {},
+        );
+
+    headers.set(
+        'Accept',
+        'application/json',
+    );
+
+    headers.set(
+        'X-Requested-With',
+        'XMLHttpRequest',
+    );
+
+    Object.entries(
+        standardIntakeCsrfHeaders(),
+    ).forEach(
+        ([key, value]) =>
+            headers.set(
+                key,
+                value,
+            ),
+    );
+
+    if (
+        options.body !== undefined
+        && !(
+            options.body
+            instanceof FormData
+        )
+        && !headers.has(
+            'Content-Type',
+        )
+    ) {
+        headers.set(
+            'Content-Type',
+            'application/json',
+        );
+    }
+
+    const response =
+        await fetch(
+            url,
+            {
+                ...options,
+
+                method:
+                    options.method
+                    ?? 'GET',
+
+                credentials:
+                    'same-origin',
+
+                headers,
+            },
+        );
+
+    let payload:
+        CanonicalModelHttpResponse
+        | null = null;
+
+    try {
+        payload =
+            (await response.json()) as CanonicalModelHttpResponse;
+    } catch {
+        payload =
+            null;
+    }
+
+    if (
+        ! response.ok
+        || payload?.ok !== true
+    ) {
+        throw new Error(
+            canonicalModelErrorMessage(
+                payload,
+                `La operación del modelo canónico falló con HTTP ${response.status}.`,
+            ),
+        );
+    }
+
+    if (payload.workspace) {
+        canonicalModelWorkspace.value =
+            payload.workspace;
+
+        hydrateCanonicalModelDrafts();
+    }
+
+    return payload;
+}
+
+async function loadCanonicalModelWorkspace(): Promise<void> {
+    if (!canonicalModelUiAvailable()) {
+        return;
+    }
+
+    canonicalModelBusy.value =
+        'load';
+
+    canonicalModelError.value =
+        null;
+
+    try {
+        const payload =
+            await canonicalModelRequest(
+                canonicalModelBaseUrl,
+                {
+                    method:
+                        'GET',
+                },
+            );
+
+        if (!payload.workspace) {
+            throw new Error(
+                'LAUDA no devolvió el workspace del modelo canónico.',
+            );
+        }
+
+        canonicalModelWorkspace.value =
+            payload.workspace;
+
+        hydrateCanonicalModelDrafts();
+    } catch (error) {
+        canonicalModelError.value =
+            error instanceof Error
+                ? error.message
+                : 'No se pudo cargar el modelo canónico LAUDA.';
+    } finally {
+        canonicalModelBusy.value =
+            null;
+    }
+}
+
+async function prepareCanonicalModel(): Promise<void> {
+    canonicalModelBusy.value =
+        'prepare';
+
+    canonicalModelError.value =
+        null;
+
+    canonicalModelMessage.value =
+        null;
+
+    try {
+        const payload =
+            await canonicalModelRequest(
+                `${canonicalModelBaseUrl}/prepare`,
+                {
+                    method:
+                        'POST',
+                },
+            );
+
+        canonicalModelMessage.value =
+            payload.message
+            ?? 'Modelo canónico preparado correctamente.';
+    } catch (error) {
+        canonicalModelError.value =
+            error instanceof Error
+                ? error.message
+                : 'No se pudo preparar el modelo canónico.';
+    } finally {
+        canonicalModelBusy.value =
+            null;
+    }
+}
+
+async function createCanonicalEntity(): Promise<void> {
+    const registry =
+        canonicalModelRegistry();
+
+    if (
+        !registry
+        || registry.status !== 'draft'
+    ) {
+        canonicalModelError.value =
+            'Primero prepara una versión borrador del modelo canónico.';
+
+        return;
+    }
+
+    const entityKey =
+        canonicalEntityForm.value
+            .entity_key
+            .trim();
+
+    const label =
+        canonicalEntityForm.value
+            .label
+            .trim();
+
+    if (
+        entityKey === ''
+        || label === ''
+    ) {
+        canonicalModelError.value =
+            'Completa la clave y el nombre de la entidad.';
+
+        return;
+    }
+
+    canonicalModelBusy.value =
+        'entity';
+
+    canonicalModelError.value =
+        null;
+
+    canonicalModelMessage.value =
+        null;
+
+    try {
+        const payload =
+            await canonicalModelRequest(
+                `${canonicalModelBaseUrl}/registries/${registry.id}/entities`,
+                {
+                    method:
+                        'POST',
+
+                    body:
+                        JSON.stringify({
+                            entity_key:
+                                entityKey,
+
+                            label,
+
+                            description:
+                                canonicalEntityForm.value
+                                    .description
+                                    .trim()
+                                || null,
+                        }),
+                },
+            );
+
+        canonicalEntityForm.value = {
+            entity_key: '',
+            label: '',
+            description: '',
+        };
+
+        canonicalModelMessage.value =
+            payload.message
+            ?? 'Entidad canónica creada correctamente.';
+    } catch (error) {
+        canonicalModelError.value =
+            error instanceof Error
+                ? error.message
+                : 'No se pudo crear la entidad canónica.';
+    } finally {
+        canonicalModelBusy.value =
+            null;
+    }
+}
+
+function addCanonicalField(
+    entity: CanonicalModelEntity,
+): void {
+    if (
+        ! canonicalFieldDrafts.value[
+            entity.id
+        ]
+    ) {
+        canonicalFieldDrafts.value[
+            entity.id
+        ] = [];
+    }
+
+    canonicalFieldDrafts.value[
+        entity.id
+    ].push({
+        field_key: '',
+        label: '',
+        data_type: 'text',
+        required: false,
+        is_identity: false,
+        description: '',
+    });
+}
+
+function removeCanonicalField(
+    entity: CanonicalModelEntity,
+    index: number,
+): void {
+    canonicalFieldDrafts.value[
+        entity.id
+    ]?.splice(
+        index,
+        1,
+    );
+}
+
+async function saveCanonicalEntityFields(
+    entity: CanonicalModelEntity,
+): Promise<void> {
+    const registry =
+        canonicalModelRegistry();
+
+    if (
+        !registry
+        || registry.status !== 'draft'
+    ) {
+        canonicalModelError.value =
+            'Solo una versión borrador admite cambios.';
+
+        return;
+    }
+
+    const drafts =
+        canonicalFieldDrafts.value[
+            entity.id
+        ]
+        ?? [];
+
+    if (drafts.length === 0) {
+        canonicalModelError.value =
+            `La entidad ${entity.label} debe contener al menos un campo.`;
+
+        return;
+    }
+
+    const invalid =
+        drafts.find(
+            (field) =>
+                field.field_key.trim() === ''
+                || field.label.trim() === '',
+        );
+
+    if (invalid) {
+        canonicalModelError.value =
+            `Completa la clave y el nombre de todos los campos de ${entity.label}.`;
+
+        return;
+    }
+
+    canonicalModelBusy.value =
+        `fields:${entity.id}`;
+
+    canonicalModelError.value =
+        null;
+
+    canonicalModelMessage.value =
+        null;
+
+    try {
+        const payload =
+            await canonicalModelRequest(
+                `${canonicalModelBaseUrl}/registries/${registry.id}/entities/${entity.id}/fields`,
+                {
+                    method:
+                        'PUT',
+
+                    body:
+                        JSON.stringify({
+                            fields:
+                                drafts.map(
+                                    (field) => ({
+                                        field_key:
+                                            field.field_key
+                                                .trim(),
+
+                                        label:
+                                            field.label
+                                                .trim(),
+
+                                        data_type:
+                                            field.data_type,
+
+                                        required:
+                                            field.required,
+
+                                        is_identity:
+                                            field.is_identity,
+
+                                        description:
+                                            field.description
+                                                .trim()
+                                            || null,
+                                    }),
+                                ),
+                        }),
+                },
+            );
+
+        canonicalModelMessage.value =
+            payload.message
+            ?? `Campos de ${entity.label} actualizados correctamente.`;
+    } catch (error) {
+        canonicalModelError.value =
+            error instanceof Error
+                ? error.message
+                : `No se pudieron guardar los campos de ${entity.label}.`;
+    } finally {
+        canonicalModelBusy.value =
+            null;
+    }
+}
+
+function addCanonicalRelationship(): void {
+    canonicalRelationshipDrafts.value.push({
+        from_entity_key: '',
+        from_field_key: '',
+        to_entity_key: '',
+        to_field_key: '',
+        relationship_type: 'many_to_one',
+        label: '',
+        description: '',
+    });
+}
+
+function removeCanonicalRelationship(
+    index: number,
+): void {
+    canonicalRelationshipDrafts.value.splice(
+        index,
+        1,
+    );
+}
+
+function canonicalRelationshipEntityChanged(
+    relationship: CanonicalRelationshipDraft,
+    side: 'from' | 'to',
+): void {
+    if (side === 'from') {
+        relationship.from_field_key =
+            '';
+
+        return;
+    }
+
+    relationship.to_field_key =
+        '';
+}
+
+async function saveCanonicalRelationships(): Promise<void> {
+    const registry =
+        canonicalModelRegistry();
+
+    if (
+        !registry
+        || registry.status !== 'draft'
+    ) {
+        canonicalModelError.value =
+            'Solo una versión borrador admite cambios.';
+
+        return;
+    }
+
+    const invalid =
+        canonicalRelationshipDrafts.value
+            .find(
+                (relationship) =>
+                    relationship.from_entity_key === ''
+                    || relationship.from_field_key === ''
+                    || relationship.to_entity_key === ''
+                    || relationship.to_field_key === '',
+            );
+
+    if (invalid) {
+        canonicalModelError.value =
+            'Completa entidad y campo de origen y destino en todas las relaciones.';
+
+        return;
+    }
+
+    canonicalModelBusy.value =
+        'relationships';
+
+    canonicalModelError.value =
+        null;
+
+    canonicalModelMessage.value =
+        null;
+
+    try {
+        const payload =
+            await canonicalModelRequest(
+                `${canonicalModelBaseUrl}/registries/${registry.id}/relationships`,
+                {
+                    method:
+                        'PUT',
+
+                    body:
+                        JSON.stringify({
+                            relationships:
+                                canonicalRelationshipDrafts.value
+                                    .map(
+                                        (
+                                            relationship,
+                                        ) => ({
+                                            from_entity_key:
+                                                relationship
+                                                    .from_entity_key,
+
+                                            from_field_key:
+                                                relationship
+                                                    .from_field_key,
+
+                                            to_entity_key:
+                                                relationship
+                                                    .to_entity_key,
+
+                                            to_field_key:
+                                                relationship
+                                                    .to_field_key,
+
+                                            relationship_type:
+                                                relationship
+                                                    .relationship_type,
+
+                                            label:
+                                                relationship
+                                                    .label
+                                                    .trim()
+                                                || null,
+
+                                            description:
+                                                relationship
+                                                    .description
+                                                    .trim()
+                                                || null,
+                                        }),
+                                    ),
+                        }),
+                },
+            );
+
+        canonicalModelMessage.value =
+            payload.message
+            ?? 'Relaciones canónicas actualizadas correctamente.';
+    } catch (error) {
+        canonicalModelError.value =
+            error instanceof Error
+                ? error.message
+                : 'No se pudieron guardar las relaciones canónicas.';
+    } finally {
+        canonicalModelBusy.value =
+            null;
+    }
+}
+
+async function publishCanonicalModel(): Promise<void> {
+    const registry =
+        canonicalModelRegistry();
+
+    if (
+        !registry
+        || registry.status !== 'draft'
+    ) {
+        return;
+    }
+
+    if (
+        typeof window !== 'undefined'
+        && !window.confirm(
+            `¿Publicar la versión ${registry.version} del modelo canónico LAUDA? El Mapeo LAUDA comenzará a utilizar esta versión publicada.`,
+        )
+    ) {
+        return;
+    }
+
+    canonicalModelBusy.value =
+        'publish';
+
+    canonicalModelError.value =
+        null;
+
+    canonicalModelMessage.value =
+        null;
+
+    try {
+        const payload =
+            await canonicalModelRequest(
+                `${canonicalModelBaseUrl}/registries/${registry.id}/publish`,
+                {
+                    method:
+                        'POST',
+                },
+            );
+
+        canonicalModelMessage.value =
+            payload.message
+            ?? 'Modelo canónico publicado correctamente.';
+    } catch (error) {
+        canonicalModelError.value =
+            error instanceof Error
+                ? error.message
+                : 'No se pudo publicar el modelo canónico.';
+    } finally {
+        canonicalModelBusy.value =
+            null;
+    }
+}
+
 function standardIntakeV2SessionStatusLabel(
     status: string | null | undefined,
 ): string {
@@ -5655,6 +6748,11 @@ async function normalizeStandardIntakeBatch(): Promise<void> {
 }
 
 
+// CANONICAL_MODEL_V2_UI_INITIAL_LOAD
+if (canonicalModelUiAvailable()) {
+    void loadCanonicalModelWorkspace();
+}
+
 </script>
 
 <template>
@@ -6682,6 +7780,1065 @@ async function normalizeStandardIntakeBatch(): Promise<void> {
                               </a>
                           </div>
 
+
+                        <!-- CANONICAL_MODEL_V2_ADMIN_UI -->
+                        <section
+                            class="mt-5 rounded-2xl border border-violet-200 bg-violet-50/40 p-4 dark:border-violet-900/70 dark:bg-violet-950/10"
+                        >
+                            <div
+                                class="flex flex-wrap items-start justify-between gap-4"
+                            >
+                                <div class="max-w-3xl">
+                                    <div
+                                        class="flex flex-wrap items-center gap-2"
+                                    >
+                                        <h3 class="text-base font-black">
+                                            Modelo canónico LAUDA
+                                        </h3>
+
+                                        <span
+                                            v-if="canonicalModelRegistry()"
+                                            class="rounded-full border px-2.5 py-1 text-[10px] font-bold uppercase"
+                                            :class="
+                                                canonicalModelRegistry()
+                                                    ?.status === 'draft'
+                                                    ? 'border-amber-300 bg-amber-50 text-amber-700 dark:border-amber-900 dark:bg-amber-950/30 dark:text-amber-300'
+                                                    : canonicalModelRegistry()
+                                                        ?.status === 'published'
+                                                      ? 'border-emerald-300 bg-emerald-50 text-emerald-700 dark:border-emerald-900 dark:bg-emerald-950/30 dark:text-emerald-300'
+                                                      : ''
+                                            "
+                                        >
+                                            v{{ canonicalModelRegistry()?.version }}
+                                            ·
+                                            {{
+                                                canonicalModelStatusLabel(
+                                                    canonicalModelRegistry()?.status,
+                                                )
+                                            }}
+                                        </span>
+                                    </div>
+
+                                    <p
+                                        class="mt-2 text-sm leading-6 text-muted-foreground"
+                                    >
+                                        Define el modelo semántico de LAUDA para
+                                        esta empresa: entidades, campos y relaciones.
+                                        El modelo pertenece a la empresa y puede
+                                        evolucionar por versiones.
+                                    </p>
+
+                                    <p
+                                        class="mt-2 text-xs leading-5 text-muted-foreground"
+                                    >
+                                        <strong>
+                                            Mapeo LAUDA usa únicamente la versión
+                                            publicada.
+                                        </strong>
+                                        Puedes preparar una nueva versión en
+                                        borrador sin afectar los mapeos que siguen
+                                        trabajando con la última versión publicada.
+                                    </p>
+                                </div>
+
+                                <div class="flex flex-wrap gap-2">
+                                    <button
+                                        type="button"
+                                        class="cursor-pointer rounded-lg border bg-background px-3 py-2 text-xs font-bold disabled:cursor-not-allowed disabled:opacity-50"
+                                        :disabled="canonicalModelBusy !== null"
+                                        @click="loadCanonicalModelWorkspace"
+                                    >
+                                        {{
+                                            canonicalModelBusy === 'load'
+                                                ? 'Actualizando...'
+                                                : 'Actualizar'
+                                        }}
+                                    </button>
+
+                                    <button
+                                        v-if="
+                                            !canonicalModelRegistry()
+                                            || canonicalModelRegistry()?.status
+                                                === 'published'
+                                        "
+                                        type="button"
+                                        class="cursor-pointer rounded-lg bg-violet-700 px-4 py-2 text-sm font-bold text-white disabled:cursor-not-allowed disabled:opacity-50"
+                                        :disabled="canonicalModelBusy !== null"
+                                        @click="prepareCanonicalModel"
+                                    >
+                                        {{
+                                            canonicalModelBusy === 'prepare'
+                                                ? 'Preparando...'
+                                                : 'Preparar modelo'
+                                        }}
+                                    </button>
+
+                                    <button
+                                        v-if="
+                                            canonicalModelRegistry()?.status
+                                                === 'draft'
+                                        "
+                                        type="button"
+                                        class="cursor-pointer rounded-lg bg-emerald-700 px-4 py-2 text-sm font-bold text-white disabled:cursor-not-allowed disabled:opacity-50"
+                                        :disabled="canonicalModelBusy !== null"
+                                        @click="publishCanonicalModel"
+                                    >
+                                        {{
+                                            canonicalModelBusy === 'publish'
+                                                ? 'Publicando...'
+                                                : 'Publicar versión'
+                                        }}
+                                    </button>
+                                </div>
+                            </div>
+
+                            <div
+                                v-if="canonicalModelError"
+                                class="mt-4 rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-700 dark:border-red-900/60 dark:bg-red-950/30 dark:text-red-300"
+                            >
+                                {{ canonicalModelError }}
+                            </div>
+
+                            <div
+                                v-if="canonicalModelMessage"
+                                class="mt-4 rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-700 dark:border-emerald-900/60 dark:bg-emerald-950/30 dark:text-emerald-300"
+                            >
+                                {{ canonicalModelMessage }}
+                            </div>
+
+                            <div
+                                v-if="
+                                    canonicalModelBusy === 'load'
+                                    && !canonicalModelWorkspace
+                                "
+                                class="mt-4 rounded-xl border border-dashed bg-background/70 p-6 text-center text-sm text-muted-foreground"
+                            >
+                                Cargando modelo canónico...
+                            </div>
+
+                            <div
+                                v-else-if="!canonicalModelRegistry()"
+                                class="mt-4 rounded-xl border border-dashed bg-background/70 p-6 text-center"
+                            >
+                                <p class="text-sm font-black">
+                                    Aún no existe un modelo canónico para esta empresa
+                                </p>
+
+                                <p
+                                    class="mx-auto mt-2 max-w-2xl text-xs leading-5 text-muted-foreground"
+                                >
+                                    La primera versión comienza vacía. LAUDA define
+                                    las entidades necesarias según los datos reales
+                                    de la empresa; no se crean dominios predefinidos.
+                                </p>
+
+                                <button
+                                    type="button"
+                                    class="mt-4 cursor-pointer rounded-lg bg-violet-700 px-4 py-2 text-sm font-bold text-white disabled:cursor-not-allowed disabled:opacity-50"
+                                    :disabled="canonicalModelBusy !== null"
+                                    @click="prepareCanonicalModel"
+                                >
+                                    Preparar primer modelo
+                                </button>
+                            </div>
+
+                            <template v-else>
+                                <div
+                                    class="mt-5 grid gap-3 sm:grid-cols-3"
+                                >
+                                    <div
+                                        class="rounded-xl border bg-background p-3"
+                                    >
+                                        <p
+                                            class="text-[10px] font-bold uppercase text-muted-foreground"
+                                        >
+                                            Versión
+                                        </p>
+
+                                        <p class="mt-1 text-lg font-black">
+                                            {{ canonicalModelRegistry()?.version }}
+                                        </p>
+                                    </div>
+
+                                    <div
+                                        class="rounded-xl border bg-background p-3"
+                                    >
+                                        <p
+                                            class="text-[10px] font-bold uppercase text-muted-foreground"
+                                        >
+                                            Entidades
+                                        </p>
+
+                                        <p class="mt-1 text-lg font-black">
+                                            {{ canonicalModelEntities().length }}
+                                        </p>
+                                    </div>
+
+                                    <div
+                                        class="rounded-xl border bg-background p-3"
+                                    >
+                                        <p
+                                            class="text-[10px] font-bold uppercase text-muted-foreground"
+                                        >
+                                            Relaciones
+                                        </p>
+
+                                        <p class="mt-1 text-lg font-black">
+                                            {{
+                                                canonicalModelRegistry()
+                                                    ?.relationships
+                                                    ?.length
+                                                ?? 0
+                                            }}
+                                        </p>
+                                    </div>
+                                </div>
+
+                                <section
+                                    v-if="
+                                        canonicalModelRegistry()?.status
+                                            === 'draft'
+                                    "
+                                    class="mt-5 rounded-xl border bg-background p-4"
+                                >
+                                    <p class="text-sm font-black">
+                                        Nueva entidad canónica
+                                    </p>
+
+                                    <p
+                                        class="mt-1 text-xs leading-5 text-muted-foreground"
+                                    >
+                                        La clave es técnica y estable. Usa minúsculas,
+                                        números y guion bajo.
+                                    </p>
+
+                                    <div
+                                        class="mt-4 grid gap-3 lg:grid-cols-3"
+                                    >
+                                        <label class="block">
+                                            <span class="text-xs font-semibold">
+                                                Clave
+                                            </span>
+
+                                            <input
+                                                v-model="
+                                                    canonicalEntityForm.entity_key
+                                                "
+                                                type="text"
+                                                maxlength="100"
+                                                class="mt-1 w-full rounded-lg border bg-background px-3 py-2 font-mono text-sm"
+                                                placeholder="ej. clientes"
+                                            />
+                                        </label>
+
+                                        <label class="block">
+                                            <span class="text-xs font-semibold">
+                                                Nombre
+                                            </span>
+
+                                            <input
+                                                v-model="
+                                                    canonicalEntityForm.label
+                                                "
+                                                type="text"
+                                                maxlength="191"
+                                                class="mt-1 w-full rounded-lg border bg-background px-3 py-2 text-sm"
+                                                placeholder="Ej. Clientes"
+                                            />
+                                        </label>
+
+                                        <label class="block">
+                                            <span class="text-xs font-semibold">
+                                                Descripción
+                                            </span>
+
+                                            <input
+                                                v-model="
+                                                    canonicalEntityForm.description
+                                                "
+                                                type="text"
+                                                maxlength="4000"
+                                                class="mt-1 w-full rounded-lg border bg-background px-3 py-2 text-sm"
+                                                placeholder="Propósito de la entidad"
+                                            />
+                                        </label>
+                                    </div>
+
+                                    <div
+                                        class="mt-3 flex justify-end"
+                                    >
+                                        <button
+                                            type="button"
+                                            class="cursor-pointer rounded-lg bg-violet-700 px-4 py-2 text-sm font-bold text-white disabled:cursor-not-allowed disabled:opacity-50"
+                                            :disabled="canonicalModelBusy !== null"
+                                            @click="createCanonicalEntity"
+                                        >
+                                            {{
+                                                canonicalModelBusy === 'entity'
+                                                    ? 'Creando...'
+                                                    : '+ Crear entidad'
+                                            }}
+                                        </button>
+                                    </div>
+                                </section>
+
+                                <section class="mt-5">
+                                    <div
+                                        class="flex flex-wrap items-center justify-between gap-2"
+                                    >
+                                        <div>
+                                            <p class="text-sm font-black">
+                                                Entidades canónicas
+                                            </p>
+
+                                            <p
+                                                class="mt-1 text-xs text-muted-foreground"
+                                            >
+                                                Cada entidad define su propio conjunto
+                                                dinámico de campos.
+                                            </p>
+                                        </div>
+                                    </div>
+
+                                    <div
+                                        v-if="
+                                            canonicalModelEntities().length === 0
+                                        "
+                                        class="mt-3 rounded-xl border border-dashed bg-background/70 p-5 text-center text-xs text-muted-foreground"
+                                    >
+                                        Esta versión todavía no contiene entidades.
+                                    </div>
+
+                                    <div
+                                        v-else
+                                        class="mt-3 space-y-4"
+                                    >
+                                        <article
+                                            v-for="entity in canonicalModelEntities()"
+                                            :key="`canonical-entity-${entity.id}`"
+                                            class="rounded-xl border bg-background p-4"
+                                        >
+                                            <div
+                                                class="flex flex-wrap items-start justify-between gap-3"
+                                            >
+                                                <div>
+                                                    <div
+                                                        class="flex flex-wrap items-center gap-2"
+                                                    >
+                                                        <p class="text-sm font-black">
+                                                            {{ entity.label }}
+                                                        </p>
+
+                                                        <span
+                                                            class="rounded-md border px-2 py-1 font-mono text-[10px] text-muted-foreground"
+                                                        >
+                                                            {{
+                                                                canonicalModelEntityKey(
+                                                                    entity,
+                                                                )
+                                                            }}
+                                                        </span>
+                                                    </div>
+
+                                                    <p
+                                                        v-if="entity.description"
+                                                        class="mt-1 text-xs leading-5 text-muted-foreground"
+                                                    >
+                                                        {{ entity.description }}
+                                                    </p>
+                                                </div>
+
+                                                <button
+                                                    v-if="
+                                                        canonicalModelRegistry()?.status
+                                                            === 'draft'
+                                                    "
+                                                    type="button"
+                                                    class="cursor-pointer rounded-lg border px-3 py-1.5 text-xs font-bold disabled:cursor-not-allowed disabled:opacity-50"
+                                                    :disabled="
+                                                        canonicalModelBusy !== null
+                                                    "
+                                                    @click="
+                                                        addCanonicalField(
+                                                            entity,
+                                                        )
+                                                    "
+                                                >
+                                                    + Campo
+                                                </button>
+                                            </div>
+
+                                            <div
+                                                v-if="
+                                                    canonicalModelRegistry()?.status
+                                                        === 'draft'
+                                                "
+                                                class="mt-4 space-y-3"
+                                            >
+                                                <div
+                                                    v-for="(
+                                                        field,
+                                                        fieldIndex
+                                                    ) in canonicalFieldDrafts[
+                                                        entity.id
+                                                    ] ?? []"
+                                                    :key="`canonical-field-${entity.id}-${fieldIndex}`"
+                                                    class="rounded-lg border bg-muted/10 p-3"
+                                                >
+                                                    <div
+                                                        class="grid gap-3 xl:grid-cols-12"
+                                                    >
+                                                        <label
+                                                            class="xl:col-span-2"
+                                                        >
+                                                            <span
+                                                                class="text-[10px] font-bold uppercase text-muted-foreground"
+                                                            >
+                                                                Clave
+                                                            </span>
+
+                                                            <input
+                                                                v-model="
+                                                                    field.field_key
+                                                                "
+                                                                type="text"
+                                                                maxlength="100"
+                                                                class="mt-1 w-full rounded-lg border bg-background px-2.5 py-2 font-mono text-xs"
+                                                            />
+                                                        </label>
+
+                                                        <label
+                                                            class="xl:col-span-2"
+                                                        >
+                                                            <span
+                                                                class="text-[10px] font-bold uppercase text-muted-foreground"
+                                                            >
+                                                                Nombre
+                                                            </span>
+
+                                                            <input
+                                                                v-model="
+                                                                    field.label
+                                                                "
+                                                                type="text"
+                                                                maxlength="191"
+                                                                class="mt-1 w-full rounded-lg border bg-background px-2.5 py-2 text-xs"
+                                                            />
+                                                        </label>
+
+                                                        <label
+                                                            class="xl:col-span-2"
+                                                        >
+                                                            <span
+                                                                class="text-[10px] font-bold uppercase text-muted-foreground"
+                                                            >
+                                                                Tipo
+                                                            </span>
+
+                                                            <select
+                                                                v-model="
+                                                                    field.data_type
+                                                                "
+                                                                class="mt-1 w-full rounded-lg border bg-background px-2.5 py-2 text-xs"
+                                                            >
+                                                                <option value="text">
+                                                                    Texto
+                                                                </option>
+                                                                <option value="integer">
+                                                                    Entero
+                                                                </option>
+                                                                <option value="decimal">
+                                                                    Decimal
+                                                                </option>
+                                                                <option value="boolean">
+                                                                    Sí / No
+                                                                </option>
+                                                                <option value="date">
+                                                                    Fecha
+                                                                </option>
+                                                                <option value="datetime">
+                                                                    Fecha y hora
+                                                                </option>
+                                                            </select>
+                                                        </label>
+
+                                                        <label
+                                                            class="xl:col-span-4"
+                                                        >
+                                                            <span
+                                                                class="text-[10px] font-bold uppercase text-muted-foreground"
+                                                            >
+                                                                Descripción
+                                                            </span>
+
+                                                            <input
+                                                                v-model="
+                                                                    field.description
+                                                                "
+                                                                type="text"
+                                                                maxlength="4000"
+                                                                class="mt-1 w-full rounded-lg border bg-background px-2.5 py-2 text-xs"
+                                                            />
+                                                        </label>
+
+                                                        <div
+                                                            class="flex items-end justify-end xl:col-span-2"
+                                                        >
+                                                            <button
+                                                                type="button"
+                                                                class="cursor-pointer rounded-lg border border-red-200 px-2.5 py-2 text-xs font-bold text-red-700 dark:border-red-900 dark:text-red-300"
+                                                                @click="
+                                                                    removeCanonicalField(
+                                                                        entity,
+                                                                        fieldIndex,
+                                                                    )
+                                                                "
+                                                            >
+                                                                Quitar
+                                                            </button>
+                                                        </div>
+                                                    </div>
+
+                                                    <div
+                                                        class="mt-3 flex flex-wrap gap-4 text-xs"
+                                                    >
+                                                        <label
+                                                            class="flex items-center gap-2"
+                                                        >
+                                                            <input
+                                                                v-model="
+                                                                    field.required
+                                                                "
+                                                                type="checkbox"
+                                                            />
+                                                            Requerido
+                                                        </label>
+
+                                                        <label
+                                                            class="flex items-center gap-2"
+                                                        >
+                                                            <input
+                                                                v-model="
+                                                                    field.is_identity
+                                                                "
+                                                                type="checkbox"
+                                                            />
+                                                            Identidad
+                                                        </label>
+                                                    </div>
+                                                </div>
+
+                                                <div
+                                                    v-if="
+                                                        (
+                                                            canonicalFieldDrafts[
+                                                                entity.id
+                                                            ] ?? []
+                                                        ).length === 0
+                                                    "
+                                                    class="rounded-lg border border-dashed p-4 text-center text-xs text-muted-foreground"
+                                                >
+                                                    Agrega al menos un campo antes
+                                                    de guardar la entidad.
+                                                </div>
+
+                                                <div
+                                                    class="flex justify-end"
+                                                >
+                                                    <button
+                                                        type="button"
+                                                        class="cursor-pointer rounded-lg bg-foreground px-3 py-2 text-xs font-bold text-background disabled:cursor-not-allowed disabled:opacity-50"
+                                                        :disabled="
+                                                            canonicalModelBusy
+                                                            !== null
+                                                        "
+                                                        @click="
+                                                            saveCanonicalEntityFields(
+                                                                entity,
+                                                            )
+                                                        "
+                                                    >
+                                                        {{
+                                                            canonicalModelBusy
+                                                                === `fields:${entity.id}`
+                                                                ? 'Guardando...'
+                                                                : 'Guardar campos'
+                                                        }}
+                                                    </button>
+                                                </div>
+                                            </div>
+
+                                            <div
+                                                v-else
+                                                class="mt-4 overflow-x-auto"
+                                            >
+                                                <table
+                                                    class="w-full min-w-[680px] text-left text-xs"
+                                                >
+                                                    <thead>
+                                                        <tr
+                                                            class="border-b text-muted-foreground"
+                                                        >
+                                                            <th class="px-2 py-2">
+                                                                Campo
+                                                            </th>
+                                                            <th class="px-2 py-2">
+                                                                Clave
+                                                            </th>
+                                                            <th class="px-2 py-2">
+                                                                Tipo
+                                                            </th>
+                                                            <th class="px-2 py-2">
+                                                                Requerido
+                                                            </th>
+                                                            <th class="px-2 py-2">
+                                                                Identidad
+                                                            </th>
+                                                        </tr>
+                                                    </thead>
+
+                                                    <tbody>
+                                                        <tr
+                                                            v-for="
+                                                                field in canonicalModelEntityFields(
+                                                                    entity,
+                                                                )
+                                                            "
+                                                            :key="`published-field-${entity.id}-${canonicalModelFieldKey(field)}`"
+                                                            class="border-b last:border-0"
+                                                        >
+                                                            <td class="px-2 py-2 font-semibold">
+                                                                {{ field.label }}
+                                                            </td>
+                                                            <td class="px-2 py-2 font-mono">
+                                                                {{
+                                                                    canonicalModelFieldKey(
+                                                                        field,
+                                                                    )
+                                                                }}
+                                                            </td>
+                                                            <td class="px-2 py-2">
+                                                                {{
+                                                                    dynamicSourceCanonicalTypeLabel(
+                                                                        canonicalModelFieldType(
+                                                                            field,
+                                                                        ),
+                                                                    )
+                                                                }}
+                                                            </td>
+                                                            <td class="px-2 py-2">
+                                                                {{
+                                                                    field.required
+                                                                        ? 'Sí'
+                                                                        : 'No'
+                                                                }}
+                                                            </td>
+                                                            <td class="px-2 py-2">
+                                                                {{
+                                                                    field.is_identity
+                                                                        ? 'Sí'
+                                                                        : 'No'
+                                                                }}
+                                                            </td>
+                                                        </tr>
+                                                    </tbody>
+                                                </table>
+                                            </div>
+                                        </article>
+                                    </div>
+                                </section>
+
+                                <section
+                                    class="mt-5 rounded-xl border bg-background p-4"
+                                >
+                                    <div
+                                        class="flex flex-wrap items-start justify-between gap-3"
+                                    >
+                                        <div>
+                                            <p class="text-sm font-black">
+                                                Relaciones canónicas
+                                            </p>
+
+                                            <p
+                                                class="mt-1 text-xs leading-5 text-muted-foreground"
+                                            >
+                                                Conecta campos entre entidades del
+                                                mismo modelo.
+                                            </p>
+                                        </div>
+
+                                        <button
+                                            v-if="
+                                                canonicalModelRegistry()?.status
+                                                    === 'draft'
+                                            "
+                                            type="button"
+                                            class="cursor-pointer rounded-lg border px-3 py-1.5 text-xs font-bold disabled:cursor-not-allowed disabled:opacity-50"
+                                            :disabled="
+                                                canonicalModelBusy !== null
+                                                || canonicalModelEntities().length < 1
+                                            "
+                                            @click="addCanonicalRelationship"
+                                        >
+                                            + Relación
+                                        </button>
+                                    </div>
+
+                                    <div
+                                        v-if="
+                                            canonicalModelRegistry()?.status
+                                                === 'draft'
+                                        "
+                                        class="mt-4 space-y-3"
+                                    >
+                                        <div
+                                            v-for="(
+                                                relationship,
+                                                relationshipIndex
+                                            ) in canonicalRelationshipDrafts"
+                                            :key="`canonical-relationship-${relationshipIndex}`"
+                                            class="rounded-lg border bg-muted/10 p-3"
+                                        >
+                                            <div
+                                                class="grid gap-3 lg:grid-cols-2 xl:grid-cols-5"
+                                            >
+                                                <label>
+                                                    <span
+                                                        class="text-[10px] font-bold uppercase text-muted-foreground"
+                                                    >
+                                                        Entidad origen
+                                                    </span>
+
+                                                    <select
+                                                        v-model="
+                                                            relationship.from_entity_key
+                                                        "
+                                                        class="mt-1 w-full rounded-lg border bg-background px-2.5 py-2 text-xs"
+                                                        @change="
+                                                            canonicalRelationshipEntityChanged(
+                                                                relationship,
+                                                                'from',
+                                                            )
+                                                        "
+                                                    >
+                                                        <option value="">
+                                                            Seleccionar
+                                                        </option>
+
+                                                        <option
+                                                            v-for="
+                                                                entity in canonicalModelEntities()
+                                                            "
+                                                            :key="`relationship-from-${relationshipIndex}-${entity.id}`"
+                                                            :value="
+                                                                canonicalModelEntityKey(
+                                                                    entity,
+                                                                )
+                                                            "
+                                                        >
+                                                            {{ entity.label }}
+                                                        </option>
+                                                    </select>
+                                                </label>
+
+                                                <label>
+                                                    <span
+                                                        class="text-[10px] font-bold uppercase text-muted-foreground"
+                                                    >
+                                                        Campo origen
+                                                    </span>
+
+                                                    <select
+                                                        v-model="
+                                                            relationship.from_field_key
+                                                        "
+                                                        class="mt-1 w-full rounded-lg border bg-background px-2.5 py-2 text-xs"
+                                                    >
+                                                        <option value="">
+                                                            Seleccionar
+                                                        </option>
+
+                                                        <option
+                                                            v-for="
+                                                                field in canonicalModelFieldsByEntityKey(
+                                                                    relationship.from_entity_key,
+                                                                )
+                                                            "
+                                                            :key="`relationship-from-field-${relationshipIndex}-${canonicalModelFieldKey(field)}`"
+                                                            :value="
+                                                                canonicalModelFieldKey(
+                                                                    field,
+                                                                )
+                                                            "
+                                                        >
+                                                            {{ field.label }}
+                                                        </option>
+                                                    </select>
+                                                </label>
+
+                                                <label>
+                                                    <span
+                                                        class="text-[10px] font-bold uppercase text-muted-foreground"
+                                                    >
+                                                        Entidad destino
+                                                    </span>
+
+                                                    <select
+                                                        v-model="
+                                                            relationship.to_entity_key
+                                                        "
+                                                        class="mt-1 w-full rounded-lg border bg-background px-2.5 py-2 text-xs"
+                                                        @change="
+                                                            canonicalRelationshipEntityChanged(
+                                                                relationship,
+                                                                'to',
+                                                            )
+                                                        "
+                                                    >
+                                                        <option value="">
+                                                            Seleccionar
+                                                        </option>
+
+                                                        <option
+                                                            v-for="
+                                                                entity in canonicalModelEntities()
+                                                            "
+                                                            :key="`relationship-to-${relationshipIndex}-${entity.id}`"
+                                                            :value="
+                                                                canonicalModelEntityKey(
+                                                                    entity,
+                                                                )
+                                                            "
+                                                        >
+                                                            {{ entity.label }}
+                                                        </option>
+                                                    </select>
+                                                </label>
+
+                                                <label>
+                                                    <span
+                                                        class="text-[10px] font-bold uppercase text-muted-foreground"
+                                                    >
+                                                        Campo destino
+                                                    </span>
+
+                                                    <select
+                                                        v-model="
+                                                            relationship.to_field_key
+                                                        "
+                                                        class="mt-1 w-full rounded-lg border bg-background px-2.5 py-2 text-xs"
+                                                    >
+                                                        <option value="">
+                                                            Seleccionar
+                                                        </option>
+
+                                                        <option
+                                                            v-for="
+                                                                field in canonicalModelFieldsByEntityKey(
+                                                                    relationship.to_entity_key,
+                                                                )
+                                                            "
+                                                            :key="`relationship-to-field-${relationshipIndex}-${canonicalModelFieldKey(field)}`"
+                                                            :value="
+                                                                canonicalModelFieldKey(
+                                                                    field,
+                                                                )
+                                                            "
+                                                        >
+                                                            {{ field.label }}
+                                                        </option>
+                                                    </select>
+                                                </label>
+
+                                                <label>
+                                                    <span
+                                                        class="text-[10px] font-bold uppercase text-muted-foreground"
+                                                    >
+                                                        Tipo
+                                                    </span>
+
+                                                    <select
+                                                        v-model="
+                                                            relationship.relationship_type
+                                                        "
+                                                        class="mt-1 w-full rounded-lg border bg-background px-2.5 py-2 text-xs"
+                                                    >
+                                                        <option value="one_to_one">
+                                                            Uno a uno
+                                                        </option>
+                                                        <option value="one_to_many">
+                                                            Uno a muchos
+                                                        </option>
+                                                        <option value="many_to_one">
+                                                            Muchos a uno
+                                                        </option>
+                                                        <option value="many_to_many">
+                                                            Muchos a muchos
+                                                        </option>
+                                                    </select>
+                                                </label>
+                                            </div>
+
+                                            <div
+                                                class="mt-3 grid gap-3 lg:grid-cols-[1fr_2fr_auto]"
+                                            >
+                                                <input
+                                                    v-model="
+                                                        relationship.label
+                                                    "
+                                                    type="text"
+                                                    maxlength="191"
+                                                    class="rounded-lg border bg-background px-2.5 py-2 text-xs"
+                                                    placeholder="Etiqueta opcional"
+                                                />
+
+                                                <input
+                                                    v-model="
+                                                        relationship.description
+                                                    "
+                                                    type="text"
+                                                    maxlength="4000"
+                                                    class="rounded-lg border bg-background px-2.5 py-2 text-xs"
+                                                    placeholder="Descripción opcional"
+                                                />
+
+                                                <button
+                                                    type="button"
+                                                    class="cursor-pointer rounded-lg border border-red-200 px-3 py-2 text-xs font-bold text-red-700 dark:border-red-900 dark:text-red-300"
+                                                    @click="
+                                                        removeCanonicalRelationship(
+                                                            relationshipIndex,
+                                                        )
+                                                    "
+                                                >
+                                                    Quitar
+                                                </button>
+                                            </div>
+                                        </div>
+
+                                        <div
+                                            v-if="
+                                                canonicalRelationshipDrafts.length
+                                                    === 0
+                                            "
+                                            class="rounded-lg border border-dashed p-4 text-center text-xs text-muted-foreground"
+                                        >
+                                            Esta versión no tiene relaciones definidas.
+                                            Guardar una lista vacía también es válido.
+                                        </div>
+
+                                        <div
+                                            class="flex justify-end"
+                                        >
+                                            <button
+                                                type="button"
+                                                class="cursor-pointer rounded-lg bg-foreground px-3 py-2 text-xs font-bold text-background disabled:cursor-not-allowed disabled:opacity-50"
+                                                :disabled="
+                                                    canonicalModelBusy !== null
+                                                "
+                                                @click="
+                                                    saveCanonicalRelationships
+                                                "
+                                            >
+                                                {{
+                                                    canonicalModelBusy
+                                                        === 'relationships'
+                                                        ? 'Guardando...'
+                                                        : 'Guardar relaciones'
+                                                }}
+                                            </button>
+                                        </div>
+                                    </div>
+
+                                    <div
+                                        v-else-if="
+                                            (
+                                                canonicalModelRegistry()
+                                                    ?.relationships
+                                                ?? []
+                                            ).length === 0
+                                        "
+                                        class="mt-4 rounded-lg border border-dashed p-4 text-center text-xs text-muted-foreground"
+                                    >
+                                        La versión publicada no contiene relaciones.
+                                    </div>
+
+                                    <div
+                                        v-else
+                                        class="mt-4 space-y-2"
+                                    >
+                                        <div
+                                            v-for="(
+                                                relationship,
+                                                relationshipIndex
+                                            ) in canonicalModelRegistry()
+                                                ?.relationships ?? []"
+                                            :key="`published-relationship-${relationshipIndex}`"
+                                            class="rounded-lg border bg-muted/10 p-3 text-xs"
+                                        >
+                                            <div
+                                                class="flex flex-wrap items-center gap-2"
+                                            >
+                                                <span class="font-mono font-bold">
+                                                    {{
+                                                        canonicalModelRelationshipEntityKey(
+                                                            relationship,
+                                                            'from',
+                                                        )
+                                                    }}.{{
+                                                        canonicalModelRelationshipFieldKey(
+                                                            relationship,
+                                                            'from',
+                                                        )
+                                                    }}
+                                                </span>
+
+                                                <span class="text-muted-foreground">
+                                                    →
+                                                </span>
+
+                                                <span class="font-mono font-bold">
+                                                    {{
+                                                        canonicalModelRelationshipEntityKey(
+                                                            relationship,
+                                                            'to',
+                                                        )
+                                                    }}.{{
+                                                        canonicalModelRelationshipFieldKey(
+                                                            relationship,
+                                                            'to',
+                                                        )
+                                                    }}
+                                                </span>
+
+                                                <span
+                                                    class="rounded-full border px-2 py-1 text-[10px] font-bold"
+                                                >
+                                                    {{
+                                                        canonicalModelRelationshipTypeLabel(
+                                                            relationship.relationship_type,
+                                                        )
+                                                    }}
+                                                </span>
+                                            </div>
+
+                                            <p
+                                                v-if="
+                                                    relationship.label
+                                                    || relationship.description
+                                                "
+                                                class="mt-2 text-muted-foreground"
+                                            >
+                                                {{
+                                                    relationship.label
+                                                    || relationship.description
+                                                }}
+                                            </p>
+                                        </div>
+                                    </div>
+                                </section>
+                            </template>
+                        </section>
 
                         <!-- D17_DYNAMIC_SOURCE_WORKSPACE_UI -->
                         <section

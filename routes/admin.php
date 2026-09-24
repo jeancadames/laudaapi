@@ -532,6 +532,91 @@ Route::middleware(['auth', 'verified', 'role:admin'])
                 );
 
 
+
+          /*
+          |--------------------------------------------------------------------------
+          | Data BI · Admin LAUDA · Canonical Registry V2
+          |--------------------------------------------------------------------------
+          |
+          | Company-owned dynamic semantic model.
+          |
+          | GET is strictly read-only.
+          | Every draft/model mutation requires an explicit write endpoint.
+          | Registry scope belongs to Company; implementationRequest provides
+          | the authorized Data BI operational context only.
+          |
+          */
+
+          \Illuminate\Support\Facades\Route::get(
+              '/transformation-360/implementation-requests/{implementationRequest}/canonical-model',
+              [
+                  \App\Http\Controllers\Admin\AdminDataTransformationBiCanonicalModelController::class,
+                  'workspace',
+              ]
+          )->name(
+              'transformation360.implementation_requests.canonical_model.workspace'
+          );
+
+          \Illuminate\Support\Facades\Route::post(
+              '/transformation-360/implementation-requests/{implementationRequest}/canonical-model/prepare',
+              [
+                  \App\Http\Controllers\Admin\AdminDataTransformationBiCanonicalModelController::class,
+                  'prepareDraft',
+              ]
+          )->name(
+              'transformation360.implementation_requests.canonical_model.prepare'
+          );
+
+          \Illuminate\Support\Facades\Route::post(
+              '/transformation-360/implementation-requests/{implementationRequest}/canonical-model/registries/{registryId}/entities',
+              [
+                  \App\Http\Controllers\Admin\AdminDataTransformationBiCanonicalModelController::class,
+                  'createEntity',
+              ]
+          )
+              ->whereNumber('registryId')
+              ->name(
+                  'transformation360.implementation_requests.canonical_model.entities.create'
+              );
+
+          \Illuminate\Support\Facades\Route::put(
+              '/transformation-360/implementation-requests/{implementationRequest}/canonical-model/registries/{registryId}/entities/{entityId}/fields',
+              [
+                  \App\Http\Controllers\Admin\AdminDataTransformationBiCanonicalModelController::class,
+                  'replaceFields',
+              ]
+          )
+              ->whereNumber('registryId')
+              ->whereNumber('entityId')
+              ->name(
+                  'transformation360.implementation_requests.canonical_model.entities.fields.replace'
+              );
+
+          \Illuminate\Support\Facades\Route::put(
+              '/transformation-360/implementation-requests/{implementationRequest}/canonical-model/registries/{registryId}/relationships',
+              [
+                  \App\Http\Controllers\Admin\AdminDataTransformationBiCanonicalModelController::class,
+                  'replaceRelationships',
+              ]
+          )
+              ->whereNumber('registryId')
+              ->name(
+                  'transformation360.implementation_requests.canonical_model.relationships.replace'
+              );
+
+          \Illuminate\Support\Facades\Route::post(
+              '/transformation-360/implementation-requests/{implementationRequest}/canonical-model/registries/{registryId}/publish',
+              [
+                  \App\Http\Controllers\Admin\AdminDataTransformationBiCanonicalModelController::class,
+                  'publish',
+              ]
+          )
+              ->whereNumber('registryId')
+              ->name(
+                  'transformation360.implementation_requests.canonical_model.publish'
+              );
+
+
           /*
           |--------------------------------------------------------------------------
           | Data BI · Admin LAUDA · Source-centric canonical mapping

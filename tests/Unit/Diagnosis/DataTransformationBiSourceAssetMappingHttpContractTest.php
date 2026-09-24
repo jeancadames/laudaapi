@@ -156,7 +156,7 @@ final class DataTransformationBiSourceAssetMappingHttpContractTest
         }
     }
 
-    public function test_workspace_returns_registry_profile_structure_and_existing_mappings_only(): void
+    public function test_workspace_returns_published_dynamic_registry_profile_structure_and_existing_mappings_only(): void
     {
         $workspace =
             $this->methodBlock(
@@ -168,12 +168,12 @@ final class DataTransformationBiSourceAssetMappingHttpContractTest
         foreach (
             [
                 "'canonical_registry'",
-                "'entities'",
-                "'relationships'",
                 "'source'",
                 "'sheets'",
                 "'columns'",
                 "'mappings'",
+                'publishedWorkspace(',
+                '$this->canonicalModelService',
                 'currentProfileContext(',
                 'DataTransformationBiSourceAssetMapping::query()',
             ]
