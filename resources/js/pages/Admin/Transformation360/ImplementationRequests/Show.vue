@@ -701,7 +701,7 @@ type DynamicSourceMappingWorkspace = {
         version: number;
         entities: DynamicSourceCanonicalEntity[];
         relationships: unknown[];
-    };
+    } | null;
     source: {
         id: number;
         display_name: string;
@@ -1946,6 +1946,7 @@ function dynamicSourceMappingSelectedEntity():
 
     if (
         ! workspace
+        || ! workspace.canonical_registry
         || dynamicSourceMappingSelectedEntityKey.value
             === ''
     ) {
@@ -2387,6 +2388,7 @@ async function loadDynamicSourceMappingWorkspace(
 
         const previousEntityStillExists =
             previousEntity !== ''
+            && workspace.canonical_registry
             && workspace
                 .canonical_registry
                 .entities
@@ -10935,9 +10937,30 @@ if (canonicalModelUiAvailable()) {
                                             {{ dynamicSourceMappingMessage }}
                                         </div>
 
+                                        <div
+                                            v-if="
+                                                dynamicSourceMappingWorkspace
+                                                && dynamicSourceMappingAssetId
+                                                    === dynamicSourceSelectedAsset()
+                                                        ?.id
+                                                && !dynamicSourceMappingWorkspace.canonical_registry
+                                            "
+                                            class="rounded-xl border border-amber-200 bg-amber-50 p-4 text-xs leading-5 text-amber-800 dark:border-amber-900 dark:bg-amber-950/20 dark:text-amber-200"
+                                        >
+                                            <p class="font-black">
+                                                Modelo canónico LAUDA pendiente
+                                            </p>
+
+                                            <p class="mt-1">
+                                                No existe todavía una versión publicada del modelo canónico LAUDA.
+                                                Prepara y publica el modelo antes de iniciar el mapeo.
+                                            </p>
+                                        </div>
+
                                         <template
                                             v-if="
                                                 dynamicSourceMappingWorkspace
+                                                && dynamicSourceMappingWorkspace.canonical_registry
                                                 && dynamicSourceMappingAssetId
                                                     === dynamicSourceSelectedAsset()
                                                         ?.id
