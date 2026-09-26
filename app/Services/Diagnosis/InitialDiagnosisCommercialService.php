@@ -453,7 +453,10 @@ final class InitialDiagnosisCommercialService
             ->where('meta->source', self::SOURCE)
             ->where('meta->company_id', $company->id)
             ->whereNull('diagnosis_assessment_id')
-            ->where('status', '!=', DiagnosisAccessRequest::STATUS_REJECTED)
+            ->whereNotIn('status', [
+                DiagnosisAccessRequest::STATUS_ACTIVE,
+                DiagnosisAccessRequest::STATUS_REJECTED,
+            ])
             ->with('assessment')
             ->latest('id')
             ->first();
