@@ -473,6 +473,19 @@ final class DataTransformationBiIntakeV2StateService
             'ready_at' =>
                 $session->ready_at?->toISOString(),
 
+            'submitted_at' =>
+                $session->submitted_at?->toISOString(),
+
+            'submitted_by_user_id' =>
+                $session->submitted_by_user_id !== null
+                    ? (int) $session->submitted_by_user_id
+                    : null,
+
+            'submitted_manifest_sha256' =>
+                $session->submitted_manifest_sha256 !== null
+                    ? (string) $session->submitted_manifest_sha256
+                    : null,
+
             'finalized_at' =>
                 $session->finalized_at?->toISOString(),
 
@@ -626,6 +639,9 @@ final class DataTransformationBiIntakeV2StateService
                 'can_manage_sources' =>
                     false,
 
+                'can_submit_for_evaluation' =>
+                    false,
+
                 'can_resolve' =>
                     false,
 
@@ -657,9 +673,17 @@ final class DataTransformationBiIntakeV2StateService
 
         return [
             'can_start_or_resume' =>
-                $status
-                !== DataTransformationBiIntakeSession
-                    ::STATUS_FINALIZING,
+                ! in_array(
+                    $status,
+                    [
+                        DataTransformationBiIntakeSession
+                            ::STATUS_FINALIZING,
+
+                        DataTransformationBiIntakeSession
+                            ::STATUS_SUBMITTED_FOR_EVALUATION,
+                    ],
+                    true
+                ),
 
             'can_start_new_session' =>
                 in_array(
@@ -708,6 +732,11 @@ final class DataTransformationBiIntakeV2StateService
                     ],
                     true
                 ),
+
+            'can_submit_for_evaluation' =>
+                $status
+                    === DataTransformationBiIntakeSession
+                        ::STATUS_DRAFT,
 
             'can_resolve' =>
                 $status
@@ -909,6 +938,16 @@ final class DataTransformationBiIntakeV2StateService
 
                         'profiling_snapshot' =>
                             $asset->profiling_snapshot,
+
+                        'diagnostic_summary' =>
+                            \App\Services\Diagnosis\DataTransformationBiSourceDiagnosticReadModel
+                                ::fromSnapshot(
+                                    is_array(
+                                        $asset->profiling_snapshot
+                                    )
+                                        ? $asset->profiling_snapshot
+                                        : null
+                                ),
 
                         'profiling_status' =>
                             (string) (

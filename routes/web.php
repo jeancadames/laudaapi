@@ -227,6 +227,13 @@ Route::middleware(['auth', 'verified'])
             ->name('prepare');
 
         Route::post(
+            '/sesiones/{sessionId}/enviar-evaluacion',
+            'submitForEvaluation'
+        )
+            ->whereNumber('sessionId')
+            ->name('submit_for_evaluation');
+
+        Route::post(
             '/sesiones/{sessionId}/fuentes',
             'createSourceAsset'
         )

@@ -12,6 +12,7 @@ use App\Services\Diagnosis\DataTransformationBiIntakeV2StateService;
 use App\Services\Diagnosis\DataTransformationBiSourceAssetDataUploadService;
 use App\Services\Diagnosis\DataTransformationBiSourceAssetService;
 use App\Services\Diagnosis\DataTransformationBiSourceAssetStructureService;
+use App\Services\Diagnosis\DataTransformationBiSourceSubmissionService;
 use App\Services\Diagnosis\DataTransformationBiSqlServerExtractionAssistant;
 use App\Services\Diagnosis\TransformationImplementationRequestContract;
 use App\Services\Subscribers\CompanyContextResolver;
@@ -68,6 +69,64 @@ final class AppHubDataTransformationBiSourceWorkspaceController
                 ($result['reused'] ?? false)
                     ? 'El workspace de fuentes existente fue reutilizado.'
                     : 'El workspace de fuentes fue preparado correctamente.',
+
+            'state' =>
+                $this->stateService->forRequest(
+                    $implementationRequest
+                ),
+        ]);
+    }
+
+    /**
+     * Submit the frozen tenant-owned source delivery for LAUDA evaluation.
+     *
+     * This does not profile, normalize, materialize staging or publish
+     * diagnostic results.
+     */
+    public function submitForEvaluation(
+        Request $request,
+        int $sessionId,
+        DataTransformationBiSourceSubmissionService $service
+    ): JsonResponse {
+        [
+            'actor' => $actor,
+            'implementation_request' => $implementationRequest,
+        ] = $this->tenantContext(
+            $request
+        );
+
+        $session =
+            $this->scopedSession(
+                $implementationRequest,
+                $sessionId
+            );
+
+        $result =
+            $service->submit(
+                $implementationRequest,
+                $session,
+                $actor
+            );
+
+        return $this->tenantJson([
+            'ok' =>
+                true,
+
+            'message' =>
+                ($result['reused'] ?? false)
+                    ? 'La entrega ya había sido enviada a evaluación.'
+                    : 'La entrega fue enviada a evaluación correctamente.',
+
+            'submission' => [
+                'status' =>
+                    $result['status'],
+
+                'submitted_at' =>
+                    $result['submitted_at'],
+
+                'source_count' =>
+                    $result['source_count'],
+            ],
 
             'state' =>
                 $this->stateService->forRequest(

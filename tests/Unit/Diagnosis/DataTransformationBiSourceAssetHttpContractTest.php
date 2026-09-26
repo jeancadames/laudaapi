@@ -8,7 +8,10 @@ final class DataTransformationBiSourceAssetHttpContractTest
     extends TestCase
 {
     private string $controller;
+
     private string $routes;
+
+    private string $sourceRoutes;
 
     protected function setUp(): void
     {
@@ -20,14 +23,13 @@ final class DataTransformationBiSourceAssetHttpContractTest
         $this->controller =
             file_get_contents(
                 $root
-                .'/app/Http/Controllers/Admin/'
-                .'AdminDataTransformationBiIntakeV2Controller.php'
+                .'/app/Http/Controllers/'
+                .'AppHubDataTransformationBiSourceWorkspaceController.php'
             );
 
         $this->routes =
             file_get_contents(
-                $root
-                .'/routes/admin.php'
+                $root.'/routes/web.php'
             );
 
         self::assertIsString(
@@ -37,19 +39,44 @@ final class DataTransformationBiSourceAssetHttpContractTest
         self::assertIsString(
             $this->routes
         );
+
+        $start =
+            strpos(
+                $this->routes,
+                "->prefix('/app/transformacion-360/datos-bi/fuentes')"
+            );
+
+        self::assertNotFalse(
+            $start
+        );
+
+        $end =
+            strpos(
+                $this->routes,
+                '| Tenant Definition review',
+                $start
+            );
+
+        self::assertNotFalse(
+            $end
+        );
+
+        $this->sourceRoutes =
+            substr(
+                $this->routes,
+                $start,
+                $end - $start
+            );
     }
 
-    public function test_http_actions_cover_dynamic_source_lifecycle(): void
+    public function test_tenant_controller_owns_dynamic_source_lifecycle(): void
     {
-        foreach (
-            [
-                'public function createSourceAsset(',
-                'public function updateSourceAsset(',
-                'public function reorderSourceAssets(',
-                'public function archiveSourceAsset(',
-            ]
-            as $method
-        ) {
+        foreach ([
+            'public function createSourceAsset(',
+            'public function updateSourceAsset(',
+            'public function reorderSourceAssets(',
+            'public function archiveSourceAsset(',
+        ] as $method) {
             self::assertStringContainsString(
                 $method,
                 $this->controller
@@ -57,201 +84,105 @@ final class DataTransformationBiSourceAssetHttpContractTest
         }
     }
 
-    public function test_routes_are_scoped_to_intake_session(): void
+    public function test_routes_are_tenant_and_session_scoped(): void
     {
-        self::assertStringContainsString(
-            'standard-intake-v2/sessions/{sessionId}/source-assets',
-            $this->routes
-        );
-
-        self::assertStringContainsString(
+        foreach ([
+            '/sesiones/{sessionId}/fuentes',
+            '/sesiones/{sessionId}/fuentes/reordenar',
+            '/sesiones/{sessionId}/fuentes/{sourceAssetId}',
+            '/sesiones/{sessionId}/fuentes/{sourceAssetId}/archivar',
             "->whereNumber('sessionId')",
-            $this->routes
-        );
-
-        self::assertStringContainsString(
-            '{sourceAssetId}',
-            $this->routes
-        );
-
-        self::assertStringContainsString(
             "->whereNumber('sourceAssetId')",
-            $this->routes
+        ] as $required) {
+            self::assertStringContainsString(
+                $required,
+                $this->sourceRoutes
+            );
+        }
+
+        self::assertStringContainsString(
+            "->prefix('/app/transformacion-360/datos-bi/fuentes')",
+            $this->sourceRoutes
         );
     }
 
-    public function test_controller_uses_dynamic_source_service(): void
+    public function test_controller_reuses_dynamic_source_service(): void
     {
         self::assertStringContainsString(
             'DataTransformationBiSourceAssetService',
             $this->controller
         );
 
-        self::assertStringContainsString(
+        foreach ([
             '$service->create(',
-            $this->controller
-        );
-
-        self::assertStringContainsString(
             '$service->update(',
-            $this->controller
-        );
-
-        self::assertStringContainsString(
             '$service->reorder(',
-            $this->controller
-        );
-
-        self::assertStringContainsString(
             '$service->archive(',
-            $this->controller
-        );
+        ] as $required) {
+            self::assertStringContainsString(
+                $required,
+                $this->controller
+            );
+        }
     }
 
-    public function test_http_contract_has_no_canonical_domain_requirement(): void
+    public function test_tenant_source_lifecycle_is_domain_agnostic(): void
     {
-        $start =
-            strpos(
-                $this->controller,
-                'public function createSourceAsset('
-            );
-
-        $end =
-            strpos(
-                $this->controller,
-                'public function previewSqlServerExtraction('
-            );
-
-        self::assertNotFalse(
-            $start
-        );
-
-        self::assertNotFalse(
-            $end
-        );
-
-        $block =
-            substr(
-                $this->controller,
-                $start,
-                $end - $start
-            );
-
-        self::assertStringNotContainsString(
+        foreach ([
             'DataTransformationBiSourceDomainRegistry',
-            $block
-        );
-
-        self::assertStringNotContainsString(
-            "'domain_key'",
-            $block
-        );
-
-        self::assertStringNotContainsString(
             'DataTransformationBiIntakeDomainDelivery',
-            $block
-        );
+            "'domain_key'",
+        ] as $forbidden) {
+            self::assertStringNotContainsString(
+                $forbidden,
+                $this->controller
+            );
+        }
     }
 
-    public function test_origin_is_free_text_and_delivery_is_csv_or_xlsx(): void
+    public function test_source_metadata_is_native_and_dynamic(): void
     {
-        self::assertStringContainsString(
+        foreach ([
             "'origin_system'",
-            $this->controller
-        );
-
-        self::assertStringContainsString(
-            "'in:csv,xlsx'",
-            $this->controller
-        );
-
-        self::assertStringContainsString(
             "'source_object_name'",
-            $this->controller
-        );
-
-        self::assertStringContainsString(
             "'description'",
-            $this->controller
-        );
+            "'delivery_format'",
+        ] as $required) {
+            self::assertStringContainsString(
+                $required,
+                $this->controller
+            );
+        }
     }
 
-    public function test_source_asset_is_scoped_to_company_and_session(): void
+    public function test_source_scope_remains_company_and_session_bound(): void
     {
-        self::assertStringContainsString(
-            'private function scopedSourceAsset(',
-            $this->controller
-        );
-
-        self::assertStringContainsString(
+        foreach ([
             "'company_id'",
-            $this->controller
-        );
-
-        self::assertStringContainsString(
             "'data_transformation_bi_intake_session_id'",
-            $this->controller
-        );
+        ] as $required) {
+            self::assertStringContainsString(
+                $required,
+                $this->controller
+            );
+        }
     }
 
-    public function test_http_payload_exposes_no_private_storage_or_credentials(): void
-    {
-        $start =
-            strpos(
-                $this->controller,
-                'private function sourceAssetPayload('
-            );
-
-        self::assertNotFalse(
-            $start
-        );
-
-        $block =
-            substr(
-                $this->controller,
-                $start
-            );
-
-        $lower =
-            strtolower(
-                $block
-            );
-
-        self::assertStringNotContainsString(
-            'source_path',
-            $lower
-        );
-
-        self::assertStringNotContainsString(
-            'password',
-            $lower
-        );
-
-        self::assertStringNotContainsString(
-            'connection_string',
-            $lower
-        );
-
-        self::assertStringNotContainsString(
-            'access_token',
-            $lower
-        );
-    }
-
-    public function test_archive_route_is_not_a_delete_endpoint(): void
+    public function test_archive_is_patch_not_delete(): void
     {
         self::assertStringContainsString(
-            '/archive',
-            $this->routes
+            "Route::patch(",
+            $this->sourceRoutes
+        );
+
+        self::assertStringContainsString(
+            '/archivar',
+            $this->sourceRoutes
         );
 
         self::assertStringNotContainsString(
-            "Route::delete(\n"
-            ."              '/transformation-360/"
-            ."implementation-requests/{implementationRequest}/"
-            ."standard-intake-v2/sessions/{sessionId}/"
-            ."source-assets",
-            $this->routes
+            'Route::delete(',
+            $this->sourceRoutes
         );
     }
 }

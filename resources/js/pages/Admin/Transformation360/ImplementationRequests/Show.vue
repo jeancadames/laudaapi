@@ -427,6 +427,42 @@ type DynamicSourceDataUploadFormState = {
     input_key: number;
 };
 
+type DynamicSourceDiagnosticSummary = {
+    available: boolean;
+    profile_version?: number | null;
+    format?: string | null;
+
+    volume: {
+        source_row_count: number;
+        profiled_row_count: number;
+        sheet_count: number;
+        column_count: number;
+    };
+
+    coverage: {
+        profiled_cell_count: number;
+        non_empty_cell_count: number;
+        empty_cell_count: number;
+        completeness_percent: number | null;
+        missing_percent: number | null;
+    };
+
+    columns: {
+        complete_count: number;
+        with_missing_count: number;
+        fully_empty_count: number;
+        unprofiled_count: number;
+        mixed_type_count: number;
+        with_other_type_count: number;
+    };
+
+    scan: {
+        full_scan: boolean | null;
+        source_row_count: number;
+        profiled_row_count: number;
+    };
+};
+
 type DynamicSourceAsset = {
     id: number;
     display_name: string;
@@ -442,6 +478,7 @@ type DynamicSourceAsset = {
     data_status: string;
     structure_snapshot?: Record<string, unknown> | null;
     profiling_snapshot?: Record<string, unknown> | null;
+    diagnostic_summary?: DynamicSourceDiagnosticSummary | null;
     profiling_status?:
         | 'idle'
         | 'queued'
@@ -1086,6 +1123,73 @@ function dynamicSourceProfileNumber(
         : 0;
 }
 
+function dynamicSourceDiagnosticSummary(
+    asset: DynamicSourceAsset | null,
+): DynamicSourceDiagnosticSummary | null {
+    const summary =
+        asset?.diagnostic_summary;
+
+    if (
+        !summary
+        || summary.available !== true
+    ) {
+        return null;
+    }
+
+    return summary;
+}
+
+function dynamicSourceDiagnosticCount(
+    value: number | null | undefined,
+): string {
+    if (
+        typeof value !== 'number'
+        || !Number.isFinite(value)
+    ) {
+        return '—';
+    }
+
+    return new Intl.NumberFormat(
+        'es-DO',
+        {
+            maximumFractionDigits: 0,
+        },
+    ).format(value);
+}
+
+function dynamicSourceDiagnosticPercent(
+    value: number | null | undefined,
+): string {
+    if (
+        typeof value !== 'number'
+        || !Number.isFinite(value)
+    ) {
+        return '—';
+    }
+
+    return `${new Intl.NumberFormat(
+        'es-DO',
+        {
+            minimumFractionDigits: 0,
+            maximumFractionDigits: 2,
+        },
+    ).format(value)} %`;
+}
+
+function dynamicSourceDiagnosticScanLabel(
+    summary: DynamicSourceDiagnosticSummary,
+): string {
+    if (summary.scan.full_scan === true) {
+        return 'Análisis completo';
+    }
+
+    if (summary.scan.full_scan === false) {
+        return 'Análisis por muestreo';
+    }
+
+    return 'Cobertura de análisis no disponible';
+}
+
 function dynamicSourceProfileFullScanLabel(
     asset: DynamicSourceAsset,
 ): string {
@@ -1407,10 +1511,9 @@ async function profileDynamicSourceAsset(
 
     if (
         sessionId === null
-        || !dynamicSourceCanManage()
     ) {
         dynamicSourceProfilingError.value =
-            'La sesión no permite ejecutar profiling técnico en este momento.';
+            'No existe una entrega del tenant disponible para profiling.';
 
         return;
     }
@@ -8835,7 +8938,7 @@ if (canonicalModelUiAvailable()) {
                                         class="flex flex-wrap items-center gap-2"
                                     >
                                         <h3 class="text-base font-black">
-                                            Fuentes de datos
+                                            Entrega de datos del tenant
                                         </h3>
 
                                         <span
@@ -8866,62 +8969,25 @@ if (canonicalModelUiAvailable()) {
                                     <p
                                         class="mt-2 text-sm leading-6 text-muted-foreground"
                                     >
-                                        Registra cada tabla o archivo tal como existe
-                                        en el sistema del cliente. No necesitas adaptar
-                                        los datos al modelo LAUDA en esta etapa. El
-                                        sistema de origen es informativo y los datos se
-                                        entregan posteriormente en CSV o Excel.
-                                    </p>
+                            Fuentes preparadas y entregadas por el tenant
+                            para esta evaluación. LAUDA puede revisar,
+                            perfilar y analizar la información recibida,
+                            pero no modificar la entrega.
+</p>
 
                                     <p
                                         class="mt-2 text-xs leading-5 text-muted-foreground"
                                     >
-                                        Ejemplos:
-                                        <strong>Maestro de clientes · CTES</strong>,
-                                        <strong>Facturas · FAC.DBF</strong>,
-                                        <strong>Detalle de facturas · FACDET.DBF</strong>.
-                                    </p>
+                            La cantidad, los nombres, la estructura y el
+                            contenido de las fuentes son definidos
+                            dinámicamente por el tenant.
+</p>
                                 </div>
 
                                 <div class="flex flex-wrap gap-2">
-                                    <button
-                                        v-if="
-                                            !standardIntakeV2State?.session
-                                            || standardIntakeV2State
-                                                ?.actions
-                                                ?.can_start_new_session
-                                        "
-                                        type="button"
-                                        class="cursor-pointer rounded-lg border bg-background px-4 py-2 text-sm font-bold disabled:cursor-not-allowed disabled:opacity-50"
-                                        :disabled="
-                                            standardIntakeV2Busy
-                                            !== null
-                                        "
-                                        @click="startStandardIntakeV2Session"
-                                    >
-                                        {{
-                                            standardIntakeV2Busy
-                                                === 'session'
-                                                ? 'Preparando...'
-                                                : 'Iniciar sesión'
-                                        }}
-                                    </button>
 
-                                    <button
-                                        v-if="dynamicSourceCanManage()"
-                                        type="button"
-                                        class="cursor-pointer rounded-lg bg-sky-700 px-4 py-2 text-sm font-bold text-white disabled:cursor-not-allowed disabled:opacity-50"
-                                        :disabled="
-                                            dynamicSourceBusy
-                                            !== null
-                                            || dynamicSourceProfilingRunning(
-                                                dynamicSourceSelectedAsset(),
-                                            )
-                                        "
-                                        @click="openDynamicSourceCreateForm"
-                                    >
-                                        + Agregar fuente
-                                    </button>
+
+
                                 </div>
                             </div>
 
@@ -8933,7 +8999,7 @@ if (canonicalModelUiAvailable()) {
                             </div>
 
                             <div
-                                v-if="dynamicSourceFormOpen"
+                                v-if="false && dynamicSourceFormOpen"
                                 class="mt-4 rounded-xl border bg-background p-4"
                             >
                                 <div
@@ -9162,26 +9228,18 @@ if (canonicalModelUiAvailable()) {
                                 />
 
                                 <p class="mt-3 text-sm font-black">
-                                    Todavía no hay fuentes registradas
+                                    El tenant todavía no ha entregado fuentes
                                 </p>
 
                                 <p
                                     class="mx-auto mt-1 max-w-xl text-xs leading-5 text-muted-foreground"
                                 >
-                                    Agrega las tablas o archivos que el cliente
-                                    utiliza. No existe un límite por dominio:
-                                    puedes registrar tantas fuentes como sean
-                                    necesarias.
-                                </p>
+                                    Cuando el tenant prepare y envíe sus
+                                    fuentes, aparecerán aquí para revisión
+                                    y evaluación por parte de LAUDA.
+</p>
 
-                                <button
-                                    v-if="dynamicSourceCanManage()"
-                                    type="button"
-                                    class="mt-4 cursor-pointer rounded-lg bg-sky-700 px-4 py-2 text-sm font-bold text-white"
-                                    @click="openDynamicSourceCreateForm"
-                                >
-                                    + Agregar primera fuente
-                                </button>
+
                             </div>
 
                             <div
@@ -9319,11 +9377,7 @@ if (canonicalModelUiAvailable()) {
                                             >
                                                 Estructura
                                             </span>
-                                            <span
-                                                class="rounded-full border px-2 py-1 text-[10px] font-semibold"
-                                            >
-                                                Extracción
-                                            </span>
+
                                             <span
                                                 class="rounded-full border px-2 py-1 text-[10px] font-semibold"
                                             >
@@ -9334,17 +9388,13 @@ if (canonicalModelUiAvailable()) {
                                             >
                                                 Análisis
                                             </span>
-                                            <span
-                                                class="rounded-full border px-2 py-1 text-[10px] font-semibold"
-                                            >
-                                                Mapeo
-                                            </span>
+
                                         </div>
 
                                         <div
                                             class="mt-auto flex flex-wrap items-center justify-between gap-2 pt-5"
                                         >
-                                            <div class="flex gap-1">
+                                            <div v-if="false" class="flex gap-1">
                                                 <button
                                                     type="button"
                                                     title="Mover a la izquierda"
@@ -9393,45 +9443,12 @@ if (canonicalModelUiAvailable()) {
                                                         )
                                                     "
                                                 >
-                                                    Gestionar
+                                                    Revisar
                                                 </button>
 
-                                                <button
-                                                    v-if="dynamicSourceCanManage()"
-                                                    type="button"
-                                                    class="cursor-pointer rounded-lg border px-3 py-1.5 text-xs font-bold disabled:cursor-not-allowed disabled:opacity-50"
-                                                    :disabled="
-                                                        dynamicSourceBusy !== null
-                                                    "
-                                                    @click="
-                                                        openDynamicSourceEditForm(
-                                                            asset,
-                                                        )
-                                                    "
-                                                >
-                                                    Editar
-                                                </button>
 
-                                                <button
-                                                    v-if="dynamicSourceCanManage()"
-                                                    type="button"
-                                                    class="cursor-pointer rounded-lg border border-red-200 px-3 py-1.5 text-xs font-bold text-red-700 disabled:cursor-not-allowed disabled:opacity-50 dark:border-red-900 dark:text-red-300"
-                                                    :disabled="
-                                                        dynamicSourceBusy !== null
-                                                    "
-                                                    @click="
-                                                        archiveDynamicSourceAsset(
-                                                            asset,
-                                                        )
-                                                    "
-                                                >
-                                                    {{
-                                                        dynamicSourceBusy
-                                                            === `archive:${asset.id}`
-                                                            ? 'Archivando...'
-                                                            : 'Archivar'
-                                                    }}
-                                                </button>
+
+
                                             </div>
                                         </div>
                                     </article>
@@ -9738,22 +9755,16 @@ if (canonicalModelUiAvailable()) {
                                                     key: 'structure',
                                                     label: 'Estructura',
                                                 },
-                                                {
-                                                    key: 'extraction',
-                                                    label: 'Extracción',
-                                                },
+
                                                 {
                                                     key: 'file',
-                                                    label: 'Archivo CSV/XLSX',
+                                                    label: 'Archivo recibido',
                                                 },
                                                 {
                                                     key: 'analysis',
                                                     label: 'Análisis',
                                                 },
-                                                {
-                                                    key: 'mapping',
-                                                    label: 'Mapeo LAUDA',
-                                                },
+
                                             ]"
                                             :key="tab.key"
                                             type="button"
@@ -9894,24 +9905,22 @@ if (canonicalModelUiAvailable()) {
                                             === 'structure'
                                             && dynamicSourceSelectedAsset()
                                         "
+                                        class="space-y-4"
                                     >
                                         <div
                                             class="flex flex-wrap items-start justify-between gap-3"
                                         >
                                             <div>
                                                 <p class="text-sm font-black">
-                                                    Estructura de la fuente
+                                                    Estructura recibida
                                                 </p>
 
                                                 <p
                                                     class="mt-1 max-w-3xl text-xs leading-5 text-muted-foreground"
                                                 >
-                                                    Puedes registrar primero la
-                                                    estructura de la tabla o archivo.
-                                                    Esto permite a LAUDA conocer los
-                                                    campos antes de recibir los datos.
-                                                    La estructura es texto de referencia:
-                                                    nunca se ejecuta.
+                                                    Estructura declarada por el tenant
+                                                    para esta fuente. Esta vista es de
+                                                    solo lectura para LAUDA.
                                                 </p>
                                             </div>
 
@@ -9928,167 +9937,46 @@ if (canonicalModelUiAvailable()) {
                                         </div>
 
                                         <div
-                                            class="mt-4"
-                                        >
-                                            <p
-                                                class="text-xs font-semibold"
-                                            >
-                                                Formato de la estructura
-                                            </p>
-
-                                            <div
-                                                class="mt-2 flex flex-wrap gap-2"
-                                            >
-                                                <button
-                                                    type="button"
-                                                    class="cursor-pointer rounded-lg border px-3 py-2 text-xs font-bold"
-                                                    :class="
-                                                        dynamicSourceStructureForm(
-                                                            dynamicSourceSelectedAsset()!,
-                                                        ).structure_format
-                                                            === 'field_type_list'
-                                                            ? 'border-sky-500 bg-sky-50 text-sky-700 dark:bg-sky-950/30 dark:text-sky-300'
-                                                            : 'bg-background'
-                                                    "
-                                                    @click="
-                                                        dynamicSourceStructureForm(
-                                                            dynamicSourceSelectedAsset()!,
-                                                        ).structure_format =
-                                                            'field_type_list'
-                                                    "
-                                                >
-                                                    Lista de campos y tipos
-                                                </button>
-
-                                                <button
-                                                    type="button"
-                                                    class="cursor-pointer rounded-lg border px-3 py-2 text-xs font-bold"
-                                                    :class="
-                                                        dynamicSourceStructureForm(
-                                                            dynamicSourceSelectedAsset()!,
-                                                        ).structure_format
-                                                            === 'sql_server_ddl'
-                                                            ? 'border-sky-500 bg-sky-50 text-sky-700 dark:bg-sky-950/30 dark:text-sky-300'
-                                                            : 'bg-background'
-                                                    "
-                                                    @click="
-                                                        dynamicSourceStructureForm(
-                                                            dynamicSourceSelectedAsset()!,
-                                                        ).structure_format =
-                                                            'sql_server_ddl'
-                                                    "
-                                                >
-                                                    CREATE TABLE SQL Server
-                                                </button>
-
-                                                <button
-                                                    type="button"
-                                                    class="cursor-pointer rounded-lg border px-3 py-2 text-xs font-bold"
-                                                    :class="
-                                                        dynamicSourceStructureForm(
-                                                            dynamicSourceSelectedAsset()!,
-                                                        ).structure_format
-                                                            === 'other'
-                                                            ? 'border-sky-500 bg-sky-50 text-sky-700 dark:bg-sky-950/30 dark:text-sky-300'
-                                                            : 'bg-background'
-                                                    "
-                                                    @click="
-                                                        dynamicSourceStructureForm(
-                                                            dynamicSourceSelectedAsset()!,
-                                                        ).structure_format =
-                                                            'other'
-                                                    "
-                                                >
-                                                    Otra estructura
-                                                </button>
-                                            </div>
-                                        </div>
-
-                                        <label class="mt-4 block">
-                                            <span
-                                                class="text-xs font-semibold"
-                                            >
-                                                Definición de estructura
-                                            </span>
-
-                                            <textarea
-                                                v-model="
-                                                    dynamicSourceStructureForm(
-                                                        dynamicSourceSelectedAsset()!,
-                                                    ).structure_text
-                                                "
-                                                maxlength="50000"
-                                                rows="12"
-                                                class="mt-1 w-full rounded-lg border bg-background px-3 py-2 font-mono text-xs leading-5"
-                                                placeholder="[CODIGO] varchar(20)&#10;[NOMBRE] varchar(150)&#10;[RNC] varchar(20)"
-                                            ></textarea>
-
-                                            <span
-                                                class="mt-1 block text-[11px] leading-5 text-muted-foreground"
-                                            >
-                                                Puedes pegar una lista de campos,
-                                                un CREATE TABLE o cualquier descripción
-                                                estructural útil. No pegues datos,
-                                                credenciales, usuarios ni contraseñas.
-                                            </span>
-                                        </label>
-
-                                        <div
                                             v-if="
-                                                dynamicSourceStructureForm(
-                                                    dynamicSourceSelectedAsset()!,
-                                                ).error
+                                                dynamicSourceSelectedAsset()
+                                                    ?.structure_text
                                             "
-                                            class="mt-3 rounded-lg border border-red-200 bg-red-50 p-3 text-xs text-red-700 dark:border-red-900/60 dark:bg-red-950/30 dark:text-red-300"
+                                            class="rounded-xl border p-4"
                                         >
-                                            {{
-                                                dynamicSourceStructureForm(
-                                                    dynamicSourceSelectedAsset()!,
-                                                ).error
-                                            }}
-                                        </div>
-
-                                        <div
-                                            class="mt-4 flex flex-wrap items-center justify-between gap-3"
-                                        >
-                                            <p
-                                                class="text-xs text-muted-foreground"
+                                            <div
+                                                class="flex flex-wrap items-center justify-between gap-3"
                                             >
-                                                Formato actual:
-                                                <strong>
+                                                <p
+                                                    class="text-[10px] font-bold uppercase tracking-wide text-muted-foreground"
+                                                >
+                                                    Formato
+                                                </p>
+
+                                                <span
+                                                    class="rounded-full border px-2.5 py-1 text-[10px] font-bold"
+                                                >
                                                     {{
                                                         dynamicSourceStructureFormatLabel(
-                                                            dynamicSourceStructureForm(
-                                                                dynamicSourceSelectedAsset()!,
-                                                            ).structure_format,
+                                                            dynamicSourceSelectedAsset()
+                                                                ?.structure_format,
                                                         )
                                                     }}
-                                                </strong>
-                                            </p>
+                                                </span>
+                                            </div>
 
-                                            <button
-                                                v-if="dynamicSourceCanManage()"
-                                                type="button"
-                                                class="cursor-pointer rounded-lg bg-foreground px-4 py-2 text-sm font-bold text-background disabled:cursor-not-allowed disabled:opacity-50"
-                                                :disabled="
-                                                    dynamicSourceStructureForm(
-                                                        dynamicSourceSelectedAsset()!,
-                                                    ).busy
-                                                "
-                                                @click="
-                                                    saveDynamicSourceStructure(
-                                                        dynamicSourceSelectedAsset()!,
-                                                    )
-                                                "
-                                            >
-                                                {{
-                                                    dynamicSourceStructureForm(
-                                                        dynamicSourceSelectedAsset()!,
-                                                    ).busy
-                                                        ? 'Guardando estructura...'
-                                                        : 'Guardar estructura'
-                                                }}
-                                            </button>
+                                            <pre
+                                                class="mt-3 max-h-96 overflow-auto whitespace-pre-wrap rounded-lg border bg-muted/20 p-3 font-mono text-xs leading-5"
+                                            >{{ dynamicSourceSelectedAsset()?.structure_text }}</pre>
+                                        </div>
+
+                                        <div
+                                            v-else
+                                            class="rounded-xl border border-dashed p-4 text-xs leading-5 text-muted-foreground"
+                                        >
+                                            El tenant no registró una estructura manual
+                                            para esta fuente. LAUDA puede continuar
+                                            utilizando la estructura observada en el
+                                            archivo recibido.
                                         </div>
                                     </div>
 
@@ -10429,35 +10317,19 @@ if (canonicalModelUiAvailable()) {
                                         "
                                         class="space-y-4"
                                     >
-                                        <div
-                                            class="rounded-xl border p-4"
-                                        >
-                                            <div
-                                                class="flex flex-wrap items-start justify-between gap-3"
+                                        <div class="rounded-xl border p-4">
+                                            <p class="text-sm font-black">
+                                                Archivo recibido
+                                            </p>
+
+                                            <p
+                                                class="mt-1 max-w-3xl text-xs leading-5 text-muted-foreground"
                                             >
-                                                <div>
-                                                    <p
-                                                        class="text-sm font-black"
-                                                    >
-                                                        Archivo CSV/XLSX
-                                                    </p>
-
-                                                    <p
-                                                        class="mt-1 max-w-2xl text-xs leading-5 text-muted-foreground"
-                                                    >
-                                                        Carga el archivo real de esta fuente.
-                                                        No necesita estar normalizado al modelo
-                                                        LAUDA y no requiere haber registrado
-                                                        previamente una estructura manual.
-                                                    </p>
-                                                </div>
-
-                                                <span
-                                                    class="rounded-full border px-2.5 py-1 text-[10px] font-bold uppercase"
-                                                >
-                                                    Máx. 32 MB
-                                                </span>
-                                            </div>
+                                                Evidencia entregada por el tenant.
+                                                LAUDA puede revisar sus metadatos y
+                                                utilizarla para profiling, pero no
+                                                reemplazarla desde este workspace.
+                                            </p>
                                         </div>
 
                                         <div
@@ -10472,9 +10344,9 @@ if (canonicalModelUiAvailable()) {
                                             >
                                                 <div>
                                                     <p
-                                                        class="text-xs font-bold uppercase tracking-wide text-muted-foreground"
+                                                        class="text-[10px] font-bold uppercase tracking-wide text-muted-foreground"
                                                     >
-                                                        Archivo actual
+                                                        Archivo
                                                     </p>
 
                                                     <p
@@ -10503,18 +10375,12 @@ if (canonicalModelUiAvailable()) {
                                             <div
                                                 class="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4"
                                             >
-                                                <div
-                                                    class="rounded-lg border p-3"
-                                                >
-                                                    <p
-                                                        class="text-[10px] font-bold uppercase text-muted-foreground"
-                                                    >
+                                                <div class="rounded-lg border p-3">
+                                                    <p class="text-[10px] font-bold uppercase text-muted-foreground">
                                                         Tamaño
                                                     </p>
 
-                                                    <p
-                                                        class="mt-1 text-sm font-semibold"
-                                                    >
+                                                    <p class="mt-1 text-sm font-semibold">
                                                         {{
                                                             dynamicSourceFileSizeLabel(
                                                                 dynamicSourceSelectedAsset()
@@ -10525,18 +10391,12 @@ if (canonicalModelUiAvailable()) {
                                                     </p>
                                                 </div>
 
-                                                <div
-                                                    class="rounded-lg border p-3"
-                                                >
-                                                    <p
-                                                        class="text-[10px] font-bold uppercase text-muted-foreground"
-                                                    >
+                                                <div class="rounded-lg border p-3">
+                                                    <p class="text-[10px] font-bold uppercase text-muted-foreground">
                                                         Filas detectadas
                                                     </p>
 
-                                                    <p
-                                                        class="mt-1 text-sm font-semibold"
-                                                    >
+                                                    <p class="mt-1 text-sm font-semibold">
                                                         {{
                                                             (
                                                                 dynamicSourceSelectedAsset()
@@ -10550,18 +10410,12 @@ if (canonicalModelUiAvailable()) {
                                                     </p>
                                                 </div>
 
-                                                <div
-                                                    class="rounded-lg border p-3"
-                                                >
-                                                    <p
-                                                        class="text-[10px] font-bold uppercase text-muted-foreground"
-                                                    >
+                                                <div class="rounded-lg border p-3">
+                                                    <p class="text-[10px] font-bold uppercase text-muted-foreground">
                                                         Hojas detectadas
                                                     </p>
 
-                                                    <p
-                                                        class="mt-1 text-sm font-semibold"
-                                                    >
+                                                    <p class="mt-1 text-sm font-semibold">
                                                         {{
                                                             dynamicSourceDataSheets(
                                                                 dynamicSourceSelectedAsset()!,
@@ -10570,18 +10424,12 @@ if (canonicalModelUiAvailable()) {
                                                     </p>
                                                 </div>
 
-                                                <div
-                                                    class="rounded-lg border p-3"
-                                                >
-                                                    <p
-                                                        class="text-[10px] font-bold uppercase text-muted-foreground"
-                                                    >
+                                                <div class="rounded-lg border p-3">
+                                                    <p class="text-[10px] font-bold uppercase text-muted-foreground">
                                                         Recibido
                                                     </p>
 
-                                                    <p
-                                                        class="mt-1 text-sm font-semibold"
-                                                    >
+                                                    <p class="mt-1 text-sm font-semibold">
                                                         {{
                                                             dynamicSourceDateTimeLabel(
                                                                 dynamicSourceSelectedAsset()
@@ -10601,15 +10449,11 @@ if (canonicalModelUiAvailable()) {
                                                 "
                                                 class="mt-4"
                                             >
-                                                <p
-                                                    class="text-[10px] font-bold uppercase text-muted-foreground"
-                                                >
+                                                <p class="text-[10px] font-bold uppercase text-muted-foreground">
                                                     Estructura observada por hoja
                                                 </p>
 
-                                                <div
-                                                    class="mt-2 flex flex-wrap gap-2"
-                                                >
+                                                <div class="mt-2 flex flex-wrap gap-2">
                                                     <span
                                                         v-for="(
                                                             sheet,
@@ -10618,7 +10462,7 @@ if (canonicalModelUiAvailable()) {
                                                             dynamicSourceSelectedAsset()!,
                                                         )"
                                                         :key="
-                                                            `dynamic-source-sheet-${sheet.index}-${index}`
+                                                            `admin-source-sheet-${sheet.index}-${index}`
                                                         "
                                                         class="rounded-full border px-2.5 py-1 text-xs"
                                                     >
@@ -10632,18 +10476,12 @@ if (canonicalModelUiAvailable()) {
                                                 </div>
                                             </div>
 
-                                            <div
-                                                class="mt-4 rounded-lg border p-3"
-                                            >
-                                                <p
-                                                    class="text-[10px] font-bold uppercase text-muted-foreground"
-                                                >
+                                            <div class="mt-4 rounded-lg border p-3">
+                                                <p class="text-[10px] font-bold uppercase text-muted-foreground">
                                                     SHA-256
                                                 </p>
 
-                                                <p
-                                                    class="mt-1 break-all font-mono text-[11px]"
-                                                >
+                                                <p class="mt-1 break-all font-mono text-[11px]">
                                                     {{
                                                         dynamicSourceSelectedAsset()
                                                             ?.data_file
@@ -10657,148 +10495,8 @@ if (canonicalModelUiAvailable()) {
                                             v-else
                                             class="rounded-xl border border-dashed p-4 text-xs leading-5 text-muted-foreground"
                                         >
-                                            Todavía no se ha recibido un archivo para
-                                            esta fuente. Puedes cargar directamente un
-                                            CSV o XLSX; los encabezados y hojas se
-                                            utilizarán para descubrir su estructura.
-                                        </div>
-
-                                        <div
-                                            class="rounded-xl border border-dashed p-4"
-                                        >
-                                            <p
-                                                class="text-xs font-bold"
-                                            >
-                                                {{
-                                                    dynamicSourceSelectedAsset()
-                                                        ?.data_file
-                                                        ? 'Reemplazar archivo'
-                                                        : 'Seleccionar archivo'
-                                                }}
-                                            </p>
-
-                                            <input
-                                                :key="
-                                                    dynamicSourceDataUploadForm(
-                                                        dynamicSourceSelectedAsset()!,
-                                                    ).input_key
-                                                "
-                                                type="file"
-                                                accept=".csv,.xlsx"
-                                                class="mt-3 block w-full text-xs"
-                                                :disabled="
-                                                    !dynamicSourceCanManage()
-                                                    || dynamicSourceDataUploadForm(
-                                                        dynamicSourceSelectedAsset()!,
-                                                    ).busy
-                                                "
-                                                @change="
-                                                    selectDynamicSourceDataFile(
-                                                        dynamicSourceSelectedAsset()!,
-                                                        $event,
-                                                    )
-                                                "
-                                            />
-
-                                            <div
-                                                v-if="
-                                                    dynamicSourceDataUploadForm(
-                                                        dynamicSourceSelectedAsset()!,
-                                                    ).file
-                                                "
-                                                class="mt-3 rounded-lg border bg-background p-3 text-xs"
-                                            >
-                                                <strong>
-                                                    Seleccionado:
-                                                </strong>
-
-                                                {{
-                                                    dynamicSourceDataUploadForm(
-                                                        dynamicSourceSelectedAsset()!,
-                                                    ).file?.name
-                                                }}
-
-                                                ·
-
-                                                {{
-                                                    dynamicSourceFileSizeLabel(
-                                                        dynamicSourceDataUploadForm(
-                                                            dynamicSourceSelectedAsset()!,
-                                                        ).file?.size,
-                                                    )
-                                                }}
-                                            </div>
-
-                                            <p
-                                                v-if="
-                                                    dynamicSourceDataUploadForm(
-                                                        dynamicSourceSelectedAsset()!,
-                                                    ).error
-                                                "
-                                                class="mt-3 text-xs font-semibold"
-                                            >
-                                                {{
-                                                    dynamicSourceDataUploadForm(
-                                                        dynamicSourceSelectedAsset()!,
-                                                    ).error
-                                                }}
-                                            </p>
-
-                                            <p
-                                                v-if="
-                                                    dynamicSourceDataUploadForm(
-                                                        dynamicSourceSelectedAsset()!,
-                                                    ).message
-                                                "
-                                                class="mt-3 text-xs font-semibold"
-                                            >
-                                                {{
-                                                    dynamicSourceDataUploadForm(
-                                                        dynamicSourceSelectedAsset()!,
-                                                    ).message
-                                                }}
-                                            </p>
-
-                                            <div
-                                                class="mt-4 flex flex-wrap items-center gap-3"
-                                            >
-                                                <Button
-                                                    type="button"
-                                                    size="sm"
-                                                    :disabled="
-                                                        !dynamicSourceCanManage()
-                                                        || !dynamicSourceDataUploadForm(
-                                                            dynamicSourceSelectedAsset()!,
-                                                        ).file
-                                                        || dynamicSourceDataUploadForm(
-                                                            dynamicSourceSelectedAsset()!,
-                                                        ).busy
-                                                    "
-                                                    @click="
-                                                        uploadDynamicSourceData(
-                                                            dynamicSourceSelectedAsset()!,
-                                                        )
-                                                    "
-                                                >
-                                                    {{
-                                                        dynamicSourceDataUploadForm(
-                                                            dynamicSourceSelectedAsset()!,
-                                                        ).busy
-                                                            ? 'Procesando...'
-                                                            : dynamicSourceSelectedAsset()
-                                                                ?.data_file
-                                                                ? 'Reemplazar archivo'
-                                                                : 'Subir archivo'
-                                                    }}
-                                                </Button>
-
-                                                <span
-                                                    class="text-xs text-muted-foreground"
-                                                >
-                                                    Solo CSV o XLSX. El archivo se
-                                                    conserva en almacenamiento privado.
-                                                </span>
-                                            </div>
+                                            El tenant todavía no ha entregado un
+                                            archivo CSV/XLSX para esta fuente.
                                         </div>
                                     </div>
 
@@ -10808,20 +10506,434 @@ if (canonicalModelUiAvailable()) {
                                             dynamicSourceActiveTab
                                             === 'analysis'
                                         "
-                                        class="rounded-xl border border-dashed p-6"
+                                        class="space-y-4"
                                     >
-                                        <p class="text-sm font-black">
-                                            Análisis de la fuente
-                                        </p>
-
-                                        <p
-                                            class="mt-2 max-w-2xl text-xs leading-5 text-muted-foreground"
+                                        <div
+                                            class="rounded-xl border p-4"
                                         >
-                                            Se habilitará después de recibir el
-                                            archivo CSV/XLSX: estructura observada,
-                                            filas, calidad, nulos, duplicados y otras
-                                            señales de perfilado.
-                                        </p>
+                                            <p class="text-sm font-black">
+                                                Análisis de la fuente
+                                            </p>
+
+                                            <p
+                                                class="mt-1 max-w-3xl text-xs leading-5 text-muted-foreground"
+                                            >
+                                                Resume las características observadas
+                                                directamente en el archivo recibido.
+                                                Las métricas describen la fuente tal
+                                                como fue entregada y no transforman ni
+                                                materializan nuevos conjuntos de datos.
+                                            </p>
+                                        </div>
+
+                                        <div
+                                            v-if="
+                                                !dynamicSourceDiagnosticSummary(
+                                                    dynamicSourceSelectedAsset(),
+                                                )
+                                            "
+                                            class="rounded-xl border border-dashed p-6"
+                                        >
+                                            <p class="text-sm font-black">
+                                                Diagnóstico pendiente
+                                            </p>
+
+                                            <p
+                                                class="mt-2 max-w-2xl text-xs leading-5 text-muted-foreground"
+                                            >
+                                                Ejecuta primero el profiling técnico
+                                                de esta fuente para calcular volumen,
+                                                cobertura y señales estructurales.
+                                            </p>
+                                        </div>
+
+                                        <template
+                                            v-else-if="
+                                                dynamicSourceDiagnosticSummary(
+                                                    dynamicSourceSelectedAsset(),
+                                                )
+                                            "
+                                        >
+                                            <div
+                                                class="grid gap-3 sm:grid-cols-2 xl:grid-cols-4"
+                                            >
+                                                <div
+                                                    class="rounded-xl border bg-muted/20 p-4"
+                                                >
+                                                    <p
+                                                        class="text-[10px] font-bold uppercase text-muted-foreground"
+                                                    >
+                                                        Filas de origen
+                                                    </p>
+
+                                                    <p
+                                                        class="mt-1 text-xl font-black"
+                                                    >
+                                                        {{
+                                                            dynamicSourceDiagnosticCount(
+                                                                dynamicSourceDiagnosticSummary(
+                                                                    dynamicSourceSelectedAsset(),
+                                                                )?.volume.source_row_count,
+                                                            )
+                                                        }}
+                                                    </p>
+                                                </div>
+
+                                                <div
+                                                    class="rounded-xl border bg-muted/20 p-4"
+                                                >
+                                                    <p
+                                                        class="text-[10px] font-bold uppercase text-muted-foreground"
+                                                    >
+                                                        Columnas
+                                                    </p>
+
+                                                    <p
+                                                        class="mt-1 text-xl font-black"
+                                                    >
+                                                        {{
+                                                            dynamicSourceDiagnosticCount(
+                                                                dynamicSourceDiagnosticSummary(
+                                                                    dynamicSourceSelectedAsset(),
+                                                                )?.volume.column_count,
+                                                            )
+                                                        }}
+                                                    </p>
+                                                </div>
+
+                                                <div
+                                                    class="rounded-xl border bg-muted/20 p-4"
+                                                >
+                                                    <p
+                                                        class="text-[10px] font-bold uppercase text-muted-foreground"
+                                                    >
+                                                        Completitud observada
+                                                    </p>
+
+                                                    <p
+                                                        class="mt-1 text-xl font-black"
+                                                    >
+                                                        {{
+                                                            dynamicSourceDiagnosticPercent(
+                                                                dynamicSourceDiagnosticSummary(
+                                                                    dynamicSourceSelectedAsset(),
+                                                                )?.coverage.completeness_percent,
+                                                            )
+                                                        }}
+                                                    </p>
+                                                </div>
+
+                                                <div
+                                                    class="rounded-xl border bg-muted/20 p-4"
+                                                >
+                                                    <p
+                                                        class="text-[10px] font-bold uppercase text-muted-foreground"
+                                                    >
+                                                        Celdas vacías
+                                                    </p>
+
+                                                    <p
+                                                        class="mt-1 text-xl font-black"
+                                                    >
+                                                        {{
+                                                            dynamicSourceDiagnosticCount(
+                                                                dynamicSourceDiagnosticSummary(
+                                                                    dynamicSourceSelectedAsset(),
+                                                                )?.coverage.empty_cell_count,
+                                                            )
+                                                        }}
+                                                    </p>
+                                                </div>
+                                            </div>
+
+                                            <div
+                                                class="grid gap-4 lg:grid-cols-2"
+                                            >
+                                                <div
+                                                    class="rounded-xl border p-4"
+                                                >
+                                                    <p class="text-xs font-black">
+                                                        Cobertura del profiling
+                                                    </p>
+
+                                                    <div
+                                                        class="mt-4 grid gap-3 sm:grid-cols-2"
+                                                    >
+                                                        <div>
+                                                            <p
+                                                                class="text-[10px] font-bold uppercase text-muted-foreground"
+                                                            >
+                                                                Filas perfiladas
+                                                            </p>
+
+                                                            <p
+                                                                class="mt-1 text-sm font-black"
+                                                            >
+                                                                {{
+                                                                    dynamicSourceDiagnosticCount(
+                                                                        dynamicSourceDiagnosticSummary(
+                                                                            dynamicSourceSelectedAsset(),
+                                                                        )?.volume.profiled_row_count,
+                                                                    )
+                                                                }}
+                                                            </p>
+                                                        </div>
+
+                                                        <div>
+                                                            <p
+                                                                class="text-[10px] font-bold uppercase text-muted-foreground"
+                                                            >
+                                                                Hojas
+                                                            </p>
+
+                                                            <p
+                                                                class="mt-1 text-sm font-black"
+                                                            >
+                                                                {{
+                                                                    dynamicSourceDiagnosticCount(
+                                                                        dynamicSourceDiagnosticSummary(
+                                                                            dynamicSourceSelectedAsset(),
+                                                                        )?.volume.sheet_count,
+                                                                    )
+                                                                }}
+                                                            </p>
+                                                        </div>
+
+                                                        <div>
+                                                            <p
+                                                                class="text-[10px] font-bold uppercase text-muted-foreground"
+                                                            >
+                                                                Celdas evaluadas
+                                                            </p>
+
+                                                            <p
+                                                                class="mt-1 text-sm font-black"
+                                                            >
+                                                                {{
+                                                                    dynamicSourceDiagnosticCount(
+                                                                        dynamicSourceDiagnosticSummary(
+                                                                            dynamicSourceSelectedAsset(),
+                                                                        )?.coverage.profiled_cell_count,
+                                                                    )
+                                                                }}
+                                                            </p>
+                                                        </div>
+
+                                                        <div>
+                                                            <p
+                                                                class="text-[10px] font-bold uppercase text-muted-foreground"
+                                                            >
+                                                                Tipo de análisis
+                                                            </p>
+
+                                                            <p
+                                                                class="mt-1 text-sm font-black"
+                                                            >
+                                                                {{
+                                                                    dynamicSourceDiagnosticScanLabel(
+                                                                        dynamicSourceDiagnosticSummary(
+                                                                            dynamicSourceSelectedAsset(),
+                                                                        )!,
+                                                                    )
+                                                                }}
+                                                            </p>
+                                                        </div>
+                                                    </div>
+                                                </div>
+
+                                                <div
+                                                    class="rounded-xl border p-4"
+                                                >
+                                                    <p class="text-xs font-black">
+                                                        Cobertura de los datos
+                                                    </p>
+
+                                                    <div
+                                                        class="mt-4 grid gap-3 sm:grid-cols-2"
+                                                    >
+                                                        <div>
+                                                            <p
+                                                                class="text-[10px] font-bold uppercase text-muted-foreground"
+                                                            >
+                                                                Celdas con información
+                                                            </p>
+
+                                                            <p
+                                                                class="mt-1 text-sm font-black"
+                                                            >
+                                                                {{
+                                                                    dynamicSourceDiagnosticCount(
+                                                                        dynamicSourceDiagnosticSummary(
+                                                                            dynamicSourceSelectedAsset(),
+                                                                        )?.coverage.non_empty_cell_count,
+                                                                    )
+                                                                }}
+                                                            </p>
+                                                        </div>
+
+                                                        <div>
+                                                            <p
+                                                                class="text-[10px] font-bold uppercase text-muted-foreground"
+                                                            >
+                                                                Ausencia observada
+                                                            </p>
+
+                                                            <p
+                                                                class="mt-1 text-sm font-black"
+                                                            >
+                                                                {{
+                                                                    dynamicSourceDiagnosticPercent(
+                                                                        dynamicSourceDiagnosticSummary(
+                                                                            dynamicSourceSelectedAsset(),
+                                                                        )?.coverage.missing_percent,
+                                                                    )
+                                                                }}
+                                                            </p>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+
+                                            <div
+                                                class="rounded-xl border p-4"
+                                            >
+                                                <p class="text-xs font-black">
+                                                    Señales estructurales observadas
+                                                </p>
+
+                                                <p
+                                                    class="mt-1 text-xs leading-5 text-muted-foreground"
+                                                >
+                                                    Estos conteos son descriptivos.
+                                                    Todavía no representan por sí solos
+                                                    una debilidad ni una calificación.
+                                                </p>
+
+                                                <div
+                                                    class="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-6"
+                                                >
+                                                    <div
+                                                        class="rounded-lg border bg-muted/20 p-3"
+                                                    >
+                                                        <p
+                                                            class="text-[10px] font-bold uppercase text-muted-foreground"
+                                                        >
+                                                            Completas
+                                                        </p>
+
+                                                        <p class="mt-1 text-lg font-black">
+                                                            {{
+                                                                dynamicSourceDiagnosticCount(
+                                                                    dynamicSourceDiagnosticSummary(
+                                                                        dynamicSourceSelectedAsset(),
+                                                                    )?.columns.complete_count,
+                                                                )
+                                                            }}
+                                                        </p>
+                                                    </div>
+
+                                                    <div
+                                                        class="rounded-lg border bg-muted/20 p-3"
+                                                    >
+                                                        <p
+                                                            class="text-[10px] font-bold uppercase text-muted-foreground"
+                                                        >
+                                                            Con faltantes
+                                                        </p>
+
+                                                        <p class="mt-1 text-lg font-black">
+                                                            {{
+                                                                dynamicSourceDiagnosticCount(
+                                                                    dynamicSourceDiagnosticSummary(
+                                                                        dynamicSourceSelectedAsset(),
+                                                                    )?.columns.with_missing_count,
+                                                                )
+                                                            }}
+                                                        </p>
+                                                    </div>
+
+                                                    <div
+                                                        class="rounded-lg border bg-muted/20 p-3"
+                                                    >
+                                                        <p
+                                                            class="text-[10px] font-bold uppercase text-muted-foreground"
+                                                        >
+                                                            Totalmente vacías
+                                                        </p>
+
+                                                        <p class="mt-1 text-lg font-black">
+                                                            {{
+                                                                dynamicSourceDiagnosticCount(
+                                                                    dynamicSourceDiagnosticSummary(
+                                                                        dynamicSourceSelectedAsset(),
+                                                                    )?.columns.fully_empty_count,
+                                                                )
+                                                            }}
+                                                        </p>
+                                                    </div>
+
+                                                    <div
+                                                        class="rounded-lg border bg-muted/20 p-3"
+                                                    >
+                                                        <p
+                                                            class="text-[10px] font-bold uppercase text-muted-foreground"
+                                                        >
+                                                            Sin perfil
+                                                        </p>
+
+                                                        <p class="mt-1 text-lg font-black">
+                                                            {{
+                                                                dynamicSourceDiagnosticCount(
+                                                                    dynamicSourceDiagnosticSummary(
+                                                                        dynamicSourceSelectedAsset(),
+                                                                    )?.columns.unprofiled_count,
+                                                                )
+                                                            }}
+                                                        </p>
+                                                    </div>
+
+                                                    <div
+                                                        class="rounded-lg border bg-muted/20 p-3"
+                                                    >
+                                                        <p
+                                                            class="text-[10px] font-bold uppercase text-muted-foreground"
+                                                        >
+                                                            Tipos mixtos
+                                                        </p>
+
+                                                        <p class="mt-1 text-lg font-black">
+                                                            {{
+                                                                dynamicSourceDiagnosticCount(
+                                                                    dynamicSourceDiagnosticSummary(
+                                                                        dynamicSourceSelectedAsset(),
+                                                                    )?.columns.mixed_type_count,
+                                                                )
+                                                            }}
+                                                        </p>
+                                                    </div>
+
+                                                    <div
+                                                        class="rounded-lg border bg-muted/20 p-3"
+                                                    >
+                                                        <p
+                                                            class="text-[10px] font-bold uppercase text-muted-foreground"
+                                                        >
+                                                            Tipo no reconocido
+                                                        </p>
+
+                                                        <p class="mt-1 text-lg font-black">
+                                                            {{
+                                                                dynamicSourceDiagnosticCount(
+                                                                    dynamicSourceDiagnosticSummary(
+                                                                        dynamicSourceSelectedAsset(),
+                                                                    )?.columns.with_other_type_count,
+                                                                )
+                                                            }}
+                                                        </p>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </template>
                                     </div>
 
                                     <!-- MAPPING -->

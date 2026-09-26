@@ -310,6 +310,17 @@ $dataPreparation =
                                 ]['status']
                                 ?? ''
                             ),
+
+                        'submitted_at' =>
+                            isset(
+                                $sourceWorkspaceState[
+                                    'session'
+                                ]['submitted_at']
+                            )
+                                ? (string) $sourceWorkspaceState[
+                                    'session'
+                                ]['submitted_at']
+                                : null,
                     ]
                     : null,
 
@@ -327,6 +338,14 @@ $dataPreparation =
                         $sourceWorkspaceState[
                             'actions'
                         ]['can_manage_sources']
+                        ?? false
+                    ),
+
+                'can_submit_for_evaluation' =>
+                    (bool) (
+                        $sourceWorkspaceState[
+                            'actions'
+                        ]['can_submit_for_evaluation']
                         ?? false
                     ),
             ],

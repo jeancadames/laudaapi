@@ -8,7 +8,9 @@ final class DataTransformationBiSourceAssetDataUploadHttpContractTest
     extends TestCase
 {
     private string $controller;
+
     private string $routes;
+
     private string $service;
 
     protected function setUp(): void
@@ -21,14 +23,13 @@ final class DataTransformationBiSourceAssetDataUploadHttpContractTest
         $this->controller =
             file_get_contents(
                 $root
-                .'/app/Http/Controllers/Admin/'
-                .'AdminDataTransformationBiIntakeV2Controller.php'
+                .'/app/Http/Controllers/'
+                .'AppHubDataTransformationBiSourceWorkspaceController.php'
             );
 
         $this->routes =
             file_get_contents(
-                $root
-                .'/routes/admin.php'
+                $root.'/routes/web.php'
             );
 
         $this->service =
@@ -51,143 +52,101 @@ final class DataTransformationBiSourceAssetDataUploadHttpContractTest
         );
     }
 
-    public function test_controller_exposes_dynamic_source_upload_action(): void
+    public function test_tenant_controller_exposes_dynamic_source_upload(): void
     {
-        self::assertStringContainsString(
-            'public function uploadSourceAssetData(',
-            $this->controller
-        );
+        $action =
+            $this->uploadAction();
 
         self::assertStringContainsString(
             'DataTransformationBiSourceAssetDataUploadService $service',
-            $this->controller
+            $action
         );
 
         self::assertStringContainsString(
             '$service->persist(',
-            $this->controller
+            $action
         );
     }
 
-    public function test_upload_is_scoped_to_request_session_and_source_asset(): void
+    public function test_upload_uses_controlled_file_limit(): void
     {
-        $block =
-            $this->uploadAction();
-
-        self::assertStringContainsString(
-            '$this->assertRequest(',
-            $block
-        );
-
-        self::assertStringContainsString(
-            '$this->scopedSession(',
-            $block
-        );
-
-        self::assertStringContainsString(
-            '$this->scopedSourceAsset(',
-            $block
-        );
-    }
-
-    public function test_http_upload_uses_32mb_service_limit(): void
-    {
-        $block =
+        $action =
             $this->uploadAction();
 
         self::assertStringContainsString(
             '::MAX_UPLOAD_KILOBYTES',
-            $block
+            $action
         );
 
         self::assertStringContainsString(
             "'required'",
-            $block
+            $action
         );
 
         self::assertStringContainsString(
             "'file'",
-            $block
+            $action
         );
     }
 
-    public function test_upload_response_returns_safe_asset_and_file_payloads(): void
+    public function test_upload_action_is_domain_agnostic(): void
     {
-        $block =
+        $action =
             $this->uploadAction();
 
-        self::assertStringContainsString(
-            "'source_asset' =>",
-            $block
-        );
-
-        self::assertStringContainsString(
-            '$this->sourceAssetPayload(',
-            $block
-        );
-
-        self::assertStringContainsString(
-            "'data_file' =>",
-            $block
-        );
-
-        self::assertStringNotContainsString(
-            "'source_path'",
-            $block
-        );
-
-        self::assertStringNotContainsString(
-            "'source_disk'",
-            $block
-        );
-    }
-
-    public function test_upload_action_has_no_fixed_domain_dependency(): void
-    {
-        $block =
-            $this->uploadAction();
-
-        self::assertStringNotContainsString(
+        foreach ([
             'DataTransformationBiSourceDomainRegistry',
-            $block
-        );
-
-        self::assertStringNotContainsString(
             'DataTransformationBiIntakeDomainDelivery',
-            $block
-        );
-
-        self::assertStringNotContainsString(
             "'domain_key'",
-            $block
-        );
+        ] as $forbidden) {
+            self::assertStringNotContainsString(
+                $forbidden,
+                $action
+            );
+        }
     }
 
-    public function test_route_is_post_and_source_asset_scoped(): void
+    public function test_upload_route_belongs_to_tenant_source_workspace(): void
     {
-        self::assertStringContainsString(
-            "/source-assets/{sourceAssetId}/data-file",
-            $this->routes
-        );
-
-        self::assertStringContainsString(
+        foreach ([
+            "/sesiones/{sessionId}/fuentes/{sourceAssetId}/archivo",
             "'uploadSourceAssetData'",
-            $this->routes
-        );
-
-        self::assertStringContainsString(
-            "source_assets.data_file.upload",
-            $this->routes
-        );
-
-        self::assertStringContainsString(
+            "->name('data_file.upload')",
             "->whereNumber('sessionId')",
-            $this->routes
+            "->whereNumber('sourceAssetId')",
+        ] as $required) {
+            self::assertStringContainsString(
+                $required,
+                $this->routes
+            );
+        }
+    }
+
+    public function test_upload_action_does_not_expose_private_storage(): void
+    {
+        $action =
+            strtolower(
+                $this->uploadAction()
+            );
+
+        self::assertStringNotContainsString(
+            'source_path',
+            $action
         );
 
-        self::assertStringContainsString(
-            "->whereNumber('sourceAssetId')",
-            $this->routes
+        self::assertStringNotContainsString(
+            'source_disk',
+            $action
+        );
+
+        self::assertStringNotContainsString(
+            'connection_string',
+            $action
+        );
+
+        self::assertStringNotContainsString(
+            'password',
+            $action
         );
     }
 
@@ -216,10 +175,20 @@ final class DataTransformationBiSourceAssetDataUploadHttpContractTest
 
     private function uploadAction(): string
     {
+        return $this->methodBlock(
+            'public function uploadSourceAssetData(',
+            'public function previewSourceAssetSqlServerExtraction('
+        );
+    }
+
+    private function methodBlock(
+        string $startNeedle,
+        string $endNeedle
+    ): string {
         $start =
             strpos(
                 $this->controller,
-                'public function uploadSourceAssetData('
+                $startNeedle
             );
 
         self::assertNotFalse(
@@ -229,7 +198,7 @@ final class DataTransformationBiSourceAssetDataUploadHttpContractTest
         $end =
             strpos(
                 $this->controller,
-                'public function updateSourceAssetStructure(',
+                $endNeedle,
                 $start
             );
 

@@ -95,6 +95,9 @@ final class DataTransformationBiIntakeV2SessionService
                                     ::STATUS_READY,
 
                                 DataTransformationBiIntakeSession
+                                    ::STATUS_SUBMITTED_FOR_EVALUATION,
+
+                                DataTransformationBiIntakeSession
                                     ::STATUS_FINALIZING,
                             ]
                         )
@@ -114,6 +117,24 @@ final class DataTransformationBiIntakeV2SessionService
                             .'y no puede modificarse.',
                         ],
                     ]);
+                }
+
+                if (
+                    $existing !== null
+                    && (string) $existing->status
+                        === DataTransformationBiIntakeSession
+                            ::STATUS_SUBMITTED_FOR_EVALUATION
+                ) {
+                    /*
+                     * A submitted source delivery is frozen.
+                     *
+                     * Preparing the workspace again must reuse the same
+                     * logical cut without creating or modifying intake slots.
+                     */
+                    return $this->submittedSourceResult(
+                        $existing->fresh(),
+                        true
+                    );
                 }
 
                 if ($existing !== null) {
@@ -322,6 +343,56 @@ final class DataTransformationBiIntakeV2SessionService
                 'id'
             )
             ->first();
+    }
+
+    /**
+     * Safe result for a frozen dynamic-source delivery.
+     *
+     * Submitted diagnostic source deliveries deliberately do not require
+     * legacy canonical-domain slots. The legacy result() method remains
+     * unchanged for the implementation/canonical intake flow.
+     *
+     * @return array{
+     *     reused:bool,
+     *     session_id:int,
+     *     company_id:int,
+     *     implementation_request_id:int,
+     *     schema_version:int,
+     *     status:string,
+     *     domains:array<int,mixed>
+     * }
+     */
+    private function submittedSourceResult(
+        DataTransformationBiIntakeSession $session,
+        bool $reused
+    ): array {
+        return [
+            'reused' =>
+                $reused,
+
+            'session_id' =>
+                (int) $session->getKey(),
+
+            'company_id' =>
+                (int) $session->company_id,
+
+            'implementation_request_id' =>
+                (int) $session
+                    ->transformation_implementation_request_id,
+
+            'schema_version' =>
+                (int) $session->schema_version,
+
+            'status' =>
+                (string) $session->status,
+
+            /*
+             * Diagnosis source delivery is source-native and dynamic.
+             * Canonical domains belong to the later implementation phase.
+             */
+            'domains' =>
+                [],
+        ];
     }
 
     private function result(

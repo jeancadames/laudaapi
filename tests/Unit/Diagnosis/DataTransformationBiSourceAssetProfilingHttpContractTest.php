@@ -165,7 +165,7 @@ final class DataTransformationBiSourceAssetProfilingHttpContractTest
         $end =
             strpos(
                 $this->controller,
-                'public function updateSourceAssetStructure(',
+                'public function profileSourceAssetStatus(',
                 $start
             );
 

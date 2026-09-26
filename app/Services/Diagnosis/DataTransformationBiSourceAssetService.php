@@ -65,6 +65,11 @@ final class DataTransformationBiSourceAssetService
                 $payload,
                 $actor
             ): DataTransformationBiSourceAsset {
+                $this->lockEditableSession(
+                    $implementationRequest,
+                    $session
+                );
+
                 $nextSortOrder =
                     (
                         (int) (
@@ -174,10 +179,17 @@ final class DataTransformationBiSourceAssetService
 
         return DB::transaction(
             function () use (
+                $implementationRequest,
+                $session,
                 $asset,
                 $payload,
                 $actor
             ): DataTransformationBiSourceAsset {
+                $this->lockEditableSession(
+                    $implementationRequest,
+                    $session
+                );
+
                 $asset->fill(
                     array_merge(
                         $payload,
@@ -274,6 +286,11 @@ final class DataTransformationBiSourceAssetService
                 $normalizedIds,
                 $actor
             ): void {
+                $this->lockEditableSession(
+                    $implementationRequest,
+                    $session
+                );
+
                 $assets =
                     DataTransformationBiSourceAsset::query()
                         ->where(
@@ -377,9 +394,16 @@ final class DataTransformationBiSourceAssetService
 
         return DB::transaction(
             function () use (
+                $implementationRequest,
+                $session,
                 $asset,
                 $actor
             ): DataTransformationBiSourceAsset {
+                $this->lockEditableSession(
+                    $implementationRequest,
+                    $session
+                );
+
                 $asset->forceFill([
                     'status' =>
                         DataTransformationBiSourceAsset
@@ -672,6 +696,46 @@ final class DataTransformationBiSourceAssetService
                 'La sesión no pertenece a esta solicitud de implementación.'
             );
         }
+    }
+
+    /**
+     * Acquire the session lock that serializes tenant mutations
+     * against evaluation submission.
+     *
+     * Lock order:
+     * session -> source asset(s) -> source file/mapping rows.
+     */
+    private function lockEditableSession(
+        TransformationImplementationRequest $implementationRequest,
+        DataTransformationBiIntakeSession $session
+    ): DataTransformationBiIntakeSession {
+        $lockedSession =
+            DataTransformationBiIntakeSession::query()
+                ->whereKey(
+                    (int) $session->getKey()
+                )
+                ->where(
+                    'company_id',
+                    (int) $implementationRequest->company_id
+                )
+                ->where(
+                    'transformation_implementation_request_id',
+                    (int) $implementationRequest->getKey()
+                )
+                ->lockForUpdate()
+                ->first();
+
+        if ($lockedSession === null) {
+            throw new AuthorizationException(
+                'La sesión ya no pertenece a esta solicitud de implementación.'
+            );
+        }
+
+        $this->assertEditableSession(
+            $lockedSession
+        );
+
+        return $lockedSession;
     }
 
     private function assertEditableSession(

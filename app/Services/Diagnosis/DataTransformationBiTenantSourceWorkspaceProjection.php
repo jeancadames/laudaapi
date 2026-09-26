@@ -90,6 +90,11 @@ final class DataTransformationBiTenantSourceWorkspaceProjection
                             isset($session['status'])
                                 ? (string) $session['status']
                                 : null,
+
+                        'submitted_at' =>
+                            isset($session['submitted_at'])
+                                ? (string) $session['submitted_at']
+                                : null,
                     ],
 
             'actions' => [
@@ -102,6 +107,12 @@ final class DataTransformationBiTenantSourceWorkspaceProjection
                 'can_manage_sources' =>
                     (bool) (
                         $actions['can_manage_sources']
+                        ?? false
+                    ),
+
+                'can_submit_for_evaluation' =>
+                    (bool) (
+                        $actions['can_submit_for_evaluation']
                         ?? false
                     ),
             ],

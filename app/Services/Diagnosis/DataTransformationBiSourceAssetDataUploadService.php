@@ -310,6 +310,19 @@ final class DataTransformationBiSourceAssetDataUploadService
                         $disk,
                         &$oldArtifactPath
                     ): array {
+                        /*
+                         * File inspection/storage already happened outside
+                         * the DB transaction. Revalidate the current session
+                         * under lock before changing any database state.
+                         *
+                         * If submission won the race, this throws and the
+                         * surrounding catch removes a newly-created artifact.
+                         */
+                        $this->lockEditableSession(
+                            $implementationRequest,
+                            $session
+                        );
+
                         $lockedAsset =
                             DataTransformationBiSourceAsset::query()
                                 ->whereKey(
@@ -771,6 +784,46 @@ final class DataTransformationBiSourceAssetDataUploadService
                 'La sesión no pertenece a esta solicitud de implementación.'
             );
         }
+    }
+
+    /**
+     * Acquire the session lock that serializes tenant mutations
+     * against evaluation submission.
+     *
+     * Lock order:
+     * session -> source asset(s) -> source file/mapping rows.
+     */
+    private function lockEditableSession(
+        TransformationImplementationRequest $implementationRequest,
+        DataTransformationBiIntakeSession $session
+    ): DataTransformationBiIntakeSession {
+        $lockedSession =
+            DataTransformationBiIntakeSession::query()
+                ->whereKey(
+                    (int) $session->getKey()
+                )
+                ->where(
+                    'company_id',
+                    (int) $implementationRequest->company_id
+                )
+                ->where(
+                    'transformation_implementation_request_id',
+                    (int) $implementationRequest->getKey()
+                )
+                ->lockForUpdate()
+                ->first();
+
+        if ($lockedSession === null) {
+            throw new AuthorizationException(
+                'La sesión ya no pertenece a esta solicitud de implementación.'
+            );
+        }
+
+        $this->assertEditableSession(
+            $lockedSession
+        );
+
+        return $lockedSession;
     }
 
     private function assertEditableSession(

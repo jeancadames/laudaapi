@@ -110,10 +110,12 @@ type SourceWorkspace = {
     session: {
         id: number;
         status: string;
+        submitted_at: string | null;
     } | null;
     actions: {
         can_start_or_resume: boolean;
         can_manage_sources: boolean;
+        can_submit_for_evaluation: boolean;
     };
     readiness: {
         inputs_validated: boolean;
@@ -197,6 +199,7 @@ type SourceWorkspaceApiResponse = {
         session?: {
             id: number;
             status: string;
+            submitted_at: string | null;
         } | null;
         source_assets?: DynamicSourceAsset[];
         actions?: Record<string, boolean>;
@@ -1028,6 +1031,92 @@ const canManageSources =
             === true,
     );
 
+const isSourceWorkspaceSubmitted =
+    computed(
+        () =>
+            props.source_workspace
+                .session
+                ?.status
+            === 'submitted_for_evaluation',
+    );
+
+const sourceWorkspaceDeliveryComplete =
+    computed(() => {
+        const readiness =
+            props.source_workspace.readiness;
+
+        return (
+            readiness.inputs_validated
+            === true
+            && readiness.source_count > 0
+            && readiness.complete_source_count
+                === readiness.source_count
+        );
+    });
+
+const canSubmitSourceWorkspace =
+    computed(
+        () =>
+            sourceWorkspaceSessionId.value
+                !== null
+            && props.source_workspace
+                .actions
+                .can_submit_for_evaluation
+                === true
+            && sourceWorkspaceDeliveryComplete.value,
+    );
+
+const sourceWorkspaceStatusLabel =
+    computed(() => {
+        const status =
+            props.source_workspace
+                .session
+                ?.status
+            ?? '';
+
+        const labels: Record<string, string> = {
+            draft: 'Borrador',
+            ready: 'Preparada',
+            submitted_for_evaluation:
+                'En evaluación',
+            finalizing: 'Procesando',
+            finalized: 'Finalizada',
+            failed: 'Con incidencia',
+            cancelled: 'Cancelada',
+        };
+
+        return labels[status]
+            ?? status;
+    });
+
+const sourceWorkspaceSubmittedAtLabel =
+    computed(() => {
+        const value =
+            props.source_workspace
+                .session
+                ?.submitted_at
+            ?? null;
+
+        if (!value) {
+            return null;
+        }
+
+        const parsed =
+            new Date(value);
+
+        if (
+            Number.isNaN(
+                parsed.getTime(),
+            )
+        ) {
+            return value;
+        }
+
+        return parsed.toLocaleString(
+            'es-DO',
+        );
+    });
+
 const selectedSource =
     computed(
         () =>
@@ -1380,6 +1469,53 @@ async function prepareSourceWorkspace(): Promise<void> {
     if (result) {
         reloadSourceWorkspace();
     }
+}
+
+async function submitSourceWorkspaceForEvaluation(): Promise<void> {
+    const sessionId =
+        sourceWorkspaceSessionId.value;
+
+    if (
+        !sessionId
+        || !canSubmitSourceWorkspace.value
+    ) {
+        return;
+    }
+
+    const confirmed =
+        window.confirm(
+            'Al enviar esta entrega a evaluación, '
+            + 'las fuentes quedarán congeladas y no podrás '
+            + 'agregar, editar, reordenar, archivar, '
+            + 'cambiar su estructura ni reemplazar archivos '
+            + 'mientras LAUDA realiza la evaluación. '
+            + '¿Deseas continuar?',
+        );
+
+    if (!confirmed) {
+        return;
+    }
+
+    const result =
+        await runSourceWorkspaceAction(
+            'submit_for_evaluation',
+            () =>
+                sourceWorkspaceApi(
+                    `${sourceWorkspaceBase}/sesiones/${sessionId}/enviar-evaluacion`,
+                    'POST',
+                    {},
+                ),
+        );
+
+    if (!result) {
+        return;
+    }
+
+    extractionPreview.value = null;
+    extractionCopyState.value = null;
+    sourceFile.value = null;
+
+    reloadSourceWorkspace();
 }
 
 async function createSourceAsset(): Promise<void> {
@@ -3114,7 +3250,7 @@ function processingHistoryDate(
                                 <span
                                     class="rounded-full border border-slate-200 px-3 py-1.5 font-bold text-slate-600 dark:border-slate-800 dark:text-slate-300"
                                 >
-                                    {{ source_workspace.session.status }}
+                                    {{ sourceWorkspaceStatusLabel }}
                                 </span>
 
                                 <span
@@ -3123,6 +3259,94 @@ function processingHistoryDate(
                                 >
                                     Solo lectura
                                 </span>
+                            </div>
+
+                            <div
+                                v-if="isSourceWorkspaceSubmitted"
+                                class="mt-5 rounded-2xl border border-emerald-200 bg-emerald-50/60 p-5 dark:border-emerald-900 dark:bg-emerald-950/15"
+                            >
+                                <p
+                                    class="text-sm font-black text-emerald-800 dark:text-emerald-200"
+                                >
+                                    En evaluación
+                                </p>
+
+                                <p
+                                    class="mt-2 max-w-3xl text-sm leading-6 text-slate-600 dark:text-slate-300"
+                                >
+                                    La entrega fue enviada a LAUDA y las
+                                    fuentes quedaron congeladas. Puedes
+                                    consultarlas, pero ya no puedes modificar
+                                    su contenido mientras se realiza la
+                                    evaluación.
+                                </p>
+
+                                <p
+                                    v-if="sourceWorkspaceSubmittedAtLabel"
+                                    class="mt-3 text-xs font-semibold text-emerald-700 dark:text-emerald-300"
+                                >
+                                    Enviada:
+                                    {{ sourceWorkspaceSubmittedAtLabel }}
+                                </p>
+                            </div>
+
+                            <div
+                                v-else-if="
+                                    source_workspace
+                                        .actions
+                                        .can_submit_for_evaluation
+                                "
+                                class="mt-5 rounded-2xl border border-cyan-200 bg-cyan-50/50 p-5 dark:border-cyan-900 dark:bg-cyan-950/15"
+                            >
+                                <div
+                                    class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between"
+                                >
+                                    <div>
+                                        <p
+                                            class="text-sm font-black text-slate-950 dark:text-white"
+                                        >
+                                            Enviar entrega a evaluación
+                                        </p>
+
+                                        <p
+                                            v-if="sourceWorkspaceDeliveryComplete"
+                                            class="mt-1 max-w-2xl text-xs leading-5 text-slate-600 dark:text-slate-300"
+                                        >
+                                            Todas las fuentes activas tienen
+                                            su archivo vigente. Al enviar, la
+                                            entrega quedará congelada para la
+                                            evaluación de LAUDA.
+                                        </p>
+
+                                        <p
+                                            v-else
+                                            class="mt-1 max-w-2xl text-xs leading-5 text-amber-700 dark:text-amber-300"
+                                        >
+                                            Completa la entrega de todas las
+                                            fuentes activas antes de enviarla
+                                            a evaluación.
+                                        </p>
+                                    </div>
+
+                                    <button
+                                        v-if="sourceWorkspaceDeliveryComplete"
+                                        type="button"
+                                        class="cursor-pointer shrink-0 rounded-xl bg-cyan-700 px-4 py-2.5 text-sm font-black text-white transition hover:bg-cyan-800 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-cyan-600 dark:hover:bg-cyan-500"
+                                        :disabled="
+                                            sourceWorkspaceBusy !== null
+                                        "
+                                        @click="
+                                            submitSourceWorkspaceForEvaluation
+                                        "
+                                    >
+                                        {{
+                                            sourceWorkspaceBusy
+                                                === 'submit_for_evaluation'
+                                                ? 'Enviando...'
+                                                : 'Enviar a evaluación'
+                                        }}
+                                    </button>
+                                </div>
                             </div>
 
                             <!-- Create source -->
@@ -3823,8 +4047,9 @@ function processingHistoryDate(
                                                     v-model="extractionForm.schema_name"
                                                     type="text"
                                                     maxlength="128"
-                                                    class="mt-2 w-full rounded-xl border border-slate-200 bg-background px-3 py-2.5 text-sm dark:border-slate-800"
+                                                    class="mt-2 w-full rounded-xl border border-slate-200 bg-background px-3 py-2.5 text-sm disabled:opacity-60 dark:border-slate-800"
                                                     placeholder="dbo"
+                                                    :disabled="!canManageSources"
                                                 />
                                             </label>
 
@@ -3839,10 +4064,11 @@ function processingHistoryDate(
                                                     v-model="extractionForm.table_name"
                                                     type="text"
                                                     maxlength="128"
-                                                    class="mt-2 w-full rounded-xl border border-slate-200 bg-background px-3 py-2.5 text-sm dark:border-slate-800"
+                                                    class="mt-2 w-full rounded-xl border border-slate-200 bg-background px-3 py-2.5 text-sm disabled:opacity-60 dark:border-slate-800"
                                                     :placeholder="
                                                         selectedSource.source_object_name
                                                     "
+                                                    :disabled="!canManageSources"
                                                 />
                                             </label>
                                         </div>
@@ -3852,7 +4078,8 @@ function processingHistoryDate(
                                                 type="button"
                                                 class="cursor-pointer rounded-xl bg-cyan-700 px-4 py-2.5 text-sm font-black text-white disabled:cursor-not-allowed disabled:opacity-50 dark:bg-cyan-600"
                                                 :disabled="
-                                                    sourceWorkspaceBusy !== null
+                                                    !canManageSources
+                                                    || sourceWorkspaceBusy !== null
                                                     || !selectedSource.structure_text
                                                 "
                                                 @click="previewSourceExtraction"

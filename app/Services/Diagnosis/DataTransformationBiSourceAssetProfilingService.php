@@ -376,6 +376,8 @@ final class DataTransformationBiSourceAssetProfilingService
                         ::STATUS_DRAFT,
                     DataTransformationBiIntakeSession
                         ::STATUS_READY,
+                    DataTransformationBiIntakeSession
+                        ::STATUS_SUBMITTED_FOR_EVALUATION,
                 ],
                 true
             )

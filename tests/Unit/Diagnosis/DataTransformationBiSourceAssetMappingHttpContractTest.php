@@ -239,7 +239,7 @@ final class DataTransformationBiSourceAssetMappingHttpContractTest
             $this->methodBlock(
                 $this->controller,
                 'public function replaceSourceAssetMappingFields(',
-                'public function updateSourceAssetStructure('
+                'public function previewSqlServerExtraction('
             );
 
         foreach (
@@ -308,7 +308,7 @@ final class DataTransformationBiSourceAssetMappingHttpContractTest
         $end =
             strpos(
                 $this->controller,
-                'public function updateSourceAssetStructure(',
+                'public function previewSqlServerExtraction(',
                 $start
             );
 

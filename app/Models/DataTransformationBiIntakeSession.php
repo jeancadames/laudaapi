@@ -10,6 +10,9 @@ class DataTransformationBiIntakeSession extends Model
 {
     public const STATUS_DRAFT = 'draft';
 
+    public const STATUS_SUBMITTED_FOR_EVALUATION =
+        'submitted_for_evaluation';
+
     public const STATUS_READY = 'ready';
 
     public const STATUS_FINALIZING = 'finalizing';
@@ -31,6 +34,8 @@ class DataTransformationBiIntakeSession extends Model
         'schema_version',
         'status',
         'created_by_user_id',
+        'submitted_by_user_id',
+        'submitted_manifest_sha256',
         'resulting_intake_batch_id',
         'resolved_manifest_sha256',
         'relational_validation_snapshot',
@@ -38,6 +43,7 @@ class DataTransformationBiIntakeSession extends Model
         'failure_message',
         'started_at',
         'ready_at',
+        'submitted_at',
         'finalized_at',
         'cancelled_at',
     ];
@@ -63,6 +69,9 @@ class DataTransformationBiIntakeSession extends Model
             'created_by_user_id' =>
                 'integer',
 
+            'submitted_by_user_id' =>
+                'integer',
+
             'resulting_intake_batch_id' =>
                 'integer',
 
@@ -73,6 +82,9 @@ class DataTransformationBiIntakeSession extends Model
                 'datetime',
 
             'ready_at' =>
+                'datetime',
+
+            'submitted_at' =>
                 'datetime',
 
             'finalized_at' =>
@@ -111,6 +123,14 @@ class DataTransformationBiIntakeSession extends Model
         return $this->belongsTo(
             User::class,
             'created_by_user_id'
+        );
+    }
+
+    public function submittedBy(): BelongsTo
+    {
+        return $this->belongsTo(
+            User::class,
+            'submitted_by_user_id'
         );
     }
 

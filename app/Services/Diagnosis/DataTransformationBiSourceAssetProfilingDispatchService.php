@@ -263,6 +263,8 @@ final class DataTransformationBiSourceAssetProfilingDispatchService
                 [
                     DataTransformationBiIntakeSession::STATUS_DRAFT,
                     DataTransformationBiIntakeSession::STATUS_READY,
+                    DataTransformationBiIntakeSession
+                        ::STATUS_SUBMITTED_FOR_EVALUATION,
                 ],
                 true
             )

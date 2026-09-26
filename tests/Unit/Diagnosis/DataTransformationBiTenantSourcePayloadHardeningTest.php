@@ -18,12 +18,17 @@ final class DataTransformationBiTenantSourcePayloadHardeningTest
             'session' => [
                 'id' => 41,
                 'status' => 'draft',
+                'submitted_at' => null,
+                'submitted_by_user_id' => 29,
+                'submitted_manifest_sha256' =>
+                    str_repeat('a', 64),
                 'company_id' => 999,
                 'internal_note' => 'hidden',
             ],
             'actions' => [
                 'can_start_or_resume' => true,
                 'can_manage_sources' => true,
+                'can_submit_for_evaluation' => true,
                 'can_finalize' => true,
             ],
             'domains' => [
@@ -54,6 +59,16 @@ final class DataTransformationBiTenantSourcePayloadHardeningTest
                     'profiling_snapshot' => [
                         'technical' => true,
                     ],
+                    'diagnostic_summary' => [
+                        'available' => true,
+                        'coverage' => [
+                            'completeness_percent' => 98.5,
+                        ],
+                    ],
+                    'profiling_status' => 'completed',
+                    'profiling_queued_at' => '2026-09-19T10:02:00Z',
+                    'profiling_started_at' => '2026-09-19T10:03:00Z',
+                    'profiling_finished_at' => '2026-09-19T10:04:00Z',
                     'failure_code' => 'INTERNAL_CODE',
                     'company_id' => 19,
                     'data_transformation_bi_intake_session_id' => 41,
@@ -102,6 +117,7 @@ final class DataTransformationBiTenantSourcePayloadHardeningTest
             [
                 'id' => 41,
                 'status' => 'draft',
+                'submitted_at' => null,
             ],
             $result['session']
         );
@@ -110,8 +126,19 @@ final class DataTransformationBiTenantSourcePayloadHardeningTest
             [
                 'can_start_or_resume' => true,
                 'can_manage_sources' => true,
+                'can_submit_for_evaluation' => true,
             ],
             $result['actions']
+        );
+
+        self::assertArrayNotHasKey(
+            'submitted_by_user_id',
+            $result['session']
+        );
+
+        self::assertArrayNotHasKey(
+            'submitted_manifest_sha256',
+            $result['session']
         );
 
         $asset =
@@ -136,6 +163,11 @@ final class DataTransformationBiTenantSourcePayloadHardeningTest
             [
                 'structure_snapshot',
                 'profiling_snapshot',
+                'diagnostic_summary',
+                'profiling_status',
+                'profiling_queued_at',
+                'profiling_started_at',
+                'profiling_finished_at',
                 'failure_code',
                 'company_id',
                 'data_transformation_bi_intake_session_id',

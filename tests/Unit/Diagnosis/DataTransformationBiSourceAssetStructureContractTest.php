@@ -49,14 +49,14 @@ final class DataTransformationBiSourceAssetStructureContractTest
         $this->controller =
             file_get_contents(
                 $root
-                .'/app/Http/Controllers/Admin/'
-                .'AdminDataTransformationBiIntakeV2Controller.php'
+                .'/app/Http/Controllers/'
+                .'AppHubDataTransformationBiSourceWorkspaceController.php'
             );
 
         $this->routes =
             file_get_contents(
                 $root
-                .'/routes/admin.php'
+                .'/routes/web.php'
             );
 
         $this->state =
@@ -183,12 +183,12 @@ final class DataTransformationBiSourceAssetStructureContractTest
         );
 
         self::assertStringContainsString(
-            '/source-assets/{sourceAssetId}/structure',
+            '/sesiones/{sessionId}/fuentes/{sourceAssetId}/estructura',
             $this->routes
         );
 
         self::assertStringContainsString(
-            '/source-assets/{sourceAssetId}/sql-server-extraction/preview',
+            '/sesiones/{sessionId}/fuentes/{sourceAssetId}/extraccion-sql-server/previsualizar',
             $this->routes
         );
     }
@@ -201,26 +201,14 @@ final class DataTransformationBiSourceAssetStructureContractTest
                 'public function previewSourceAssetSqlServerExtraction('
             );
 
-        $end =
-            strpos(
-                $this->controller,
-                'public function previewSqlServerExtraction(',
-                $start
-            );
-
         self::assertNotFalse(
             $start
-        );
-
-        self::assertNotFalse(
-            $end
         );
 
         $block =
             substr(
                 $this->controller,
-                $start,
-                $end - $start
+                $start
             );
 
         self::assertStringNotContainsString(
