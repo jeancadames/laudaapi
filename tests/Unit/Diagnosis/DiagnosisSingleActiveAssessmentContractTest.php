@@ -13,6 +13,25 @@ final class DiagnosisSingleActiveAssessmentContractTest extends TestCase
         ) ?: '';
     }
 
+    private function methodSource(
+        string $source,
+        string $start,
+        string $end
+    ): string {
+        $startPosition = strpos($source, $start);
+        $endPosition = strpos($source, $end, $startPosition ?: 0);
+
+        if ($startPosition === false || $endPosition === false) {
+            return '';
+        }
+
+        return substr(
+            $source,
+            $startPosition,
+            $endPosition - $startPosition
+        );
+    }
+
     public function test_schema_separates_business_status_from_active_lifecycle(): void
     {
         $migration = $this->source(
@@ -79,23 +98,61 @@ final class DiagnosisSingleActiveAssessmentContractTest extends TestCase
         }
     }
 
-    public function test_confirmation_atomically_supersedes_previous_assessment(): void
+    public function test_confirmation_defers_supersession_until_publication(): void
     {
-        $service = $this->source(
+        $access = $this->source(
             'app/Services/Diagnosis/DiagnosisAccessService.php'
         );
 
         foreach ([
             "'is_active' => ! \$isAppHubNative",
             'activateAppHubAssessment(',
-            "->where('meta->company_id', \$company->id)",
             "'supersedes_assessment_id'",
-            "->where('is_active', true)",
+            "'is_active' => true",
+            "'supersession_deferred_until_publication' => true",
+            "'diagnosis_reassessment_activated'",
+        ] as $token) {
+            $this->assertStringContainsString($token, $access);
+        }
+
+        $this->assertStringNotContainsString(
+            "'inactivated_at' => now()",
+            $this->methodSource(
+                $access,
+                'private function activateAppHubAssessment',
+                'public function sendInvitation'
+            )
+        );
+
+        $publisher = $this->source(
+            'app/Services/Diagnosis/DiagnosisResultPublisher.php'
+        );
+
+        foreach ([
+            "->whereNotNull('published_at')",
             "'is_active' => false",
             "'inactivated_at' => now()",
-            "'superseded_by_assessment_id' => \$assessment->id",
-            "'is_active' => true",
+            "'superseded_by_assessment_id' => \$locked->id",
+            "'superseded_at_publication' => true",
             "'diagnosis_assessment_superseded'",
+        ] as $token) {
+            $this->assertStringContainsString($token, $publisher);
+        }
+    }
+
+    public function test_app_hub_separates_published_diagnosis_from_working_reassessment(): void
+    {
+        $service = $this->source(
+            'app/Services/Diagnosis/InitialDiagnosisCommercialService.php'
+        );
+
+        foreach ([
+            'workingNativeWorkflowForCompany',
+            "->whereNotNull('published_at')",
+            "->whereNull('published_at')",
+            "'working_assessment' =>",
+            "\$pending !== null || \$workingWorkflow !== null",
+            "\$workingWorkflow === null",
         ] as $token) {
             $this->assertStringContainsString($token, $service);
         }
@@ -193,3 +250,55 @@ final class DiagnosisSingleActiveAssessmentContractTest extends TestCase
         }
     }
 }
+
+test('publication supersession is restricted to the tenant lauda360 lifecycle', function () {
+    $source = file_get_contents(
+        dirname(__DIR__, 3)
+        . '/app/Services/Diagnosis/DiagnosisResultPublisher.php'
+    );
+
+    expect($source)
+        ->toContain('use App\Models\DiagnosisAccessRequest;')
+        ->toContain(
+            "\$tenantAssessmentIds = DiagnosisAccessRequest::query()"
+        )
+        ->toContain("'meta->source'")
+        ->toContain('InitialDiagnosisCommercialService::SOURCE')
+        ->toContain("'meta->company_id'")
+        ->toContain('$locked->organization_id')
+        ->toContain(
+            "->whereNotNull('diagnosis_assessment_id')"
+        )
+        ->toContain(
+            "->pluck('diagnosis_assessment_id')"
+        )
+        ->toContain(
+            "->whereIn('id', \$tenantAssessmentIds->all())"
+        );
+});
+
+test('publication supersession still requires prior assessment to be published and active', function () {
+    $source = file_get_contents(
+        dirname(__DIR__, 3)
+        . '/app/Services/Diagnosis/DiagnosisResultPublisher.php'
+    );
+
+    expect($source)
+        ->toContain("->where('is_active', true)")
+        ->toContain("->whereNotNull('published_at')")
+        ->toContain(
+            "'superseded_by_assessment_id' => \$locked->id"
+        );
+});
+
+test('publication keeps the newly published assessment active and unsuperseded', function () {
+    $source = file_get_contents(
+        dirname(__DIR__, 3)
+        . '/app/Services/Diagnosis/DiagnosisResultPublisher.php'
+    );
+
+    expect($source)
+        ->toContain("'is_active' => true")
+        ->toContain("'inactivated_at' => null")
+        ->toContain("'superseded_by_assessment_id' => null");
+});

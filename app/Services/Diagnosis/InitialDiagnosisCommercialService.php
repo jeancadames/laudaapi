@@ -462,6 +462,37 @@ final class InitialDiagnosisCommercialService
     private function activeNativeWorkflowForCompany(
         Company $company
     ): ?DiagnosisAccessRequest {
+        /*
+         * The official diagnosis is the latest accessible published
+         * assessment. A newer draft reassessment must never hide it.
+         */
+        $published = DiagnosisAccessRequest::query()
+            ->where('meta->source', self::SOURCE)
+            ->where('meta->company_id', $company->id)
+            ->whereNotNull('diagnosis_assessment_id')
+            ->whereHas(
+                'assessment',
+                fn ($query) => $query
+                    ->where('is_active', true)
+                    ->whereNotNull('published_at')
+            )
+            ->with('assessment')
+            ->get()
+            ->sortByDesc(
+                fn (DiagnosisAccessRequest $workflow) =>
+                    $workflow->assessment?->published_at?->getTimestamp() ?? 0
+            )
+            ->first();
+
+        if ($published) {
+            return $published;
+        }
+
+        /*
+         * First-cycle compatibility: before the tenant has ever
+         * published a diagnosis, expose its accessible assessment so
+         * onboarding and diagnosis completion continue to work.
+         */
         return DiagnosisAccessRequest::query()
             ->where('meta->source', self::SOURCE)
             ->where('meta->company_id', $company->id)
@@ -469,6 +500,34 @@ final class InitialDiagnosisCommercialService
             ->whereHas(
                 'assessment',
                 fn ($query) => $query->where('is_active', true)
+            )
+            ->with('assessment')
+            ->oldest('id')
+            ->first();
+    }
+
+    private function workingNativeWorkflowForCompany(
+        Company $company,
+        ?DiagnosisAccessRequest $official = null
+    ): ?DiagnosisAccessRequest {
+        return DiagnosisAccessRequest::query()
+            ->where('meta->source', self::SOURCE)
+            ->where('meta->company_id', $company->id)
+            ->whereNotNull('diagnosis_assessment_id')
+            ->when(
+                $official?->diagnosis_assessment_id,
+                fn ($query, $assessmentId) =>
+                    $query->where(
+                        'diagnosis_assessment_id',
+                        '!=',
+                        $assessmentId
+                    )
+            )
+            ->whereHas(
+                'assessment',
+                fn ($query) => $query
+                    ->where('is_active', true)
+                    ->whereNull('published_at')
             )
             ->with('assessment')
             ->latest('id')
@@ -544,7 +603,13 @@ final class InitialDiagnosisCommercialService
         }
 
         $assessment = $activeWorkflow?->assessment;
-        $workflow = $pending ?? $activeWorkflow;
+
+        $workingWorkflow = $this->workingNativeWorkflowForCompany(
+            $company,
+            $activeWorkflow
+        );
+
+        $workflow = $pending ?? $workingWorkflow ?? $activeWorkflow;
         $offer = $this->offer();
 
         if (! $workflow && ! $assessment) {
@@ -554,6 +619,7 @@ final class InitialDiagnosisCommercialService
                 'needs_initialization' => true,
                 'can_request_new' => false,
                 'reassessment_pending' => false,
+                'working_assessment' => null,
                 'workflow' => null,
                 'invoice' => null,
                 'assessment' => null,
@@ -576,7 +642,7 @@ final class InitialDiagnosisCommercialService
 
         $reassessmentPending =
             $assessment !== null
-            && $pending !== null;
+            && ($pending !== null || $workingWorkflow !== null);
 
         return [
             'exists' => true,
@@ -584,8 +650,28 @@ final class InitialDiagnosisCommercialService
             'needs_initialization' => false,
             'can_request_new' =>
                 $assessment !== null
-                && $pending === null,
+                && $pending === null
+                && $workingWorkflow === null,
             'reassessment_pending' => $reassessmentPending,
+            'working_assessment' => $workingWorkflow?->assessment ? [
+                'id' => $workingWorkflow->assessment->id,
+                'status' => $workingWorkflow->assessment->status,
+                'is_active' =>
+                    (bool) $workingWorkflow->assessment->is_active,
+                'current_step' =>
+                    $workingWorkflow->assessment->current_step,
+                'submitted_at' =>
+                    $workingWorkflow->assessment
+                        ->submitted_at?->toIso8601String(),
+                'published_at' =>
+                    $workingWorkflow->assessment
+                        ->published_at?->toIso8601String(),
+                'url' => route(
+                    'diagnosis.show',
+                    $workingWorkflow->assessment,
+                    false
+                ),
+            ] : null,
             'workflow' => $workflow ? [
                 'public_id' => $workflow->public_id,
                 'status' => $workflow->status,

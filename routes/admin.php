@@ -142,6 +142,21 @@ Route::middleware(['auth', 'verified', 'role:admin'])
             [\App\Http\Controllers\Admin\AdminDiagnosisAccessRequestController::class, 'updateStatus']
         )->name('diagnosis_requests.status');
 
+        \Illuminate\Support\Facades\Route::delete(
+            '/diagnosis-requests/{contact}/assessment',
+            [\App\Http\Controllers\Admin\AdminDiagnosisAccessRequestController::class, 'deleteAssessment']
+        )->name('diagnosis_requests.assessment.delete');
+
+        \Illuminate\Support\Facades\Route::post(
+            '/diagnosis-requests/{contact}/inactivate',
+            [\App\Http\Controllers\Admin\AdminDiagnosisAccessRequestController::class, 'inactivateAssessment']
+        )->name('diagnosis_requests.inactivate');
+
+        \Illuminate\Support\Facades\Route::post(
+            '/diagnosis-requests/{contact}/reactivate',
+            [\App\Http\Controllers\Admin\AdminDiagnosisAccessRequestController::class, 'reactivateAssessment']
+        )->name('diagnosis_requests.reactivate');
+
         \Illuminate\Support\Facades\Route::post(
             '/diagnosis-requests/{contact}/approve',
             [\App\Http\Controllers\Admin\AdminDiagnosisAccessRequestController::class, 'approve']

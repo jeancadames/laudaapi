@@ -2,6 +2,10 @@
 
 namespace App\Http\Controllers\Admin;
 
+use App\Services\Diagnosis\DiagnosisAssessmentCompletenessService;
+
+use App\Mail\DiagnosisMoreInfoRequiredMail;
+
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Diagnosis\PublishDiagnosisResultRequest;
 use App\Http\Requests\Diagnosis\SaveDiagnosisReviewRequest;
@@ -10,6 +14,7 @@ use App\Models\ContactRequest;
 use App\Models\DiagnosisAccessRequest;
 use App\Services\AuditService;
 use App\Services\Diagnosis\DiagnosisAccessService;
+use App\Services\Diagnosis\DiagnosisAssessmentDeletionService;
 use App\Services\Diagnosis\DiagnosisDeliverableValidationService;
 use App\Services\Diagnosis\DiagnosisResultPublisher;
 use App\Services\Diagnosis\DiagnosisTransformationProgressService;
@@ -277,7 +282,8 @@ class AdminDiagnosisAccessRequestController extends Controller
     public function updateStatus(
         Request $request,
         ContactRequest $contact,
-        DiagnosisAccessService $service
+        DiagnosisAccessService $service,
+        DiagnosisAssessmentCompletenessService $completeness
     ): RedirectResponse {
         $data = $request->validate([
             'status' => [
@@ -293,6 +299,8 @@ class AdminDiagnosisAccessRequestController extends Controller
 
         $workflow = $service->workflowFor($contact);
 
+        $previousStatus = $workflow->status;
+
         $workflow->forceFill([
             'status' => $data['status'],
             'review_notes' => $data['review_notes']
@@ -300,14 +308,219 @@ class AdminDiagnosisAccessRequestController extends Controller
             'reviewed_by_user_id' => $request->user()->id,
         ])->save();
 
-        AuditService::log('diagnosis_access_status_changed', $workflow, [
-            'status' => $workflow->status,
-            'reviewed_by_user_id' => $request->user()->id,
-        ]);
+        AuditService::log(
+            'diagnosis_access_status_changed',
+            $workflow,
+            [
+                'previous_status' => $previousStatus,
+                'status' => $workflow->status,
+                'reviewed_by_user_id' =>
+                    $request->user()->id,
+            ]
+        );
+
+        if (
+            $workflow->status
+            === DiagnosisAccessRequest::STATUS_MORE_INFO_REQUIRED
+            && $previousStatus
+                !== DiagnosisAccessRequest::STATUS_MORE_INFO_REQUIRED
+        ) {
+            $workflow->loadMissing([
+                'user',
+                'assessment',
+            ]);
+
+            $missingInformation =
+                $workflow->assessment
+                    ? $completeness->missingInformation(
+                        $workflow->assessment
+                    )
+                    : [
+                        'business_profile' => [],
+                        'missing_answers' => [],
+                        'profile_complete' => false,
+                        'answers_complete' => false,
+                        'complete' => false,
+                    ];
+
+            if ($workflow->user?->email) {
+                Mail::to($workflow->user->email)->queue(
+                    new DiagnosisMoreInfoRequiredMail(
+                        $workflow,
+                        $missingInformation,
+                        $workflow->review_notes
+                    )
+                );
+
+                AuditService::log(
+                    'diagnosis_more_info_email_queued',
+                    $workflow,
+                    [
+                        'recipient' =>
+                            $workflow->user->email,
+                        'assessment_id' =>
+                            $workflow->diagnosis_assessment_id,
+                        'business_profile_items' =>
+                            count(
+                                $missingInformation[
+                                    'business_profile'
+                                ] ?? []
+                            ),
+                        'missing_answer_count' =>
+                            count(
+                                $missingInformation[
+                                    'missing_answers'
+                                ] ?? []
+                            ),
+                    ]
+                );
+            }
+        }
 
         return back()->with(
             'success',
             'Estado del diagnóstico actualizado.'
+        );
+    }
+
+    public function deleteAssessment(
+        Request $request,
+        ContactRequest $contact,
+        DiagnosisAssessmentDeletionService $deletion
+    ): RedirectResponse {
+        $workflow = DiagnosisAccessRequest::query()
+            ->where('contact_request_id', $contact->id)
+            ->firstOrFail();
+
+        if (!$workflow->diagnosis_assessment_id) {
+            abort(
+                422,
+                'La solicitud no tiene un diagnóstico asociado para eliminar.'
+            );
+        }
+
+        $assessment = $workflow->assessment()->firstOrFail();
+
+        $assessmentId = $assessment->id;
+
+        AuditService::log(
+            'diagnosis_assessment_deletion_requested',
+            $assessment,
+            [
+                'workflow_id' => $workflow->id,
+                'contact_request_id' => $workflow->contact_request_id,
+                'actor_user_id' => $request->user()?->id,
+            ]
+        );
+
+        $deletion->delete($assessment);
+
+        return back()->with(
+            'success',
+            "Diagnóstico #{$assessmentId} eliminado correctamente."
+        );
+    }
+
+    public function inactivateAssessment(
+        Request $request,
+        ContactRequest $contact
+    ): RedirectResponse {
+        $workflow = DiagnosisAccessRequest::query()
+            ->where('contact_request_id', $contact->id)
+            ->firstOrFail();
+
+        if (!$workflow->diagnosis_assessment_id) {
+            abort(
+                422,
+                'La solicitud no tiene un diagnóstico asociado para inactivar.'
+            );
+        }
+
+        DB::transaction(function () use ($workflow, $request): void {
+            $assessment = $workflow->assessment()
+                ->lockForUpdate()
+                ->firstOrFail();
+
+            if (!$assessment->is_active) {
+                return;
+            }
+
+            $assessment->forceFill([
+                'is_active' => false,
+                'inactivated_at' => now(),
+            ])->save();
+
+            AuditService::log(
+                'diagnosis_assessment_inactivated',
+                $assessment,
+                [
+                    'workflow_id' => $workflow->id,
+                    'contact_request_id' => $workflow->contact_request_id,
+                    'actor_user_id' => $request->user()?->id,
+                    'published_at' => $assessment->published_at?->toISOString(),
+                    'superseded_by_assessment_id' =>
+                        $assessment->superseded_by_assessment_id,
+                ]
+            );
+        });
+
+        return back()->with(
+            'success',
+            'Diagnóstico inactivado correctamente.'
+        );
+    }
+
+    public function reactivateAssessment(
+        Request $request,
+        ContactRequest $contact
+    ): RedirectResponse {
+        $workflow = DiagnosisAccessRequest::query()
+            ->where('contact_request_id', $contact->id)
+            ->firstOrFail();
+
+        if (!$workflow->diagnosis_assessment_id) {
+            abort(
+                422,
+                'La solicitud no tiene un diagnóstico asociado para reactivar.'
+            );
+        }
+
+        DB::transaction(function () use ($workflow, $request): void {
+            $assessment = $workflow->assessment()
+                ->lockForUpdate()
+                ->firstOrFail();
+
+            if ($assessment->is_active) {
+                return;
+            }
+
+            if ($assessment->superseded_by_assessment_id !== null) {
+                abort(
+                    422,
+                    'No se puede reactivar un diagnóstico que ya fue sustituido por uno posterior.'
+                );
+            }
+
+            $assessment->forceFill([
+                'is_active' => true,
+                'inactivated_at' => null,
+            ])->save();
+
+            AuditService::log(
+                'diagnosis_assessment_reactivated',
+                $assessment,
+                [
+                    'workflow_id' => $workflow->id,
+                    'contact_request_id' => $workflow->contact_request_id,
+                    'actor_user_id' => $request->user()?->id,
+                    'published_at' => $assessment->published_at?->toISOString(),
+                ]
+            );
+        });
+
+        return back()->with(
+            'success',
+            'Diagnóstico reactivado correctamente.'
         );
     }
 

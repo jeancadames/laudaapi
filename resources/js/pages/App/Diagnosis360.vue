@@ -22,6 +22,15 @@ type State = {
     needs_initialization: boolean;
     can_request_new: boolean;
     reassessment_pending: boolean;
+    working_assessment: {
+        id: number;
+        status: string;
+        is_active: boolean;
+        current_step: number | null;
+        submitted_at: string | null;
+        published_at: string | null;
+        url: string;
+    } | null;
     workflow: {
         public_id: string;
         status: string;
@@ -318,10 +327,23 @@ onMounted(() => {
                             </button>
 
                             <a
+                                v-if="props.state.working_assessment"
+                                :href="props.state.working_assessment.url"
+                                class="inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-red-600 px-5 text-sm font-bold text-white transition hover:bg-red-700"
+                            >
+                                Continuar nueva evaluación
+                                <ArrowRight class="h-4 w-4" />
+                            </a>
+
+                            <a
                                 :href="props.state.assessment!.url"
                                 class="inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-slate-950 px-5 text-sm font-bold text-white transition hover:bg-slate-800 dark:bg-white dark:text-slate-950"
                             >
-                                Abrir diagnóstico
+                                {{
+                                    props.state.assessment?.published_at
+                                        ? 'Ver diagnóstico actual'
+                                        : 'Abrir diagnóstico'
+                                }}
                                 <ArrowRight class="h-4 w-4" />
                             </a>
                         </div>

@@ -346,53 +346,37 @@ class DiagnosisAccessService
             $linkedAssessmentIds->push($supersedesAssessmentId);
         }
 
-        $previous = DiagnosisAssessment::query()
-            ->whereIn(
-                'id',
-                $linkedAssessmentIds
-                    ->unique()
-                    ->reject(
-                        fn (int $id): bool => $id === (int) $assessment->id
-                    )
-                    ->values()
-                    ->all()
-            )
-            ->where('is_active', true)
-            ->lockForUpdate()
-            ->get();
-
-        foreach ($previous as $priorAssessment) {
-            $priorAssessment->forceFill([
-                'is_active' => false,
-                'inactivated_at' => now(),
-                'superseded_by_assessment_id' => $assessment->id,
-            ])->save();
-        }
-
+        /*
+         * Confirming an App Hub reassessment must not supersede the
+         * tenant's currently published diagnosis.
+         *
+         * is_active means that the assessment remains accessible to the
+         * tenant. The official/current diagnosis is resolved separately
+         * from published_at. Supersession happens only when the new
+         * assessment is successfully published.
+         */
         $assessment->forceFill([
             'is_active' => true,
             'inactivated_at' => null,
             'superseded_by_assessment_id' => null,
         ])->save();
 
-        if ($previous->isNotEmpty()) {
-            AuditService::log(
-                'diagnosis_assessment_superseded',
-                $assessment,
-                [
-                    'company_id' => $company->id,
-                    'new_assessment_id' => $assessment->id,
-                    'superseded_assessment_ids' => $previous
-                        ->pluck('id')
-                        ->map(fn ($id): int => (int) $id)
-                        ->values()
-                        ->all(),
-                    'requested_by_user_id' => $user->id,
-                    'confirmed_by_user_id' => $admin->id,
-                ],
-                ['user_id' => $admin->id]
-            );
-        }
+        AuditService::log(
+            'diagnosis_reassessment_activated',
+            $assessment,
+            [
+                'company_id' => $company->id,
+                'assessment_id' => $assessment->id,
+                'supersedes_assessment_id' =>
+                    $supersedesAssessmentId > 0
+                        ? $supersedesAssessmentId
+                        : null,
+                'requested_by_user_id' => $user->id,
+                'confirmed_by_user_id' => $admin->id,
+                'supersession_deferred_until_publication' => true,
+            ],
+            ['user_id' => $admin->id]
+        );
     }
 
     public function sendInvitation(DiagnosisAccessRequest $workflow, User $actor): DiagnosisAccessRequest

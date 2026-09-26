@@ -2,6 +2,8 @@
 
 namespace App\Http\Controllers\Diagnosis;
 
+use App\Services\Diagnosis\DiagnosisAssessmentCompletenessService;
+
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Diagnosis\SubmitDiagnosisAssessmentRequest;
 use App\Http\Requests\Diagnosis\UpdateDiagnosisAssessmentRequest;
@@ -196,7 +198,8 @@ class DigitalDiagnosisController extends Controller
         DiagnosisAssessment $assessment,
         Lauda360ScoringService $scoring,
         DiagnosisBusinessProfileService $businessProfile,
-        DiagnosisExecutiveSummaryGenerator $executiveSummary
+        DiagnosisExecutiveSummaryGenerator $executiveSummary,
+        DiagnosisAssessmentCompletenessService $completeness
     ): RedirectResponse {
         Gate::authorize('submit', $assessment);
 
@@ -206,6 +209,20 @@ class DigitalDiagnosisController extends Controller
         $profile = $businessProfile->extract(
             $validated
         );
+
+        /*
+         * Validate the exact state that is about to be submitted.
+         * Do not rely on the previously persisted draft because the
+         * current request contains the final answers/profile.
+         */
+        $candidate = clone $assessment;
+
+        $candidate->fill([
+            'answers' => $answers,
+            ...$profile,
+        ]);
+
+        $completeness->assertComplete($candidate);
 
         $result = $scoring->calculate($answers);
 
