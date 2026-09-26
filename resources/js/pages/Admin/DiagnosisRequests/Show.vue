@@ -121,6 +121,21 @@ const breadcrumbs: BreadcrumbItem[] = [
 ];
 
 const assessment = computed(() => props.workflow?.assessment ?? null);
+
+// DIAGNOSIS_ADMIN_LIFECYCLE_UI
+type AssessmentLifecycle = Assessment & {
+    is_active?: boolean;
+    inactivated_at?: string | null;
+    superseded_by_assessment_id?: number | null;
+};
+
+const assessmentLifecycle = computed(
+    () => assessment.value as AssessmentLifecycle | null,
+);
+
+const lifecycleBusy = ref<
+    'inactivate' | 'reactivate' | 'delete' | null
+>(null);
 const documentCycleClosed = computed(
     () => props.document_closure?.all_validated === true,
 );
@@ -270,6 +285,90 @@ function reject() {
     rejectForm.post(`/admin/diagnosis-requests/${props.contact.id}/reject`, {
         preserveScroll: true,
     });
+}
+
+function inactivateAssessment() {
+    if (!assessmentLifecycle.value?.is_active) return;
+
+    const confirmed = window.confirm(
+        '¿Deseas inactivar esta solicitud? El tenant dejará de poder acceder a este diagnóstico, pero su historial se conservará.',
+    );
+
+    if (!confirmed) return;
+
+    router.post(
+        `/admin/diagnosis-requests/${props.contact.id}/inactivate`,
+        {},
+        {
+            preserveScroll: true,
+            onStart: () => {
+                lifecycleBusy.value = 'inactivate';
+            },
+            onFinish: () => {
+                lifecycleBusy.value = null;
+            },
+        },
+    );
+}
+
+function reactivateAssessment() {
+    if (assessmentLifecycle.value?.is_active) return;
+
+    if (
+        assessmentLifecycle.value
+            ?.superseded_by_assessment_id !== null
+        && assessmentLifecycle.value
+            ?.superseded_by_assessment_id !== undefined
+    ) {
+        window.alert(
+            'Este diagnóstico fue sustituido por uno posterior y no puede reactivarse.',
+        );
+
+        return;
+    }
+
+    const confirmed = window.confirm(
+        '¿Deseas reactivar esta solicitud para el tenant?',
+    );
+
+    if (!confirmed) return;
+
+    router.post(
+        `/admin/diagnosis-requests/${props.contact.id}/reactivate`,
+        {},
+        {
+            preserveScroll: true,
+            onStart: () => {
+                lifecycleBusy.value = 'reactivate';
+            },
+            onFinish: () => {
+                lifecycleBusy.value = null;
+            },
+        },
+    );
+}
+
+function deleteAssessment() {
+    if (!assessment.value) return;
+
+    const confirmed = window.confirm(
+        '¿Eliminar este diagnóstico borrador? Solo se eliminará si no tiene publicación, envío, revisión ni dependencias históricas. La solicitud administrativa se conservará para auditoría.',
+    );
+
+    if (!confirmed) return;
+
+    router.delete(
+        `/admin/diagnosis-requests/${props.contact.id}/assessment`,
+        {
+            preserveScroll: true,
+            onStart: () => {
+                lifecycleBusy.value = 'delete';
+            },
+            onFinish: () => {
+                lifecycleBusy.value = null;
+            },
+        },
+    );
 }
 
 function reviewPayload() {
@@ -622,6 +721,130 @@ function publish() {
                             </p>
                             <p class="text-xs text-muted-foreground">
                                 Rol: {{ workflow.user.role }}
+                            </p>
+                        </CardContent>
+                    </Card>
+
+                    <!-- DIAGNOSIS_ADMIN_LIFECYCLE_UI -->
+                    <Card v-if="assessment">
+                        <CardHeader>
+                            <div
+                                class="flex flex-wrap items-center justify-between gap-3"
+                            >
+                                <div>
+                                    <CardTitle>
+                                        Vigencia de la solicitud
+                                    </CardTitle>
+                                    <p
+                                        class="mt-1 text-xs text-muted-foreground"
+                                    >
+                                        Control administrativo del acceso del
+                                        tenant a este diagnóstico.
+                                    </p>
+                                </div>
+
+                                <Badge
+                                    :class="
+                                        assessmentLifecycle?.is_active
+                                            ? 'bg-emerald-600 text-white'
+                                            : 'bg-slate-600 text-white'
+                                    "
+                                >
+                                    {{
+                                        assessmentLifecycle?.is_active
+                                            ? 'Activa'
+                                            : 'Inactiva'
+                                    }}
+                                </Badge>
+                            </div>
+                        </CardHeader>
+
+                        <CardContent class="space-y-4">
+                            <div
+                                v-if="
+                                    assessmentLifecycle?.inactivated_at
+                                "
+                                class="rounded-xl border bg-muted/20 p-3 text-xs text-muted-foreground"
+                            >
+                                Inactivada:
+                                {{
+                                    formatInvitationDate(
+                                        assessmentLifecycle.inactivated_at,
+                                    )
+                                }}
+                            </div>
+
+                            <div
+                                v-if="
+                                    assessmentLifecycle
+                                        ?.superseded_by_assessment_id
+                                "
+                                class="rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs text-amber-800"
+                            >
+                                Sustituida por diagnóstico
+                                #{{
+                                    assessmentLifecycle
+                                        .superseded_by_assessment_id
+                                }}.
+                            </div>
+
+                            <div class="flex flex-wrap gap-2">
+                                <Button
+                                    v-if="
+                                        assessmentLifecycle?.is_active
+                                    "
+                                    variant="outline"
+                                    :disabled="
+                                        lifecycleBusy !== null
+                                    "
+                                    @click="inactivateAssessment"
+                                >
+                                    {{
+                                        lifecycleBusy === 'inactivate'
+                                            ? 'Inactivando...'
+                                            : 'Inactivar solicitud'
+                                    }}
+                                </Button>
+
+                                <Button
+                                    v-else
+                                    variant="outline"
+                                    :disabled="
+                                        lifecycleBusy !== null ||
+                                        !!assessmentLifecycle
+                                            ?.superseded_by_assessment_id
+                                    "
+                                    @click="reactivateAssessment"
+                                >
+                                    {{
+                                        lifecycleBusy === 'reactivate'
+                                            ? 'Reactivando...'
+                                            : 'Reactivar solicitud'
+                                    }}
+                                </Button>
+
+                                <Button
+                                    variant="destructive"
+                                    :disabled="
+                                        lifecycleBusy !== null
+                                    "
+                                    @click="deleteAssessment"
+                                >
+                                    {{
+                                        lifecycleBusy === 'delete'
+                                            ? 'Eliminando...'
+                                            : 'Eliminar diagnóstico borrador'
+                                    }}
+                                </Button>
+                            </div>
+
+                            <p
+                                class="text-xs leading-5 text-muted-foreground"
+                            >
+                                La eliminación está protegida por el backend.
+                                Si el diagnóstico ya tiene historial,
+                                entregables, activaciones o implementación,
+                                deberá conservarse e inactivarse.
                             </p>
                         </CardContent>
                     </Card>

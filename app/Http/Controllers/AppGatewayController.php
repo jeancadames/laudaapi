@@ -154,6 +154,11 @@ class AppGatewayController extends Controller
                 ->with('assessment')
                 ->where('user_id', $user->id)
                 ->whereNotNull('diagnosis_assessment_id')
+            ->whereHas(
+                'assessment',
+                fn ($query) =>
+                    $query->where('is_active', true)
+            )
                 ->latest('id')
                 ->first();
 
@@ -173,6 +178,11 @@ class AppGatewayController extends Controller
             ->with('assessment')
             ->where('user_id', $user->id)
             ->whereNotNull('diagnosis_assessment_id')
+            ->whereHas(
+                'assessment',
+                fn ($query) =>
+                    $query->where('is_active', true)
+            )
             ->latest('id')
             ->first();
 

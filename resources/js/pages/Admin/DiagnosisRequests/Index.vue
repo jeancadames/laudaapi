@@ -14,6 +14,9 @@ type Row = {
     assistance_level: string | null
     status: string
     assessment_id: number | null
+    assessment_is_active: boolean | null
+    assessment_inactivated_at: string | null
+    assessment_superseded_by_assessment_id: number | null
     created_at: string | null
 }
 
@@ -37,7 +40,7 @@ const statusLabels: Record<string, string> = {
     more_info_required: 'Requiere información',
     approved: 'Aprobado',
     invited: 'Invitado',
-    active: 'Activo',
+    active: 'Acceso activo',
     rejected: 'Rechazado',
 }
 
@@ -46,7 +49,7 @@ const tabs = computed(() => [
     { value: 'pending', label: 'Pendientes' },
     { value: 'under_review', label: 'En revisión' },
     { value: 'invited', label: 'Invitados' },
-    { value: 'active', label: 'Activos' },
+    { value: 'active', label: 'Acceso activo' },
     { value: 'rejected', label: 'Rechazados' },
 ])
 
@@ -135,9 +138,39 @@ const breadcrumbs = [
                             <div class="mt-1">{{ row.assistance_level || 'Modalidad por recomendar' }}</div>
                         </div>
 
-                        <div class="flex items-center md:justify-end">
-                            <span class="rounded-full border bg-background px-2.5 py-1 text-xs font-semibold">
-                                {{ statusLabels[row.status] || row.status }}
+                        <div
+                            class="flex flex-wrap items-center gap-2 md:justify-end"
+                        >
+                            <span
+                                class="rounded-full border bg-background px-2.5 py-1 text-xs font-semibold"
+                            >
+                                {{
+                                    statusLabels[row.status] ||
+                                    row.status
+                                }}
+                            </span>
+
+                            <span
+                                v-if="row.assessment_id !== null"
+                                class="rounded-full border px-2.5 py-1 text-xs font-semibold"
+                                :class="
+                                    row.assessment_is_active
+                                        ? 'border-emerald-200 bg-emerald-50 text-emerald-700'
+                                        : 'border-slate-300 bg-slate-100 text-slate-600'
+                                "
+                            >
+                                {{
+                                    row.assessment_is_active
+                                        ? 'Diagnóstico vigente'
+                                        : 'Diagnóstico inactivo'
+                                }}
+                            </span>
+
+                            <span
+                                v-else
+                                class="rounded-full border bg-muted px-2.5 py-1 text-xs font-semibold text-muted-foreground"
+                            >
+                                Sin diagnóstico
                             </span>
                         </div>
                     </Link>

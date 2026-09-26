@@ -67,12 +67,21 @@ class AdminDiagnosisAccessRequestController extends Controller
                 '=',
                 'contact_requests.id'
             )
+            ->leftJoin(
+                'diagnosis_assessments as da',
+                'da.id',
+                '=',
+                'dar.diagnosis_assessment_id'
+            )
             ->select([
                 'contact_requests.*',
                 'dar.public_id as workflow_public_id',
                 'dar.status as workflow_status',
                 'dar.user_id as workflow_user_id',
                 'dar.diagnosis_assessment_id as workflow_assessment_id',
+                'da.is_active as assessment_is_active',
+                'da.inactivated_at as assessment_inactivated_at',
+                'da.superseded_by_assessment_id as assessment_superseded_by_assessment_id',
                 'dar.invitation_sent_at as workflow_invitation_sent_at',
                 'dar.invitation_accepted_at as workflow_invitation_accepted_at',
             ]);
@@ -120,6 +129,18 @@ class AdminDiagnosisAccessRequestController extends Controller
                     'workflow_public_id' => $contact->workflow_public_id,
                     'user_id' => $contact->workflow_user_id,
                     'assessment_id' => $contact->workflow_assessment_id,
+                    'assessment_is_active' =>
+                        $contact->assessment_is_active !== null
+                            ? (bool) $contact->assessment_is_active
+                            : null,
+                    'assessment_inactivated_at' =>
+                        $contact->assessment_inactivated_at
+                            ? (string) $contact->assessment_inactivated_at
+                            : null,
+                    'assessment_superseded_by_assessment_id' =>
+                        $contact->assessment_superseded_by_assessment_id !== null
+                            ? (int) $contact->assessment_superseded_by_assessment_id
+                            : null,
                     'invitation_sent_at' => $contact
                         ->workflow_invitation_sent_at,
                     'invitation_accepted_at' => $contact
@@ -234,6 +255,13 @@ class AdminDiagnosisAccessRequestController extends Controller
                     'id' => $assessment->id,
                     'organization_name' => $assessment->organization_name,
                     'status' => $assessment->status,
+                    'is_active' => (bool) $assessment->is_active,
+                    'inactivated_at' =>
+                        $assessment->inactivated_at?->toISOString(),
+                    'superseded_by_assessment_id' =>
+                        $assessment->superseded_by_assessment_id !== null
+                            ? (int) $assessment->superseded_by_assessment_id
+                            : null,
                     'current_step' => $assessment->current_step,
                     'answers' => $assessment->answers ?? [],
                     'notes' => $assessment->notes ?? [],
