@@ -8,6 +8,7 @@ import {
     Gift,
     Hourglass,
     ReceiptText,
+    ShieldAlert,
     ShieldCheck,
     Sparkles,
 } from 'lucide-vue-next';
@@ -21,6 +22,8 @@ type State = {
     historical: boolean;
     needs_initialization: boolean;
     can_request_new: boolean;
+    request_blocked: boolean;
+    request_block_reason: string | null;
     reassessment_pending: boolean;
     working_assessment: {
         id: number;
@@ -130,7 +133,12 @@ const stateLabel = computed(() => {
 });
 
 function requestDiagnosis() {
-    if (sending.value) return;
+    if (
+        sending.value
+        || props.state.request_blocked
+    ) {
+        return;
+    }
 
     sending.value = true;
 
@@ -150,6 +158,7 @@ onMounted(() => {
     if (
         props.auto_start
         && props.state.needs_initialization
+        && !props.state.request_blocked
         && !startedAutomatically.value
     ) {
         startedAutomatically.value = true;
@@ -219,6 +228,45 @@ onMounted(() => {
                     </article>
                 </section>
 
+                <!-- DIAGNOSIS_REQUEST_BLOCKED_NOTICE -->
+                <section
+                    v-if="props.state.request_blocked"
+                    class="rounded-[1.75rem] border border-amber-200 bg-amber-50/70 p-6 dark:border-amber-900/60 dark:bg-amber-950/20"
+                >
+                    <div class="flex items-start gap-4">
+                        <div
+                            class="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-white text-amber-700 shadow-sm dark:bg-slate-950 dark:text-amber-300"
+                        >
+                            <ShieldAlert class="h-5 w-5" />
+                        </div>
+
+                        <div class="min-w-0 flex-1">
+                            <h2
+                                class="font-black text-slate-950 dark:text-white"
+                            >
+                                Nuevas evaluaciones temporalmente bloqueadas
+                            </h2>
+
+                            <p
+                                class="mt-1 text-sm leading-6 text-slate-600 dark:text-slate-300"
+                            >
+                                LAUDA ha deshabilitado temporalmente nuevas
+                                solicitudes de Diagnóstico 360 para esta
+                                empresa. Tu diagnóstico vigente, si existe,
+                                continúa disponible.
+                            </p>
+
+                            <p
+                                v-if="props.state.request_block_reason"
+                                class="mt-3 rounded-xl border border-amber-200/70 bg-white p-3 text-sm text-slate-700 dark:border-amber-900/50 dark:bg-slate-950 dark:text-slate-200"
+                            >
+                                <span class="font-bold">Motivo:</span>
+                                {{ props.state.request_block_reason }}
+                            </p>
+                        </div>
+                    </div>
+                </section>
+
                 <section
                     v-if="!props.state.exists"
                     class="rounded-[1.75rem] border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-950"
@@ -234,6 +282,7 @@ onMounted(() => {
                         </div>
 
                         <button
+                            v-if="!props.state.request_blocked"
                             type="button"
                             :disabled="sending"
                             class="inline-flex h-11 shrink-0 items-center justify-center gap-2 rounded-xl bg-red-600 px-5 text-sm font-bold text-white transition hover:bg-red-700 disabled:opacity-60"

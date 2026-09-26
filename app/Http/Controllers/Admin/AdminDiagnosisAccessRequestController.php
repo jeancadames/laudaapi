@@ -108,6 +108,7 @@ class AdminDiagnosisAccessRequestController extends Controller
                 WHEN dar.status = 'invited' THEN 5
                 WHEN dar.status = 'active' THEN 6
                 WHEN dar.status = 'rejected' THEN 7
+                WHEN dar.status = 'inactive' THEN 8
                 ELSE 99 END")
             ->orderByDesc('contact_requests.id')
             ->paginate(15)
@@ -220,6 +221,17 @@ class AdminDiagnosisAccessRequestController extends Controller
 
         $assessment = $workflow?->assessment;
 
+        $companyId = (int) (
+            data_get($workflow?->meta, 'company_id')
+            ?: ($assessment?->organization_id ?? 0)
+        );
+
+        $diagnosisCompany = $companyId > 0
+            ? \App\Models\Company::query()
+                ->with('diagnosisSetting')
+                ->find($companyId)
+            : null;
+
         return Inertia::render('Admin/DiagnosisRequests/Show', [
             'contact' => [
                 'id' => $contact->id,
@@ -235,6 +247,16 @@ class AdminDiagnosisAccessRequestController extends Controller
             'workflow' => $workflow ? [
                 'public_id' => $workflow->public_id,
                 'status' => $workflow->status,
+                'inactivated_at' =>
+                    $workflow->inactivated_at?->toISOString(),
+                'inactivated_by_user_id' =>
+                    $workflow->inactivated_by_user_id !== null
+                        ? (int) $workflow->inactivated_by_user_id
+                        : null,
+                'inactivation_reason' =>
+                    $workflow->inactivation_reason,
+                'status_before_inactivation' =>
+                    $workflow->status_before_inactivation,
                 'review_notes' => $workflow->review_notes,
                 'rejection_reason' => $workflow->rejection_reason,
                 'approved_at' => $workflow->approved_at?->toISOString(),
@@ -289,6 +311,33 @@ class AdminDiagnosisAccessRequestController extends Controller
                 ] : null,
             ] : null,
             'statuses' => DiagnosisAccessRequest::STATUSES,
+            'diagnosis_request_control' =>
+                $diagnosisCompany ? [
+                    'company_id' =>
+                        (int) $diagnosisCompany->id,
+                    'company_name' =>
+                        $diagnosisCompany->name,
+                    'new_requests_blocked' =>
+                        (bool) (
+                            $diagnosisCompany
+                                ->diagnosisSetting
+                                ?->new_requests_blocked
+                            ?? false
+                        ),
+                    'blocked_at' =>
+                        $diagnosisCompany
+                            ->diagnosisSetting
+                            ?->blocked_at
+                            ?->toISOString(),
+                    'blocked_by_user_id' =>
+                        $diagnosisCompany
+                            ->diagnosisSetting
+                            ?->blocked_by_user_id,
+                    'block_reason' =>
+                        $diagnosisCompany
+                            ->diagnosisSetting
+                            ?->block_reason,
+                ] : null,
             'businessProfileOptions' => config(
                 'lauda360_business_profile',
                 []
@@ -549,6 +598,322 @@ class AdminDiagnosisAccessRequestController extends Controller
         return back()->with(
             'success',
             'Diagnóstico reactivado correctamente.'
+        );
+    }
+
+    public function inactivateRequest(
+        Request $request,
+        ContactRequest $contact
+    ): RedirectResponse {
+        $data = $request->validate([
+            'reason' => [
+                'nullable',
+                'string',
+                'max:2000',
+            ],
+        ]);
+
+        DB::transaction(
+            function () use (
+                $contact,
+                $request,
+                $data
+            ): void {
+                $workflow =
+                    DiagnosisAccessRequest::query()
+                        ->where(
+                            'contact_request_id',
+                            $contact->id
+                        )
+                        ->lockForUpdate()
+                        ->firstOrFail();
+
+                if (
+                    $workflow->status
+                    === DiagnosisAccessRequest::STATUS_INACTIVE
+                ) {
+                    return;
+                }
+
+                $previousStatus = $workflow->status;
+
+                $workflow->forceFill([
+                    'status' =>
+                        DiagnosisAccessRequest::STATUS_INACTIVE,
+                    'status_before_inactivation' =>
+                        $previousStatus,
+                    'inactivated_at' => now(),
+                    'inactivated_by_user_id' =>
+                        $request->user()->id,
+                    'inactivation_reason' =>
+                        $data['reason'] ?? null,
+                ])->save();
+
+                AuditService::log(
+                    'diagnosis_access_request_inactivated',
+                    $workflow,
+                    [
+                        'previous_status' =>
+                            $previousStatus,
+                        'reason' =>
+                            $data['reason'] ?? null,
+                        'actor_user_id' =>
+                            $request->user()->id,
+                    ]
+                );
+            }
+        );
+
+        return back()->with(
+            'success',
+            'Solicitud de diagnóstico inactivada correctamente.'
+        );
+    }
+
+    public function reactivateRequest(
+        Request $request,
+        ContactRequest $contact
+    ): RedirectResponse {
+        DB::transaction(
+            function () use (
+                $contact,
+                $request
+            ): void {
+                $workflow =
+                    DiagnosisAccessRequest::query()
+                        ->where(
+                            'contact_request_id',
+                            $contact->id
+                        )
+                        ->lockForUpdate()
+                        ->firstOrFail();
+
+                if (
+                    $workflow->status
+                    !== DiagnosisAccessRequest::STATUS_INACTIVE
+                ) {
+                    return;
+                }
+
+                $restoreStatus =
+                    $workflow->status_before_inactivation;
+
+                if (
+                    ! in_array(
+                        $restoreStatus,
+                        DiagnosisAccessRequest::STATUSES,
+                        true
+                    )
+                    || $restoreStatus
+                        === DiagnosisAccessRequest::STATUS_INACTIVE
+                ) {
+                    $restoreStatus =
+                        DiagnosisAccessRequest::STATUS_PENDING;
+                }
+
+                /*
+                 * An active workflow without assessment is not a
+                 * valid active access. Reactivating that historical
+                 * row makes it a pending administrative request.
+                 */
+                if (
+                    $restoreStatus
+                        === DiagnosisAccessRequest::STATUS_ACTIVE
+                    && ! $workflow->diagnosis_assessment_id
+                ) {
+                    $restoreStatus =
+                        DiagnosisAccessRequest::STATUS_PENDING;
+                }
+
+                $workflow->forceFill([
+                    'status' => $restoreStatus,
+                    'status_before_inactivation' => null,
+                    'inactivated_at' => null,
+                    'inactivated_by_user_id' => null,
+                    'inactivation_reason' => null,
+                ])->save();
+
+                AuditService::log(
+                    'diagnosis_access_request_reactivated',
+                    $workflow,
+                    [
+                        'restored_status' =>
+                            $restoreStatus,
+                        'actor_user_id' =>
+                            $request->user()->id,
+                    ]
+                );
+            }
+        );
+
+        return back()->with(
+            'success',
+            'Solicitud de diagnóstico reactivada correctamente.'
+        );
+    }
+
+    public function blockNewDiagnosisRequests(
+        Request $request,
+        ContactRequest $contact
+    ): RedirectResponse {
+        $data = $request->validate([
+            'reason' => [
+                'nullable',
+                'string',
+                'max:2000',
+            ],
+        ]);
+
+        $workflow =
+            DiagnosisAccessRequest::query()
+                ->where(
+                    'contact_request_id',
+                    $contact->id
+                )
+                ->with('assessment')
+                ->firstOrFail();
+
+        $companyId = (int) (
+            data_get($workflow->meta, 'company_id')
+            ?: ($workflow->assessment?->organization_id ?? 0)
+        );
+
+        abort_if(
+            $companyId <= 0,
+            422,
+            'No fue posible determinar la empresa de esta solicitud.'
+        );
+
+        DB::transaction(
+            function () use (
+                $companyId,
+                $request,
+                $data
+            ): void {
+                $company =
+                    \App\Models\Company::query()
+                        ->whereKey($companyId)
+                        ->lockForUpdate()
+                        ->firstOrFail();
+
+                $setting =
+                    \App\Models\CompanyDiagnosisSetting::query()
+                        ->firstOrNew([
+                            'company_id' => $company->id,
+                        ]);
+
+                if (
+                    (bool) $setting->new_requests_blocked
+                ) {
+                    return;
+                }
+
+                $setting->forceFill([
+                    'new_requests_blocked' => true,
+                    'blocked_at' => now(),
+                    'blocked_by_user_id' =>
+                        $request->user()->id,
+                    'block_reason' =>
+                        $data['reason'] ?? null,
+                ])->save();
+
+                AuditService::log(
+                    'diagnosis_new_requests_blocked',
+                    $company,
+                    [
+                        'reason' =>
+                            $data['reason'] ?? null,
+                        'actor_user_id' =>
+                            $request->user()->id,
+                    ]
+                );
+            }
+        );
+
+        return back()->with(
+            'success',
+            'Nuevas solicitudes de Diagnóstico 360 bloqueadas para la empresa.'
+        );
+    }
+
+    public function unblockNewDiagnosisRequests(
+        Request $request,
+        ContactRequest $contact
+    ): RedirectResponse {
+        $workflow =
+            DiagnosisAccessRequest::query()
+                ->where(
+                    'contact_request_id',
+                    $contact->id
+                )
+                ->with('assessment')
+                ->firstOrFail();
+
+        $companyId = (int) (
+            data_get($workflow->meta, 'company_id')
+            ?: ($workflow->assessment?->organization_id ?? 0)
+        );
+
+        abort_if(
+            $companyId <= 0,
+            422,
+            'No fue posible determinar la empresa de esta solicitud.'
+        );
+
+        DB::transaction(
+            function () use (
+                $companyId,
+                $request
+            ): void {
+                $company =
+                    \App\Models\Company::query()
+                        ->whereKey($companyId)
+                        ->lockForUpdate()
+                        ->firstOrFail();
+
+                $setting =
+                    \App\Models\CompanyDiagnosisSetting::query()
+                        ->where(
+                            'company_id',
+                            $company->id
+                        )
+                        ->lockForUpdate()
+                        ->first();
+
+                if (
+                    ! $setting
+                    || ! (bool) $setting
+                        ->new_requests_blocked
+                ) {
+                    return;
+                }
+
+                $previousReason =
+                    $setting->block_reason;
+
+                $setting->forceFill([
+                    'new_requests_blocked' => false,
+                    'blocked_at' => null,
+                    'blocked_by_user_id' => null,
+                    'block_reason' => null,
+                ])->save();
+
+                AuditService::log(
+                    'diagnosis_new_requests_unblocked',
+                    $company,
+                    [
+                        'previous_reason' =>
+                            $previousReason,
+                        'actor_user_id' =>
+                            $request->user()->id,
+                    ]
+                );
+            }
+        );
+
+        return back()->with(
+            'success',
+            'Nuevas solicitudes de Diagnóstico 360 habilitadas para la empresa.'
         );
     }
 

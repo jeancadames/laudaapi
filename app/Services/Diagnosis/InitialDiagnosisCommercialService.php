@@ -158,6 +158,25 @@ final class InitialDiagnosisCommercialService
                 return $activeWorkflow ?? $historical;
             }
 
+            $requestControl =
+                \App\Models\CompanyDiagnosisSetting::query()
+                    ->where('company_id', $company->id)
+                    ->first();
+
+            if (
+                (bool) (
+                    $requestControl?->new_requests_blocked
+                    ?? false
+                )
+            ) {
+                throw \Illuminate\Validation\ValidationException::withMessages([
+                    'diagnosis' => [
+                        $requestControl?->block_reason
+                            ?: 'LAUDA ha bloqueado temporalmente nuevas solicitudes de Diagnóstico 360 para esta empresa.',
+                    ],
+                ]);
+            }
+
             $workflow = $this->createNativeWorkflow(
                 $user,
                 $subscriber,
@@ -455,6 +474,7 @@ final class InitialDiagnosisCommercialService
             ->whereNull('diagnosis_assessment_id')
             ->whereNotIn('status', [
                 DiagnosisAccessRequest::STATUS_ACTIVE,
+                DiagnosisAccessRequest::STATUS_INACTIVE,
                 DiagnosisAccessRequest::STATUS_REJECTED,
             ])
             ->with('assessment')
@@ -499,6 +519,11 @@ final class InitialDiagnosisCommercialService
         return DiagnosisAccessRequest::query()
             ->where('meta->source', self::SOURCE)
             ->where('meta->company_id', $company->id)
+            ->where(
+                'status',
+                '!=',
+                DiagnosisAccessRequest::STATUS_INACTIVE
+            )
             ->whereNotNull('diagnosis_assessment_id')
             ->whereHas(
                 'assessment',
@@ -516,6 +541,11 @@ final class InitialDiagnosisCommercialService
         return DiagnosisAccessRequest::query()
             ->where('meta->source', self::SOURCE)
             ->where('meta->company_id', $company->id)
+            ->where(
+                'status',
+                '!=',
+                DiagnosisAccessRequest::STATUS_INACTIVE
+            )
             ->whereNotNull('diagnosis_assessment_id')
             ->when(
                 $official?->diagnosis_assessment_id,
@@ -596,6 +626,17 @@ final class InitialDiagnosisCommercialService
 
     public function state(User $user, Company $company): array
     {
+        $requestControl =
+            \App\Models\CompanyDiagnosisSetting::query()
+                ->where('company_id', $company->id)
+                ->first();
+
+        $requestBlocked =
+            (bool) (
+                $requestControl?->new_requests_blocked
+                ?? false
+            );
+
         $pending = $this->pendingNativeWorkflowForCompany($company);
         $activeWorkflow = $this->activeNativeWorkflowForCompany($company);
         $historical = false;
@@ -621,6 +662,9 @@ final class InitialDiagnosisCommercialService
                 'historical' => false,
                 'needs_initialization' => true,
                 'can_request_new' => false,
+                'request_blocked' => $requestBlocked,
+                'request_block_reason' =>
+                    $requestControl?->block_reason,
                 'reassessment_pending' => false,
                 'working_assessment' => null,
                 'workflow' => null,
@@ -654,7 +698,11 @@ final class InitialDiagnosisCommercialService
             'can_request_new' =>
                 $assessment !== null
                 && $pending === null
-                && $workingWorkflow === null,
+                && $workingWorkflow === null
+                && ! $requestBlocked,
+            'request_blocked' => $requestBlocked,
+            'request_block_reason' =>
+                $requestControl?->block_reason,
             'reassessment_pending' => $reassessmentPending,
             'working_assessment' => $workingWorkflow?->assessment ? [
                 'id' => $workingWorkflow->assessment->id,

@@ -157,6 +157,27 @@ Route::middleware(['auth', 'verified', 'role:admin'])
             [\App\Http\Controllers\Admin\AdminDiagnosisAccessRequestController::class, 'reactivateAssessment']
         )->name('diagnosis_requests.reactivate');
 
+
+        \Illuminate\Support\Facades\Route::post(
+            '/diagnosis-requests/{contact}/request/inactivate',
+            [\App\Http\Controllers\Admin\AdminDiagnosisAccessRequestController::class, 'inactivateRequest']
+        )->name('diagnosis_requests.request.inactivate');
+
+        \Illuminate\Support\Facades\Route::post(
+            '/diagnosis-requests/{contact}/request/reactivate',
+            [\App\Http\Controllers\Admin\AdminDiagnosisAccessRequestController::class, 'reactivateRequest']
+        )->name('diagnosis_requests.request.reactivate');
+
+        \Illuminate\Support\Facades\Route::post(
+            '/diagnosis-requests/{contact}/company/block-new-requests',
+            [\App\Http\Controllers\Admin\AdminDiagnosisAccessRequestController::class, 'blockNewDiagnosisRequests']
+        )->name('diagnosis_requests.company.block_new_requests');
+
+        \Illuminate\Support\Facades\Route::post(
+            '/diagnosis-requests/{contact}/company/unblock-new-requests',
+            [\App\Http\Controllers\Admin\AdminDiagnosisAccessRequestController::class, 'unblockNewDiagnosisRequests']
+        )->name('diagnosis_requests.company.unblock_new_requests');
+
         \Illuminate\Support\Facades\Route::post(
             '/diagnosis-requests/{contact}/approve',
             [\App\Http\Controllers\Admin\AdminDiagnosisAccessRequestController::class, 'approve']

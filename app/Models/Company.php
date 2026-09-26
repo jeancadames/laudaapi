@@ -28,6 +28,13 @@ class Company extends Model
         return $this->hasOne(CompanyTaxProfile::class);
     }
 
+    public function diagnosisSetting(): HasOne
+    {
+        return $this->hasOne(
+            CompanyDiagnosisSetting::class
+        );
+    }
+
     public function transformationCapabilityActivations(): HasMany
     {
         return $this->hasMany(

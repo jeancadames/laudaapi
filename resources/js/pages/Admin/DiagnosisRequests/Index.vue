@@ -41,6 +41,7 @@ const statusLabels: Record<string, string> = {
     approved: 'Aprobado',
     invited: 'Invitado',
     active: 'Acceso activo',
+    inactive: 'Solicitud inactiva',
     rejected: 'Rechazado',
 }
 
@@ -50,6 +51,7 @@ const tabs = computed(() => [
     { value: 'under_review', label: 'En revisión' },
     { value: 'invited', label: 'Invitados' },
     { value: 'active', label: 'Acceso activo' },
+    { value: 'inactive', label: 'Inactivas' },
     { value: 'rejected', label: 'Rechazados' },
 ])
 

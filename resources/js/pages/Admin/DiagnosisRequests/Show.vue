@@ -71,6 +71,10 @@ type BusinessProfileOptions = {
 type Workflow = {
     public_id: string;
     status: string;
+    inactivated_at: string | null;
+    inactivated_by_user_id: number | null;
+    inactivation_reason: string | null;
+    status_before_inactivation: string | null;
     review_notes: string | null;
     rejection_reason: string | null;
     approved_at: string | null;
@@ -102,6 +106,14 @@ const props = defineProps<{
     };
     workflow: Workflow | null;
     statuses: string[];
+    diagnosis_request_control: {
+        company_id: number;
+        company_name: string;
+        new_requests_blocked: boolean;
+        blocked_at: string | null;
+        blocked_by_user_id: number | null;
+        block_reason: string | null;
+    } | null;
     businessProfileOptions: BusinessProfileOptions;
     transformation_progress: Record<string, any> | null;
     document_closure: {
@@ -136,6 +148,15 @@ const assessmentLifecycle = computed(
 const lifecycleBusy = ref<
     'inactivate' | 'reactivate' | 'delete' | null
 >(null);
+
+const requestLifecycleBusy = ref<
+    'inactivate' | 'reactivate' | null
+>(null);
+
+const companyRequestBusy = ref<
+    'block' | 'unblock' | null
+>(null);
+
 const documentCycleClosed = computed(
     () => props.document_closure?.all_validated === true,
 );
@@ -229,6 +250,7 @@ function statusLabel(status: string): string {
             approved: 'Aprobada',
             invited: 'Invitación enviada',
             active: 'Acceso activo',
+            inactive: 'Solicitud inactiva',
             rejected: 'Rechazada',
         }[status] ?? status
     );
@@ -287,11 +309,133 @@ function reject() {
     });
 }
 
+function inactivateRequest() {
+    if (
+        !props.workflow
+        || props.workflow.status === 'inactive'
+    ) {
+        return;
+    }
+
+    const reason = window.prompt(
+        'Motivo de inactivación de la solicitud. Se conservará en el historial administrativo.',
+        '',
+    );
+
+    if (reason === null) return;
+
+    router.post(
+        `/admin/diagnosis-requests/${props.contact.id}/request/inactivate`,
+        {
+            reason: reason.trim() || null,
+        },
+        {
+            preserveScroll: true,
+            onStart: () => {
+                requestLifecycleBusy.value = 'inactivate';
+            },
+            onFinish: () => {
+                requestLifecycleBusy.value = null;
+            },
+        },
+    );
+}
+
+function reactivateRequest() {
+    if (
+        !props.workflow
+        || props.workflow.status !== 'inactive'
+    ) {
+        return;
+    }
+
+    const confirmed = window.confirm(
+        '¿Deseas reactivar esta solicitud administrativa? Si ya no tiene diagnóstico asociado, volverá como solicitud pendiente.',
+    );
+
+    if (!confirmed) return;
+
+    router.post(
+        `/admin/diagnosis-requests/${props.contact.id}/request/reactivate`,
+        {},
+        {
+            preserveScroll: true,
+            onStart: () => {
+                requestLifecycleBusy.value = 'reactivate';
+            },
+            onFinish: () => {
+                requestLifecycleBusy.value = null;
+            },
+        },
+    );
+}
+
+function blockNewDiagnosisRequests() {
+    if (
+        !props.diagnosis_request_control
+        || props.diagnosis_request_control.new_requests_blocked
+    ) {
+        return;
+    }
+
+    const reason = window.prompt(
+        'Motivo del bloqueo de nuevas solicitudes de Diagnóstico 360 para esta empresa.',
+        '',
+    );
+
+    if (reason === null) return;
+
+    router.post(
+        `/admin/diagnosis-requests/${props.contact.id}/company/block-new-requests`,
+        {
+            reason: reason.trim() || null,
+        },
+        {
+            preserveScroll: true,
+            onStart: () => {
+                companyRequestBusy.value = 'block';
+            },
+            onFinish: () => {
+                companyRequestBusy.value = null;
+            },
+        },
+    );
+}
+
+function unblockNewDiagnosisRequests() {
+    if (
+        !props.diagnosis_request_control
+        || !props.diagnosis_request_control.new_requests_blocked
+    ) {
+        return;
+    }
+
+    const confirmed = window.confirm(
+        '¿Deseas permitir nuevamente que esta empresa solicite una nueva evaluación?',
+    );
+
+    if (!confirmed) return;
+
+    router.post(
+        `/admin/diagnosis-requests/${props.contact.id}/company/unblock-new-requests`,
+        {},
+        {
+            preserveScroll: true,
+            onStart: () => {
+                companyRequestBusy.value = 'unblock';
+            },
+            onFinish: () => {
+                companyRequestBusy.value = null;
+            },
+        },
+    );
+}
+
 function inactivateAssessment() {
     if (!assessmentLifecycle.value?.is_active) return;
 
     const confirmed = window.confirm(
-        '¿Deseas inactivar esta solicitud? El tenant dejará de poder acceder a este diagnóstico, pero su historial se conservará.',
+        '¿Deseas inactivar este diagnóstico? El tenant dejará de poder acceder a él, pero su historial se conservará.',
     );
 
     if (!confirmed) return;
@@ -328,7 +472,7 @@ function reactivateAssessment() {
     }
 
     const confirmed = window.confirm(
-        '¿Deseas reactivar esta solicitud para el tenant?',
+        '¿Deseas reactivar este diagnóstico para el tenant?',
     );
 
     if (!confirmed) return;
@@ -725,6 +869,203 @@ function publish() {
                         </CardContent>
                     </Card>
 
+                    <!-- DIAGNOSIS_REQUEST_ADMIN_LIFECYCLE_UI -->
+                    <Card v-if="workflow">
+                        <CardHeader>
+                            <div
+                                class="flex flex-wrap items-center justify-between gap-3"
+                            >
+                                <div>
+                                    <CardTitle>
+                                        Estado administrativo de la solicitud
+                                    </CardTitle>
+                                    <p
+                                        class="mt-1 text-xs text-muted-foreground"
+                                    >
+                                        Este estado controla la solicitud
+                                        administrativa. No modifica por sí solo
+                                        la vigencia del diagnóstico publicado.
+                                    </p>
+                                </div>
+
+                                <Badge
+                                    :class="
+                                        workflow.status === 'inactive'
+                                            ? 'bg-slate-600 text-white'
+                                            : 'bg-emerald-600 text-white'
+                                    "
+                                >
+                                    {{
+                                        workflow.status === 'inactive'
+                                            ? 'Inactiva'
+                                            : statusLabel(workflow.status)
+                                    }}
+                                </Badge>
+                            </div>
+                        </CardHeader>
+
+                        <CardContent class="space-y-4">
+                            <div
+                                v-if="workflow.inactivated_at"
+                                class="rounded-xl border bg-muted/20 p-3 text-xs text-muted-foreground"
+                            >
+                                <p>
+                                    Inactivada:
+                                    {{
+                                        formatInvitationDate(
+                                            workflow.inactivated_at,
+                                        )
+                                    }}
+                                </p>
+
+                                <p
+                                    v-if="workflow.inactivation_reason"
+                                    class="mt-2"
+                                >
+                                    <span class="font-bold">Motivo:</span>
+                                    {{ workflow.inactivation_reason }}
+                                </p>
+                            </div>
+
+                            <div class="flex flex-wrap gap-2">
+                                <Button
+                                    v-if="workflow.status !== 'inactive'"
+                                    variant="outline"
+                                    :disabled="
+                                        requestLifecycleBusy !== null
+                                    "
+                                    @click="inactivateRequest"
+                                >
+                                    {{
+                                        requestLifecycleBusy === 'inactivate'
+                                            ? 'Inactivando...'
+                                            : 'Inactivar solicitud'
+                                    }}
+                                </Button>
+
+                                <Button
+                                    v-else
+                                    variant="outline"
+                                    :disabled="
+                                        requestLifecycleBusy !== null
+                                    "
+                                    @click="reactivateRequest"
+                                >
+                                    {{
+                                        requestLifecycleBusy === 'reactivate'
+                                            ? 'Reactivando...'
+                                            : 'Reactivar solicitud'
+                                    }}
+                                </Button>
+                            </div>
+                        </CardContent>
+                    </Card>
+
+                    <!-- DIAGNOSIS_COMPANY_REQUEST_CONTROL_UI -->
+                    <Card v-if="diagnosis_request_control">
+                        <CardHeader>
+                            <div
+                                class="flex flex-wrap items-center justify-between gap-3"
+                            >
+                                <div>
+                                    <CardTitle>
+                                        Nuevas solicitudes del tenant
+                                    </CardTitle>
+                                    <p
+                                        class="mt-1 text-xs text-muted-foreground"
+                                    >
+                                        Control comercial a nivel de empresa.
+                                        El diagnóstico vigente permanece
+                                        accesible aunque nuevas solicitudes
+                                        estén bloqueadas.
+                                    </p>
+                                </div>
+
+                                <Badge
+                                    :class="
+                                        diagnosis_request_control
+                                            .new_requests_blocked
+                                            ? 'bg-amber-600 text-white'
+                                            : 'bg-emerald-600 text-white'
+                                    "
+                                >
+                                    {{
+                                        diagnosis_request_control
+                                            .new_requests_blocked
+                                            ? 'Bloqueadas'
+                                            : 'Habilitadas'
+                                    }}
+                                </Badge>
+                            </div>
+                        </CardHeader>
+
+                        <CardContent class="space-y-4">
+                            <div
+                                v-if="
+                                    diagnosis_request_control
+                                        .new_requests_blocked
+                                "
+                                class="rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs text-amber-800 dark:border-amber-900 dark:bg-amber-950/20 dark:text-amber-300"
+                            >
+                                <p
+                                    v-if="
+                                        diagnosis_request_control.blocked_at
+                                    "
+                                >
+                                    Bloqueadas:
+                                    {{
+                                        formatInvitationDate(
+                                            diagnosis_request_control
+                                                .blocked_at,
+                                        )
+                                    }}
+                                </p>
+
+                                <p
+                                    v-if="
+                                        diagnosis_request_control.block_reason
+                                    "
+                                    class="mt-2"
+                                >
+                                    <span class="font-bold">Motivo:</span>
+                                    {{
+                                        diagnosis_request_control
+                                            .block_reason
+                                    }}
+                                </p>
+                            </div>
+
+                            <Button
+                                v-if="
+                                    !diagnosis_request_control
+                                        .new_requests_blocked
+                                "
+                                variant="outline"
+                                :disabled="companyRequestBusy !== null"
+                                @click="blockNewDiagnosisRequests"
+                            >
+                                {{
+                                    companyRequestBusy === 'block'
+                                        ? 'Bloqueando...'
+                                        : 'Bloquear nuevas solicitudes'
+                                }}
+                            </Button>
+
+                            <Button
+                                v-else
+                                variant="outline"
+                                :disabled="companyRequestBusy !== null"
+                                @click="unblockNewDiagnosisRequests"
+                            >
+                                {{
+                                    companyRequestBusy === 'unblock'
+                                        ? 'Habilitando...'
+                                        : 'Habilitar nuevas solicitudes'
+                                }}
+                            </Button>
+                        </CardContent>
+                    </Card>
+
                     <!-- DIAGNOSIS_ADMIN_LIFECYCLE_UI -->
                     <Card v-if="assessment">
                         <CardHeader>
@@ -733,7 +1074,7 @@ function publish() {
                             >
                                 <div>
                                     <CardTitle>
-                                        Vigencia de la solicitud
+                                        Vigencia del diagnóstico
                                     </CardTitle>
                                     <p
                                         class="mt-1 text-xs text-muted-foreground"
@@ -802,7 +1143,7 @@ function publish() {
                                     {{
                                         lifecycleBusy === 'inactivate'
                                             ? 'Inactivando...'
-                                            : 'Inactivar solicitud'
+                                            : 'Inactivar diagnóstico'
                                     }}
                                 </Button>
 
@@ -819,7 +1160,7 @@ function publish() {
                                     {{
                                         lifecycleBusy === 'reactivate'
                                             ? 'Reactivando...'
-                                            : 'Reactivar solicitud'
+                                            : 'Reactivar diagnóstico'
                                     }}
                                 </Button>
 

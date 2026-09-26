@@ -14,6 +14,7 @@ class DiagnosisAccessRequest extends Model
     public const STATUS_APPROVED = 'approved';
     public const STATUS_INVITED = 'invited';
     public const STATUS_ACTIVE = 'active';
+    public const STATUS_INACTIVE = 'inactive';
     public const STATUS_REJECTED = 'rejected';
 
     public const STATUSES = [
@@ -23,6 +24,7 @@ class DiagnosisAccessRequest extends Model
         self::STATUS_APPROVED,
         self::STATUS_INVITED,
         self::STATUS_ACTIVE,
+        self::STATUS_INACTIVE,
         self::STATUS_REJECTED,
     ];
 
@@ -40,6 +42,10 @@ class DiagnosisAccessRequest extends Model
         'invitation_expires_at',
         'invitation_accepted_at',
         'rejected_at',
+        'inactivated_at',
+        'inactivated_by_user_id',
+        'inactivation_reason',
+        'status_before_inactivation',
         'meta',
     ];
 
@@ -51,6 +57,7 @@ class DiagnosisAccessRequest extends Model
             'invitation_expires_at' => 'datetime',
             'invitation_accepted_at' => 'datetime',
             'rejected_at' => 'datetime',
+            'inactivated_at' => 'datetime',
             'meta' => 'array',
         ];
     }
