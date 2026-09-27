@@ -463,6 +463,77 @@ type DynamicSourceDiagnosticSummary = {
     };
 };
 
+// DATA_BI_DIAGNOSIS_EVALUATION_UI_TYPES
+
+type DataBiEvaluationWorkspaceSource = {
+    id: number;
+    display_name: string;
+    source_object_name: string;
+    origin_system?: string | null;
+    profiling_status: string;
+    profiled_at?: string | null;
+    diagnostic_summary?: DynamicSourceDiagnosticSummary | null;
+};
+
+type DataBiEvaluationFinding = {
+    id: number;
+    finding_type: 'weakness' | 'opportunity' | 'observation' | string;
+    title: string;
+    details: string;
+    recommendation?: string | null;
+    priority?: 'high' | 'medium' | 'low' | string | null;
+    evidence_version: number;
+    evidence_current: boolean;
+    sort_order: number;
+    source_ids: number[];
+};
+
+type DataBiEvaluationState = {
+    id: number;
+    status: 'draft' | 'ready_for_review' | 'published' | string;
+    evidence_version: number;
+    evidence_captured_at?: string | null;
+    ready_for_review_at?: string | null;
+    published_at?: string | null;
+    finding_count: number;
+    stale_finding_count: number;
+    findings: DataBiEvaluationFinding[];
+};
+
+type DataBiEvaluationActions = {
+    can_prepare: boolean;
+    can_manage_findings: boolean;
+    can_mark_ready_for_review: boolean;
+    can_publish: boolean;
+};
+
+type DataBiEvaluationWorkspace = {
+    session: {
+        id: number;
+        status: string;
+        submitted_at?: string | null;
+    };
+    sources: DataBiEvaluationWorkspaceSource[];
+    evaluation: DataBiEvaluationState | null;
+    actions: DataBiEvaluationActions;
+};
+
+type DataBiEvaluationHttpResponse = {
+    ok: boolean;
+    message?: string | null;
+    errors?: Record<string, string[]>;
+    workspace?: DataBiEvaluationWorkspace;
+};
+
+type DataBiEvaluationFindingForm = {
+    finding_type: 'weakness' | 'opportunity' | 'observation';
+    title: string;
+    details: string;
+    recommendation: string;
+    priority: '' | 'high' | 'medium' | 'low';
+    source_ids: number[];
+};
+
 type DynamicSourceAsset = {
     id: number;
     display_name: string;
@@ -6854,6 +6925,885 @@ async function normalizeStandardIntakeBatch(): Promise<void> {
 }
 
 
+// DATA_BI_DIAGNOSIS_EVALUATION_UI_STATE
+
+const dataBiEvaluationWorkspace =
+    ref<DataBiEvaluationWorkspace | null>(
+        null,
+    );
+
+const dataBiEvaluationBusy =
+    ref<string | null>(
+        null,
+    );
+
+const dataBiEvaluationError =
+    ref<string | null>(
+        null,
+    );
+
+const dataBiEvaluationMessage =
+    ref<string | null>(
+        null,
+    );
+
+const dataBiEvaluationFindingEditingId =
+    ref<number | null>(
+        null,
+    );
+
+const dataBiEvaluationFindingForm =
+    ref<DataBiEvaluationFindingForm>({
+        finding_type:
+            'weakness',
+
+        title:
+            '',
+
+        details:
+            '',
+
+        recommendation:
+            '',
+
+        priority:
+            '',
+
+        source_ids:
+            [],
+    });
+
+
+function dataBiEvaluationUiAvailable(): boolean {
+    return (
+        standardIntakeV2SessionId() !== null
+        && standardIntakeV2State.value
+            ?.session
+            ?.status
+            === 'submitted_for_evaluation'
+    );
+}
+
+
+function dataBiEvaluationBaseUrl(): string | null {
+    const sessionId =
+        standardIntakeV2SessionId();
+
+    if (sessionId === null) {
+        return null;
+    }
+
+    return (
+        `${standardIntakeV2BaseUrl}`
+        + `/sessions/${sessionId}`
+        + '/evaluation'
+    );
+}
+
+
+function dataBiEvaluationStatusLabel(
+    status: string | null | undefined,
+): string {
+    const labels: Record<string, string> = {
+        draft:
+            'Borrador',
+
+        ready_for_review:
+            'Lista para revisión',
+
+        published:
+            'Publicada',
+    };
+
+    return status
+        ? labels[status] ?? status
+        : 'Sin iniciar';
+}
+
+
+function dataBiEvaluationFindingTypeLabel(
+    type: string | null | undefined,
+): string {
+    const labels: Record<string, string> = {
+        weakness:
+            'Debilidad',
+
+        opportunity:
+            'Oportunidad',
+
+        observation:
+            'Observación',
+    };
+
+    return type
+        ? labels[type] ?? type
+        : '—';
+}
+
+
+function dataBiEvaluationPriorityLabel(
+    priority: string | null | undefined,
+): string {
+    const labels: Record<string, string> = {
+        high:
+            'Alta',
+
+        medium:
+            'Media',
+
+        low:
+            'Baja',
+    };
+
+    return priority
+        ? labels[priority] ?? priority
+        : 'Sin prioridad';
+}
+
+
+function dataBiEvaluationSourceLabel(
+    sourceId: number,
+): string {
+    const source =
+        dataBiEvaluationWorkspace.value
+            ?.sources
+            ?.find(
+                (candidate) =>
+                    candidate.id === sourceId,
+            );
+
+    if (!source) {
+        return `Fuente #${sourceId}`;
+    }
+
+    return source.display_name
+        || source.source_object_name
+        || `Fuente #${sourceId}`;
+}
+
+
+function dataBiEvaluationErrorMessage(
+    payload: DataBiEvaluationHttpResponse | null,
+    fallback: string,
+): string {
+    const errors =
+        Object.values(
+            payload?.errors
+            ?? {},
+        )
+            .flatMap(
+                (messages) =>
+                    Array.isArray(messages)
+                        ? messages
+                        : [],
+            )
+            .filter(
+                (message) =>
+                    typeof message === 'string'
+                    && message.trim() !== '',
+            );
+
+    return [
+        ...errors,
+        payload?.message,
+    ]
+        .filter(
+            (message):
+                message is string =>
+                typeof message === 'string'
+                && message.trim() !== '',
+        )
+        .join(' ')
+        || fallback;
+}
+
+
+async function dataBiEvaluationRequest(
+    url: string,
+    options: RequestInit = {},
+): Promise<DataBiEvaluationHttpResponse> {
+    const headers =
+        new Headers({
+            Accept:
+                'application/json',
+
+            'X-Requested-With':
+                'XMLHttpRequest',
+        });
+
+    Object.entries(
+        standardIntakeCsrfHeaders(),
+    ).forEach(
+        ([key, value]) =>
+            headers.set(
+                key,
+                value,
+            ),
+    );
+
+    if (
+        options.body !== undefined
+        && !(
+            options.body
+            instanceof FormData
+        )
+        && !headers.has(
+            'Content-Type',
+        )
+    ) {
+        headers.set(
+            'Content-Type',
+            'application/json',
+        );
+    }
+
+    const response =
+        await fetch(
+            url,
+            {
+                ...options,
+
+                credentials:
+                    'same-origin',
+
+                headers,
+            },
+        );
+
+    let payload:
+        DataBiEvaluationHttpResponse
+        | null = null;
+
+    try {
+        payload =
+            (
+                await response.json()
+            ) as DataBiEvaluationHttpResponse;
+    } catch {
+        payload =
+            null;
+    }
+
+    if (
+        !response.ok
+        || payload?.ok !== true
+    ) {
+        throw new Error(
+            dataBiEvaluationErrorMessage(
+                payload,
+                `La operación de evaluación diagnóstica falló con HTTP ${response.status}.`,
+            ),
+        );
+    }
+
+    if (payload.workspace) {
+        dataBiEvaluationWorkspace.value =
+            payload.workspace;
+    }
+
+    return payload;
+}
+
+
+function resetDataBiEvaluationFindingForm(): void {
+    dataBiEvaluationFindingEditingId.value =
+        null;
+
+    dataBiEvaluationFindingForm.value = {
+        finding_type:
+            'weakness',
+
+        title:
+            '',
+
+        details:
+            '',
+
+        recommendation:
+            '',
+
+        priority:
+            '',
+
+        source_ids:
+            [],
+    };
+}
+
+
+function editDataBiEvaluationFinding(
+    finding: DataBiEvaluationFinding,
+): void {
+    if (
+        !dataBiEvaluationWorkspace.value
+            ?.actions
+            ?.can_manage_findings
+    ) {
+        return;
+    }
+
+    dataBiEvaluationFindingEditingId.value =
+        finding.id;
+
+    dataBiEvaluationFindingForm.value = {
+        finding_type:
+            (
+                [
+                    'weakness',
+                    'opportunity',
+                    'observation',
+                ] as string[]
+            ).includes(
+                finding.finding_type,
+            )
+                ? finding.finding_type as
+                    | 'weakness'
+                    | 'opportunity'
+                    | 'observation'
+                : 'observation',
+
+        title:
+            finding.title,
+
+        details:
+            finding.details,
+
+        recommendation:
+            finding.recommendation
+            ?? '',
+
+        priority:
+            (
+                [
+                    'high',
+                    'medium',
+                    'low',
+                ] as string[]
+            ).includes(
+                finding.priority
+                ?? '',
+            )
+                ? finding.priority as
+                    | 'high'
+                    | 'medium'
+                    | 'low'
+                : '',
+
+        source_ids:
+            [
+                ...finding.source_ids,
+            ],
+    };
+
+    dataBiEvaluationError.value =
+        null;
+
+    dataBiEvaluationMessage.value =
+        null;
+}
+
+
+async function loadDataBiEvaluationWorkspace(): Promise<void> {
+    if (!dataBiEvaluationUiAvailable()) {
+        dataBiEvaluationWorkspace.value =
+            null;
+
+        dataBiEvaluationError.value =
+            null;
+
+        dataBiEvaluationMessage.value =
+            null;
+
+        resetDataBiEvaluationFindingForm();
+
+        return;
+    }
+
+    const baseUrl =
+        dataBiEvaluationBaseUrl();
+
+    if (
+        baseUrl === null
+        || dataBiEvaluationBusy.value !== null
+    ) {
+        return;
+    }
+
+    dataBiEvaluationBusy.value =
+        'load';
+
+    dataBiEvaluationError.value =
+        null;
+
+    try {
+        await dataBiEvaluationRequest(
+            `${baseUrl}/workspace`,
+            {
+                method:
+                    'GET',
+            },
+        );
+    } catch (error) {
+        dataBiEvaluationError.value =
+            error instanceof Error
+                ? error.message
+                : 'No se pudo cargar la evaluación diagnóstica.';
+    } finally {
+        dataBiEvaluationBusy.value =
+            null;
+    }
+}
+
+
+async function prepareDataBiEvaluation(): Promise<void> {
+    const baseUrl =
+        dataBiEvaluationBaseUrl();
+
+    if (
+        baseUrl === null
+        || dataBiEvaluationBusy.value !== null
+    ) {
+        return;
+    }
+
+    dataBiEvaluationBusy.value =
+        'prepare';
+
+    dataBiEvaluationError.value =
+        null;
+
+    dataBiEvaluationMessage.value =
+        null;
+
+    try {
+        const payload =
+            await dataBiEvaluationRequest(
+                `${baseUrl}/prepare`,
+                {
+                    method:
+                        'POST',
+                },
+            );
+
+        dataBiEvaluationMessage.value =
+            payload.message
+            ?? 'Evaluación diagnóstica preparada correctamente.';
+    } catch (error) {
+        dataBiEvaluationError.value =
+            error instanceof Error
+                ? error.message
+                : 'No se pudo preparar la evaluación diagnóstica.';
+    } finally {
+        dataBiEvaluationBusy.value =
+            null;
+    }
+}
+
+
+async function saveDataBiEvaluationFinding(): Promise<void> {
+    const baseUrl =
+        dataBiEvaluationBaseUrl();
+
+    if (
+        baseUrl === null
+        || dataBiEvaluationBusy.value !== null
+        || !dataBiEvaluationWorkspace.value
+            ?.actions
+            ?.can_manage_findings
+    ) {
+        return;
+    }
+
+    const title =
+        dataBiEvaluationFindingForm.value
+            .title
+            .trim();
+
+    const details =
+        dataBiEvaluationFindingForm.value
+            .details
+            .trim();
+
+    if (
+        title === ''
+        || details === ''
+    ) {
+        dataBiEvaluationError.value =
+            'Completa el título y el detalle del hallazgo.';
+
+        return;
+    }
+
+    const findingId =
+        dataBiEvaluationFindingEditingId.value;
+
+    const url =
+        findingId === null
+            ? `${baseUrl}/findings`
+            : `${baseUrl}/findings/${findingId}`;
+
+    dataBiEvaluationBusy.value =
+        findingId === null
+            ? 'finding:create'
+            : `finding:update:${findingId}`;
+
+    dataBiEvaluationError.value =
+        null;
+
+    dataBiEvaluationMessage.value =
+        null;
+
+    try {
+        const payload =
+            await dataBiEvaluationRequest(
+                url,
+                {
+                    method:
+                        findingId === null
+                            ? 'POST'
+                            : 'PUT',
+
+                    body:
+                        JSON.stringify({
+                            finding_type:
+                                dataBiEvaluationFindingForm
+                                    .value
+                                    .finding_type,
+
+                            title,
+
+                            details,
+
+                            recommendation:
+                                dataBiEvaluationFindingForm
+                                    .value
+                                    .recommendation
+                                    .trim()
+                                || null,
+
+                            priority:
+                                dataBiEvaluationFindingForm
+                                    .value
+                                    .priority
+                                || null,
+
+                            source_ids:
+                                dataBiEvaluationFindingForm
+                                    .value
+                                    .source_ids,
+                        }),
+                },
+            );
+
+        dataBiEvaluationMessage.value =
+            payload.message
+            ?? (
+                findingId === null
+                    ? 'Hallazgo registrado correctamente.'
+                    : 'Hallazgo actualizado correctamente.'
+            );
+
+        resetDataBiEvaluationFindingForm();
+    } catch (error) {
+        dataBiEvaluationError.value =
+            error instanceof Error
+                ? error.message
+                : 'No se pudo guardar el hallazgo.';
+    } finally {
+        dataBiEvaluationBusy.value =
+            null;
+    }
+}
+
+
+async function deleteDataBiEvaluationFinding(
+    finding: DataBiEvaluationFinding,
+): Promise<void> {
+    const baseUrl =
+        dataBiEvaluationBaseUrl();
+
+    if (
+        baseUrl === null
+        || dataBiEvaluationBusy.value !== null
+        || !dataBiEvaluationWorkspace.value
+            ?.actions
+            ?.can_manage_findings
+    ) {
+        return;
+    }
+
+    if (
+        typeof window !== 'undefined'
+        && !window.confirm(
+            `¿Eliminar el hallazgo “${finding.title}”?`,
+        )
+    ) {
+        return;
+    }
+
+    dataBiEvaluationBusy.value =
+        `finding:delete:${finding.id}`;
+
+    dataBiEvaluationError.value =
+        null;
+
+    dataBiEvaluationMessage.value =
+        null;
+
+    try {
+        const payload =
+            await dataBiEvaluationRequest(
+                `${baseUrl}/findings/${finding.id}`,
+                {
+                    method:
+                        'DELETE',
+                },
+            );
+
+        dataBiEvaluationMessage.value =
+            payload.message
+            ?? 'Hallazgo eliminado correctamente.';
+
+        if (
+            dataBiEvaluationFindingEditingId.value
+            === finding.id
+        ) {
+            resetDataBiEvaluationFindingForm();
+        }
+    } catch (error) {
+        dataBiEvaluationError.value =
+            error instanceof Error
+                ? error.message
+                : 'No se pudo eliminar el hallazgo.';
+    } finally {
+        dataBiEvaluationBusy.value =
+            null;
+    }
+}
+
+
+async function reconfirmDataBiEvaluationFinding(
+    finding: DataBiEvaluationFinding,
+): Promise<void> {
+    const baseUrl =
+        dataBiEvaluationBaseUrl();
+
+    if (
+        baseUrl === null
+        || dataBiEvaluationBusy.value !== null
+        || finding.evidence_current
+        || !dataBiEvaluationWorkspace.value
+            ?.actions
+            ?.can_manage_findings
+    ) {
+        return;
+    }
+
+    dataBiEvaluationBusy.value =
+        `finding:reconfirm:${finding.id}`;
+
+    dataBiEvaluationError.value =
+        null;
+
+    dataBiEvaluationMessage.value =
+        null;
+
+    try {
+        const payload =
+            await dataBiEvaluationRequest(
+                `${baseUrl}/findings/${finding.id}/reconfirm`,
+                {
+                    method:
+                        'POST',
+                },
+            );
+
+        dataBiEvaluationMessage.value =
+            payload.message
+            ?? 'Hallazgo reconfirmado contra la evidencia actual.';
+    } catch (error) {
+        dataBiEvaluationError.value =
+            error instanceof Error
+                ? error.message
+                : 'No se pudo reconfirmar el hallazgo.';
+    } finally {
+        dataBiEvaluationBusy.value =
+            null;
+    }
+}
+
+
+function dataBiEvaluationCanMarkReady(): boolean {
+    const workspace =
+        dataBiEvaluationWorkspace.value;
+
+    const evaluation =
+        workspace?.evaluation;
+
+    return (
+        workspace?.actions
+            ?.can_mark_ready_for_review
+        === true
+        && evaluation !== null
+        && evaluation !== undefined
+        && evaluation.finding_count > 0
+        && evaluation.stale_finding_count === 0
+    );
+}
+
+
+async function markDataBiEvaluationReady(): Promise<void> {
+    const baseUrl =
+        dataBiEvaluationBaseUrl();
+
+    if (
+        baseUrl === null
+        || dataBiEvaluationBusy.value !== null
+        || !dataBiEvaluationCanMarkReady()
+    ) {
+        return;
+    }
+
+    if (
+        typeof window !== 'undefined'
+        && !window.confirm(
+            '¿Enviar esta evaluación diagnóstica a revisión? Los hallazgos quedarán bloqueados para edición.',
+        )
+    ) {
+        return;
+    }
+
+    dataBiEvaluationBusy.value =
+        'ready';
+
+    dataBiEvaluationError.value =
+        null;
+
+    dataBiEvaluationMessage.value =
+        null;
+
+    try {
+        const payload =
+            await dataBiEvaluationRequest(
+                `${baseUrl}/ready-for-review`,
+                {
+                    method:
+                        'POST',
+                },
+            );
+
+        dataBiEvaluationMessage.value =
+            payload.message
+            ?? 'Evaluación lista para revisión.';
+
+        resetDataBiEvaluationFindingForm();
+    } catch (error) {
+        dataBiEvaluationError.value =
+            error instanceof Error
+                ? error.message
+                : 'La evaluación todavía no puede enviarse a revisión.';
+    } finally {
+        dataBiEvaluationBusy.value =
+            null;
+    }
+}
+
+
+async function publishDataBiEvaluation(): Promise<void> {
+    const baseUrl =
+        dataBiEvaluationBaseUrl();
+
+    if (
+        baseUrl === null
+        || dataBiEvaluationBusy.value !== null
+        || dataBiEvaluationWorkspace.value
+            ?.actions
+            ?.can_publish
+        !== true
+    ) {
+        return;
+    }
+
+    if (
+        typeof window !== 'undefined'
+        && !window.confirm(
+            '¿Publicar esta evaluación diagnóstica? La versión publicada quedará inmutable.',
+        )
+    ) {
+        return;
+    }
+
+    dataBiEvaluationBusy.value =
+        'publish';
+
+    dataBiEvaluationError.value =
+        null;
+
+    dataBiEvaluationMessage.value =
+        null;
+
+    try {
+        const payload =
+            await dataBiEvaluationRequest(
+                `${baseUrl}/publish`,
+                {
+                    method:
+                        'POST',
+                },
+            );
+
+        dataBiEvaluationMessage.value =
+            payload.message
+            ?? 'Evaluación publicada correctamente.';
+    } catch (error) {
+        dataBiEvaluationError.value =
+            error instanceof Error
+                ? error.message
+                : 'La evaluación todavía no puede publicarse.';
+    } finally {
+        dataBiEvaluationBusy.value =
+            null;
+    }
+}
+
+
+// GET only. Loading this workspace must never create an evaluation.
+watch(
+    () =>
+        [
+            standardIntakeV2SessionId()
+            ?? 'none',
+
+            standardIntakeV2State.value
+                ?.session
+                ?.status
+            ?? 'none',
+        ].join(':'),
+    () => {
+        dataBiEvaluationWorkspace.value =
+            null;
+
+        dataBiEvaluationError.value =
+            null;
+
+        dataBiEvaluationMessage.value =
+            null;
+
+        resetDataBiEvaluationFindingForm();
+
+        if (dataBiEvaluationUiAvailable()) {
+            void loadDataBiEvaluationWorkspace();
+        }
+    },
+    {
+        immediate:
+            true,
+    },
+);
+
+// DATA_BI_DIAGNOSIS_EVALUATION_UI_END
+
+
 // CANONICAL_MODEL_V2_UI_INITIAL_LOAD
 if (canonicalModelUiAvailable()) {
     void loadCanonicalModelWorkspace();
@@ -8929,33 +9879,6 @@ if (canonicalModelUiAvailable()) {
                             </template>
                         </section>
 
-                        <!-- DATA_BI_DIAGNOSIS_EVALUATION_WORKSPACE -->
-                        <section
-                            class="mt-5 rounded-2xl border border-emerald-200 bg-emerald-50/40 p-4 dark:border-emerald-900/70 dark:bg-emerald-950/10"
-                        >
-                            <p
-                                class="text-[10px] font-black uppercase tracking-widest text-emerald-700 dark:text-emerald-300"
-                            >
-                                Evaluación diagnóstica
-                            </p>
-
-                            <h3 class="mt-1 text-base font-black">
-                                Revisión técnica de la entrega
-                            </h3>
-
-                            <p
-                                class="mt-2 max-w-3xl text-sm leading-6 text-muted-foreground"
-                            >
-                                LAUDA revisa la evidencia recibida, ejecuta
-                                profiling técnico y analiza cobertura,
-                                completitud y señales estructurales para
-                                sustentar hallazgos y recomendaciones.
-                                Esta etapa no ejecuta transformación,
-                                normalización, mapeo canónico ni
-                                materialización de datos.
-                            </p>
-                        </section>
-
                         <!-- D17_DYNAMIC_SOURCE_WORKSPACE_UI -->
                         <section
                             class="mt-5 rounded-2xl border border-sky-200 bg-sky-50/40 p-4 dark:border-sky-900/70 dark:bg-sky-950/10"
@@ -9020,6 +9943,875 @@ if (canonicalModelUiAvailable()) {
 
                                 </div>
                             </div>
+
+                            <!-- DATA_BI_DIAGNOSIS_EVALUATION_WORKSPACE -->
+                            <section
+                                v-if="
+                                    standardIntakeV2State?.session?.status
+                                    === 'submitted_for_evaluation'
+                                "
+                                class="mt-5 rounded-xl border border-emerald-200 bg-emerald-50/40 p-4 dark:border-emerald-900/70 dark:bg-emerald-950/10"
+                            >
+                                <div
+                                    class="flex flex-wrap items-start justify-between gap-4"
+                                >
+                                    <div class="max-w-3xl">
+                                        <div
+                                            class="flex flex-wrap items-center gap-2"
+                                        >
+                                            <p
+                                                class="text-[10px] font-black uppercase tracking-widest text-emerald-700 dark:text-emerald-300"
+                                            >
+                                                Evaluación diagnóstica
+                                            </p>
+
+                                            <span
+                                                v-if="
+                                                    dataBiEvaluationWorkspace
+                                                        ?.evaluation
+                                                "
+                                                class="rounded-full border bg-background px-2.5 py-1 text-[10px] font-bold uppercase"
+                                            >
+                                                {{
+                                                    dataBiEvaluationStatusLabel(
+                                                        dataBiEvaluationWorkspace
+                                                            .evaluation
+                                                            .status,
+                                                    )
+                                                }}
+                                            </span>
+                                        </div>
+
+                                        <h4 class="mt-1 text-base font-black">
+                                            Evaluación profesional de la entrega completa
+                                        </h4>
+
+                                        <p
+                                            class="mt-2 text-sm leading-6 text-muted-foreground"
+                                        >
+                                            LAUDA convierte la evidencia técnica
+                                            agregada de todas las fuentes de esta
+                                            entrega en hallazgos profesionales,
+                                            debilidades, oportunidades y
+                                            recomendaciones. Esta etapa no
+                                            transforma, normaliza, mapea ni
+                                            materializa datos.
+                                        </p>
+                                    </div>
+
+                                    <div
+                                        class="flex flex-wrap gap-2"
+                                    >
+                                        <button
+                                            type="button"
+                                            class="cursor-pointer rounded-lg border bg-background px-3 py-2 text-xs font-bold disabled:cursor-not-allowed disabled:opacity-50"
+                                            :disabled="
+                                                dataBiEvaluationBusy !== null
+                                            "
+                                            @click="
+                                                loadDataBiEvaluationWorkspace
+                                            "
+                                        >
+                                            {{
+                                                dataBiEvaluationBusy
+                                                    === 'load'
+                                                    ? 'Actualizando...'
+                                                    : 'Actualizar vista'
+                                            }}
+                                        </button>
+
+                                        <button
+                                            v-if="
+                                                dataBiEvaluationWorkspace
+                                                    ?.actions
+                                                    ?.can_prepare
+                                            "
+                                            type="button"
+                                            class="cursor-pointer rounded-lg bg-emerald-700 px-3 py-2 text-xs font-bold text-white disabled:cursor-not-allowed disabled:opacity-50"
+                                            :disabled="
+                                                dataBiEvaluationBusy !== null
+                                            "
+                                            @click="
+                                                prepareDataBiEvaluation
+                                            "
+                                        >
+                                            {{
+                                                dataBiEvaluationBusy
+                                                    === 'prepare'
+                                                    ? 'Preparando...'
+                                                    : dataBiEvaluationWorkspace
+                                                          ?.evaluation
+                                                      ? 'Actualizar evidencia'
+                                                      : 'Iniciar evaluación'
+                                            }}
+                                        </button>
+                                    </div>
+                                </div>
+
+                                <div
+                                    v-if="dataBiEvaluationError"
+                                    class="mt-4 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs leading-5 text-red-700 dark:border-red-900/60 dark:bg-red-950/30 dark:text-red-300"
+                                >
+                                    {{ dataBiEvaluationError }}
+                                </div>
+
+                                <div
+                                    v-if="dataBiEvaluationMessage"
+                                    class="mt-4 rounded-lg border border-emerald-200 bg-background px-3 py-2 text-xs leading-5 text-emerald-700 dark:border-emerald-900/60 dark:text-emerald-300"
+                                >
+                                    {{ dataBiEvaluationMessage }}
+                                </div>
+
+                                <div
+                                    v-if="
+                                        dataBiEvaluationBusy === 'load'
+                                        && !dataBiEvaluationWorkspace
+                                    "
+                                    class="mt-4 rounded-lg border border-dashed bg-background/60 p-4 text-xs text-muted-foreground"
+                                >
+                                    Cargando el workspace de evaluación…
+                                </div>
+
+                                <div
+                                    v-else-if="
+                                        dataBiEvaluationWorkspace
+                                        && !dataBiEvaluationWorkspace
+                                            .evaluation
+                                    "
+                                    class="mt-4 rounded-lg border border-dashed bg-background/60 p-4"
+                                >
+                                    <p class="text-sm font-black">
+                                        Evaluación todavía no iniciada
+                                    </p>
+
+                                    <p
+                                        class="mt-1 max-w-2xl text-xs leading-5 text-muted-foreground"
+                                    >
+                                        La entrega ya está disponible para
+                                        evaluación. Iniciar la evaluación fija
+                                        la evidencia diagnóstica vigente, pero
+                                        no crea hallazgos automáticamente.
+                                    </p>
+                                </div>
+
+                                <template
+                                    v-else-if="
+                                        dataBiEvaluationWorkspace
+                                            ?.evaluation
+                                    "
+                                >
+                                    <div
+                                        class="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-4"
+                                    >
+                                        <div
+                                            class="rounded-lg border bg-background p-3"
+                                        >
+                                            <p
+                                                class="text-[10px] font-bold uppercase text-muted-foreground"
+                                            >
+                                                Estado
+                                            </p>
+
+                                            <p class="mt-1 text-sm font-black">
+                                                {{
+                                                    dataBiEvaluationStatusLabel(
+                                                        dataBiEvaluationWorkspace
+                                                            .evaluation
+                                                            .status,
+                                                    )
+                                                }}
+                                            </p>
+                                        </div>
+
+                                        <div
+                                            class="rounded-lg border bg-background p-3"
+                                        >
+                                            <p
+                                                class="text-[10px] font-bold uppercase text-muted-foreground"
+                                            >
+                                                Evidencia
+                                            </p>
+
+                                            <p class="mt-1 text-sm font-black">
+                                                Versión
+                                                {{
+                                                    dataBiEvaluationWorkspace
+                                                        .evaluation
+                                                        .evidence_version
+                                                }}
+                                            </p>
+
+                                            <p
+                                                class="mt-1 text-[11px] text-muted-foreground"
+                                            >
+                                                {{
+                                                    dynamicSourceDateTimeLabel(
+                                                        dataBiEvaluationWorkspace
+                                                            .evaluation
+                                                            .evidence_captured_at,
+                                                    )
+                                                }}
+                                            </p>
+                                        </div>
+
+                                        <div
+                                            class="rounded-lg border bg-background p-3"
+                                        >
+                                            <p
+                                                class="text-[10px] font-bold uppercase text-muted-foreground"
+                                            >
+                                                Hallazgos
+                                            </p>
+
+                                            <p class="mt-1 text-xl font-black">
+                                                {{
+                                                    dataBiEvaluationWorkspace
+                                                        .evaluation
+                                                        .finding_count
+                                                }}
+                                            </p>
+                                        </div>
+
+                                        <div
+                                            class="rounded-lg border bg-background p-3"
+                                            :class="
+                                                dataBiEvaluationWorkspace
+                                                    .evaluation
+                                                    .stale_finding_count
+                                                    > 0
+                                                    ? 'border-amber-300 bg-amber-50 dark:border-amber-900 dark:bg-amber-950/20'
+                                                    : ''
+                                            "
+                                        >
+                                            <p
+                                                class="text-[10px] font-bold uppercase text-muted-foreground"
+                                            >
+                                                Por reconfirmar
+                                            </p>
+
+                                            <p class="mt-1 text-xl font-black">
+                                                {{
+                                                    dataBiEvaluationWorkspace
+                                                        .evaluation
+                                                        .stale_finding_count
+                                                }}
+                                            </p>
+                                        </div>
+                                    </div>
+
+                                    <div
+                                        v-if="
+                                            dataBiEvaluationWorkspace
+                                                .evaluation
+                                                .stale_finding_count
+                                            > 0
+                                        "
+                                        class="mt-4 rounded-lg border border-amber-200 bg-amber-50 p-3 text-xs leading-5 text-amber-800 dark:border-amber-900 dark:bg-amber-950/20 dark:text-amber-200"
+                                    >
+                                        La evidencia diagnóstica cambió.
+                                        Revisa y reconfirma los hallazgos
+                                        desactualizados antes de enviar la
+                                        evaluación a revisión.
+                                    </div>
+
+                                    <section
+                                        v-if="
+                                            dataBiEvaluationWorkspace
+                                                .actions
+                                                .can_manage_findings
+                                        "
+                                        class="mt-5 rounded-xl border bg-background p-4"
+                                    >
+                                        <div
+                                            class="flex flex-wrap items-start justify-between gap-3"
+                                        >
+                                            <div>
+                                                <p class="text-sm font-black">
+                                                    {{
+                                                        dataBiEvaluationFindingEditingId
+                                                            === null
+                                                            ? 'Nuevo hallazgo'
+                                                            : 'Editar hallazgo'
+                                                    }}
+                                                </p>
+
+                                                <p
+                                                    class="mt-1 text-xs leading-5 text-muted-foreground"
+                                                >
+                                                    Registra una conclusión
+                                                    profesional sustentada por
+                                                    la evidencia disponible.
+                                                    Las fuentes son opcionales,
+                                                    pero cualquier fuente
+                                                    seleccionada debe pertenecer
+                                                    a esta entrega.
+                                                </p>
+                                            </div>
+
+                                            <button
+                                                v-if="
+                                                    dataBiEvaluationFindingEditingId
+                                                    !== null
+                                                "
+                                                type="button"
+                                                class="cursor-pointer rounded-lg border px-3 py-1.5 text-xs font-bold"
+                                                :disabled="
+                                                    dataBiEvaluationBusy
+                                                    !== null
+                                                "
+                                                @click="
+                                                    resetDataBiEvaluationFindingForm
+                                                "
+                                            >
+                                                Cancelar edición
+                                            </button>
+                                        </div>
+
+                                        <div
+                                            class="mt-4 grid gap-4 md:grid-cols-2"
+                                        >
+                                            <label
+                                                class="block text-xs font-bold"
+                                            >
+                                                Tipo
+
+                                                <select
+                                                    v-model="
+                                                        dataBiEvaluationFindingForm
+                                                            .finding_type
+                                                    "
+                                                    class="mt-1 w-full rounded-lg border bg-background px-3 py-2 text-sm"
+                                                    :disabled="
+                                                        dataBiEvaluationBusy
+                                                        !== null
+                                                    "
+                                                >
+                                                    <option value="weakness">
+                                                        Debilidad
+                                                    </option>
+                                                    <option value="opportunity">
+                                                        Oportunidad
+                                                    </option>
+                                                    <option value="observation">
+                                                        Observación
+                                                    </option>
+                                                </select>
+                                            </label>
+
+                                            <label
+                                                class="block text-xs font-bold"
+                                            >
+                                                Prioridad profesional
+
+                                                <select
+                                                    v-model="
+                                                        dataBiEvaluationFindingForm
+                                                            .priority
+                                                    "
+                                                    class="mt-1 w-full rounded-lg border bg-background px-3 py-2 text-sm"
+                                                    :disabled="
+                                                        dataBiEvaluationBusy
+                                                        !== null
+                                                    "
+                                                >
+                                                    <option value="">
+                                                        Sin prioridad
+                                                    </option>
+                                                    <option value="high">
+                                                        Alta
+                                                    </option>
+                                                    <option value="medium">
+                                                        Media
+                                                    </option>
+                                                    <option value="low">
+                                                        Baja
+                                                    </option>
+                                                </select>
+                                            </label>
+                                        </div>
+
+                                        <label
+                                            class="mt-4 block text-xs font-bold"
+                                        >
+                                            Título
+
+                                            <input
+                                                v-model="
+                                                    dataBiEvaluationFindingForm
+                                                        .title
+                                                "
+                                                type="text"
+                                                maxlength="191"
+                                                class="mt-1 w-full rounded-lg border bg-background px-3 py-2 text-sm"
+                                                :disabled="
+                                                    dataBiEvaluationBusy
+                                                    !== null
+                                                "
+                                            />
+                                        </label>
+
+                                        <label
+                                            class="mt-4 block text-xs font-bold"
+                                        >
+                                            Detalle
+
+                                            <textarea
+                                                v-model="
+                                                    dataBiEvaluationFindingForm
+                                                        .details
+                                                "
+                                                rows="4"
+                                                class="mt-1 w-full rounded-lg border bg-background px-3 py-2 text-sm"
+                                                :disabled="
+                                                    dataBiEvaluationBusy
+                                                    !== null
+                                                "
+                                            />
+                                        </label>
+
+                                        <label
+                                            class="mt-4 block text-xs font-bold"
+                                        >
+                                            Recomendación
+                                            <span
+                                                class="font-normal text-muted-foreground"
+                                            >
+                                                · opcional
+                                            </span>
+
+                                            <textarea
+                                                v-model="
+                                                    dataBiEvaluationFindingForm
+                                                        .recommendation
+                                                "
+                                                rows="3"
+                                                class="mt-1 w-full rounded-lg border bg-background px-3 py-2 text-sm"
+                                                :disabled="
+                                                    dataBiEvaluationBusy
+                                                    !== null
+                                                "
+                                            />
+                                        </label>
+
+                                        <div class="mt-4">
+                                            <p class="text-xs font-bold">
+                                                Fuentes de evidencia
+                                                <span
+                                                    class="font-normal text-muted-foreground"
+                                                >
+                                                    · 0..N
+                                                </span>
+                                            </p>
+
+                                            <div
+                                                v-if="
+                                                    dataBiEvaluationWorkspace
+                                                        .sources
+                                                        .length
+                                                "
+                                                class="mt-2 grid gap-2 md:grid-cols-2"
+                                            >
+                                                <label
+                                                    v-for="
+                                                        source in
+                                                        dataBiEvaluationWorkspace
+                                                            .sources
+                                                    "
+                                                    :key="
+                                                        `evaluation-source-option-${source.id}`
+                                                    "
+                                                    class="flex cursor-pointer items-start gap-2 rounded-lg border p-3 text-xs"
+                                                >
+                                                    <input
+                                                        v-model="
+                                                            dataBiEvaluationFindingForm
+                                                                .source_ids
+                                                        "
+                                                        type="checkbox"
+                                                        :value="source.id"
+                                                        :disabled="
+                                                            dataBiEvaluationBusy
+                                                            !== null
+                                                        "
+                                                        class="mt-0.5"
+                                                    />
+
+                                                    <span>
+                                                        <strong>
+                                                            {{
+                                                                source.display_name
+                                                            }}
+                                                        </strong>
+
+                                                        <span
+                                                            class="mt-0.5 block font-mono text-[10px] text-muted-foreground"
+                                                        >
+                                                            {{
+                                                                source.source_object_name
+                                                            }}
+                                                        </span>
+                                                    </span>
+                                                </label>
+                                            </div>
+
+                                            <p
+                                                v-else
+                                                class="mt-2 text-xs text-muted-foreground"
+                                            >
+                                                Esta evaluación no tiene fuentes
+                                                disponibles en su evidencia.
+                                            </p>
+                                        </div>
+
+                                        <div
+                                            class="mt-4 flex justify-end"
+                                        >
+                                            <button
+                                                type="button"
+                                                class="cursor-pointer rounded-lg bg-foreground px-4 py-2 text-xs font-bold text-background disabled:cursor-not-allowed disabled:opacity-50"
+                                                :disabled="
+                                                    dataBiEvaluationBusy
+                                                    !== null
+                                                "
+                                                @click="
+                                                    saveDataBiEvaluationFinding
+                                                "
+                                            >
+                                                {{
+                                                    dataBiEvaluationBusy
+                                                        === 'finding:create'
+                                                        || (
+                                                            dataBiEvaluationFindingEditingId
+                                                            !== null
+                                                            && dataBiEvaluationBusy
+                                                                === `finding:update:${dataBiEvaluationFindingEditingId}`
+                                                        )
+                                                        ? 'Guardando...'
+                                                        : dataBiEvaluationFindingEditingId
+                                                              === null
+                                                          ? 'Guardar hallazgo'
+                                                          : 'Guardar cambios'
+                                                }}
+                                            </button>
+                                        </div>
+                                    </section>
+
+                                    <section class="mt-5">
+                                        <div
+                                            class="flex flex-wrap items-center justify-between gap-3"
+                                        >
+                                            <div>
+                                                <p class="text-sm font-black">
+                                                    Hallazgos profesionales
+                                                </p>
+
+                                                <p
+                                                    class="mt-1 text-xs leading-5 text-muted-foreground"
+                                                >
+                                                    Estos hallazgos pertenecen a
+                                                    la evaluación completa de la
+                                                    entrega, no a una única
+                                                    fuente.
+                                                </p>
+                                            </div>
+                                        </div>
+
+                                        <div
+                                            v-if="
+                                                !dataBiEvaluationWorkspace
+                                                    .evaluation
+                                                    .findings
+                                                    .length
+                                            "
+                                            class="mt-3 rounded-lg border border-dashed bg-background/60 p-4 text-xs text-muted-foreground"
+                                        >
+                                            Todavía no existen hallazgos.
+                                            Se requiere al menos uno antes de
+                                            enviar la evaluación a revisión.
+                                        </div>
+
+                                        <div
+                                            v-else
+                                            class="mt-3 space-y-3"
+                                        >
+                                            <article
+                                                v-for="
+                                                    finding in
+                                                    dataBiEvaluationWorkspace
+                                                        .evaluation
+                                                        .findings
+                                                "
+                                                :key="
+                                                    `evaluation-finding-${finding.id}`
+                                                "
+                                                class="rounded-xl border bg-background p-4"
+                                                :class="
+                                                    !finding.evidence_current
+                                                        ? 'border-amber-300 dark:border-amber-900'
+                                                        : ''
+                                                "
+                                            >
+                                                <div
+                                                    class="flex flex-wrap items-start justify-between gap-3"
+                                                >
+                                                    <div
+                                                        class="min-w-0 flex-1"
+                                                    >
+                                                        <div
+                                                            class="flex flex-wrap items-center gap-2"
+                                                        >
+                                                            <span
+                                                                class="rounded-full border px-2 py-1 text-[10px] font-bold uppercase"
+                                                            >
+                                                                {{
+                                                                    dataBiEvaluationFindingTypeLabel(
+                                                                        finding.finding_type,
+                                                                    )
+                                                                }}
+                                                            </span>
+
+                                                            <span
+                                                                class="rounded-full border px-2 py-1 text-[10px] font-bold"
+                                                            >
+                                                                {{
+                                                                    dataBiEvaluationPriorityLabel(
+                                                                        finding.priority,
+                                                                    )
+                                                                }}
+                                                            </span>
+
+                                                            <span
+                                                                v-if="
+                                                                    !finding.evidence_current
+                                                                "
+                                                                class="rounded-full border border-amber-300 bg-amber-50 px-2 py-1 text-[10px] font-bold text-amber-800 dark:border-amber-900 dark:bg-amber-950/20 dark:text-amber-200"
+                                                            >
+                                                                Requiere
+                                                                reconfirmación
+                                                            </span>
+
+                                                            <span
+                                                                class="text-[10px] font-semibold text-muted-foreground"
+                                                            >
+                                                                Evidencia v{{
+                                                                    finding.evidence_version
+                                                                }}
+                                                            </span>
+                                                        </div>
+
+                                                        <h5
+                                                            class="mt-2 text-sm font-black"
+                                                        >
+                                                            {{
+                                                                finding.title
+                                                            }}
+                                                        </h5>
+
+                                                        <p
+                                                            class="mt-2 whitespace-pre-line text-xs leading-5 text-muted-foreground"
+                                                        >
+                                                            {{
+                                                                finding.details
+                                                            }}
+                                                        </p>
+
+                                                        <div
+                                                            v-if="
+                                                                finding.recommendation
+                                                            "
+                                                            class="mt-3 rounded-lg border bg-muted/20 p-3"
+                                                        >
+                                                            <p
+                                                                class="text-[10px] font-bold uppercase text-muted-foreground"
+                                                            >
+                                                                Recomendación
+                                                            </p>
+
+                                                            <p
+                                                                class="mt-1 whitespace-pre-line text-xs leading-5"
+                                                            >
+                                                                {{
+                                                                    finding.recommendation
+                                                                }}
+                                                            </p>
+                                                        </div>
+
+                                                        <div
+                                                            v-if="
+                                                                finding.source_ids
+                                                                    .length
+                                                            "
+                                                            class="mt-3 flex flex-wrap gap-1.5"
+                                                        >
+                                                            <span
+                                                                v-for="
+                                                                    sourceId in
+                                                                    finding.source_ids
+                                                                "
+                                                                :key="
+                                                                    `evaluation-finding-${finding.id}-source-${sourceId}`
+                                                                "
+                                                                class="rounded-full border bg-muted/20 px-2 py-1 text-[10px] font-semibold"
+                                                            >
+                                                                {{
+                                                                    dataBiEvaluationSourceLabel(
+                                                                        sourceId,
+                                                                    )
+                                                                }}
+                                                            </span>
+                                                        </div>
+
+                                                        <p
+                                                            v-else
+                                                            class="mt-3 text-[11px] text-muted-foreground"
+                                                        >
+                                                            Hallazgo general de
+                                                            la entrega, sin una
+                                                            fuente específica
+                                                            vinculada.
+                                                        </p>
+                                                    </div>
+
+                                                    <div
+                                                        v-if="
+                                                            dataBiEvaluationWorkspace
+                                                                .actions
+                                                                .can_manage_findings
+                                                        "
+                                                        class="flex flex-wrap gap-2"
+                                                    >
+                                                        <button
+                                                            v-if="
+                                                                !finding.evidence_current
+                                                            "
+                                                            type="button"
+                                                            class="cursor-pointer rounded-lg border border-amber-300 px-2.5 py-2 text-xs font-bold text-amber-800 disabled:cursor-not-allowed disabled:opacity-50 dark:border-amber-900 dark:text-amber-200"
+                                                            :disabled="
+                                                                dataBiEvaluationBusy
+                                                                !== null
+                                                            "
+                                                            @click="
+                                                                reconfirmDataBiEvaluationFinding(
+                                                                    finding,
+                                                                )
+                                                            "
+                                                        >
+                                                            Reconfirmar
+                                                        </button>
+
+                                                        <button
+                                                            type="button"
+                                                            class="cursor-pointer rounded-lg border px-2.5 py-2 text-xs font-bold disabled:cursor-not-allowed disabled:opacity-50"
+                                                            :disabled="
+                                                                dataBiEvaluationBusy
+                                                                !== null
+                                                            "
+                                                            @click="
+                                                                editDataBiEvaluationFinding(
+                                                                    finding,
+                                                                )
+                                                            "
+                                                        >
+                                                            Editar
+                                                        </button>
+
+                                                        <button
+                                                            type="button"
+                                                            class="cursor-pointer rounded-lg border border-red-200 px-2.5 py-2 text-xs font-bold text-red-700 disabled:cursor-not-allowed disabled:opacity-50 dark:border-red-900 dark:text-red-300"
+                                                            :disabled="
+                                                                dataBiEvaluationBusy
+                                                                !== null
+                                                            "
+                                                            @click="
+                                                                deleteDataBiEvaluationFinding(
+                                                                    finding,
+                                                                )
+                                                            "
+                                                        >
+                                                            Eliminar
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                            </article>
+                                        </div>
+                                    </section>
+
+                                    <div
+                                        class="mt-5 flex flex-wrap items-center justify-between gap-3 border-t border-emerald-200 pt-4 dark:border-emerald-900/70"
+                                    >
+                                        <p
+                                            class="max-w-2xl text-xs leading-5 text-muted-foreground"
+                                        >
+                                            {{
+                                                dataBiEvaluationWorkspace
+                                                    .evaluation
+                                                    .status
+                                                    === 'draft'
+                                                    ? 'El borrador sigue siendo interno de LAUDA. Enviar a revisión lo vuelve inmutable.'
+                                                    : dataBiEvaluationWorkspace
+                                                          .evaluation
+                                                          .status
+                                                      === 'ready_for_review'
+                                                      ? 'La evaluación está bloqueada para edición y puede publicarse.'
+                                                      : 'La evaluación publicada es inmutable.'
+                                            }}
+                                        </p>
+
+                                        <div
+                                            class="flex flex-wrap gap-2"
+                                        >
+                                            <button
+                                                v-if="
+                                                    dataBiEvaluationWorkspace
+                                                        .actions
+                                                        .can_mark_ready_for_review
+                                                "
+                                                type="button"
+                                                class="cursor-pointer rounded-lg bg-violet-700 px-4 py-2 text-sm font-bold text-white disabled:cursor-not-allowed disabled:opacity-50"
+                                                :disabled="
+                                                    dataBiEvaluationBusy
+                                                        !== null
+                                                    || !dataBiEvaluationCanMarkReady()
+                                                "
+                                                @click="
+                                                    markDataBiEvaluationReady
+                                                "
+                                            >
+                                                {{
+                                                    dataBiEvaluationBusy
+                                                        === 'ready'
+                                                        ? 'Enviando...'
+                                                        : 'Enviar a revisión'
+                                                }}
+                                            </button>
+
+                                            <button
+                                                v-if="
+                                                    dataBiEvaluationWorkspace
+                                                        .actions
+                                                        .can_publish
+                                                "
+                                                type="button"
+                                                class="cursor-pointer rounded-lg bg-emerald-700 px-4 py-2 text-sm font-bold text-white disabled:cursor-not-allowed disabled:opacity-50"
+                                                :disabled="
+                                                    dataBiEvaluationBusy
+                                                    !== null
+                                                "
+                                                @click="
+                                                    publishDataBiEvaluation
+                                                "
+                                            >
+                                                {{
+                                                    dataBiEvaluationBusy
+                                                        === 'publish'
+                                                        ? 'Publicando...'
+                                                        : 'Publicar evaluación'
+                                                }}
+                                            </button>
+                                        </div>
+                                    </div>
+                                </template>
+                            </section>
 
                             <div
                                 v-if="dynamicSourceError"

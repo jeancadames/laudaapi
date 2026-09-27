@@ -501,6 +501,117 @@ Route::middleware(['auth', 'verified', 'role:admin'])
 
           /*
           |--------------------------------------------------------------------------
+          | Data BI · Admin LAUDA · Diagnostic evaluation
+          |--------------------------------------------------------------------------
+          |
+          | Evaluation belongs to the complete submitted intake session.
+          | GET workspace is strictly read-only.
+          | Every draft/finding/lifecycle mutation is an explicit endpoint.
+          |
+          */
+
+          \Illuminate\Support\Facades\Route::get(
+              '/transformation-360/implementation-requests/{implementationRequest}/standard-intake-v2/sessions/{sessionId}/evaluation/workspace',
+              [
+                  \App\Http\Controllers\Admin\AdminDataTransformationBiEvaluationController::class,
+                  'workspace',
+              ]
+          )
+              ->whereNumber('sessionId')
+              ->name(
+                  'transformation360.implementation_requests.standard_intake_v2.evaluation.workspace'
+              );
+
+          \Illuminate\Support\Facades\Route::post(
+              '/transformation-360/implementation-requests/{implementationRequest}/standard-intake-v2/sessions/{sessionId}/evaluation/prepare',
+              [
+                  \App\Http\Controllers\Admin\AdminDataTransformationBiEvaluationController::class,
+                  'prepare',
+              ]
+          )
+              ->whereNumber('sessionId')
+              ->name(
+                  'transformation360.implementation_requests.standard_intake_v2.evaluation.prepare'
+              );
+
+          \Illuminate\Support\Facades\Route::post(
+              '/transformation-360/implementation-requests/{implementationRequest}/standard-intake-v2/sessions/{sessionId}/evaluation/findings',
+              [
+                  \App\Http\Controllers\Admin\AdminDataTransformationBiEvaluationController::class,
+                  'createFinding',
+              ]
+          )
+              ->whereNumber('sessionId')
+              ->name(
+                  'transformation360.implementation_requests.standard_intake_v2.evaluation.findings.create'
+              );
+
+          \Illuminate\Support\Facades\Route::put(
+              '/transformation-360/implementation-requests/{implementationRequest}/standard-intake-v2/sessions/{sessionId}/evaluation/findings/{findingId}',
+              [
+                  \App\Http\Controllers\Admin\AdminDataTransformationBiEvaluationController::class,
+                  'updateFinding',
+              ]
+          )
+              ->whereNumber('sessionId')
+              ->whereNumber('findingId')
+              ->name(
+                  'transformation360.implementation_requests.standard_intake_v2.evaluation.findings.update'
+              );
+
+          \Illuminate\Support\Facades\Route::post(
+              '/transformation-360/implementation-requests/{implementationRequest}/standard-intake-v2/sessions/{sessionId}/evaluation/findings/{findingId}/reconfirm',
+              [
+                  \App\Http\Controllers\Admin\AdminDataTransformationBiEvaluationController::class,
+                  'reconfirmFinding',
+              ]
+          )
+              ->whereNumber('sessionId')
+              ->whereNumber('findingId')
+              ->name(
+                  'transformation360.implementation_requests.standard_intake_v2.evaluation.findings.reconfirm'
+              );
+
+          \Illuminate\Support\Facades\Route::delete(
+              '/transformation-360/implementation-requests/{implementationRequest}/standard-intake-v2/sessions/{sessionId}/evaluation/findings/{findingId}',
+              [
+                  \App\Http\Controllers\Admin\AdminDataTransformationBiEvaluationController::class,
+                  'deleteFinding',
+              ]
+          )
+              ->whereNumber('sessionId')
+              ->whereNumber('findingId')
+              ->name(
+                  'transformation360.implementation_requests.standard_intake_v2.evaluation.findings.delete'
+              );
+
+          \Illuminate\Support\Facades\Route::post(
+              '/transformation-360/implementation-requests/{implementationRequest}/standard-intake-v2/sessions/{sessionId}/evaluation/ready-for-review',
+              [
+                  \App\Http\Controllers\Admin\AdminDataTransformationBiEvaluationController::class,
+                  'readyForReview',
+              ]
+          )
+              ->whereNumber('sessionId')
+              ->name(
+                  'transformation360.implementation_requests.standard_intake_v2.evaluation.ready_for_review'
+              );
+
+          \Illuminate\Support\Facades\Route::post(
+              '/transformation-360/implementation-requests/{implementationRequest}/standard-intake-v2/sessions/{sessionId}/evaluation/publish',
+              [
+                  \App\Http\Controllers\Admin\AdminDataTransformationBiEvaluationController::class,
+                  'publish',
+              ]
+          )
+              ->whereNumber('sessionId')
+              ->name(
+                  'transformation360.implementation_requests.standard_intake_v2.evaluation.publish'
+              );
+
+
+          /*
+          |--------------------------------------------------------------------------
           | Data BI · Admin LAUDA · Canonical Registry V2
           |--------------------------------------------------------------------------
           |
