@@ -49,10 +49,18 @@ final class DataTransformationBiTenantSourceStepperMemoryContractTest
             $ui
         );
 
-        self::assertStringContainsString(
-            "? stored\n            : 'information';",
-            $ui
-        );
+        foreach ([
+            'const restoredStep =',
+            'sourceTabs.some(',
+            '? stored',
+            ": 'information';",
+            'return restoredStep;',
+        ] as $token) {
+            self::assertStringContainsString(
+                $token,
+                $ui
+            );
+        }
     }
 
     public function test_step_navigation_remembers_the_current_source_step(): void

@@ -800,6 +800,33 @@ const sourceTabs: Array<{
     },
 ];
 
+/*
+ * Once the tenant submits the delivery, the preparation workflow is
+ * replaced by a read-only evidence navigation. The five preparation
+ * steps remain intact for draft sessions.
+ */
+const readOnlySourceTabs: Array<{
+    key: SourceWorkspaceTab;
+    label: string;
+}> = [
+    {
+        key: 'information',
+        label: 'Información',
+    },
+    {
+        key: 'structure',
+        label: 'Estructura',
+    },
+    {
+        key: 'file',
+        label: 'Archivo recibido',
+    },
+    {
+        key: 'result',
+        label: 'Análisis',
+    },
+];
+
 const selectedSourceId =
     ref<number | null>(
         props.source_assets[0]?.id
@@ -842,11 +869,29 @@ function readLastSourceStep(
                 ),
             );
 
-        return isSourceWorkspaceTab(
-            stored,
-        )
-            ? stored
-            : 'information';
+        const restoredStep =
+            isSourceWorkspaceTab(
+                stored,
+            )
+                ? stored
+                : 'information';
+
+        /*
+         * A submitted delivery is evidence for consultation only.
+         * Never restore the preparation-only extraction screen from
+         * browser memory.
+         */
+        if (
+            props.source_workspace
+                .actions
+                .can_manage_sources
+            !== true
+            && restoredStep === 'extraction'
+        ) {
+            return 'information';
+        }
+
+        return restoredStep;
     } catch {
         return 'information';
     }
@@ -1030,6 +1075,29 @@ const canManageSources =
                 .can_manage_sources
             === true,
     );
+
+/*
+ * Submission may arrive through an Inertia refresh while the component
+ * state is preserved. If the browser was sitting on Extraction, move
+ * immediately to a consultation-safe view.
+ */
+watch(
+    canManageSources,
+    (canManage) => {
+        if (
+            !canManage
+            && activeSourceTab.value
+                === 'extraction'
+        ) {
+            goToSourceStep(
+                'information',
+            );
+        }
+    },
+    {
+        immediate: true,
+    },
+);
 
 const isSourceWorkspaceSubmitted =
     computed(
@@ -3643,7 +3711,10 @@ function processingHistoryDate(
                                 <div
                                     class="border-b border-slate-200/70 bg-slate-50/50 px-4 py-4 dark:border-slate-800 dark:bg-slate-900/20"
                                 >
-                                    <div class="overflow-x-auto">
+                                    <div
+                                        v-if="canManageSources"
+                                        class="overflow-x-auto"
+                                    >
                                         <ol
                                             class="flex min-w-[760px] items-start"
                                             aria-label="Pasos de entrega de la fuente"
@@ -3732,6 +3803,32 @@ function processingHistoryDate(
                                     </div>
 
                                     <div
+                                        v-else
+                                        class="flex flex-wrap gap-2"
+                                        aria-label="Vistas de la entrega enviada"
+                                    >
+                                        <button
+                                            v-for="tab in readOnlySourceTabs"
+                                            :key="tab.key"
+                                            type="button"
+                                            class="rounded-lg border px-3 py-2 text-xs font-black transition"
+                                            :class="
+                                                activeSourceTab === tab.key
+                                                    ? 'border-cyan-600 bg-cyan-600 text-white'
+                                                    : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50 dark:border-slate-800 dark:bg-slate-950 dark:text-slate-300 dark:hover:bg-slate-900'
+                                            "
+                                            @click="
+                                                goToSourceStep(
+                                                    tab.key,
+                                                )
+                                            "
+                                        >
+                                            {{ tab.label }}
+                                        </button>
+                                    </div>
+
+                                    <div
+                                        v-if="canManageSources"
                                         class="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-slate-200/70 bg-white px-4 py-3 dark:border-slate-800 dark:bg-slate-950"
                                     >
                                         <p
