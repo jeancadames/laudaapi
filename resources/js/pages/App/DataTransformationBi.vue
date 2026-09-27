@@ -3141,7 +3141,8 @@ function processingHistoryDate(
                                 >
                                     Registra las fuentes que utiliza tu empresa,
                                     documenta su estructura y entrega los archivos
-                                    CSV o XLSX que LAUDA transformará para BI.
+                                    CSV o XLSX para que LAUDA evalúe su estructura,
+                                    cobertura y calidad.
                                 </p>
                             </div>
 
@@ -3151,7 +3152,7 @@ function processingHistoryDate(
                                 <p
                                     class="text-[10px] font-black tracking-wide text-slate-400 uppercase"
                                 >
-                                    Preparación de fuentes
+                                    Entrega de fuentes
                                 </p>
 
                                 <p
@@ -4340,7 +4341,7 @@ function processingHistoryDate(
                                             <p
                                                 class="font-black text-slate-900 dark:text-white"
                                             >
-                                                Readiness derivado
+                                                Estado de la entrega
                                             </p>
 
                                             <p
@@ -4406,14 +4407,16 @@ function processingHistoryDate(
                             class="mt-6 border-t border-slate-200/70 pt-4 text-xs leading-5 text-slate-500 dark:border-slate-800 dark:text-slate-400"
                         >
                             Tu empresa administra la información y sus entregas.
-                            LAUDA conserva el profiling técnico, normalización,
-                            relaciones, modelo canónico y procesamiento posterior.
+                            LAUDA utiliza la información recibida para profiling
+                            y evaluación diagnóstica. Cualquier transformación,
+                            normalización o implementación posterior pertenece a
+                            una etapa independiente.
                         </p>
                     </section>
 
                     <!-- P7_DATA_PREPARATION_STATUS -->
                     <section
-                        v-if="data_preparation"
+                        v-if="false && (data_preparation)"
                         class="rounded-[2rem] border border-indigo-200/70 bg-white p-6 shadow-sm sm:p-8 dark:border-indigo-950 dark:bg-slate-950"
                     >
                         <div
@@ -5097,7 +5100,7 @@ function processingHistoryDate(
 
                     <!-- P13_USABLE_DATASET_STATUS -->
                     <section
-                        v-if="source_workspace.access.can_manage"
+                        v-if="false && (source_workspace.access.can_manage)"
                         class="rounded-[2rem] border border-emerald-200/70 bg-white p-6 shadow-sm sm:p-8 dark:border-emerald-950 dark:bg-slate-950"
                     >
                         <div
@@ -5241,7 +5244,7 @@ function processingHistoryDate(
 
                     <!-- P12_PROCESSING_HISTORY -->
                     <section
-                        v-if="processing_history.entries.length > 0"
+                        v-if="false && (processing_history.entries.length > 0)"
                         class="rounded-[2rem] border border-slate-200/70 bg-white p-6 shadow-sm sm:p-8 dark:border-slate-800 dark:bg-slate-950"
                     >
                         <div

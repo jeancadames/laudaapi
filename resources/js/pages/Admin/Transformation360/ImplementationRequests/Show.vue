@@ -4903,6 +4903,7 @@ function standardIntakeV2SessionStatusLabel(
 ): string {
     const labels: Record<string, string> = {
         draft: 'Borrador',
+        submitted_for_evaluation: 'En evaluación',
         ready: 'Lista',
         finalizing: 'Finalizando',
         finalized: 'Finalizada',
@@ -7845,9 +7846,9 @@ if (canonicalModelUiAvailable()) {
                         <p
                             class="mt-2 max-w-3xl text-sm leading-6 text-muted-foreground"
                         >
-                            Las fuentes no se administran desde esta definición funcional. Después del acuerdo funcional se habilita el espacio de trabajo de fuentes de datos con
-                            Información, Estructura, Extracción, Archivo y
-                            Resultado.
+                            Las fuentes no se administran desde esta definición funcional. Después del acuerdo funcional se habilita la entrega de fuentes para evaluación con
+                            Información, Estructura observada, Archivo recibido,
+                            Profiling y Análisis diagnóstico.
                         </p>
                     </section>
                 </div>
@@ -7868,7 +7869,9 @@ if (canonicalModelUiAvailable()) {
                 >
                     <section>
 <!-- CANONICAL_MODEL_V2_ADMIN_UI -->
+                        <!-- FUTURE_IMPLEMENTATION_CANONICAL_MODEL_HIDDEN_DURING_DIAGNOSIS -->
                         <section
+                            v-if="false"
                             class="mt-5 rounded-2xl border border-violet-200 bg-violet-50/40 p-4 dark:border-violet-900/70 dark:bg-violet-950/10"
                         >
                             <div
@@ -8924,6 +8927,33 @@ if (canonicalModelUiAvailable()) {
                                     </div>
                                 </section>
                             </template>
+                        </section>
+
+                        <!-- DATA_BI_DIAGNOSIS_EVALUATION_WORKSPACE -->
+                        <section
+                            class="mt-5 rounded-2xl border border-emerald-200 bg-emerald-50/40 p-4 dark:border-emerald-900/70 dark:bg-emerald-950/10"
+                        >
+                            <p
+                                class="text-[10px] font-black uppercase tracking-widest text-emerald-700 dark:text-emerald-300"
+                            >
+                                Evaluación diagnóstica
+                            </p>
+
+                            <h3 class="mt-1 text-base font-black">
+                                Revisión técnica de la entrega
+                            </h3>
+
+                            <p
+                                class="mt-2 max-w-3xl text-sm leading-6 text-muted-foreground"
+                            >
+                                LAUDA revisa la evidencia recibida, ejecuta
+                                profiling técnico y analiza cobertura,
+                                completitud y señales estructurales para
+                                sustentar hallazgos y recomendaciones.
+                                Esta etapa no ejecuta transformación,
+                                normalización, mapeo canónico ni
+                                materialización de datos.
+                            </p>
                         </section>
 
                         <!-- D17_DYNAMIC_SOURCE_WORKSPACE_UI -->
@@ -11697,21 +11727,16 @@ if (canonicalModelUiAvailable()) {
                                 v-if="standardIntakeV2State?.session"
                                 class="mt-4 rounded-xl border bg-background/70 p-3 text-xs leading-5 text-muted-foreground"
                             >
-                                <strong>Flujo:</strong>
+                                <strong>Flujo de evaluación:</strong>
                                 Información
                                 →
-                                Estructura
+                                Estructura observada
                                 →
-                                Extracción
+                                Archivo recibido
                                 →
-                                CSV/XLSX
+                                Profiling
                                 →
-                                Análisis
-                                →
-                                Mapeo al modelo LAUDA.
-                                La estructura puede registrarse manualmente o
-                                descubrirse al recibir el archivo; cada fuente se
-                                carga de forma independiente.
+                                Análisis diagnóstico.
                             </div>
                         </section>
 
