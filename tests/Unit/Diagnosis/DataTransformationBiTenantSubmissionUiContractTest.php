@@ -141,4 +141,59 @@ final class DataTransformationBiTenantSubmissionUiContractTest
             );
         }
     }
+
+    public function test_source_workspace_prefers_current_xsrf_cookie_over_meta_token(): void
+    {
+        $vue = file_get_contents(
+            dirname(__DIR__, 3)
+            .'/resources/js/pages/App/DataTransformationBi.vue'
+        );
+
+        $this->assertIsString($vue);
+
+        $cookieLookup =
+            strpos(
+                $vue,
+                'const xsrfToken ='
+            );
+
+        $cookieHeader =
+            strpos(
+                $vue,
+                "headers['X-XSRF-TOKEN']"
+            );
+
+        $metaLookup =
+            strpos(
+                $vue,
+                'const csrfToken ='
+            );
+
+        $metaHeader =
+            strpos(
+                $vue,
+                "headers['X-CSRF-TOKEN']"
+            );
+
+        $this->assertNotFalse($cookieLookup);
+        $this->assertNotFalse($cookieHeader);
+        $this->assertNotFalse($metaLookup);
+        $this->assertNotFalse($metaHeader);
+
+        $this->assertLessThan(
+            $metaLookup,
+            $cookieLookup
+        );
+
+        $this->assertLessThan(
+            $metaHeader,
+            $cookieHeader
+        );
+
+        $this->assertStringContainsString(
+            "credentials:\n                    'same-origin'",
+            $vue
+        );
+    }
+
 }

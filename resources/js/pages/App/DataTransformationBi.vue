@@ -1303,24 +1303,31 @@ function sourceWorkspaceHeaders(
             'XMLHttpRequest',
     };
 
-    const csrfToken =
-        document
-            .querySelector<HTMLMetaElement>(
-                'meta[name="csrf-token"]',
-            )
-            ?.content
-        ?? null;
+    /*
+     * Prefer the XSRF cookie because it reflects the token
+     * of the browser's current Laravel session.
+     *
+     * The meta csrf-token remains only as a fallback for
+     * contexts where Laravel has not emitted the cookie.
+     */
+    const xsrfToken =
+        xsrfCookieValue();
 
-    if (csrfToken) {
-        headers['X-CSRF-TOKEN'] =
-            csrfToken;
+    if (xsrfToken) {
+        headers['X-XSRF-TOKEN'] =
+            xsrfToken;
     } else {
-        const xsrfToken =
-            xsrfCookieValue();
+        const csrfToken =
+            document
+                .querySelector<HTMLMetaElement>(
+                    'meta[name="csrf-token"]',
+                )
+                ?.content
+            ?? null;
 
-        if (xsrfToken) {
-            headers['X-XSRF-TOKEN'] =
-                xsrfToken;
+        if (csrfToken) {
+            headers['X-CSRF-TOKEN'] =
+                csrfToken;
         }
     }
 
