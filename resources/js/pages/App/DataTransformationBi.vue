@@ -135,6 +135,21 @@ type DynamicSourceAssetFile = {
     uploaded_at: string | null;
 };
 
+type BusinessDomainGroup =
+    | 'operaciones'
+    | 'gestion'
+    | 'finanzas';
+
+type SourceBusinessDomain = {
+    domain: string;
+    group: BusinessDomainGroup;
+};
+
+type SourceBusinessDomainFormRow = {
+    domain: string;
+    group: BusinessDomainGroup | '';
+};
+
 type DynamicSourceAsset = {
     id: number;
     display_name: string;
@@ -142,6 +157,7 @@ type DynamicSourceAsset = {
     description: string | null;
     origin_system: string | null;
     owner: string | null;
+    business_domains: SourceBusinessDomain[];
     structure_format:
         | 'field_type_list'
         | 'sql_server_ddl'
@@ -1147,6 +1163,8 @@ const createSourceForm = ref({
     description: '',
     origin_system: '',
     owner: '',
+    business_domains:
+        [] as SourceBusinessDomainFormRow[],
     delivery_format: 'csv' as 'csv' | 'xlsx',
 });
 
@@ -1156,8 +1174,64 @@ const editSourceForm = ref({
     description: '',
     origin_system: '',
     owner: '',
+    business_domains:
+        [] as SourceBusinessDomainFormRow[],
     delivery_format: 'csv' as 'csv' | 'xlsx',
 });
+
+const businessGroupOptions: Array<{
+    value: BusinessDomainGroup;
+    label: string;
+}> = [
+    {
+        value: 'operaciones',
+        label: 'Operaciones',
+    },
+    {
+        value: 'gestion',
+        label: 'Gestión',
+    },
+    {
+        value: 'finanzas',
+        label: 'Finanzas',
+    },
+];
+
+function addBusinessDomain(
+    rows: SourceBusinessDomainFormRow[],
+): void {
+    rows.push({
+        domain: '',
+        group: '',
+    });
+}
+
+function removeBusinessDomain(
+    rows: SourceBusinessDomainFormRow[],
+    index: number,
+): void {
+    rows.splice(
+        index,
+        1,
+    );
+}
+
+function businessDomainsPayload(
+    rows: SourceBusinessDomainFormRow[],
+): Array<{
+    domain: string;
+    group: string;
+}> {
+    return rows.map(
+        (row) => ({
+            domain:
+                row.domain.trim(),
+
+            group:
+                row.group,
+        }),
+    );
+}
 
 const structureForm = ref({
     structure_format:
@@ -1372,6 +1446,7 @@ watch(
                 description: '',
                 origin_system: '',
                 owner: '',
+                business_domains: [],
                 delivery_format: 'csv',
             };
 
@@ -1407,6 +1482,20 @@ watch(
             owner:
                 sourceAsset.owner
                 ?? '',
+
+            business_domains:
+                (
+                    sourceAsset.business_domains
+                    ?? []
+                ).map(
+                    (businessDomain) => ({
+                        domain:
+                            businessDomain.domain,
+
+                        group:
+                            businessDomain.group,
+                    }),
+                ),
 
             delivery_format:
                 sourceAsset.delivery_format
@@ -1792,6 +1881,12 @@ async function createSourceAsset(): Promise<void> {
                                 .trim()
                             || null,
 
+                        business_domains:
+                            businessDomainsPayload(
+                                createSourceForm.value
+                                    .business_domains,
+                            ),
+
                         delivery_format:
                             createSourceForm.value
                                 .delivery_format,
@@ -1821,6 +1916,7 @@ async function createSourceAsset(): Promise<void> {
         description: '',
         origin_system: '',
         owner: '',
+        business_domains: [],
         delivery_format: 'csv',
     };
 
@@ -1891,6 +1987,12 @@ async function updateSourceAsset(): Promise<void> {
                                 .owner
                                 .trim()
                             || null,
+
+                        business_domains:
+                            businessDomainsPayload(
+                                editSourceForm.value
+                                    .business_domains,
+                            ),
 
                         delivery_format:
                             editSourceForm.value
@@ -3647,6 +3749,128 @@ function processingHistoryDate(
                                         </span>
                                     </label>
 
+                                    <!-- C7E-C2-A2 · Tenant-declared dynamic business domains -->
+                                    <div
+                                        class="md:col-span-2 rounded-2xl border border-slate-200/70 bg-white p-4 dark:border-slate-800 dark:bg-slate-950/40"
+                                    >
+                                        <div
+                                            class="flex flex-wrap items-start justify-between gap-3"
+                                        >
+                                            <div>
+                                                <p
+                                                    class="text-sm font-black text-slate-900 dark:text-slate-100"
+                                                >
+                                                    Dominios de información
+                                                </p>
+
+                                                <p
+                                                    class="mt-1 max-w-2xl text-xs leading-5 text-slate-500 dark:text-slate-400"
+                                                >
+                                                    Opcional. Identifica las áreas de información que contiene esta fuente y clasifica cada una como Operaciones, Gestión o Finanzas. Los dominios son libres y dependen de tu negocio.
+                                                </p>
+                                            </div>
+
+                                            <button
+                                                type="button"
+                                                class="cursor-pointer rounded-xl border border-slate-200 px-3 py-2 text-xs font-black text-slate-700 transition hover:bg-slate-50 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-900"
+                                                @click="
+                                                    addBusinessDomain(
+                                                        createSourceForm.business_domains,
+                                                    )
+                                                "
+                                            >
+                                                + Agregar dominio
+                                            </button>
+                                        </div>
+
+                                        <div
+                                            v-if="
+                                                createSourceForm.business_domains
+                                                    .length === 0
+                                            "
+                                            class="mt-4 rounded-xl bg-slate-50 px-4 py-3 text-xs leading-5 text-slate-500 dark:bg-slate-900/60 dark:text-slate-400"
+                                        >
+                                            Puedes dejar esta clasificación pendiente y completarla antes de enviar la entrega a evaluación.
+                                        </div>
+
+                                        <div
+                                            v-else
+                                            class="mt-4 space-y-3"
+                                        >
+                                            <div
+                                                v-for="(
+                                                    businessDomain,
+                                                    index
+                                                ) in createSourceForm.business_domains"
+                                                :key="`create-business-domain-${index}`"
+                                                class="grid gap-3 rounded-xl border border-slate-200/70 p-3 md:grid-cols-[minmax(0,1fr)_220px_auto] dark:border-slate-800"
+                                            >
+                                                <label class="block">
+                                                    <span
+                                                        class="text-[11px] font-bold text-slate-500 dark:text-slate-400"
+                                                    >
+                                                        Dominio de información
+                                                    </span>
+
+                                                    <input
+                                                        v-model="businessDomain.domain"
+                                                        type="text"
+                                                        maxlength="191"
+                                                        required
+                                                        class="mt-1.5 w-full rounded-xl border border-slate-200 bg-background px-3 py-2.5 text-sm dark:border-slate-800"
+                                                        placeholder="Ej. Clientes, Ventas, Inventario, CxC"
+                                                    />
+                                                </label>
+
+                                                <label class="block">
+                                                    <span
+                                                        class="text-[11px] font-bold text-slate-500 dark:text-slate-400"
+                                                    >
+                                                        Grupo
+                                                    </span>
+
+                                                    <select
+                                                        v-model="businessDomain.group"
+                                                        required
+                                                        class="mt-1.5 w-full rounded-xl border border-slate-200 bg-background px-3 py-2.5 text-sm dark:border-slate-800"
+                                                    >
+                                                        <option
+                                                            value=""
+                                                            disabled
+                                                        >
+                                                            Selecciona grupo
+                                                        </option>
+
+                                                        <option
+                                                            v-for="option in businessGroupOptions"
+                                                            :key="option.value"
+                                                            :value="option.value"
+                                                        >
+                                                            {{ option.label }}
+                                                        </option>
+                                                    </select>
+                                                </label>
+
+                                                <div
+                                                    class="flex items-end"
+                                                >
+                                                    <button
+                                                        type="button"
+                                                        class="cursor-pointer rounded-xl border border-red-200 px-3 py-2.5 text-xs font-black text-red-600 transition hover:bg-red-50 dark:border-red-950 dark:text-red-400 dark:hover:bg-red-950/20"
+                                                        @click="
+                                                            removeBusinessDomain(
+                                                                createSourceForm.business_domains,
+                                                                index,
+                                                            )
+                                                        "
+                                                    >
+                                                        Quitar
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+
                                     <label class="block">
                                         <span
                                             class="text-xs font-bold text-slate-600 dark:text-slate-300"
@@ -4102,6 +4326,132 @@ function processingHistoryDate(
                                                 placeholder="Ej. Contabilidad · Sistemas · Administración"
                                             />
                                         </label>
+
+                                        <!-- C7E-C2-A2 · Tenant-declared dynamic business domains -->
+                                        <div
+                                            class="md:col-span-2 rounded-2xl border border-slate-200/70 bg-slate-50/50 p-4 dark:border-slate-800 dark:bg-slate-900/20"
+                                        >
+                                            <div
+                                                class="flex flex-wrap items-start justify-between gap-3"
+                                            >
+                                                <div>
+                                                    <p
+                                                        class="text-sm font-black text-slate-900 dark:text-slate-100"
+                                                    >
+                                                        Dominios de información
+                                                    </p>
+
+                                                    <p
+                                                        class="mt-1 max-w-2xl text-xs leading-5 text-slate-500 dark:text-slate-400"
+                                                    >
+                                                        Identifica qué información representa esta fuente. Cada dominio puede clasificarse como Operaciones, Gestión o Finanzas.
+                                                    </p>
+                                                </div>
+
+                                                <button
+                                                    v-if="canManageSources"
+                                                    type="button"
+                                                    class="cursor-pointer rounded-xl border border-slate-200 px-3 py-2 text-xs font-black text-slate-700 transition hover:bg-white dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-900"
+                                                    @click="
+                                                        addBusinessDomain(
+                                                            editSourceForm.business_domains,
+                                                        )
+                                                    "
+                                                >
+                                                    + Agregar dominio
+                                                </button>
+                                            </div>
+
+                                            <div
+                                                v-if="
+                                                    editSourceForm.business_domains
+                                                        .length === 0
+                                                "
+                                                class="mt-4 rounded-xl bg-white px-4 py-3 text-xs leading-5 text-slate-500 dark:bg-slate-950/40 dark:text-slate-400"
+                                            >
+                                                Sin dominios declarados para esta fuente.
+                                            </div>
+
+                                            <div
+                                                v-else
+                                                class="mt-4 space-y-3"
+                                            >
+                                                <div
+                                                    v-for="(
+                                                        businessDomain,
+                                                        index
+                                                    ) in editSourceForm.business_domains"
+                                                    :key="`edit-business-domain-${index}`"
+                                                    class="grid gap-3 rounded-xl border border-slate-200/70 bg-white p-3 md:grid-cols-[minmax(0,1fr)_220px_auto] dark:border-slate-800 dark:bg-slate-950/30"
+                                                >
+                                                    <label class="block">
+                                                        <span
+                                                            class="text-[11px] font-bold text-slate-500 dark:text-slate-400"
+                                                        >
+                                                            Dominio de información
+                                                        </span>
+
+                                                        <input
+                                                            v-model="businessDomain.domain"
+                                                            type="text"
+                                                            maxlength="191"
+                                                            required
+                                                            class="mt-1.5 w-full rounded-xl border border-slate-200 bg-background px-3 py-2.5 text-sm disabled:opacity-60 dark:border-slate-800"
+                                                            :disabled="!canManageSources"
+                                                            placeholder="Ej. Clientes, Ventas, Inventario, CxC"
+                                                        />
+                                                    </label>
+
+                                                    <label class="block">
+                                                        <span
+                                                            class="text-[11px] font-bold text-slate-500 dark:text-slate-400"
+                                                        >
+                                                            Grupo
+                                                        </span>
+
+                                                        <select
+                                                            v-model="businessDomain.group"
+                                                            required
+                                                            class="mt-1.5 w-full rounded-xl border border-slate-200 bg-background px-3 py-2.5 text-sm disabled:opacity-60 dark:border-slate-800"
+                                                            :disabled="!canManageSources"
+                                                        >
+                                                            <option
+                                                                value=""
+                                                                disabled
+                                                            >
+                                                                Selecciona grupo
+                                                            </option>
+
+                                                            <option
+                                                                v-for="option in businessGroupOptions"
+                                                                :key="option.value"
+                                                                :value="option.value"
+                                                            >
+                                                                {{ option.label }}
+                                                            </option>
+                                                        </select>
+                                                    </label>
+
+                                                    <div
+                                                        v-if="canManageSources"
+                                                        class="flex items-end"
+                                                    >
+                                                        <button
+                                                            type="button"
+                                                            class="cursor-pointer rounded-xl border border-red-200 px-3 py-2.5 text-xs font-black text-red-600 transition hover:bg-red-50 dark:border-red-950 dark:text-red-400 dark:hover:bg-red-950/20"
+                                                            @click="
+                                                                removeBusinessDomain(
+                                                                    editSourceForm.business_domains,
+                                                                    index,
+                                                                )
+                                                            "
+                                                        >
+                                                            Quitar
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
 
                                         <label class="block">
                                             <span

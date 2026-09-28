@@ -17,6 +17,8 @@ final class DataTransformationBiSourceAssetService
     private const MAX_DESCRIPTION_LENGTH = 4000;
     private const MAX_ORIGIN_SYSTEM_LENGTH = 191;
     private const MAX_OWNER_LENGTH = 191;
+    private const MAX_BUSINESS_DOMAIN_LENGTH = 191;
+    private const MAX_BUSINESS_DOMAINS = 50;
     private const MAX_STRUCTURE_FORMAT_LENGTH = 64;
 
     /**
@@ -576,6 +578,20 @@ final class DataTransformationBiSourceAssetService
         }
 
         if (
+            $creating
+            || array_key_exists(
+                'business_domains',
+                $input
+            )
+        ) {
+            $payload['business_domains'] =
+                $this->normalizeBusinessDomains(
+                    $input['business_domains']
+                    ?? []
+                );
+        }
+
+        if (
             array_key_exists(
                 'structure_format',
                 $input
@@ -634,6 +650,157 @@ final class DataTransformationBiSourceAssetService
         }
 
         return $payload;
+    }
+
+    /**
+     * Normalize tenant-declared business information domains.
+     *
+     * Domains remain completely dynamic. Only the three broad business
+     * groups are controlled by LAUDA.
+     *
+     * This classification is descriptive diagnostic metadata only and
+     * must never become a source-readiness gate or canonical-domain link.
+     *
+     * @return list<array{domain:string,group:string}>
+     */
+    private function normalizeBusinessDomains(
+        mixed $value
+    ): array {
+        if ($value === null) {
+            return [];
+        }
+
+        if (! is_array($value)) {
+            throw ValidationException::withMessages([
+                'business_domains' => [
+                    'La clasificación de dominios debe ser una lista.',
+                ],
+            ]);
+        }
+
+        if (
+            count($value)
+            > self::MAX_BUSINESS_DOMAINS
+        ) {
+            throw ValidationException::withMessages([
+                'business_domains' => [
+                    'La fuente contiene demasiados dominios de información.',
+                ],
+            ]);
+        }
+
+        $normalized = [];
+        $seen = [];
+
+        foreach (
+            array_values($value)
+            as $index => $item
+        ) {
+            if (! is_array($item)) {
+                throw ValidationException::withMessages([
+                    "business_domains.{$index}" => [
+                        'Cada dominio debe indicar su nombre y grupo.',
+                    ],
+                ]);
+            }
+
+            $domainValue =
+                $item['domain']
+                ?? null;
+
+            $groupValue =
+                $item['group']
+                ?? null;
+
+            if (! is_string($domainValue)) {
+                throw ValidationException::withMessages([
+                    "business_domains.{$index}.domain" => [
+                        'El dominio de información debe ser texto.',
+                    ],
+                ]);
+            }
+
+            if (! is_string($groupValue)) {
+                throw ValidationException::withMessages([
+                    "business_domains.{$index}.group" => [
+                        'Selecciona un grupo válido para el dominio.',
+                    ],
+                ]);
+            }
+
+            $domain =
+                trim(
+                    $domainValue
+                );
+
+            $group =
+                strtolower(
+                    trim(
+                        $groupValue
+                    )
+                );
+
+            if ($domain === '') {
+                throw ValidationException::withMessages([
+                    "business_domains.{$index}.domain" => [
+                        'Indica el nombre del dominio de información.',
+                    ],
+                ]);
+            }
+
+            if (
+                mb_strlen(
+                    $domain
+                )
+                > self::MAX_BUSINESS_DOMAIN_LENGTH
+            ) {
+                throw ValidationException::withMessages([
+                    "business_domains.{$index}.domain" => [
+                        'El nombre del dominio de información es demasiado largo.',
+                    ],
+                ]);
+            }
+
+            if (
+                ! in_array(
+                    $group,
+                    DataTransformationBiSourceAsset::BUSINESS_GROUPS,
+                    true
+                )
+            ) {
+                throw ValidationException::withMessages([
+                    "business_domains.{$index}.group" => [
+                        'El grupo debe ser Operaciones, Gestión o Finanzas.',
+                    ],
+                ]);
+            }
+
+            $domainKey =
+                mb_strtolower(
+                    $domain,
+                    'UTF-8'
+                );
+
+            if (isset($seen[$domainKey])) {
+                throw ValidationException::withMessages([
+                    "business_domains.{$index}.domain" => [
+                        'Un dominio de información no puede repetirse en la misma fuente.',
+                    ],
+                ]);
+            }
+
+            $seen[$domainKey] = true;
+
+            $normalized[] = [
+                'domain' =>
+                    $domain,
+
+                'group' =>
+                    $group,
+            ];
+        }
+
+        return $normalized;
     }
 
     private function nullableText(

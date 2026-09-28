@@ -852,6 +852,7 @@ final class DataTransformationBiIntakeV2StateService
                 'description',
                 'origin_system',
                 'owner',
+                'business_domains',
                 'structure_format',
                 'structure_text',
                 'delivery_format',
@@ -908,6 +909,15 @@ final class DataTransformationBiIntakeV2StateService
                             $asset->owner !== null
                                 ? (string) $asset->owner
                                 : null,
+
+                        'business_domains' =>
+                            is_array(
+                                $asset->business_domains
+                            )
+                                ? array_values(
+                                    $asset->business_domains
+                                )
+                                : [],
 
                         'structure_format' =>
                             $asset->structure_format !== null

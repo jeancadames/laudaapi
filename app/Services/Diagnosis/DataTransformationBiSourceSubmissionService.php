@@ -15,7 +15,7 @@ use RuntimeException;
 
 final class DataTransformationBiSourceSubmissionService
 {
-    private const MANIFEST_VERSION = 1;
+    private const MANIFEST_VERSION = 2;
 
     public function __construct(
         private readonly DataTransformationBiIntakeActorAuthorizationService
@@ -270,6 +270,24 @@ final class DataTransformationBiSourceSubmissionService
                             $source->owner !== null
                                 ? (string) $source->owner
                                 : null,
+
+                        /*
+                         * Tenant-declared diagnostic classification.
+                         *
+                         * Domains are dynamic. The group is limited to
+                         * Operaciones, Gestión or Finanzas.
+                         *
+                         * Persisting this inside the manifest freezes the
+                         * exact classification evaluated by LAUDA.
+                         */
+                        'business_domains' =>
+                            is_array(
+                                $source->business_domains
+                            )
+                                ? array_values(
+                                    $source->business_domains
+                                )
+                                : [],
 
                         'delivery_format' =>
                             $source->delivery_format !== null

@@ -31,6 +31,7 @@ final class DataTransformationBiTenantSourceWorkspaceProjection
         'description',
         'origin_system',
         'owner',
+        'business_domains',
         'structure_format',
         'structure_text',
         'delivery_format',

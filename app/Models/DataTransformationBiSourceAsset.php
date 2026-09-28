@@ -32,6 +32,21 @@ class DataTransformationBiSourceAsset extends Model
     public const DELIVERY_CSV = 'csv';
     public const DELIVERY_XLSX = 'xlsx';
 
+    public const BUSINESS_GROUP_OPERATIONS =
+        'operaciones';
+
+    public const BUSINESS_GROUP_MANAGEMENT =
+        'gestion';
+
+    public const BUSINESS_GROUP_FINANCE =
+        'finanzas';
+
+    public const BUSINESS_GROUPS = [
+        self::BUSINESS_GROUP_OPERATIONS,
+        self::BUSINESS_GROUP_MANAGEMENT,
+        self::BUSINESS_GROUP_FINANCE,
+    ];
+
     public const STRUCTURE_FORMAT_FIELD_TYPE_LIST =
         'field_type_list';
 
@@ -52,6 +67,7 @@ class DataTransformationBiSourceAsset extends Model
         'description',
         'origin_system',
         'owner',
+        'business_domains',
         'structure_format',
         'structure_text',
         'delivery_format',
@@ -84,6 +100,9 @@ class DataTransformationBiSourceAsset extends Model
 
             'company_id' =>
                 'integer',
+
+            'business_domains' =>
+                'array',
 
             'structure_snapshot' =>
                 'array',
