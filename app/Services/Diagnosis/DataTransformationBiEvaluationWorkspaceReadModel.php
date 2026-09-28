@@ -88,6 +88,17 @@ final class DataTransformationBiEvaluationWorkspaceReadModel
                         $sourcePayloads
                     ),
 
+            /*
+             * Domain coverage describes only the evaluated delivery.
+             * Structural signals remain source-scoped evidence and
+             * are not interpreted as field-to-domain mappings.
+             */
+            'domain_coverage' =>
+                DataTransformationBiDomainCoverageReadModel
+                    ::fromSources(
+                        $sourcePayloads
+                    ),
+
             'evaluation' =>
                 $evaluation
                     ? $this->evaluationPayload(
