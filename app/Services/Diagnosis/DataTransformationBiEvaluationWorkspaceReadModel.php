@@ -159,6 +159,20 @@ final class DataTransformationBiEvaluationWorkspaceReadModel
              */
             'diagnostic_summary' =>
                 $summary,
+
+            /*
+             * Safe structural semantic signals derived from profiling
+             * metadata only. No raw values or source samples.
+             */
+            'structural_semantic_signals' =>
+                DataTransformationBiStructuralSemanticSignalsReadModel
+                    ::fromSnapshot(
+                        is_array(
+                            $source->profiling_snapshot
+                        )
+                            ? $source->profiling_snapshot
+                            : null
+                    ),
         ];
     }
 
