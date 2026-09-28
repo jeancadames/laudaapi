@@ -16,6 +16,7 @@ use App\Services\Ecosystem\SubscriberTransformation360DashboardService;
 use App\Services\Subscribers\CompanyContextResolver;
 use App\Services\Subscribers\SubscriberResolver;
 use App\Services\Subscribers\TenantAccessService;
+use App\Services\Diagnosis\DataTransformationBiTenantPublishedEvaluationProjection;
 use App\Services\Diagnosis\DataTransformationBiTenantSourceWorkspaceProjection;
 use App\Services\Diagnosis\DataTransformationBiTenantSourceWorkspaceGate;
 use Illuminate\Http\Request;
@@ -33,7 +34,8 @@ final class AppHubDataTransformationBiController
         SubscriberTransformation360DashboardService $dashboard,
         DataTransformationBiPreparationStatusReadModel $preparationStatus,
         DataTransformationBiIntakeV2StateService $intakeState,
-        DataTransformationBiSourceReadinessService $sourceReadiness
+        DataTransformationBiSourceReadinessService $sourceReadiness,
+        DataTransformationBiTenantPublishedEvaluationProjection $publishedEvaluationProjection
     ): Response {
         $user = $request->user();
 
@@ -451,6 +453,20 @@ $dataPreparation =
                     'dataset' => null,
                 ];
 
+        /*
+         * Tenant-visible professional result.
+         *
+         * The projection itself fails closed unless a published evaluation
+         * exists for this exact Company + Data BI implementation request.
+         * Draft/review state never reaches the browser.
+         */
+        $publishedEvaluation =
+            $sourceWorkspaceRequest !== null
+                ? $publishedEvaluationProjection->forRequest(
+                    $sourceWorkspaceRequest
+                )
+                : null;
+
         return Inertia::render(
             'App/DataTransformationBi',
             [
@@ -503,6 +519,10 @@ $dataPreparation =
                     )->sourceAssetsFromState(
                         $sourceWorkspaceState
                     ),
+
+                'published_evaluation' =>
+                    $publishedEvaluation,
+
                 'processing_history' =>
                     $processingHistory,
 

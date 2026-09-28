@@ -165,6 +165,33 @@ type DynamicSourceAsset = {
     updated_at: string | null;
 };
 
+// DATA_BI_TENANT_PUBLISHED_EVALUATION_TYPES
+type TenantPublishedEvaluationFinding = {
+    finding_type:
+        | 'weakness'
+        | 'opportunity'
+        | 'observation';
+    title: string;
+    details: string;
+    recommendation: string | null;
+    priority:
+        | 'high'
+        | 'medium'
+        | 'low'
+        | null;
+    sources: string[];
+};
+
+type TenantPublishedEvaluation = {
+    published_at: string | null;
+    summary: {
+        weakness_count: number;
+        opportunity_count: number;
+        observation_count: number;
+    };
+    findings: TenantPublishedEvaluationFinding[];
+};
+
 type SourceWorkspaceTab =
     | 'information'
     | 'structure'
@@ -379,11 +406,101 @@ const props = defineProps<{
 
     source_workspace: SourceWorkspace;
     source_assets: DynamicSourceAsset[];
+    published_evaluation: TenantPublishedEvaluation | null;
 
     processing_history: ProcessingHistory;
     usable_dataset: UsableDatasetStatus;
     capability: DataTransformationBiCapability;
 }>();
+
+const publishedEvaluationDateLabel = computed(() => {
+    const value =
+        props.published_evaluation?.published_at;
+
+    if (!value) {
+        return null;
+    }
+
+    const date =
+        new Date(value);
+
+    if (Number.isNaN(date.getTime())) {
+        return null;
+    }
+
+    return new Intl.DateTimeFormat(
+        'es-DO',
+        {
+            dateStyle: 'medium',
+            timeStyle: 'short',
+        },
+    ).format(date);
+});
+
+const publishedFindingGroups = computed(() => {
+    const findings =
+        props.published_evaluation?.findings
+        ?? [];
+
+    return [
+        {
+            key: 'weakness',
+            label: 'Debilidades',
+            description:
+                'Aspectos que requieren revisión o fortalecimiento.',
+            findings:
+                findings.filter(
+                    (finding) =>
+                        finding.finding_type
+                        === 'weakness',
+                ),
+        },
+        {
+            key: 'opportunity',
+            label: 'Oportunidades',
+            description:
+                'Condiciones favorables que pueden aprovecharse.',
+            findings:
+                findings.filter(
+                    (finding) =>
+                        finding.finding_type
+                        === 'opportunity',
+                ),
+        },
+        {
+            key: 'observation',
+            label: 'Observaciones',
+            description:
+                'Conclusiones relevantes para interpretar la entrega.',
+            findings:
+                findings.filter(
+                    (finding) =>
+                        finding.finding_type
+                        === 'observation',
+                ),
+        },
+    ].filter(
+        (group) =>
+            group.findings.length > 0,
+    );
+});
+
+function publishedFindingPriorityLabel(
+    priority: TenantPublishedEvaluationFinding['priority'],
+): string | null {
+    if (!priority) {
+        return null;
+    }
+
+    const labels: Record<string, string> = {
+        high: 'Alta',
+        medium: 'Media',
+        low: 'Baja',
+    };
+
+    return labels[priority]
+        ?? priority;
+}
 
 const breadcrumbs = [
     {
@@ -4508,6 +4625,228 @@ function processingHistoryDate(
                             y evaluación diagnóstica. Cualquier transformación,
                             normalización o implementación posterior pertenece a
                             una etapa independiente.
+                        </p>
+                    </section>
+
+                    <!-- DATA_BI_TENANT_PUBLISHED_EVALUATION -->
+                    <section
+                        v-if="published_evaluation"
+                        class="rounded-[2rem] border border-emerald-200/80 bg-white p-6 shadow-sm sm:p-8 dark:border-emerald-950 dark:bg-slate-950"
+                    >
+                        <div
+                            class="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between"
+                        >
+                            <div>
+                                <p
+                                    class="text-[10px] font-black tracking-widest text-emerald-600 uppercase dark:text-emerald-400"
+                                >
+                                    Resultado publicado
+                                </p>
+
+                                <h2
+                                    class="mt-1 text-xl font-black text-slate-950 dark:text-white"
+                                >
+                                    Evaluación diagnóstica de tus datos
+                                </h2>
+
+                                <p
+                                    class="mt-2 max-w-3xl text-sm leading-6 text-slate-500 dark:text-slate-400"
+                                >
+                                    LAUDA revisó la entrega de información y
+                                    publicó sus conclusiones profesionales.
+                                    Estos resultados describen debilidades,
+                                    oportunidades, observaciones y
+                                    recomendaciones sobre la información
+                                    recibida.
+                                </p>
+                            </div>
+
+                            <div
+                                v-if="publishedEvaluationDateLabel"
+                                class="shrink-0 rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-[10px] font-black tracking-wide text-emerald-700 uppercase dark:border-emerald-900 dark:bg-emerald-950/30 dark:text-emerald-300"
+                            >
+                                Publicado
+                                {{ publishedEvaluationDateLabel }}
+                            </div>
+                        </div>
+
+                        <div
+                            class="mt-6 grid gap-3 sm:grid-cols-3"
+                        >
+                            <div
+                                class="rounded-2xl border border-rose-200/70 bg-rose-50/40 p-4 dark:border-rose-950 dark:bg-rose-950/10"
+                            >
+                                <p
+                                    class="text-[10px] font-black tracking-wide text-rose-600 uppercase dark:text-rose-400"
+                                >
+                                    Debilidades
+                                </p>
+                                <p
+                                    class="mt-1 text-2xl font-black text-slate-950 dark:text-white"
+                                >
+                                    {{
+                                        published_evaluation
+                                            .summary
+                                            .weakness_count
+                                    }}
+                                </p>
+                            </div>
+
+                            <div
+                                class="rounded-2xl border border-emerald-200/70 bg-emerald-50/40 p-4 dark:border-emerald-950 dark:bg-emerald-950/10"
+                            >
+                                <p
+                                    class="text-[10px] font-black tracking-wide text-emerald-600 uppercase dark:text-emerald-400"
+                                >
+                                    Oportunidades
+                                </p>
+                                <p
+                                    class="mt-1 text-2xl font-black text-slate-950 dark:text-white"
+                                >
+                                    {{
+                                        published_evaluation
+                                            .summary
+                                            .opportunity_count
+                                    }}
+                                </p>
+                            </div>
+
+                            <div
+                                class="rounded-2xl border border-sky-200/70 bg-sky-50/40 p-4 dark:border-sky-950 dark:bg-sky-950/10"
+                            >
+                                <p
+                                    class="text-[10px] font-black tracking-wide text-sky-600 uppercase dark:text-sky-400"
+                                >
+                                    Observaciones
+                                </p>
+                                <p
+                                    class="mt-1 text-2xl font-black text-slate-950 dark:text-white"
+                                >
+                                    {{
+                                        published_evaluation
+                                            .summary
+                                            .observation_count
+                                    }}
+                                </p>
+                            </div>
+                        </div>
+
+                        <div
+                            class="mt-7 space-y-7"
+                        >
+                            <section
+                                v-for="group in publishedFindingGroups"
+                                :key="group.key"
+                            >
+                                <div>
+                                    <h3
+                                        class="text-base font-black text-slate-950 dark:text-white"
+                                    >
+                                        {{ group.label }}
+                                    </h3>
+
+                                    <p
+                                        class="mt-1 text-xs leading-5 text-slate-500 dark:text-slate-400"
+                                    >
+                                        {{ group.description }}
+                                    </p>
+                                </div>
+
+                                <div
+                                    class="mt-3 grid gap-3"
+                                >
+                                    <article
+                                        v-for="finding in group.findings"
+                                        :key="`${group.key}:${finding.title}`"
+                                        class="rounded-2xl border border-slate-200/70 bg-slate-50/40 p-5 dark:border-slate-800 dark:bg-slate-900/20"
+                                    >
+                                        <div
+                                            class="flex flex-wrap items-center gap-2"
+                                        >
+                                            <span
+                                                v-if="
+                                                    publishedFindingPriorityLabel(
+                                                        finding.priority,
+                                                    )
+                                                "
+                                                class="rounded-full border border-slate-200 bg-white px-2.5 py-1 text-[10px] font-black tracking-wide text-slate-600 uppercase dark:border-slate-700 dark:bg-slate-950 dark:text-slate-300"
+                                            >
+                                                Prioridad
+                                                {{
+                                                    publishedFindingPriorityLabel(
+                                                        finding.priority,
+                                                    )
+                                                }}
+                                            </span>
+
+                                            <span
+                                                v-if="finding.sources.length === 0"
+                                                class="rounded-full border border-slate-200 bg-white px-2.5 py-1 text-[10px] font-black tracking-wide text-slate-500 uppercase dark:border-slate-700 dark:bg-slate-950 dark:text-slate-400"
+                                            >
+                                                Hallazgo general
+                                            </span>
+                                        </div>
+
+                                        <h4
+                                            class="mt-3 text-sm font-black text-slate-950 dark:text-white"
+                                        >
+                                            {{ finding.title }}
+                                        </h4>
+
+                                        <p
+                                            class="mt-2 whitespace-pre-line text-sm leading-6 text-slate-600 dark:text-slate-300"
+                                        >
+                                            {{ finding.details }}
+                                        </p>
+
+                                        <div
+                                            v-if="finding.recommendation"
+                                            class="mt-4 rounded-xl border border-emerald-200/70 bg-emerald-50/50 p-4 dark:border-emerald-950 dark:bg-emerald-950/10"
+                                        >
+                                            <p
+                                                class="text-[10px] font-black tracking-wide text-emerald-700 uppercase dark:text-emerald-400"
+                                            >
+                                                Recomendación
+                                            </p>
+
+                                            <p
+                                                class="mt-2 whitespace-pre-line text-sm leading-6 text-slate-600 dark:text-slate-300"
+                                            >
+                                                {{ finding.recommendation }}
+                                            </p>
+                                        </div>
+
+                                        <div
+                                            v-if="finding.sources.length > 0"
+                                            class="mt-4 flex flex-wrap items-center gap-2"
+                                        >
+                                            <span
+                                                class="text-[10px] font-black tracking-wide text-slate-400 uppercase"
+                                            >
+                                                Fuentes
+                                            </span>
+
+                                            <span
+                                                v-for="source in finding.sources"
+                                                :key="source"
+                                                class="rounded-full border border-slate-200 bg-white px-2.5 py-1 text-[11px] font-bold text-slate-600 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-300"
+                                            >
+                                                {{ source }}
+                                            </span>
+                                        </div>
+                                    </article>
+                                </div>
+                            </section>
+                        </div>
+
+                        <p
+                            class="mt-7 border-t border-slate-200/70 pt-4 text-xs leading-5 text-slate-500 dark:border-slate-800 dark:text-slate-400"
+                        >
+                            Este resultado corresponde a la evaluación
+                            publicada por LAUDA sobre la entrega recibida.
+                            La transformación, normalización o implementación
+                            posterior de datos pertenece a una etapa
+                            independiente.
                         </p>
                     </section>
 
