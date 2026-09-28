@@ -31,7 +31,7 @@ final class DataTransformationBiDiagnosticAnalysisReadModelTest
         );
 
         self::assertSame(
-            1,
+            2,
             $result['schema_version']
         );
 
@@ -76,12 +76,12 @@ final class DataTransformationBiDiagnosticAnalysisReadModelTest
         );
 
         self::assertSame(
-            0,
+            4,
             $result['analysis_count']
         );
 
-        self::assertSame(
-            [],
+        self::assertCount(
+            4,
             $result['analyses']
         );
     }
@@ -248,7 +248,7 @@ final class DataTransformationBiDiagnosticAnalysisReadModelTest
         }
     }
 
-    public function test_d1b_does_not_invent_analysis_statuses_findings_or_scores(): void
+    public function test_read_model_does_not_generate_findings_recommendations_or_scores(): void
     {
         $source =
             strtolower(
@@ -263,13 +263,11 @@ final class DataTransformationBiDiagnosticAnalysisReadModelTest
             );
 
         foreach ([
-            "'supported' =>",
-            "'partial' =>",
-            "'not_supported_by_current_evidence' =>",
             "'readiness_score' =>",
             "'risk_score' =>",
             "'opportunity_score' =>",
             "'finding_type' =>",
+            "'recommendation' =>",
         ] as $forbidden) {
             self::assertStringNotContainsString(
                 $forbidden,
@@ -277,6 +275,7 @@ final class DataTransformationBiDiagnosticAnalysisReadModelTest
             );
         }
     }
+
 
     /**
      * @return array<string,mixed>
