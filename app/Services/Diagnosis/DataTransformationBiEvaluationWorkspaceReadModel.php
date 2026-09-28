@@ -99,6 +99,16 @@ final class DataTransformationBiEvaluationWorkspaceReadModel
                         $sourcePayloads
                     ),
 
+            /*
+             * Conservative source-to-source structural candidates.
+             * No join is confirmed and no canonical mapping is used.
+             */
+            'cross_source_relationship_candidates' =>
+                DataTransformationBiCrossSourceRelationshipCandidatesReadModel
+                    ::fromSources(
+                        $sourcePayloads
+                    ),
+
             'evaluation' =>
                 $evaluation
                     ? $this->evaluationPayload(
