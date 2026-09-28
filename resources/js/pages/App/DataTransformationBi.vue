@@ -1259,6 +1259,13 @@ const sourceWorkspaceStatusLabel =
                 ?.status
             ?? '';
 
+        if (
+            status === 'submitted_for_evaluation'
+            && props.published_evaluation !== null
+        ) {
+            return 'Evaluación completada';
+        }
+
         const labels: Record<string, string> = {
             draft: 'Borrador',
             ready: 'Preparada',
@@ -1273,6 +1280,20 @@ const sourceWorkspaceStatusLabel =
         return labels[status]
             ?? status;
     });
+
+const sourceWorkspaceSubmittedMessage =
+    computed(() =>
+        props.published_evaluation !== null
+            ? (
+                'La entrega permanece congelada en solo lectura. '
+                + 'LAUDA completó y publicó la evaluación diagnóstica.'
+            )
+            : (
+                'La entrega fue enviada a LAUDA y las fuentes quedaron '
+                + 'congeladas. Puedes consultarlas, pero ya no puedes '
+                + 'modificar su contenido mientras se realiza la evaluación.'
+            ),
+    );
 
 const sourceWorkspaceSubmittedAtLabel =
     computed(() => {
@@ -3461,17 +3482,13 @@ function processingHistoryDate(
                                 <p
                                     class="text-sm font-black text-emerald-800 dark:text-emerald-200"
                                 >
-                                    En evaluación
+                                    {{ sourceWorkspaceStatusLabel }}
                                 </p>
 
                                 <p
                                     class="mt-2 max-w-3xl text-sm leading-6 text-slate-600 dark:text-slate-300"
                                 >
-                                    La entrega fue enviada a LAUDA y las
-                                    fuentes quedaron congeladas. Puedes
-                                    consultarlas, pero ya no puedes modificar
-                                    su contenido mientras se realiza la
-                                    evaluación.
+                                    {{ sourceWorkspaceSubmittedMessage }}
                                 </p>
 
                                 <p

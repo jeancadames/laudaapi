@@ -195,4 +195,47 @@ final class DataTransformationBiTenantPublishedEvaluationUiContractTest
             );
         }
     }
+
+    public function test_published_evaluation_marks_submitted_delivery_as_completed(): void
+    {
+        foreach (
+            [
+                "status === 'submitted_for_evaluation'",
+                'props.published_evaluation !== null',
+                "return 'Evaluación completada';",
+                'const sourceWorkspaceSubmittedMessage =',
+                'LAUDA completó y publicó la evaluación diagnóstica.',
+                '{{ sourceWorkspaceStatusLabel }}',
+                '{{ sourceWorkspaceSubmittedMessage }}',
+            ]
+            as $token
+        ) {
+            self::assertStringContainsString(
+                $token,
+                $this->page
+            );
+        }
+
+        /*
+         * The persisted intake lifecycle is intentionally unchanged.
+         * Without a published evaluation, submitted deliveries still
+         * render as "En evaluación".
+         */
+        self::assertStringContainsString(
+            "submitted_for_evaluation:",
+            $this->page
+        );
+
+        self::assertStringContainsString(
+            "'En evaluación'",
+            $this->page
+        );
+
+        self::assertStringContainsString(
+            'Solo lectura',
+            $this->page
+        );
+    }
+
+
 }
