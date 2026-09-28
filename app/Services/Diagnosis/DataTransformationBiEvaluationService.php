@@ -15,7 +15,9 @@ use Illuminate\Validation\ValidationException;
 
 final class DataTransformationBiEvaluationService
 {
-    private const EVIDENCE_SCHEMA_VERSION = 1;
+    private const LEGACY_EVIDENCE_SCHEMA_VERSION = 1;
+
+    private const EVIDENCE_SCHEMA_VERSION = 2;
 
     /**
      * Create the session-level evaluation draft from the current
@@ -423,7 +425,10 @@ final class DataTransformationBiEvaluationService
     ): void {
         $current =
             $this->captureEvidence(
-                $session
+                $session,
+                $this->evidenceSchemaVersion(
+                    $evaluation
+                )
             );
 
         if (
@@ -467,8 +472,29 @@ final class DataTransformationBiEvaluationService
      * }
      */
     private function captureEvidence(
-        DataTransformationBiIntakeSession $session
+        DataTransformationBiIntakeSession $session,
+        ?int $schemaVersion = null
     ): array {
+        $schemaVersion ??=
+            self::EVIDENCE_SCHEMA_VERSION;
+
+        if (
+            ! in_array(
+                $schemaVersion,
+                [
+                    self::LEGACY_EVIDENCE_SCHEMA_VERSION,
+                    self::EVIDENCE_SCHEMA_VERSION,
+                ],
+                true
+            )
+        ) {
+            throw ValidationException::withMessages([
+                'evaluation' => [
+                    'La versión de evidencia diagnóstica no es compatible con esta versión de LAUDA.',
+                ],
+            ]);
+        }
+
         /** @var Collection<int,DataTransformationBiSourceAsset> $sources */
         $sources =
             DataTransformationBiSourceAsset::query()
@@ -505,6 +531,8 @@ final class DataTransformationBiEvaluationService
                 ->map(
                     function (
                         DataTransformationBiSourceAsset $source
+                    ) use (
+                        $schemaVersion
                     ): array {
                         if (
                             (string) $source->data_status
@@ -539,7 +567,7 @@ final class DataTransformationBiEvaluationService
                             ]);
                         }
 
-                        return [
+                        $payload = [
                             'source_asset_id' =>
                                 (int) $source->getKey(),
 
@@ -576,6 +604,27 @@ final class DataTransformationBiEvaluationService
                             'diagnostic_summary' =>
                                 $summary,
                         ];
+
+                        if (
+                            $schemaVersion
+                            >= self::EVIDENCE_SCHEMA_VERSION
+                        ) {
+                            $payload['business_domains'] =
+                                $this->businessDomains(
+                                    $source
+                                );
+
+                            $payload[
+                                'structural_semantic_signals'
+                            ] =
+                                DataTransformationBiStructuralSemanticSignalsReadModel
+                                    ::fromSnapshot(
+                                        $source
+                                            ->profiling_snapshot
+                                    );
+                        }
+
+                        return $payload;
                     }
                 )
                 ->values()
@@ -586,7 +635,7 @@ final class DataTransformationBiEvaluationService
                 'data_bi_diagnostic_evaluation_evidence',
 
             'schema_version' =>
-                self::EVIDENCE_SCHEMA_VERSION,
+                $schemaVersion,
 
             'session_id' =>
                 (int) $session->getKey(),
@@ -611,6 +660,17 @@ final class DataTransformationBiEvaluationService
                 $sourceEvidence,
         ];
 
+        if (
+            $schemaVersion
+            >= self::EVIDENCE_SCHEMA_VERSION
+        ) {
+            $snapshot['semantic_diagnostic'] =
+                DataTransformationBiSemanticDiagnosticReadModel
+                    ::fromSources(
+                        $sourceEvidence
+                    );
+        }
+
         $encoded =
             json_encode(
                 $snapshot,
@@ -630,6 +690,115 @@ final class DataTransformationBiEvaluationService
                     $encoded
                 ),
         ];
+    }
+
+    private function evidenceSchemaVersion(
+        DataTransformationBiEvaluation $evaluation
+    ): int {
+        $snapshot =
+            is_array(
+                $evaluation->evidence_snapshot
+            )
+                ? $evaluation->evidence_snapshot
+                : [];
+
+        $version =
+            isset(
+                $snapshot['schema_version']
+            )
+                ? (int) $snapshot[
+                    'schema_version'
+                ]
+                : self::LEGACY_EVIDENCE_SCHEMA_VERSION;
+
+        if (
+            ! in_array(
+                $version,
+                [
+                    self::LEGACY_EVIDENCE_SCHEMA_VERSION,
+                    self::EVIDENCE_SCHEMA_VERSION,
+                ],
+                true
+            )
+        ) {
+            throw ValidationException::withMessages([
+                'evaluation' => [
+                    'La versión de evidencia diagnóstica fijada para esta evaluación no es compatible.',
+                ],
+            ]);
+        }
+
+        return $version;
+    }
+
+    /**
+     * Preserve tenant declaration order while normalizing the
+     * associative key order used inside the evidence hash.
+     *
+     * @return list<array{
+     *     domain:string,
+     *     group:string
+     * }>
+     */
+    private function businessDomains(
+        DataTransformationBiSourceAsset $source
+    ): array {
+        $items =
+            is_array(
+                $source->business_domains
+            )
+                ? array_values(
+                    $source->business_domains
+                )
+                : [];
+
+        $result = [];
+
+        foreach ($items as $item) {
+            if (! is_array($item)) {
+                continue;
+            }
+
+            $domain =
+                trim(
+                    (string) (
+                        $item['domain']
+                        ?? ''
+                    )
+                );
+
+            $group =
+                strtolower(
+                    trim(
+                        (string) (
+                            $item['group']
+                            ?? ''
+                        )
+                    )
+                );
+
+            if (
+                $domain === ''
+                || ! in_array(
+                    $group,
+                    DataTransformationBiSourceAsset
+                        ::BUSINESS_GROUPS,
+                    true
+                )
+            ) {
+                continue;
+            }
+
+            $result[] = [
+                'domain' =>
+                    $domain,
+
+                'group' =>
+                    $group,
+            ];
+        }
+
+        return $result;
     }
 
     private function timestamp(
