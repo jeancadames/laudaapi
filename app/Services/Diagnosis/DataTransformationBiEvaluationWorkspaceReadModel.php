@@ -48,6 +48,19 @@ final class DataTransformationBiEvaluationWorkspaceReadModel
                 ->orderBy('id')
                 ->get();
 
+        $sourcePayloads =
+            $sources
+                ->map(
+                    fn (
+                        DataTransformationBiSourceAsset $source
+                    ): array =>
+                        $this->sourcePayload(
+                            $source
+                        )
+                )
+                ->values()
+                ->all();
+
         return [
             'session' => [
                 'id' =>
@@ -61,17 +74,19 @@ final class DataTransformationBiEvaluationWorkspaceReadModel
             ],
 
             'sources' =>
-                $sources
-                    ->map(
-                        fn (
-                            DataTransformationBiSourceAsset $source
-                        ): array =>
-                            $this->sourcePayload(
-                                $source
-                            )
-                    )
-                    ->values()
-                    ->all(),
+                $sourcePayloads,
+
+            /*
+             * Delivery-scoped semantic inventory only.
+             *
+             * This is not a score, finding generator, readiness gate
+             * or future implementation model.
+             */
+            'semantic_diagnostic' =>
+                DataTransformationBiSemanticDiagnosticReadModel
+                    ::fromSources(
+                        $sourcePayloads
+                    ),
 
             'evaluation' =>
                 $evaluation
@@ -122,6 +137,15 @@ final class DataTransformationBiEvaluationWorkspaceReadModel
                 $source->origin_system !== null
                     ? (string) $source->origin_system
                     : null,
+
+            'business_domains' =>
+                is_array(
+                    $source->business_domains
+                )
+                    ? array_values(
+                        $source->business_domains
+                    )
+                    : [],
 
             'profiling_status' =>
                 (string) $source->profiling_status,
