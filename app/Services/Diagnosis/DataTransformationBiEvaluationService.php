@@ -153,6 +153,26 @@ final class DataTransformationBiEvaluationService
 
                     'evidence_captured_at' =>
                         now(),
+
+                    /*
+                     * A refreshed evidence revision invalidates any
+                     * diagnostic-analysis result that could have been
+                     * associated with the prior evidence revision.
+                     */
+                    'diagnostic_analysis_schema_version' =>
+                        null,
+
+                    'diagnostic_analysis_evidence_version' =>
+                        null,
+
+                    'diagnostic_analysis_sha256' =>
+                        null,
+
+                    'diagnostic_analysis_snapshot' =>
+                        null,
+
+                    'diagnostic_analysis_generated_at' =>
+                        null,
                 ])->save();
 
                 $this->audit(
@@ -207,6 +227,10 @@ final class DataTransformationBiEvaluationService
                 if (
                     $evaluation->isReadyForReview()
                 ) {
+                    $this->assertDiagnosticAnalysisFrozen(
+                        $evaluation
+                    );
+
                     return $evaluation;
                 }
 
@@ -227,7 +251,34 @@ final class DataTransformationBiEvaluationService
                     $evaluation
                 );
 
+                $diagnosticAnalysis =
+                    $this->captureDiagnosticAnalysis(
+                        $evaluation
+                    );
+
                 $evaluation->forceFill([
+                    'diagnostic_analysis_schema_version' =>
+                        $diagnosticAnalysis[
+                            'schema_version'
+                        ],
+
+                    'diagnostic_analysis_evidence_version' =>
+                        (int) $evaluation
+                            ->evidence_version,
+
+                    'diagnostic_analysis_sha256' =>
+                        $diagnosticAnalysis[
+                            'sha256'
+                        ],
+
+                    'diagnostic_analysis_snapshot' =>
+                        $diagnosticAnalysis[
+                            'snapshot'
+                        ],
+
+                    'diagnostic_analysis_generated_at' =>
+                        now(),
+
                     'status' =>
                         DataTransformationBiEvaluation
                             ::STATUS_READY_FOR_REVIEW,
@@ -304,6 +355,15 @@ final class DataTransformationBiEvaluationService
                 );
 
                 $this->assertReviewableFindings(
+                    $evaluation
+                );
+
+                /*
+                 * Publication consumes the analysis frozen when the
+                 * evaluation entered review. It must never recompute
+                 * analytical conclusions at publication time.
+                 */
+                $this->assertDiagnosticAnalysisFrozen(
                     $evaluation
                 );
 
@@ -458,6 +518,287 @@ final class DataTransformationBiEvaluationService
                 ],
             ]);
         }
+    }
+
+    /**
+     * Build the deterministic diagnostic-analysis result exclusively
+     * from the evaluation's pinned evidence snapshot.
+     *
+     * No live source query is allowed here.
+     *
+     * @return array{
+     *     schema_version:int,
+     *     snapshot:array<string,mixed>,
+     *     sha256:string
+     * }
+     */
+    private function captureDiagnosticAnalysis(
+        DataTransformationBiEvaluation $evaluation
+    ): array {
+        $evidenceSnapshot =
+            is_array(
+                $evaluation->evidence_snapshot
+            )
+                ? $evaluation->evidence_snapshot
+                : [];
+
+        $snapshot =
+            DataTransformationBiDiagnosticAnalysisReadModel
+                ::fromEvidence(
+                    $evidenceSnapshot,
+                    (int) $evaluation
+                        ->evidence_version,
+                    (string) $evaluation
+                        ->evidence_sha256
+                );
+
+        if (
+            ($snapshot['available'] ?? false)
+            !== true
+        ) {
+            throw ValidationException::withMessages([
+                'evaluation' => [
+                    'La evidencia fijada para esta evaluación no soporta todavía el contrato de análisis diagnóstico vigente. Actualiza primero el borrador diagnóstico.',
+                ],
+            ]);
+        }
+
+        $schemaVersion =
+            (int) (
+                $snapshot['schema_version']
+                ?? 0
+            );
+
+        if ($schemaVersion <= 0) {
+            throw ValidationException::withMessages([
+                'evaluation' => [
+                    'El análisis diagnóstico generado no contiene una versión de contrato válida.',
+                ],
+            ]);
+        }
+
+        return [
+            'schema_version' =>
+                $schemaVersion,
+
+            'snapshot' =>
+                $snapshot,
+
+            /*
+             * Analysis hashes use canonical semantic JSON:
+             * associative-object keys are ordered recursively while
+             * list order remains meaningful and preserved.
+             */
+            'sha256' =>
+                $this->diagnosticAnalysisSha256(
+                    $snapshot
+                ),
+        ];
+    }
+
+    private function assertDiagnosticAnalysisFrozen(
+        DataTransformationBiEvaluation $evaluation
+    ): void {
+        $snapshot =
+            is_array(
+                $evaluation
+                    ->diagnostic_analysis_snapshot
+            )
+                ? $evaluation
+                    ->diagnostic_analysis_snapshot
+                : null;
+
+        $schemaVersion =
+            (int) (
+                $evaluation
+                    ->diagnostic_analysis_schema_version
+                ?? 0
+            );
+
+        $analysisEvidenceVersion =
+            (int) (
+                $evaluation
+                    ->diagnostic_analysis_evidence_version
+                ?? 0
+            );
+
+        $sha256 =
+            strtolower(
+                trim(
+                    (string) (
+                        $evaluation
+                            ->diagnostic_analysis_sha256
+                        ?? ''
+                    )
+                )
+            );
+
+        if (
+            ! is_array($snapshot)
+            || $schemaVersion <= 0
+            || $analysisEvidenceVersion <= 0
+            || preg_match(
+                '/^[a-f0-9]{64}$/',
+                $sha256
+            ) !== 1
+            || $evaluation
+                ->diagnostic_analysis_generated_at
+                === null
+        ) {
+            throw ValidationException::withMessages([
+                'evaluation' => [
+                    'La evaluación no tiene un análisis diagnóstico congelado y verificable para publicación.',
+                ],
+            ]);
+        }
+
+        if (
+            $analysisEvidenceVersion
+            !== (int) $evaluation
+                ->evidence_version
+        ) {
+            throw ValidationException::withMessages([
+                'evaluation' => [
+                    'El análisis diagnóstico no corresponde a la versión actual de la evidencia.',
+                ],
+            ]);
+        }
+
+        if (
+            (int) (
+                $snapshot['schema_version']
+                ?? 0
+            ) !== $schemaVersion
+        ) {
+            throw ValidationException::withMessages([
+                'evaluation' => [
+                    'La versión del snapshot de análisis diagnóstico no coincide con su contrato persistido.',
+                ],
+            ]);
+        }
+
+        $snapshotEvidence =
+            is_array(
+                $snapshot['evidence']
+                ?? null
+            )
+                ? $snapshot['evidence']
+                : [];
+
+        if (
+            (int) (
+                $snapshotEvidence[
+                    'evidence_version'
+                ]
+                ?? 0
+            ) !== (int) $evaluation
+                ->evidence_version
+            || ! hash_equals(
+                strtolower(
+                    trim(
+                        (string) $evaluation
+                            ->evidence_sha256
+                    )
+                ),
+                strtolower(
+                    trim(
+                        (string) (
+                            $snapshotEvidence[
+                                'evidence_sha256'
+                            ]
+                            ?? ''
+                        )
+                    )
+                )
+            )
+        ) {
+            throw ValidationException::withMessages([
+                'evaluation' => [
+                    'La trazabilidad del análisis diagnóstico no coincide con la evidencia fijada.',
+                ],
+            ]);
+        }
+
+        $calculatedSha256 =
+            $this->diagnosticAnalysisSha256(
+                $snapshot
+            );
+
+        if (
+            ! hash_equals(
+                $sha256,
+                $calculatedSha256
+            )
+        ) {
+            throw ValidationException::withMessages([
+                'evaluation' => [
+                    'El snapshot de análisis diagnóstico no supera la validación de integridad.',
+                ],
+            ]);
+        }
+    }
+
+    /**
+     * @param array<string,mixed> $snapshot
+     */
+    private function diagnosticAnalysisSha256(
+        array $snapshot
+    ): string {
+        $canonical =
+            $this->canonicalizeDiagnosticAnalysisValue(
+                $snapshot
+            );
+
+        $encoded =
+            json_encode(
+                $canonical,
+                JSON_UNESCAPED_UNICODE
+                | JSON_UNESCAPED_SLASHES
+                | JSON_PRESERVE_ZERO_FRACTION
+                | JSON_THROW_ON_ERROR
+            );
+
+        return hash(
+            'sha256',
+            $encoded
+        );
+    }
+
+    private function canonicalizeDiagnosticAnalysisValue(
+        mixed $value
+    ): mixed {
+        if (! is_array($value)) {
+            return $value;
+        }
+
+        if (array_is_list($value)) {
+            return array_map(
+                fn (mixed $item): mixed =>
+                    $this
+                        ->canonicalizeDiagnosticAnalysisValue(
+                            $item
+                        ),
+                $value
+            );
+        }
+
+        ksort(
+            $value,
+            SORT_STRING
+        );
+
+        foreach (
+            $value
+            as $key => $item
+        ) {
+            $value[$key] =
+                $this
+                    ->canonicalizeDiagnosticAnalysisValue(
+                        $item
+                    );
+        }
+
+        return $value;
     }
 
     /**

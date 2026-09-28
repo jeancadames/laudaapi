@@ -33,6 +33,11 @@ final class DataTransformationBiEvaluation extends Model
         'evidence_sha256',
         'evidence_snapshot',
         'evidence_captured_at',
+        'diagnostic_analysis_schema_version',
+        'diagnostic_analysis_evidence_version',
+        'diagnostic_analysis_sha256',
+        'diagnostic_analysis_snapshot',
+        'diagnostic_analysis_generated_at',
         'created_by_user_id',
         'ready_for_review_by_user_id',
         'ready_for_review_at',
@@ -50,6 +55,18 @@ final class DataTransformationBiEvaluation extends Model
                 'array',
 
             'evidence_captured_at' =>
+                'datetime',
+
+            'diagnostic_analysis_schema_version' =>
+                'integer',
+
+            'diagnostic_analysis_evidence_version' =>
+                'integer',
+
+            'diagnostic_analysis_snapshot' =>
+                'array',
+
+            'diagnostic_analysis_generated_at' =>
                 'datetime',
 
             'ready_for_review_at' =>
