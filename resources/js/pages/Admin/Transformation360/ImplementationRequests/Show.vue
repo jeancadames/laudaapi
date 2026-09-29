@@ -620,6 +620,16 @@ type DataBiEvaluationFindingForm = {
     source_ids: number[];
 };
 
+// D2E_DIAGNOSTIC_FINDING_CONTEXT_TYPES
+type DataBiEvaluationFindingContext = {
+    key: string;
+    label: string;
+    status: DataBiDiagnosticAnalysisStatus;
+    source_ids: number[];
+};
+// D2E_DIAGNOSTIC_FINDING_CONTEXT_TYPES_END
+
+
 type DynamicSourceAsset = {
     id: number;
     display_name: string;
@@ -7038,6 +7048,13 @@ const dataBiEvaluationFindingEditingId =
         null,
     );
 
+// D2E_DIAGNOSTIC_FINDING_CONTEXT_STATE
+const dataBiEvaluationFindingContext =
+    ref<DataBiEvaluationFindingContext | null>(
+        null,
+    );
+// D2E_DIAGNOSTIC_FINDING_CONTEXT_STATE_END
+
 const dataBiEvaluationFindingForm =
     ref<DataBiEvaluationFindingForm>({
         finding_type:
@@ -7590,6 +7607,9 @@ function resetDataBiEvaluationFindingForm(): void {
     dataBiEvaluationFindingEditingId.value =
         null;
 
+    dataBiEvaluationFindingContext.value =
+        null;
+
     dataBiEvaluationFindingForm.value = {
         finding_type:
             'weakness',
@@ -7622,6 +7642,9 @@ function editDataBiEvaluationFinding(
     ) {
         return;
     }
+
+    dataBiEvaluationFindingContext.value =
+        null;
 
     dataBiEvaluationFindingEditingId.value =
         finding.id;
@@ -7779,6 +7802,141 @@ async function prepareDataBiEvaluation(): Promise<void> {
             null;
     }
 }
+
+
+// D2E_DIAGNOSTIC_FINDING_CONTEXT_HELPERS
+
+function dataBiEvaluationFindingContextStatusLabel(
+    status: DataBiDiagnosticAnalysisStatus,
+): string {
+    return {
+        supported:
+            'Sustentado por la evidencia evaluada',
+
+        partial:
+            'Sustento parcial en la evidencia evaluada',
+
+        not_supported_by_current_evidence:
+            'Evidencia insuficiente en esta entrega',
+    }[status]
+        ?? 'Estado diagnóstico no disponible';
+}
+
+
+function clearDataBiEvaluationFindingContext(): void {
+    dataBiEvaluationFindingContext.value =
+        null;
+}
+
+
+function useDataBiDiagnosticAnalysisAsFindingContext(
+    analysis: DataBiDiagnosticAnalysis,
+): void {
+    const workspace =
+        dataBiEvaluationWorkspace.value;
+
+    if (
+        !workspace
+            ?.actions
+            ?.can_manage_findings
+    ) {
+        return;
+    }
+
+    const availableSourceIds =
+        new Set(
+            (
+                workspace.sources
+                ?? []
+            ).map(
+                (source) =>
+                    source.id,
+            ),
+        );
+
+    const sourceIds =
+        Array.from(
+            new Set(
+                (
+                    analysis.supporting_source_ids
+                    ?? []
+                ).filter(
+                    (sourceId) =>
+                        Number.isInteger(
+                            sourceId,
+                        )
+                        && sourceId > 0
+                        && availableSourceIds.has(
+                            sourceId,
+                        ),
+                ),
+            ),
+        );
+
+    /*
+     * Start a new HUMAN finding using the existing
+     * finding workflow.
+     *
+     * The diagnostic analysis supplies only temporary
+     * context and supporting source selection.
+     *
+     * It does NOT derive or assign:
+     * - finding type;
+     * - title;
+     * - details;
+     * - recommendation;
+     * - priority.
+     */
+    resetDataBiEvaluationFindingForm();
+
+    dataBiEvaluationFindingContext.value = {
+        key:
+            analysis.key,
+
+        label:
+            analysis.label,
+
+        status:
+            analysis.status,
+
+        source_ids:
+            sourceIds,
+    };
+
+    dataBiEvaluationFindingForm.value
+        .source_ids =
+        [
+            ...sourceIds,
+        ];
+
+    dataBiEvaluationError.value =
+        null;
+
+    dataBiEvaluationMessage.value =
+        'Contexto diagnóstico cargado. La conclusión profesional debe redactarse y confirmarse manualmente.';
+
+    if (
+        typeof window !== 'undefined'
+    ) {
+        window.requestAnimationFrame(
+            () => {
+                document
+                    .getElementById(
+                        'data-bi-evaluation-finding-form',
+                    )
+                    ?.scrollIntoView({
+                        behavior:
+                            'smooth',
+
+                        block:
+                            'start',
+                    });
+            },
+        );
+    }
+}
+
+// D2E_DIAGNOSTIC_FINDING_CONTEXT_HELPERS_END
 
 
 async function saveDataBiEvaluationFinding(): Promise<void> {
@@ -10674,6 +10832,34 @@ if (canonicalModelUiAvailable()) {
                                                     "
                                                     class="rounded-xl border bg-background p-4"
                                                 >
+
+                                                    <!-- D2E_DIAGNOSTIC_FINDING_CONTEXT_UI -->
+                                                    <div
+                                                        v-if="
+                                                            dataBiEvaluationWorkspace
+                                                                .actions
+                                                                .can_manage_findings
+                                                        "
+                                                        class="mb-3 flex justify-end"
+                                                    >
+                                                        <button
+                                                            type="button"
+                                                            class="cursor-pointer rounded-lg border px-3 py-1.5 text-[11px] font-black"
+                                                            :disabled="
+                                                                dataBiEvaluationBusy
+                                                                !== null
+                                                            "
+                                                            @click="
+                                                                useDataBiDiagnosticAnalysisAsFindingContext(
+                                                                    analysis,
+                                                                )
+                                                            "
+                                                        >
+                                                            Usar como contexto para nuevo hallazgo
+                                                        </button>
+                                                    </div>
+                                                    <!-- D2E_DIAGNOSTIC_FINDING_CONTEXT_UI_END -->
+
                                                     <div
                                                         class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between"
                                                     >
@@ -10999,6 +11185,7 @@ if (canonicalModelUiAvailable()) {
                                     <!-- DATA_BI_DIAGNOSTIC_ANALYSIS_ADMIN_UI_END -->
 
                                     <section
+                                        id="data-bi-evaluation-finding-form"
                                         v-if="
                                             dataBiEvaluationWorkspace
                                                 .actions
@@ -11050,6 +11237,88 @@ if (canonicalModelUiAvailable()) {
                                                 Cancelar edición
                                             </button>
                                         </div>
+
+                                        <!-- D2E_DIAGNOSTIC_FINDING_CONTEXT_PANEL -->
+                                        <div
+                                            v-if="
+                                                dataBiEvaluationFindingContext
+                                            "
+                                            class="mt-4 rounded-xl border border-cyan-200 bg-cyan-50/70 p-4 dark:border-cyan-900 dark:bg-cyan-950/20"
+                                        >
+                                            <div
+                                                class="flex flex-wrap items-start justify-between gap-3"
+                                            >
+                                                <div>
+                                                    <p
+                                                        class="text-[10px] font-black uppercase tracking-wide text-cyan-800 dark:text-cyan-300"
+                                                    >
+                                                        Contexto diagnóstico temporal
+                                                    </p>
+
+                                                    <p
+                                                        class="mt-1 text-sm font-black"
+                                                    >
+                                                        {{
+                                                            dataBiEvaluationFindingContext
+                                                                .label
+                                                        }}
+                                                    </p>
+
+                                                    <p
+                                                        class="mt-1 text-xs text-muted-foreground"
+                                                    >
+                                                        {{
+                                                            dataBiEvaluationFindingContextStatusLabel(
+                                                                dataBiEvaluationFindingContext
+                                                                    .status,
+                                                            )
+                                                        }}
+                                                    </p>
+                                                </div>
+
+                                                <button
+                                                    type="button"
+                                                    class="cursor-pointer rounded-lg border px-3 py-1.5 text-[11px] font-bold"
+                                                    :disabled="
+                                                        dataBiEvaluationBusy
+                                                        !== null
+                                                    "
+                                                    @click="
+                                                        clearDataBiEvaluationFindingContext
+                                                    "
+                                                >
+                                                    Quitar contexto
+                                                </button>
+                                            </div>
+
+                                            <p
+                                                class="mt-3 text-xs leading-5 text-muted-foreground"
+                                            >
+                                                Este contexto no se guarda como parte del
+                                                hallazgo ni convierte automáticamente el análisis
+                                                en una debilidad, oportunidad u observación.
+                                                El título, detalle, recomendación, prioridad y
+                                                criterio profesional siguen siendo responsabilidad
+                                                del evaluador.
+                                            </p>
+
+                                            <p
+                                                v-if="
+                                                    dataBiEvaluationFindingContext
+                                                        .source_ids
+                                                        .length > 0
+                                                "
+                                                class="mt-2 text-[11px] font-semibold text-muted-foreground"
+                                            >
+                                                {{
+                                                    dataBiEvaluationFindingContext
+                                                        .source_ids
+                                                        .length
+                                                }}
+                                                fuente(s) de soporte fueron preseleccionadas.
+                                            </p>
+                                        </div>
+                                        <!-- D2E_DIAGNOSTIC_FINDING_CONTEXT_PANEL_END -->
 
                                         <div
                                             class="mt-4 grid gap-4 md:grid-cols-2"
