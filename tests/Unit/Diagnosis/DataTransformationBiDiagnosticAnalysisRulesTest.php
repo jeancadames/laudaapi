@@ -27,12 +27,12 @@ final class DataTransformationBiDiagnosticAnalysisRulesTest
         );
 
         self::assertSame(
-            2,
+            3,
             $result['schema_version']
         );
 
         self::assertSame(
-            4,
+            9,
             $result['analysis_count']
         );
 
@@ -43,9 +43,13 @@ final class DataTransformationBiDiagnosticAnalysisRulesTest
                 'temporal_analysis',
                 'monetary_analysis',
             ],
-            array_column(
-                $result['analyses'],
-                'key'
+            array_slice(
+                array_column(
+                    $result['analyses'],
+                    'key'
+                ),
+                0,
+                4
             )
         );
 

@@ -52,7 +52,7 @@ final class DataTransformationBiDiagnosticAnalysisWorkspaceProjectionTest
         );
 
         self::assertSame(
-            2,
+            3,
             $result[
                 'analysis_schema_version'
             ]
@@ -70,7 +70,7 @@ final class DataTransformationBiDiagnosticAnalysisWorkspaceProjectionTest
         );
 
         self::assertSame(
-            4,
+            9,
             $result['snapshot']
                 ['analysis_count']
         );
@@ -82,10 +82,14 @@ final class DataTransformationBiDiagnosticAnalysisWorkspaceProjectionTest
                 'temporal_analysis',
                 'monetary_analysis',
             ],
-            array_column(
-                $result['snapshot']
-                    ['analyses'],
-                'key'
+            array_slice(
+                array_column(
+                    $result['snapshot']
+                        ['analyses'],
+                    'key'
+                ),
+                0,
+                4
             )
         );
     }

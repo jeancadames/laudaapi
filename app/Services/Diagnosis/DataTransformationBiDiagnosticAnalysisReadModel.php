@@ -22,7 +22,7 @@ namespace App\Services\Diagnosis;
  */
 final class DataTransformationBiDiagnosticAnalysisReadModel
 {
-    private const SCHEMA_VERSION = 2;
+    private const SCHEMA_VERSION = 3;
 
     private const SUPPORTED_EVIDENCE_SCHEMA_VERSION = 2;
 
@@ -36,7 +36,7 @@ final class DataTransformationBiDiagnosticAnalysisReadModel
         'not_supported_by_current_evidence';
 
     /**
-     * Initial conservative diagnostic-analysis catalog.
+     * Conservative structural diagnostic-analysis catalog.
      *
      * Every rule is supported directly by one structural semantic
      * signal already present in evidence V2.
@@ -92,6 +92,61 @@ final class DataTransformationBiDiagnosticAnalysisReadModel
 
             'signal_key' =>
                 'monetary',
+        ],
+
+        [
+            'key' =>
+                'contact_analysis',
+
+            'label' =>
+                'Datos de contacto',
+
+            'signal_key' =>
+                'contact',
+        ],
+
+        [
+            'key' =>
+                'quantity_analysis',
+
+            'label' =>
+                'Campos cuantitativos',
+
+            'signal_key' =>
+                'quantity',
+        ],
+
+        [
+            'key' =>
+                'product_reference_analysis',
+
+            'label' =>
+                'Referencias de producto',
+
+            'signal_key' =>
+                'product_reference',
+        ],
+
+        [
+            'key' =>
+                'financial_terms_analysis',
+
+            'label' =>
+                'Condiciones financieras',
+
+            'signal_key' =>
+                'financial_terms',
+        ],
+
+        [
+            'key' =>
+                'classification_analysis',
+
+            'label' =>
+                'Clasificación y estado',
+
+            'signal_key' =>
+                'classification_status',
         ],
     ];
 

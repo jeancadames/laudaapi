@@ -31,7 +31,7 @@ final class DataTransformationBiDiagnosticAnalysisReadModelTest
         );
 
         self::assertSame(
-            2,
+            3,
             $result['schema_version']
         );
 
@@ -76,12 +76,12 @@ final class DataTransformationBiDiagnosticAnalysisReadModelTest
         );
 
         self::assertSame(
-            4,
+            9,
             $result['analysis_count']
         );
 
         self::assertCount(
-            4,
+            9,
             $result['analyses']
         );
     }

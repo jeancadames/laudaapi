@@ -8,6 +8,11 @@ use App\Models\TransformationImplementationRequest;
 
 final class DataTransformationBiTenantPublishedEvaluationProjection
 {
+    private const KNOWN_DIAGNOSTIC_ANALYSIS_SCHEMA_VERSIONS = [
+        2,
+        3,
+    ];
+
     /**
      * Return only the latest published professional evaluation
      * belonging to this exact Data BI implementation request.
@@ -185,7 +190,7 @@ final class DataTransformationBiTenantPublishedEvaluationProjection
      *
      * D2D rules:
      * - published evaluation snapshot only;
-     * - schema V2 only;
+     * - known frozen schemas V2 and V3 only;
      * - never recompute from live sources;
      * - never expose hashes, internal ids, status_basis or source ids.
      *
@@ -202,12 +207,19 @@ final class DataTransformationBiTenantPublishedEvaluationProjection
             'analyses' => [],
         ];
 
-        if (
+        $schemaVersion =
             (int) (
                 $evaluation
                     ->diagnostic_analysis_schema_version
                 ?? 0
-            ) !== 2
+            );
+
+        if (
+            ! in_array(
+                $schemaVersion,
+                self::KNOWN_DIAGNOSTIC_ANALYSIS_SCHEMA_VERSIONS,
+                true
+            )
         ) {
             return $unavailable;
         }
@@ -220,13 +232,22 @@ final class DataTransformationBiTenantPublishedEvaluationProjection
             return $unavailable;
         }
 
+        $snapshotSchemaVersion =
+            (int) (
+                $snapshot['schema_version']
+                ?? 0
+            );
+
         if (
             ($snapshot['kind'] ?? null)
                 !== 'data_bi_diagnostic_analysis'
-            || (int) (
-                $snapshot['schema_version']
-                ?? 0
-            ) !== 2
+            || ! in_array(
+                $snapshotSchemaVersion,
+                self::KNOWN_DIAGNOSTIC_ANALYSIS_SCHEMA_VERSIONS,
+                true
+            )
+            || $snapshotSchemaVersion
+                !== $schemaVersion
             || ($snapshot['available'] ?? false)
                 !== true
             || ! is_array(
