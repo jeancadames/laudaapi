@@ -105,6 +105,7 @@ final class DataTransformationBiTenantPublishedEvaluationProjectionTest
             [
                 'published_at',
                 'summary',
+                'diagnostic_analysis',
                 'findings',
             ],
             array_keys($result)

@@ -198,6 +198,55 @@ type TenantPublishedEvaluationFinding = {
     sources: string[];
 };
 
+// D2D_TENANT_PUBLISHED_DIAGNOSTIC_ANALYSIS_TYPES
+type TenantPublishedDiagnosticDomain = {
+    domain: string;
+    group: string | null;
+};
+
+type TenantPublishedDiagnosticColumn = {
+    sheet_index: number | null;
+    sheet_name: string | null;
+    column_key: string | null;
+    column_index: number | null;
+    header: string | null;
+    matched_term: string | null;
+    coverage_status: string | null;
+    observed_type_families: string[];
+};
+
+type TenantPublishedDiagnosticEvidence = {
+    display_name: string | null;
+    declared_domains: TenantPublishedDiagnosticDomain[];
+    matched_column_count: number;
+    coverage_counts: Record<string, number>;
+    columns: TenantPublishedDiagnosticColumn[];
+};
+
+type TenantPublishedDiagnosticAnalysisItem = {
+    key: string;
+    label: string;
+    status:
+        | 'supported'
+        | 'partial'
+        | 'not_supported_by_current_evidence'
+        | string;
+    required_signal_keys: string[];
+    observed_signal_keys: string[];
+    supporting_source_count: number;
+    evidence_column_count: number;
+    coverage_counts: Record<string, number>;
+    observed_type_families: string[];
+    declared_domain_context: TenantPublishedDiagnosticDomain[];
+    supporting_evidence: TenantPublishedDiagnosticEvidence[];
+};
+
+type TenantPublishedDiagnosticAnalysis = {
+    available: boolean;
+    analyses: TenantPublishedDiagnosticAnalysisItem[];
+};
+// D2D_TENANT_PUBLISHED_DIAGNOSTIC_ANALYSIS_TYPES_END
+
 type TenantPublishedEvaluation = {
     published_at: string | null;
     summary: {
@@ -205,6 +254,7 @@ type TenantPublishedEvaluation = {
         opportunity_count: number;
         observation_count: number;
     };
+    diagnostic_analysis: TenantPublishedDiagnosticAnalysis;
     findings: TenantPublishedEvaluationFinding[];
 };
 
@@ -428,6 +478,121 @@ const props = defineProps<{
     usable_dataset: UsableDatasetStatus;
     capability: DataTransformationBiCapability;
 }>();
+
+// D2D_TENANT_PUBLISHED_DIAGNOSTIC_ANALYSIS_HELPERS
+function tenantPublishedDiagnosticAnalyses(): TenantPublishedDiagnosticAnalysisItem[] {
+    const diagnostic =
+        props.published_evaluation
+            ?.diagnostic_analysis;
+
+    if (
+        diagnostic?.available !== true
+        || !Array.isArray(
+            diagnostic.analyses,
+        )
+    ) {
+        return [];
+    }
+
+    return diagnostic.analyses;
+}
+
+function tenantPublishedDiagnosticStatusLabel(
+    status: string,
+): string {
+    return {
+        supported:
+            'Sustentado por la evidencia evaluada',
+        partial:
+            'Sustento parcial en la evidencia evaluada',
+        not_supported_by_current_evidence:
+            'Evidencia insuficiente en esta entrega',
+    }[status]
+        ?? 'Estado diagnóstico no disponible';
+}
+
+function tenantPublishedDiagnosticStatusClass(
+    status: string,
+): string {
+    return {
+        supported:
+            'border-emerald-200 bg-emerald-50 text-emerald-800',
+        partial:
+            'border-amber-200 bg-amber-50 text-amber-800',
+        not_supported_by_current_evidence:
+            'border-slate-200 bg-slate-50 text-slate-700',
+    }[status]
+        ?? 'border-border bg-muted text-muted-foreground';
+}
+
+function tenantPublishedDiagnosticSignalLabel(
+    signal: string,
+): string {
+    return {
+        identifier: 'Identificación',
+        geographic: 'Geografía',
+        temporal: 'Tiempo',
+        monetary: 'Valores monetarios',
+        quantity: 'Cantidades',
+        contact: 'Contacto',
+        product_reference:
+            'Referencia de producto',
+        financial_terms:
+            'Condiciones financieras',
+        classification_status:
+            'Clasificación',
+    }[signal]
+        ?? signal;
+}
+
+function tenantPublishedDiagnosticCoverageLabel(
+    status: string,
+): string {
+    return {
+        complete: 'Completa',
+        partial: 'Parcial',
+        absent: 'Sin evidencia',
+        unavailable: 'No disponible',
+    }[status]
+        ?? status;
+}
+
+function tenantPublishedDiagnosticCoverageSummary(
+    counts: Record<string, number>,
+): string {
+    const entries =
+        Object.entries(
+            counts ?? {},
+        ).filter(
+            ([, value]) =>
+                Number.isFinite(value)
+                && value > 0,
+        );
+
+    if (entries.length === 0) {
+        return 'Sin detalle de cobertura';
+    }
+
+    return entries
+        .map(
+            ([status, count]) =>
+                `${
+                    tenantPublishedDiagnosticCoverageLabel(
+                        status,
+                    )
+                }: ${count}`,
+        )
+        .join(' · ');
+}
+
+function tenantPublishedDiagnosticDomainLabel(
+    domain: TenantPublishedDiagnosticDomain,
+): string {
+    return domain.group
+        ? `${domain.domain} · ${domain.group}`
+        : domain.domain;
+}
+// D2D_TENANT_PUBLISHED_DIAGNOSTIC_ANALYSIS_HELPERS_END
 
 const publishedEvaluationDateLabel = computed(() => {
     const value =
@@ -4996,6 +5161,297 @@ function processingHistoryDate(
                     </section>
 
                     <!-- DATA_BI_TENANT_PUBLISHED_EVALUATION -->
+                    <!-- D2D_TENANT_PUBLISHED_DIAGNOSTIC_ANALYSIS_UI -->
+                    <section
+                        v-if="published_evaluation"
+                        class="mb-6 rounded-2xl border bg-card p-5 shadow-sm"
+                    >
+                        <div>
+                            <p
+                                class="text-[11px] font-black uppercase tracking-[0.16em] text-muted-foreground"
+                            >
+                                Diagnóstico de datos e inteligencia BI
+                            </p>
+
+                            <h3 class="mt-1 text-lg font-black">
+                                Análisis BI sustentados por la entrega evaluada
+                            </h3>
+
+                            <p
+                                class="mt-2 max-w-4xl text-sm leading-6 text-muted-foreground"
+                            >
+                                Estos resultados describen únicamente la información
+                                contenida en la entrega evaluada y publicada. No indican
+                                que la empresa carezca de esa información ni representan
+                                un porcentaje de preparación global para BI.
+                            </p>
+                        </div>
+
+                        <div
+                            v-if="
+                                published_evaluation
+                                    .diagnostic_analysis
+                                    .available
+                                && tenantPublishedDiagnosticAnalyses()
+                                    .length > 0
+                            "
+                            class="mt-5 grid gap-4 xl:grid-cols-2"
+                        >
+                            <article
+                                v-for="analysis in tenantPublishedDiagnosticAnalyses()"
+                                :key="analysis.key"
+                                class="rounded-xl border bg-background p-4"
+                            >
+                                <div
+                                    class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between"
+                                >
+                                    <div>
+                                        <h4 class="text-sm font-black">
+                                            {{ analysis.label }}
+                                        </h4>
+
+                                        <p
+                                            class="mt-1 text-xs leading-5 text-muted-foreground"
+                                        >
+                                            {{
+                                                analysis.supporting_source_count
+                                            }}
+                                            fuente(s) de soporte ·
+                                            {{
+                                                analysis.evidence_column_count
+                                            }}
+                                            columna(s) con evidencia estructural
+                                        </p>
+                                    </div>
+
+                                    <span
+                                        class="inline-flex w-fit rounded-full border px-2.5 py-1 text-[10px] font-black"
+                                        :class="
+                                            tenantPublishedDiagnosticStatusClass(
+                                                analysis.status,
+                                            )
+                                        "
+                                    >
+                                        {{
+                                            tenantPublishedDiagnosticStatusLabel(
+                                                analysis.status,
+                                            )
+                                        }}
+                                    </span>
+                                </div>
+
+                                <div
+                                    class="mt-4 rounded-lg bg-muted/30 p-3"
+                                >
+                                    <p
+                                        class="text-[10px] font-black uppercase tracking-wide text-muted-foreground"
+                                    >
+                                        Cobertura observada
+                                    </p>
+
+                                    <p class="mt-1 text-xs font-semibold">
+                                        {{
+                                            tenantPublishedDiagnosticCoverageSummary(
+                                                analysis.coverage_counts,
+                                            )
+                                        }}
+                                    </p>
+                                </div>
+
+                                <div
+                                    v-if="
+                                        analysis.observed_signal_keys
+                                            .length > 0
+                                    "
+                                    class="mt-4"
+                                >
+                                    <p
+                                        class="text-[10px] font-black uppercase tracking-wide text-muted-foreground"
+                                    >
+                                        Señales estructurales observadas
+                                    </p>
+
+                                    <div
+                                        class="mt-2 flex flex-wrap gap-2"
+                                    >
+                                        <span
+                                            v-for="signal in analysis.observed_signal_keys"
+                                            :key="`${analysis.key}-signal-${signal}`"
+                                            class="rounded-full border bg-muted/20 px-2 py-1 text-[10px] font-bold"
+                                        >
+                                            {{
+                                                tenantPublishedDiagnosticSignalLabel(
+                                                    signal,
+                                                )
+                                            }}
+                                        </span>
+                                    </div>
+                                </div>
+
+                                <div
+                                    v-if="
+                                        analysis.declared_domain_context
+                                            .length > 0
+                                    "
+                                    class="mt-4"
+                                >
+                                    <p
+                                        class="text-[10px] font-black uppercase tracking-wide text-muted-foreground"
+                                    >
+                                        Contexto de dominios declarados
+                                    </p>
+
+                                    <div
+                                        class="mt-2 flex flex-wrap gap-2"
+                                    >
+                                        <span
+                                            v-for="domain in analysis.declared_domain_context"
+                                            :key="`${analysis.key}-domain-${domain.domain}-${domain.group ?? 'none'}`"
+                                            class="rounded-full border px-2 py-1 text-[10px] font-bold"
+                                        >
+                                            {{
+                                                tenantPublishedDiagnosticDomainLabel(
+                                                    domain,
+                                                )
+                                            }}
+                                        </span>
+                                    </div>
+
+                                    <p
+                                        class="mt-2 text-[11px] leading-5 text-muted-foreground"
+                                    >
+                                        Los dominios se muestran como contexto de las
+                                        fuentes y no asignan columnas a dominios
+                                        específicos.
+                                    </p>
+                                </div>
+
+                                <div
+                                    v-if="
+                                        analysis.supporting_evidence
+                                            .length > 0
+                                    "
+                                    class="mt-4 space-y-3"
+                                >
+                                    <p
+                                        class="text-[10px] font-black uppercase tracking-wide text-muted-foreground"
+                                    >
+                                        Evidencia que sustenta este análisis
+                                    </p>
+
+                                    <div
+                                        v-for="(
+                                            evidence,
+                                            evidenceIndex
+                                        ) in analysis.supporting_evidence"
+                                        :key="`${analysis.key}-evidence-${evidenceIndex}`"
+                                        class="rounded-lg border bg-muted/10 p-3"
+                                    >
+                                        <div
+                                            class="flex flex-wrap items-start justify-between gap-2"
+                                        >
+                                            <div>
+                                                <p class="text-xs font-black">
+                                                    {{
+                                                        evidence.display_name
+                                                        ?? 'Fuente evaluada'
+                                                    }}
+                                                </p>
+
+                                                                                            </div>
+
+                                            <span
+                                                class="text-[10px] font-bold text-muted-foreground"
+                                            >
+                                                {{
+                                                    evidence.matched_column_count
+                                                }}
+                                                columna(s)
+                                            </span>
+                                        </div>
+
+                                        <div
+                                            v-if="
+                                                evidence.declared_domains
+                                                    .length > 0
+                                            "
+                                            class="mt-3 flex flex-wrap gap-1.5"
+                                        >
+                                            <span
+                                                v-for="domain in evidence.declared_domains"
+                                                :key="`${analysis.key}-evidence-${evidenceIndex}-domain-${domain.domain}-${domain.group ?? 'none'}`"
+                                                class="rounded border px-1.5 py-0.5 text-[9px] font-bold text-muted-foreground"
+                                            >
+                                                {{
+                                                    tenantPublishedDiagnosticDomainLabel(
+                                                        domain,
+                                                    )
+                                                }}
+                                            </span>
+                                        </div>
+
+                                        <div
+                                            v-if="
+                                                evidence.columns.length > 0
+                                            "
+                                            class="mt-3 space-y-1.5"
+                                        >
+                                            <div
+                                                v-for="(
+                                                    column,
+                                                    columnIndex
+                                                ) in evidence.columns"
+                                                :key="`${analysis.key}-evidence-${evidenceIndex}-column-${columnIndex}`"
+                                                class="flex flex-wrap items-center justify-between gap-2 rounded-md bg-background px-2.5 py-2"
+                                            >
+                                                <span
+                                                    class="text-[11px] font-bold"
+                                                >
+                                                    {{
+                                                        column.header
+                                                        ?? column.column_key
+                                                        ?? 'Columna evaluada'
+                                                    }}
+                                                </span>
+
+                                                <span
+                                                    class="text-[10px] font-semibold text-muted-foreground"
+                                                >
+                                                    {{
+                                                        column.coverage_status
+                                                            ? tenantPublishedDiagnosticCoverageLabel(
+                                                                column.coverage_status,
+                                                            )
+                                                            : 'Cobertura no disponible'
+                                                    }}
+                                                </span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </article>
+                        </div>
+
+                        <div
+                            v-else
+                            class="mt-5 rounded-xl border border-dashed bg-muted/20 p-4"
+                        >
+                            <p class="text-sm font-black">
+                                Análisis estructurado no disponible para esta evaluación publicada
+                            </p>
+
+                            <p
+                                class="mt-1 text-xs leading-5 text-muted-foreground"
+                            >
+                                Esta evaluación no contiene un snapshot diagnóstico
+                                compatible. LAUDA no reconstruye resultados históricos
+                                utilizando evidencia o reglas actuales.
+                            </p>
+                        </div>
+                    </section>
+                    <!-- D2D_TENANT_PUBLISHED_DIAGNOSTIC_ANALYSIS_UI_END -->
+
+
                     <section
                         v-if="published_evaluation"
                         class="rounded-[2rem] border border-emerald-200/80 bg-white p-6 shadow-sm sm:p-8 dark:border-emerald-950 dark:bg-slate-950"
