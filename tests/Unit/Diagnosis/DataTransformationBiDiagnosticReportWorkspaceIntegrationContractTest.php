@@ -191,7 +191,8 @@ final class DataTransformationBiDiagnosticReportWorkspaceIntegrationContractTest
         }
     }
 
-    public function test_tenant_and_frontend_are_not_integrated_in_this_checkpoint(): void
+
+    public function test_admin_frontend_consumes_report_while_tenant_remains_unintegrated(): void
     {
         $root =
             dirname(
@@ -220,6 +221,23 @@ final class DataTransformationBiDiagnosticReportWorkspaceIntegrationContractTest
                 .'DataTransformationBi.vue'
             );
 
+        /*
+         * R5 intentionally integrates the Admin presentation.
+         */
+        self::assertStringContainsString(
+            'diagnostic_report: DataBiDiagnosticReport | null;',
+            $adminUi
+        );
+
+        self::assertStringContainsString(
+            'DATA_BI_DIAGNOSTIC_REPORT_ADMIN_UI',
+            $adminUi
+        );
+
+        /*
+         * Tenant remains on the separately sanitized published
+         * projection and does not consume the Admin report contract.
+         */
         self::assertStringNotContainsString(
             "'diagnostic_report' =>",
             $tenant
@@ -227,11 +245,11 @@ final class DataTransformationBiDiagnosticReportWorkspaceIntegrationContractTest
 
         self::assertStringNotContainsString(
             'diagnostic_report:',
-            $adminUi
+            $tenantUi
         );
 
         self::assertStringNotContainsString(
-            'diagnostic_report:',
+            'DATA_BI_DIAGNOSTIC_REPORT_ADMIN_UI',
             $tenantUi
         );
     }

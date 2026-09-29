@@ -22,10 +22,28 @@ final class DataTransformationBiDiagnosticAnalysisAdminUiContractTest
             );
     }
 
-    public function test_admin_ui_consumes_diagnostic_analysis_projection(): void
+
+    public function test_admin_ui_preserves_analysis_contract_and_uses_report_for_presentation(): void
     {
+        /*
+         * The raw diagnostic-analysis projection remains available in
+         * the workspace for lifecycle compatibility and D2E context.
+         */
         self::assertStringContainsString(
             'diagnostic_analysis: DataBiDiagnosticAnalysisProjection | null',
+            $this->source
+        );
+
+        /*
+         * D2G presentation is composed through the diagnostic report.
+         */
+        self::assertStringContainsString(
+            'diagnostic_report: DataBiDiagnosticReport | null',
+            $this->source
+        );
+
+        self::assertStringContainsString(
+            'function dataBiDiagnosticReport()',
             $this->source
         );
 
@@ -40,17 +58,7 @@ final class DataTransformationBiDiagnosticAnalysisAdminUiContractTest
         );
 
         self::assertStringContainsString(
-            '.diagnostic_analysis',
-            $this->source
-        );
-
-        self::assertStringContainsString(
-            '.snapshot',
-            $this->source
-        );
-
-        self::assertStringContainsString(
-            '.analyses',
+            '?.structural_analysis',
             $this->source
         );
     }
@@ -90,67 +98,72 @@ final class DataTransformationBiDiagnosticAnalysisAdminUiContractTest
         }
     }
 
-    public function test_analysis_block_uses_only_snapshot_authority_for_conclusions(): void
+
+    public function test_analysis_block_uses_report_structural_analysis_snapshot_authority_for_conclusions(): void
     {
-        $start = strpos(
-            $this->source,
-            '<!-- DATA_BI_DIAGNOSTIC_ANALYSIS_ADMIN_UI -->'
+        $start =
+            strpos(
+                $this->source,
+                '<!-- DATA_BI_DIAGNOSTIC_ANALYSIS_ADMIN_UI -->'
+            );
+
+        $end =
+            strpos(
+                $this->source,
+                '<!-- DATA_BI_DIAGNOSTIC_ANALYSIS_ADMIN_UI_END -->'
+            );
+
+        self::assertNotFalse(
+            $start
         );
 
-        $end = strpos(
-            $this->source,
-            '<!-- DATA_BI_DIAGNOSTIC_ANALYSIS_ADMIN_UI_END -->'
+        self::assertNotFalse(
+            $end
         );
 
-        self::assertNotFalse($start);
-        self::assertNotFalse($end);
-        self::assertGreaterThan($start, $end);
+        $block =
+            substr(
+                $this->source,
+                $start,
+                $end - $start
+            );
 
-        $block = substr(
-            $this->source,
-            $start,
-            $end - $start
-        );
-
+        /*
+         * D2G presentation consumes the structural-analysis projection
+         * already composed by the report.
+         */
         self::assertStringContainsString(
-            'diagnostic_analysis',
+            '.diagnostic_report.structural_analysis',
             $block
         );
 
         self::assertStringContainsString(
-            'supporting_evidence',
+            'dataBiDiagnosticAnalyses()',
             $block
         );
 
-        self::assertStringNotContainsString(
+        /*
+         * The visible conclusions must not bypass the report and must
+         * never be rebuilt from live descriptive workspace layers.
+         */
+        foreach ([
+            '.diagnostic_analysis',
             '.sources',
-            $block
-        );
-
-        self::assertStringNotContainsString(
             '.semantic_diagnostic',
-            $block
-        );
-
-        self::assertStringNotContainsString(
             '.domain_coverage',
-            $block
-        );
-
-        self::assertStringNotContainsString(
             '.cross_source_relationship_candidates',
-            $block
-        );
-
-        self::assertStringNotContainsString(
             'readiness_score',
-            $block
-        );
-
-        self::assertStringNotContainsString(
+            'risk_score',
+            'opportunity_score',
             'canonical',
-            strtolower($block)
-        );
+        ] as $forbidden) {
+            self::assertStringNotContainsString(
+                $forbidden,
+                strtolower(
+                    $block
+                )
+            );
+        }
     }
 
     public function test_unknown_frozen_schema_is_not_silently_reinterpreted(): void

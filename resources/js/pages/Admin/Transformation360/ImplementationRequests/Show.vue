@@ -558,6 +558,43 @@ type DataBiDiagnosticAnalysisProjection = {
     snapshot?: DataBiDiagnosticAnalysisSnapshot | null;
 };
 
+type DataBiDiagnosticReportContext = {
+    evaluation_status: string;
+    evidence_version: number;
+    evidence_captured_at?: string | null;
+    analysis_schema_version: number | null;
+    analysis_generated_at?: string | null;
+    published_at?: string | null;
+    evaluated_source_count: number | null;
+};
+
+type DataBiDiagnosticReportProfessionalFindings = {
+    count: number;
+    weakness_count: number;
+    opportunity_count: number;
+    observation_count: number;
+    stale_count: number;
+    items: DataBiEvaluationFinding[];
+};
+
+type DataBiDiagnosticReportInterpretationBoundaries = {
+    structural_analysis_authority: string;
+    professional_findings_authority: string;
+    presentation_only: boolean;
+    automatic_findings: boolean;
+    automatic_recommendations: boolean;
+};
+
+type DataBiDiagnosticReport = {
+    report_context: DataBiDiagnosticReportContext;
+    scope_statement: string[];
+    structural_analysis: DataBiDiagnosticAnalysisProjection;
+    professional_findings: DataBiDiagnosticReportProfessionalFindings;
+    interpretation_boundaries: DataBiDiagnosticReportInterpretationBoundaries;
+};
+
+// DATA_BI_DIAGNOSTIC_REPORT_UI_TYPES_END
+
 // DATA_BI_DIAGNOSTIC_ANALYSIS_UI_TYPES_END
 
 type DataBiEvaluationFinding = {
@@ -600,6 +637,7 @@ type DataBiEvaluationWorkspace = {
     };
     sources: DataBiEvaluationWorkspaceSource[];
     diagnostic_analysis: DataBiDiagnosticAnalysisProjection | null;
+    diagnostic_report: DataBiDiagnosticReport | null;
     evaluation: DataBiEvaluationState | null;
     actions: DataBiEvaluationActions;
 };
@@ -7124,6 +7162,28 @@ function dataBiEvaluationStatusLabel(
 }
 
 
+// DATA_BI_DIAGNOSTIC_REPORT_UI_HELPERS
+
+function dataBiDiagnosticReport(): DataBiDiagnosticReport | null {
+    return (
+        dataBiEvaluationWorkspace.value
+            ?.diagnostic_report
+        ?? null
+    );
+}
+
+function dataBiDiagnosticReportFindings(): DataBiEvaluationFinding[] {
+    return (
+        dataBiDiagnosticReport()
+            ?.professional_findings
+            ?.items
+        ?? []
+    );
+}
+
+// DATA_BI_DIAGNOSTIC_REPORT_UI_HELPERS_END
+
+
 // DATA_BI_DIAGNOSTIC_ANALYSIS_UI_HELPERS
 
 const DATA_BI_DIAGNOSTIC_ANALYSIS_UI_SCHEMA_VERSIONS = [2, 3];
@@ -7141,8 +7201,8 @@ function dataBiDiagnosticAnalysisUiSchemaSupported(
 
 function dataBiDiagnosticAnalysisUiSupported(): boolean {
     const projection =
-        dataBiEvaluationWorkspace.value
-            ?.diagnostic_analysis;
+        dataBiDiagnosticReport()
+            ?.structural_analysis;
 
     return (
         projection?.available === true
@@ -7162,8 +7222,8 @@ function dataBiDiagnosticAnalyses(): DataBiDiagnosticAnalysis[] {
     }
 
     return (
-        dataBiEvaluationWorkspace.value
-            ?.diagnostic_analysis
+        dataBiDiagnosticReport()
+            ?.structural_analysis
             ?.snapshot
             ?.analyses
         ?? []
@@ -10770,11 +10830,180 @@ if (canonicalModelUiAvailable()) {
                                         evaluación a revisión.
                                     </div>
 
+                                    <!-- DATA_BI_DIAGNOSTIC_REPORT_ADMIN_UI -->
+                                    <section
+                                        v-if="
+                                            dataBiEvaluationWorkspace
+                                                .diagnostic_report
+                                        "
+                                        class="mt-5 rounded-xl border bg-background p-4"
+                                    >
+                                        <div
+                                            class="flex flex-wrap items-start justify-between gap-3"
+                                        >
+                                            <div>
+                                                <p
+                                                    class="text-[10px] font-black uppercase tracking-widest text-muted-foreground"
+                                                >
+                                                    Informe diagnóstico
+                                                </p>
+
+                                                <h5
+                                                    class="mt-1 text-base font-black"
+                                                >
+                                                    Resumen de la entrega evaluada
+                                                </h5>
+
+                                                <p
+                                                    class="mt-2 max-w-3xl text-xs leading-5 text-muted-foreground"
+                                                >
+                                                    Esta vista compone la evidencia diagnóstica
+                                                    y los hallazgos profesionales sin generar
+                                                    conclusiones, hallazgos ni recomendaciones
+                                                    adicionales.
+                                                </p>
+                                            </div>
+
+                                            <span
+                                                class="rounded-full border bg-muted/30 px-3 py-1 text-[10px] font-black uppercase tracking-wide text-muted-foreground"
+                                            >
+                                                {{
+                                                    dataBiEvaluationWorkspace
+                                                        .diagnostic_report
+                                                        .structural_analysis
+                                                        .mode
+                                                }}
+                                            </span>
+                                        </div>
+
+                                        <div
+                                            class="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-4"
+                                        >
+                                            <div
+                                                class="rounded-lg border bg-muted/20 p-3"
+                                            >
+                                                <p
+                                                    class="text-[10px] font-bold uppercase text-muted-foreground"
+                                                >
+                                                    Evidencia
+                                                </p>
+
+                                                <p class="mt-1 text-lg font-black">
+                                                    v{{
+                                                        dataBiEvaluationWorkspace
+                                                            .diagnostic_report
+                                                            .report_context
+                                                            .evidence_version
+                                                    }}
+                                                </p>
+                                            </div>
+
+                                            <div
+                                                class="rounded-lg border bg-muted/20 p-3"
+                                            >
+                                                <p
+                                                    class="text-[10px] font-bold uppercase text-muted-foreground"
+                                                >
+                                                    Fuentes evaluadas
+                                                </p>
+
+                                                <p class="mt-1 text-lg font-black">
+                                                    {{
+                                                        dataBiEvaluationWorkspace
+                                                            .diagnostic_report
+                                                            .report_context
+                                                            .evaluated_source_count
+                                                        ?? '—'
+                                                    }}
+                                                </p>
+                                            </div>
+
+                                            <div
+                                                class="rounded-lg border bg-muted/20 p-3"
+                                            >
+                                                <p
+                                                    class="text-[10px] font-bold uppercase text-muted-foreground"
+                                                >
+                                                    Hallazgos
+                                                </p>
+
+                                                <p class="mt-1 text-lg font-black">
+                                                    {{
+                                                        dataBiEvaluationWorkspace
+                                                            .diagnostic_report
+                                                            .professional_findings
+                                                            .count
+                                                    }}
+                                                </p>
+                                            </div>
+
+                                            <div
+                                                class="rounded-lg border bg-muted/20 p-3"
+                                            >
+                                                <p
+                                                    class="text-[10px] font-bold uppercase text-muted-foreground"
+                                                >
+                                                    Por revisar
+                                                </p>
+
+                                                <p class="mt-1 text-lg font-black">
+                                                    {{
+                                                        dataBiEvaluationWorkspace
+                                                            .diagnostic_report
+                                                            .professional_findings
+                                                            .stale_count
+                                                    }}
+                                                </p>
+                                            </div>
+                                        </div>
+
+                                        <ul
+                                            v-if="
+                                                dataBiEvaluationWorkspace
+                                                    .diagnostic_report
+                                                    .scope_statement
+                                                    .length
+                                            "
+                                            class="mt-4 space-y-1.5 text-xs leading-5 text-muted-foreground"
+                                        >
+                                            <li
+                                                v-for="
+                                                    (
+                                                        statement,
+                                                        statementIndex
+                                                    ) in
+                                                    dataBiEvaluationWorkspace
+                                                        .diagnostic_report
+                                                        .scope_statement
+                                                "
+                                                :key="
+                                                    `diagnostic-report-scope-${statementIndex}`
+                                                "
+                                            >
+                                                • {{ statement }}
+                                            </li>
+                                        </ul>
+
+                                        <p
+                                            v-if="
+                                                dataBiEvaluationWorkspace
+                                                    .diagnostic_report
+                                                    .interpretation_boundaries
+                                                    .presentation_only
+                                            "
+                                            class="mt-3 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground"
+                                        >
+                                            Presentación únicamente · sin generación automática
+                                            de hallazgos o recomendaciones
+                                        </p>
+                                    </section>
+                                    <!-- DATA_BI_DIAGNOSTIC_REPORT_ADMIN_UI_END -->
+
                                     <!-- DATA_BI_DIAGNOSTIC_ANALYSIS_ADMIN_UI -->
                                     <section
                                         v-if="
                                             dataBiEvaluationWorkspace
-                                                .diagnostic_analysis
+                                                .diagnostic_report.structural_analysis
                                         "
                                         class="mt-5 rounded-xl border border-indigo-200 bg-indigo-50/30 p-4 dark:border-indigo-900/70 dark:bg-indigo-950/10"
                                     >
@@ -10811,7 +11040,7 @@ if (canonicalModelUiAvailable()) {
                                                 {{
                                                     dataBiDiagnosticAnalysisModeLabel(
                                                         dataBiEvaluationWorkspace
-                                                            .diagnostic_analysis
+                                                            .diagnostic_report.structural_analysis
                                                             .mode,
                                                     )
                                                 }}
@@ -11177,7 +11406,7 @@ if (canonicalModelUiAvailable()) {
                                                 {{
                                                     dataBiDiagnosticAnalysisUnavailableMessage(
                                                         dataBiEvaluationWorkspace
-                                                            .diagnostic_analysis,
+                                                            .diagnostic_report.structural_analysis,
                                                     )
                                                 }}
                                             </p>
@@ -11185,7 +11414,7 @@ if (canonicalModelUiAvailable()) {
                                             <p
                                                 v-if="
                                                     dataBiEvaluationWorkspace
-                                                        .diagnostic_analysis
+                                                        .diagnostic_report.structural_analysis
                                                         .analysis_schema_version
                                                 "
                                                 class="mt-2 text-[10px] font-semibold text-muted-foreground"
@@ -11193,7 +11422,7 @@ if (canonicalModelUiAvailable()) {
                                                 Versión de análisis:
                                                 {{
                                                     dataBiEvaluationWorkspace
-                                                        .diagnostic_analysis
+                                                        .diagnostic_report.structural_analysis
                                                         .analysis_schema_version
                                                 }}
                                             </p>
@@ -11588,9 +11817,7 @@ if (canonicalModelUiAvailable()) {
 
                                         <div
                                             v-if="
-                                                !dataBiEvaluationWorkspace
-                                                    .evaluation
-                                                    .findings
+                                                !dataBiDiagnosticReportFindings()
                                                     .length
                                             "
                                             class="mt-3 rounded-lg border border-dashed bg-background/60 p-4 text-xs text-muted-foreground"
@@ -11607,9 +11834,7 @@ if (canonicalModelUiAvailable()) {
                                             <article
                                                 v-for="
                                                     finding in
-                                                    dataBiEvaluationWorkspace
-                                                        .evaluation
-                                                        .findings
+                                                    dataBiDiagnosticReportFindings()
                                                 "
                                                 :key="
                                                     `evaluation-finding-${finding.id}`
