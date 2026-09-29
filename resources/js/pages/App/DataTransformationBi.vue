@@ -479,6 +479,47 @@ const props = defineProps<{
     capability: DataTransformationBiCapability;
 }>();
 
+// D2G_TENANT_PUBLISHED_REPORT_HELPERS
+
+function tenantPublishedReportPublishedAtLabel(): string {
+    const value =
+        props.published_evaluation
+            ?.published_at;
+
+    if (!value) {
+        return 'Fecha no disponible';
+    }
+
+    const date =
+        new Date(
+            value
+        );
+
+    if (
+        Number.isNaN(
+            date.getTime()
+        )
+    ) {
+        return value;
+    }
+
+    return new Intl.DateTimeFormat(
+        'es-DO',
+        {
+            dateStyle:
+                'medium',
+
+            timeStyle:
+                'short',
+        },
+    ).format(
+        date
+    );
+}
+
+// D2G_TENANT_PUBLISHED_REPORT_HELPERS_END
+
+
 // D2D_TENANT_PUBLISHED_DIAGNOSTIC_ANALYSIS_HELPERS
 function tenantPublishedDiagnosticAnalyses(): TenantPublishedDiagnosticAnalysisItem[] {
     const diagnostic =
@@ -5161,6 +5202,135 @@ function processingHistoryDate(
                     </section>
 
                     <!-- DATA_BI_TENANT_PUBLISHED_EVALUATION -->
+                    <!-- D2G_TENANT_PUBLISHED_REPORT_HEADER -->
+                    <section
+                        v-if="published_evaluation"
+                        class="mb-6 rounded-2xl border bg-card p-5 shadow-sm"
+                    >
+                        <div
+                            class="flex flex-wrap items-start justify-between gap-4"
+                        >
+                            <div>
+                                <p
+                                    class="text-[11px] font-black uppercase tracking-[0.16em] text-muted-foreground"
+                                >
+                                    Resultado publicado
+                                </p>
+
+                                <h3
+                                    class="mt-1 text-xl font-black"
+                                >
+                                    Informe diagnóstico de datos e inteligencia BI
+                                </h3>
+
+                                <p
+                                    class="mt-2 max-w-4xl text-sm leading-6 text-muted-foreground"
+                                >
+                                    Este informe reúne los análisis estructurales y
+                                    los hallazgos profesionales de la entrega
+                                    evaluada y publicada.
+                                </p>
+                            </div>
+
+                            <div
+                                class="rounded-xl border bg-muted/30 px-4 py-3 text-right"
+                            >
+                                <p
+                                    class="text-[10px] font-black uppercase tracking-wide text-muted-foreground"
+                                >
+                                    Publicado
+                                </p>
+
+                                <p
+                                    class="mt-1 text-sm font-bold"
+                                >
+                                    {{
+                                        tenantPublishedReportPublishedAtLabel()
+                                    }}
+                                </p>
+                            </div>
+                        </div>
+
+                        <div
+                            class="mt-5 grid gap-3 sm:grid-cols-3"
+                        >
+                            <div
+                                class="rounded-xl border border-rose-200/70 bg-rose-50/40 p-4 dark:border-rose-950 dark:bg-rose-950/10"
+                            >
+                                <p
+                                    class="text-[10px] font-black uppercase tracking-wide text-muted-foreground"
+                                >
+                                    Debilidades
+                                </p>
+
+                                <p
+                                    class="mt-1 text-2xl font-black"
+                                >
+                                    {{
+                                        published_evaluation
+                                            .summary
+                                            .weakness_count
+                                    }}
+                                </p>
+                            </div>
+
+                            <div
+                                class="rounded-xl border border-emerald-200/70 bg-emerald-50/40 p-4 dark:border-emerald-950 dark:bg-emerald-950/10"
+                            >
+                                <p
+                                    class="text-[10px] font-black uppercase tracking-wide text-muted-foreground"
+                                >
+                                    Oportunidades
+                                </p>
+
+                                <p
+                                    class="mt-1 text-2xl font-black"
+                                >
+                                    {{
+                                        published_evaluation
+                                            .summary
+                                            .opportunity_count
+                                    }}
+                                </p>
+                            </div>
+
+                            <div
+                                class="rounded-xl border bg-muted/20 p-4"
+                            >
+                                <p
+                                    class="text-[10px] font-black uppercase tracking-wide text-muted-foreground"
+                                >
+                                    Observaciones
+                                </p>
+
+                                <p
+                                    class="mt-1 text-2xl font-black"
+                                >
+                                    {{
+                                        published_evaluation
+                                            .summary
+                                            .observation_count
+                                    }}
+                                </p>
+                            </div>
+                        </div>
+
+                        <div
+                            class="mt-4 rounded-xl border border-dashed bg-muted/20 p-4"
+                        >
+                            <p
+                                class="text-xs leading-5 text-muted-foreground"
+                            >
+                                El alcance corresponde únicamente a la entrega
+                                evaluada y publicada. La ausencia de evidencia en
+                                esta entrega no significa que la empresa carezca de
+                                esa información y este informe no representa un
+                                porcentaje de preparación global para BI.
+                            </p>
+                        </div>
+                    </section>
+                    <!-- D2G_TENANT_PUBLISHED_REPORT_HEADER_END -->
+
                     <!-- D2D_TENANT_PUBLISHED_DIAGNOSTIC_ANALYSIS_UI -->
                     <section
                         v-if="published_evaluation"
