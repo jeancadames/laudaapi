@@ -475,6 +475,91 @@ type DataBiEvaluationWorkspaceSource = {
     diagnostic_summary?: DynamicSourceDiagnosticSummary | null;
 };
 
+// DATA_BI_DIAGNOSTIC_ANALYSIS_UI_TYPES
+
+type DataBiDiagnosticAnalysisStatus =
+    | 'supported'
+    | 'partial'
+    | 'not_supported_by_current_evidence'
+    | string;
+
+type DataBiDiagnosticAnalysisColumn = {
+    sheet_index?: number | null;
+    sheet_name?: string | null;
+    column_key?: string | null;
+    column_index?: number | null;
+    header?: string | null;
+    matched_term?: string | null;
+    coverage_status?: string | null;
+    non_empty_percent?: number | null;
+    observed_type_families?: string[];
+};
+
+type DataBiDiagnosticDeclaredDomain = {
+    domain: string;
+    group?: string | null;
+};
+
+type DataBiDiagnosticDomainContext = {
+    domain: string;
+    source_ids?: number[];
+};
+
+type DataBiDiagnosticAnalysisSupportingEvidence = {
+    source_id: number;
+    display_name: string;
+    source_object_name?: string | null;
+    declared_domains?: DataBiDiagnosticDeclaredDomain[];
+    matched_column_count?: number;
+    coverage_counts?: Record<string, number>;
+    columns?: DataBiDiagnosticAnalysisColumn[];
+};
+
+type DataBiDiagnosticAnalysis = {
+    key: string;
+    label: string;
+    status: DataBiDiagnosticAnalysisStatus;
+    status_basis?: string | null;
+    required_signal_keys?: string[];
+    observed_signal_keys?: string[];
+    supporting_source_ids?: number[];
+    supporting_source_count?: number;
+    evidence_column_count?: number;
+    coverage_counts?: Record<string, number>;
+    observed_type_families?: string[];
+    domain_context_scope?: string | null;
+    declared_domain_context?: DataBiDiagnosticDomainContext[];
+    supporting_evidence?: DataBiDiagnosticAnalysisSupportingEvidence[];
+};
+
+type DataBiDiagnosticAnalysisSnapshot = {
+    kind?: string;
+    schema_version?: number;
+    scope?: string;
+    available?: boolean;
+    interpretation_boundary?: string;
+    analysis_count?: number;
+    analyses?: DataBiDiagnosticAnalysis[];
+};
+
+type DataBiDiagnosticAnalysisProjection = {
+    mode:
+        | 'preview'
+        | 'frozen'
+        | 'historical_unavailable'
+        | 'frozen_unavailable'
+        | string;
+    frozen: boolean;
+    available: boolean;
+    analysis_schema_version: number | null;
+    evidence_version: number | null;
+    generated_at?: string | null;
+    unavailable_reason?: string | null;
+    snapshot?: DataBiDiagnosticAnalysisSnapshot | null;
+};
+
+// DATA_BI_DIAGNOSTIC_ANALYSIS_UI_TYPES_END
+
 type DataBiEvaluationFinding = {
     id: number;
     finding_type: 'weakness' | 'opportunity' | 'observation' | string;
@@ -514,6 +599,7 @@ type DataBiEvaluationWorkspace = {
         submitted_at?: string | null;
     };
     sources: DataBiEvaluationWorkspaceSource[];
+    diagnostic_analysis: DataBiDiagnosticAnalysisProjection | null;
     evaluation: DataBiEvaluationState | null;
     actions: DataBiEvaluationActions;
 };
@@ -7021,6 +7107,301 @@ function dataBiEvaluationStatusLabel(
 }
 
 
+// DATA_BI_DIAGNOSTIC_ANALYSIS_UI_HELPERS
+
+function dataBiDiagnosticAnalysisUiSupported(): boolean {
+    const projection =
+        dataBiEvaluationWorkspace.value
+            ?.diagnostic_analysis;
+
+    return (
+        projection?.available === true
+        && projection.analysis_schema_version === 2
+        && Array.isArray(
+            projection.snapshot?.analyses,
+        )
+    );
+}
+
+
+function dataBiDiagnosticAnalyses(): DataBiDiagnosticAnalysis[] {
+    if (!dataBiDiagnosticAnalysisUiSupported()) {
+        return [];
+    }
+
+    return (
+        dataBiEvaluationWorkspace.value
+            ?.diagnostic_analysis
+            ?.snapshot
+            ?.analyses
+        ?? []
+    );
+}
+
+
+function dataBiDiagnosticAnalysisStatusLabel(
+    status: string,
+): string {
+    if (status === 'supported') {
+        return 'Sustentado por la evidencia evaluada';
+    }
+
+    if (status === 'partial') {
+        return 'Sustento parcial en la evidencia evaluada';
+    }
+
+    if (
+        status
+        === 'not_supported_by_current_evidence'
+    ) {
+        return 'Evidencia insuficiente en esta entrega';
+    }
+
+    return 'Estado diagnóstico no reconocido';
+}
+
+
+function dataBiDiagnosticAnalysisStatusClass(
+    status: string,
+): string {
+    if (status === 'supported') {
+        return (
+            'border-emerald-200 bg-emerald-50 '
+            + 'text-emerald-800 '
+            + 'dark:border-emerald-900 '
+            + 'dark:bg-emerald-950/30 '
+            + 'dark:text-emerald-200'
+        );
+    }
+
+    if (status === 'partial') {
+        return (
+            'border-amber-200 bg-amber-50 '
+            + 'text-amber-800 '
+            + 'dark:border-amber-900 '
+            + 'dark:bg-amber-950/30 '
+            + 'dark:text-amber-200'
+        );
+    }
+
+    return (
+        'border-slate-200 bg-slate-50 '
+        + 'text-slate-700 '
+        + 'dark:border-slate-800 '
+        + 'dark:bg-slate-900/50 '
+        + 'dark:text-slate-300'
+    );
+}
+
+
+function dataBiDiagnosticAnalysisExplanation(
+    status: string,
+): string {
+    if (status === 'supported') {
+        return (
+            'La entrega evaluada contiene evidencia '
+            + 'estructural compatible con cobertura '
+            + 'completa para sustentar este análisis.'
+        );
+    }
+
+    if (status === 'partial') {
+        return (
+            'La entrega evaluada contiene evidencia '
+            + 'estructural compatible, pero la '
+            + 'cobertura utilizable observada es parcial.'
+        );
+    }
+
+    if (
+        status
+        === 'not_supported_by_current_evidence'
+    ) {
+        return (
+            'La entrega evaluada no aporta evidencia '
+            + 'estructural utilizable suficiente para '
+            + 'sustentar este análisis.'
+        );
+    }
+
+    return (
+        'El snapshot contiene un estado diagnóstico '
+        + 'que esta interfaz no interpreta.'
+    );
+}
+
+
+function dataBiDiagnosticAnalysisModeLabel(
+    mode: string,
+): string {
+    if (mode === 'preview') {
+        return 'Vista previa · aún no congelada';
+    }
+
+    if (mode === 'frozen') {
+        return 'Resultado congelado de la evaluación';
+    }
+
+    if (mode === 'historical_unavailable') {
+        return (
+            'Análisis estructurado no disponible '
+            + 'para esta evaluación histórica'
+        );
+    }
+
+    if (mode === 'frozen_unavailable') {
+        return 'Snapshot diagnóstico no disponible';
+    }
+
+    return 'Modo diagnóstico no reconocido';
+}
+
+
+function dataBiDiagnosticAnalysisUnavailableMessage(
+    projection: DataBiDiagnosticAnalysisProjection,
+): string {
+    if (
+        projection.available
+        && projection.analysis_schema_version !== 2
+    ) {
+        return (
+            'El snapshot diagnóstico está disponible, '
+            + 'pero corresponde a una versión de contrato '
+            + 'que esta interfaz no interpreta. '
+            + 'Se conserva sin recalcular ni reconstruir.'
+        );
+    }
+
+    if (
+        projection.mode
+        === 'historical_unavailable'
+    ) {
+        return (
+            'Esta evaluación histórica fue publicada '
+            + 'antes del contrato estructurado de análisis '
+            + 'diagnóstico. No se reconstruirá con reglas '
+            + 'actuales.'
+        );
+    }
+
+    if (
+        projection.mode
+        === 'frozen_unavailable'
+    ) {
+        return (
+            'La evaluación está fuera de borrador, pero '
+            + 'no dispone de un snapshot diagnóstico '
+            + 'congelado. No se recalculará silenciosamente.'
+        );
+    }
+
+    return (
+        'El análisis diagnóstico estructurado no está '
+        + 'disponible para esta evaluación.'
+    );
+}
+
+
+function dataBiDiagnosticSignalLabel(
+    signal: string,
+): string {
+    const labels: Record<string, string> = {
+        identifier:
+            'Identificación',
+        geographic:
+            'Geográfica',
+        temporal:
+            'Temporal',
+        monetary:
+            'Monetaria',
+        contact:
+            'Contacto',
+        quantity:
+            'Cantidad',
+        product_reference:
+            'Referencia de producto',
+        financial_terms:
+            'Términos financieros',
+        classification_status:
+            'Clasificación',
+    };
+
+    return labels[signal] ?? signal;
+}
+
+
+function dataBiDiagnosticCoverageLabel(
+    coverage?: string | null,
+): string {
+    if (coverage === 'complete') {
+        return 'Completa';
+    }
+
+    if (coverage === 'partial') {
+        return 'Parcial';
+    }
+
+    if (coverage === 'empty') {
+        return 'Vacía';
+    }
+
+    if (coverage === 'unprofiled') {
+        return 'Sin profiling';
+    }
+
+    return coverage
+        ? coverage
+        : 'Sin estado';
+}
+
+
+function dataBiDiagnosticCoverageSummary(
+    analysis: DataBiDiagnosticAnalysis,
+): string {
+    const counts =
+        analysis.coverage_counts
+        ?? {};
+
+    const parts: string[] = [];
+
+    if ((counts.complete ?? 0) > 0) {
+        parts.push(
+            `${counts.complete} completa(s)`,
+        );
+    }
+
+    if ((counts.partial ?? 0) > 0) {
+        parts.push(
+            `${counts.partial} parcial(es)`,
+        );
+    }
+
+    if ((counts.empty ?? 0) > 0) {
+        parts.push(
+            `${counts.empty} vacía(s)`,
+        );
+    }
+
+    if ((counts.unprofiled ?? 0) > 0) {
+        parts.push(
+            `${counts.unprofiled} sin profiling`,
+        );
+    }
+
+    if (parts.length === 0) {
+        return (
+            analysis.evidence_column_count ?? 0
+        ) > 0
+            ? `${analysis.evidence_column_count} columna(s) observada(s)`
+            : 'Sin columnas estructurales compatibles observadas';
+    }
+
+    return parts.join(' · ');
+}
+
+// DATA_BI_DIAGNOSTIC_ANALYSIS_UI_HELPERS_END
+
+
 function dataBiEvaluationFindingTypeLabel(
     type: string | null | undefined,
 ): string {
@@ -10213,6 +10594,409 @@ if (canonicalModelUiAvailable()) {
                                         desactualizados antes de enviar la
                                         evaluación a revisión.
                                     </div>
+
+                                    <!-- DATA_BI_DIAGNOSTIC_ANALYSIS_ADMIN_UI -->
+                                    <section
+                                        v-if="
+                                            dataBiEvaluationWorkspace
+                                                .diagnostic_analysis
+                                        "
+                                        class="mt-5 rounded-xl border border-indigo-200 bg-indigo-50/30 p-4 dark:border-indigo-900/70 dark:bg-indigo-950/10"
+                                    >
+                                        <div
+                                            class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between"
+                                        >
+                                            <div class="max-w-3xl">
+                                                <p
+                                                    class="text-[10px] font-black uppercase tracking-widest text-indigo-700 dark:text-indigo-300"
+                                                >
+                                                    Análisis diagnóstico BI
+                                                </p>
+
+                                                <h5
+                                                    class="mt-1 text-base font-black"
+                                                >
+                                                    Análisis BI sustentados por
+                                                    la entrega evaluada
+                                                </h5>
+
+                                                <p
+                                                    class="mt-2 text-xs leading-5 text-muted-foreground"
+                                                >
+                                                    Estas capacidades se
+                                                    determinan únicamente desde
+                                                    el snapshot diagnóstico de
+                                                    esta evaluación.
+                                                </p>
+                                            </div>
+
+                                            <span
+                                                class="shrink-0 rounded-full border bg-background px-3 py-1.5 text-[10px] font-bold"
+                                            >
+                                                {{
+                                                    dataBiDiagnosticAnalysisModeLabel(
+                                                        dataBiEvaluationWorkspace
+                                                            .diagnostic_analysis
+                                                            .mode,
+                                                    )
+                                                }}
+                                            </span>
+                                        </div>
+
+                                        <template
+                                            v-if="
+                                                dataBiDiagnosticAnalysisUiSupported()
+                                            "
+                                        >
+                                            <div
+                                                class="mt-4 rounded-lg border border-blue-200 bg-blue-50 p-3 text-xs leading-5 text-blue-800 dark:border-blue-900 dark:bg-blue-950/20 dark:text-blue-200"
+                                            >
+                                                Los estados describen
+                                                únicamente la información
+                                                contenida en la entrega
+                                                evaluada. No indican que la
+                                                empresa carezca de esa
+                                                información ni representan un
+                                                porcentaje de preparación
+                                                global para BI.
+                                            </div>
+
+                                            <div
+                                                class="mt-4 grid gap-4 xl:grid-cols-2"
+                                            >
+                                                <article
+                                                    v-for="
+                                                        analysis in
+                                                        dataBiDiagnosticAnalyses()
+                                                    "
+                                                    :key="
+                                                        `diagnostic-analysis-${analysis.key}`
+                                                    "
+                                                    class="rounded-xl border bg-background p-4"
+                                                >
+                                                    <div
+                                                        class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between"
+                                                    >
+                                                        <div
+                                                            class="min-w-0 flex-1"
+                                                        >
+                                                            <p
+                                                                class="text-sm font-black"
+                                                            >
+                                                                {{
+                                                                    analysis.label
+                                                                }}
+                                                            </p>
+
+                                                            <p
+                                                                class="mt-2 text-xs leading-5 text-muted-foreground"
+                                                            >
+                                                                {{
+                                                                    dataBiDiagnosticAnalysisExplanation(
+                                                                        analysis.status,
+                                                                    )
+                                                                }}
+                                                            </p>
+                                                        </div>
+
+                                                        <span
+                                                            class="shrink-0 rounded-full border px-2.5 py-1 text-[10px] font-bold"
+                                                            :class="
+                                                                dataBiDiagnosticAnalysisStatusClass(
+                                                                    analysis.status,
+                                                                )
+                                                            "
+                                                        >
+                                                            {{
+                                                                dataBiDiagnosticAnalysisStatusLabel(
+                                                                    analysis.status,
+                                                                )
+                                                            }}
+                                                        </span>
+                                                    </div>
+
+                                                    <div
+                                                        class="mt-4 flex flex-wrap gap-2"
+                                                    >
+                                                        <span
+                                                            class="rounded-full border px-2.5 py-1 text-[10px] font-semibold text-muted-foreground"
+                                                        >
+                                                            {{
+                                                                analysis
+                                                                    .supporting_source_count
+                                                                ?? 0
+                                                            }}
+                                                            fuente(s)
+                                                        </span>
+
+                                                        <span
+                                                            class="rounded-full border px-2.5 py-1 text-[10px] font-semibold text-muted-foreground"
+                                                        >
+                                                            {{
+                                                                analysis
+                                                                    .evidence_column_count
+                                                                ?? 0
+                                                            }}
+                                                            columna(s)
+                                                        </span>
+
+                                                        <span
+                                                            class="rounded-full border px-2.5 py-1 text-[10px] font-semibold text-muted-foreground"
+                                                        >
+                                                            {{
+                                                                dataBiDiagnosticCoverageSummary(
+                                                                    analysis,
+                                                                )
+                                                            }}
+                                                        </span>
+                                                    </div>
+
+                                                    <div
+                                                        v-if="
+                                                            analysis
+                                                                .observed_signal_keys
+                                                                ?.length
+                                                        "
+                                                        class="mt-4"
+                                                    >
+                                                        <p
+                                                            class="text-[10px] font-black uppercase tracking-wide text-muted-foreground"
+                                                        >
+                                                            Señales observadas
+                                                        </p>
+
+                                                        <div
+                                                            class="mt-2 flex flex-wrap gap-2"
+                                                        >
+                                                            <span
+                                                                v-for="
+                                                                    signal in
+                                                                    analysis
+                                                                        .observed_signal_keys
+                                                                "
+                                                                :key="
+                                                                    `${analysis.key}-signal-${signal}`
+                                                                "
+                                                                class="rounded-full border bg-muted/30 px-2.5 py-1 text-[10px] font-semibold"
+                                                            >
+                                                                {{
+                                                                    dataBiDiagnosticSignalLabel(
+                                                                        signal,
+                                                                    )
+                                                                }}
+                                                            </span>
+                                                        </div>
+                                                    </div>
+
+                                                    <div
+                                                        v-if="
+                                                            analysis
+                                                                .supporting_evidence
+                                                                ?.length
+                                                        "
+                                                        class="mt-4 space-y-3"
+                                                    >
+                                                        <p
+                                                            class="text-[10px] font-black uppercase tracking-wide text-muted-foreground"
+                                                        >
+                                                            Evidencia que
+                                                            sustenta
+                                                        </p>
+
+                                                        <div
+                                                            v-for="
+                                                                evidence in
+                                                                analysis
+                                                                    .supporting_evidence
+                                                            "
+                                                            :key="
+                                                                `${analysis.key}-source-${evidence.source_id}`
+                                                            "
+                                                            class="rounded-lg border bg-muted/10 p-3"
+                                                        >
+                                                            <div
+                                                                class="flex flex-wrap items-start justify-between gap-2"
+                                                            >
+                                                                <div>
+                                                                    <p
+                                                                        class="text-xs font-black"
+                                                                    >
+                                                                        {{
+                                                                            evidence.display_name
+                                                                        }}
+                                                                    </p>
+
+                                                                    <p
+                                                                        v-if="
+                                                                            evidence
+                                                                                .source_object_name
+                                                                        "
+                                                                        class="mt-0.5 text-[10px] text-muted-foreground"
+                                                                    >
+                                                                        {{
+                                                                            evidence
+                                                                                .source_object_name
+                                                                        }}
+                                                                    </p>
+                                                                </div>
+
+                                                                <span
+                                                                    class="rounded-full border px-2 py-1 text-[10px] font-semibold text-muted-foreground"
+                                                                >
+                                                                    {{
+                                                                        evidence
+                                                                            .matched_column_count
+                                                                        ?? evidence
+                                                                            .columns
+                                                                            ?.length
+                                                                        ?? 0
+                                                                    }}
+                                                                    columna(s)
+                                                                </span>
+                                                            </div>
+
+                                                            <div
+                                                                v-if="
+                                                                    evidence
+                                                                        .columns
+                                                                        ?.length
+                                                                "
+                                                                class="mt-3 flex flex-wrap gap-2"
+                                                            >
+                                                                <span
+                                                                    v-for="
+                                                                        (
+                                                                            column,
+                                                                            columnIndex
+                                                                        ) in
+                                                                        evidence
+                                                                            .columns
+                                                                    "
+                                                                    :key="
+                                                                        `${analysis.key}-${evidence.source_id}-column-${column.column_key ?? columnIndex}`
+                                                                    "
+                                                                    class="rounded-lg border bg-background px-2.5 py-1.5 text-[10px]"
+                                                                >
+                                                                    <span
+                                                                        class="font-bold"
+                                                                    >
+                                                                        {{
+                                                                            column.header
+                                                                            ?? column.column_key
+                                                                            ?? 'Columna'
+                                                                        }}
+                                                                    </span>
+
+                                                                    <span
+                                                                        class="ml-1 text-muted-foreground"
+                                                                    >
+                                                                        ·
+                                                                        {{
+                                                                            dataBiDiagnosticCoverageLabel(
+                                                                                column.coverage_status,
+                                                                            )
+                                                                        }}
+                                                                    </span>
+                                                                </span>
+                                                            </div>
+
+                                                            <div
+                                                                v-if="
+                                                                    evidence
+                                                                        .declared_domains
+                                                                        ?.length
+                                                                "
+                                                                class="mt-3"
+                                                            >
+                                                                <p
+                                                                    class="text-[10px] font-semibold text-muted-foreground"
+                                                                >
+                                                                    Contexto
+                                                                    declarado
+                                                                    de la fuente:
+                                                                    {{
+                                                                        evidence
+                                                                            .declared_domains
+                                                                            .map(
+                                                                                (
+                                                                                    item,
+                                                                                ) =>
+                                                                                    item.domain,
+                                                                            )
+                                                                            .join(
+                                                                                ', ',
+                                                                            )
+                                                                    }}
+                                                                </p>
+
+                                                                <p
+                                                                    class="mt-1 text-[10px] leading-4 text-muted-foreground"
+                                                                >
+                                                                    Los dominios
+                                                                    se muestran
+                                                                    solo como
+                                                                    contexto de
+                                                                    la fuente; no
+                                                                    asignan
+                                                                    columnas a
+                                                                    dominios.
+                                                                </p>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+
+                                                    <div
+                                                        v-else
+                                                        class="mt-4 rounded-lg border border-dashed p-3 text-xs leading-5 text-muted-foreground"
+                                                    >
+                                                        No se observó evidencia
+                                                        estructural utilizable
+                                                        que sustente esta
+                                                        capacidad en la entrega
+                                                        evaluada.
+                                                    </div>
+                                                </article>
+                                            </div>
+                                        </template>
+
+                                        <div
+                                            v-else
+                                            class="mt-4 rounded-lg border border-dashed bg-background/60 p-4"
+                                        >
+                                            <p class="text-sm font-black">
+                                                Análisis estructurado no
+                                                disponible para mostrar
+                                            </p>
+
+                                            <p
+                                                class="mt-1 max-w-3xl text-xs leading-5 text-muted-foreground"
+                                            >
+                                                {{
+                                                    dataBiDiagnosticAnalysisUnavailableMessage(
+                                                        dataBiEvaluationWorkspace
+                                                            .diagnostic_analysis,
+                                                    )
+                                                }}
+                                            </p>
+
+                                            <p
+                                                v-if="
+                                                    dataBiEvaluationWorkspace
+                                                        .diagnostic_analysis
+                                                        .analysis_schema_version
+                                                "
+                                                class="mt-2 text-[10px] font-semibold text-muted-foreground"
+                                            >
+                                                Versión de análisis:
+                                                {{
+                                                    dataBiEvaluationWorkspace
+                                                        .diagnostic_analysis
+                                                        .analysis_schema_version
+                                                }}
+                                            </p>
+                                        </div>
+                                    </section>
+                                    <!-- DATA_BI_DIAGNOSTIC_ANALYSIS_ADMIN_UI_END -->
 
                                     <section
                                         v-if="
