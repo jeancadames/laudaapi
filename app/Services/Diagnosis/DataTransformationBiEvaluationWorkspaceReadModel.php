@@ -109,6 +109,21 @@ final class DataTransformationBiEvaluationWorkspaceReadModel
                         $sourcePayloads
                     ),
 
+            /*
+             * Diagnostic conclusions have their own lifecycle
+             * authority:
+             *
+             * draft -> preview from pinned evaluation evidence;
+             * ready/published -> exact frozen analysis snapshot.
+             *
+             * Never derive this payload from live $sourcePayloads.
+             */
+            'diagnostic_analysis' =>
+                DataTransformationBiDiagnosticAnalysisWorkspaceProjection
+                    ::fromEvaluation(
+                        $evaluation
+                    ),
+
             'evaluation' =>
                 $evaluation
                     ? $this->evaluationPayload(
