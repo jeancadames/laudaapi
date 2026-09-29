@@ -7126,6 +7126,19 @@ function dataBiEvaluationStatusLabel(
 
 // DATA_BI_DIAGNOSTIC_ANALYSIS_UI_HELPERS
 
+const DATA_BI_DIAGNOSTIC_ANALYSIS_UI_SCHEMA_VERSIONS = [2, 3];
+
+function dataBiDiagnosticAnalysisUiSchemaSupported(
+    schemaVersion: number | null,
+): boolean {
+    return (
+        schemaVersion !== null
+        && DATA_BI_DIAGNOSTIC_ANALYSIS_UI_SCHEMA_VERSIONS.includes(
+            schemaVersion,
+        )
+    );
+}
+
 function dataBiDiagnosticAnalysisUiSupported(): boolean {
     const projection =
         dataBiEvaluationWorkspace.value
@@ -7133,7 +7146,9 @@ function dataBiDiagnosticAnalysisUiSupported(): boolean {
 
     return (
         projection?.available === true
-        && projection.analysis_schema_version === 2
+        && dataBiDiagnosticAnalysisUiSchemaSupported(
+            projection.analysis_schema_version,
+        )
         && Array.isArray(
             projection.snapshot?.analyses,
         )
@@ -7279,7 +7294,9 @@ function dataBiDiagnosticAnalysisUnavailableMessage(
 ): string {
     if (
         projection.available
-        && projection.analysis_schema_version !== 2
+        && !dataBiDiagnosticAnalysisUiSchemaSupported(
+            projection.analysis_schema_version,
+        )
     ) {
         return (
             'El snapshot diagnóstico está disponible, '

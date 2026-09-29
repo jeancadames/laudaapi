@@ -156,7 +156,22 @@ final class DataTransformationBiDiagnosticAnalysisAdminUiContractTest
     public function test_unknown_frozen_schema_is_not_silently_reinterpreted(): void
     {
         self::assertStringContainsString(
+            'DATA_BI_DIAGNOSTIC_ANALYSIS_UI_SCHEMA_VERSIONS = [2, 3]',
+            $this->source
+        );
+
+        self::assertStringContainsString(
+            'dataBiDiagnosticAnalysisUiSchemaSupported',
+            $this->source
+        );
+
+        self::assertStringNotContainsString(
             'projection.analysis_schema_version === 2',
+            $this->source
+        );
+
+        self::assertStringNotContainsString(
+            'projection.analysis_schema_version !== 2',
             $this->source
         );
 
