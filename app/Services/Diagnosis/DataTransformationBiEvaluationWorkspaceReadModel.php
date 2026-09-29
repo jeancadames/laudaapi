@@ -124,6 +124,22 @@ final class DataTransformationBiEvaluationWorkspaceReadModel
                         $evaluation
                     ),
 
+            /*
+             * Presentation-only diagnostic report composition.
+             *
+             * The report delegates structural conclusions to the
+             * diagnostic-analysis lifecycle authority and presents only
+             * already-authored professional findings.
+             *
+             * No report persistence, scoring or recommendation
+             * generation occurs here.
+             */
+            'diagnostic_report' =>
+                DataTransformationBiDiagnosticReportProjection
+                    ::fromEvaluation(
+                        $evaluation
+                    ),
+
             'evaluation' =>
                 $evaluation
                     ? $this->evaluationPayload(
