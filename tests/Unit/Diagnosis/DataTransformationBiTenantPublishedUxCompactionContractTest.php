@@ -70,10 +70,10 @@ final class DataTransformationBiTenantPublishedUxCompactionContractTest extends 
         }
     }
 
-    public function test_exactly_two_sections_use_published_compaction(): void
+    public function test_exactly_three_sections_use_published_compaction(): void
     {
         self::assertSame(
-            2,
+            3,
             substr_count(
                 $this->tenantUi,
                 ':open="published_evaluation ? undefined : true"'
@@ -81,7 +81,7 @@ final class DataTransformationBiTenantPublishedUxCompactionContractTest extends 
         );
 
         self::assertSame(
-            2,
+            3,
             substr_count(
                 $this->tenantUi,
                 'v-show="published_evaluation"'
@@ -89,11 +89,51 @@ final class DataTransformationBiTenantPublishedUxCompactionContractTest extends 
         );
 
         self::assertSame(
-            2,
+            3,
             substr_count(
                 $this->tenantUi,
                 'Ver detalle'
             )
+        );
+    }
+
+    public function test_scope_compacts_after_publication(): void
+    {
+        foreach (
+            [
+                'D2G_R10_TENANT_SCOPE_COMPACTION',
+                'Alcance potencial del servicio',
+                'capabilityIncludesForDisplay.length',
+                'área contemplada',
+                'áreas contempladas',
+            ]
+            as $required
+        ) {
+            self::assertStringContainsString(
+                $required,
+                $this->tenantUi
+            );
+        }
+    }
+
+    public function test_published_definition_summary_exposes_agreed_state(): void
+    {
+        self::assertStringContainsString(
+            '· Definición acordada',
+            $this->tenantUi
+        );
+    }
+
+    public function test_redundant_agreed_card_is_hidden_after_publication(): void
+    {
+        self::assertStringContainsString(
+            '&& !published_evaluation',
+            $this->tenantUi
+        );
+
+        self::assertStringContainsString(
+            'Tu empresa acordó esta versión',
+            $this->tenantUi
         );
     }
 

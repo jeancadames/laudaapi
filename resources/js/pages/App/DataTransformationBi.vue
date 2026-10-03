@@ -2932,6 +2932,61 @@ function processingHistoryDate(
                     <section
                         class="rounded-[2rem] border border-slate-200/70 bg-white p-6 shadow-sm sm:p-8 dark:border-slate-800 dark:bg-slate-950"
                     >
+                        <!-- D2G_R10_TENANT_SCOPE_COMPACTION -->
+                        <details
+                            :open="published_evaluation ? undefined : true"
+                        >
+                            <summary
+                                v-show="published_evaluation"
+                                class="cursor-pointer list-none"
+                            >
+                                <div
+                                    class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between"
+                                >
+                                    <div>
+                                        <p
+                                            class="text-[10px] font-black tracking-widest text-blue-600 uppercase dark:text-blue-400"
+                                        >
+                                            Datos BI
+                                        </p>
+
+                                        <h2
+                                            class="mt-1 text-lg font-black text-slate-950 dark:text-white"
+                                        >
+                                            Alcance potencial del servicio
+                                        </h2>
+
+                                        <p
+                                            class="mt-1 text-xs leading-5 text-slate-500 dark:text-slate-400"
+                                        >
+                                            {{
+                                                capabilityIncludesForDisplay.length
+                                            }}
+                                            {{
+                                                capabilityIncludesForDisplay.length === 1
+                                                    ? 'área contemplada'
+                                                    : 'áreas contempladas'
+                                            }}
+                                            · Consulta el alcance considerado para una implementación futura.
+                                        </p>
+                                    </div>
+
+                                    <span
+                                        class="inline-flex shrink-0 items-center gap-2 rounded-full border border-blue-200 bg-blue-50 px-3 py-1.5 text-xs font-black text-blue-700 dark:border-blue-900 dark:bg-blue-950/30 dark:text-blue-300"
+                                    >
+                                        Ver detalle
+                                        <span aria-hidden="true">↓</span>
+                                    </span>
+                                </div>
+                            </summary>
+
+                            <div
+                                :class="
+                                    published_evaluation
+                                        ? 'mt-5 border-t border-slate-200/70 pt-5 dark:border-slate-800'
+                                        : ''
+                                "
+                            >
                         <div class="flex items-start gap-3">
                             <div
                                 class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-blue-50 text-blue-600 dark:bg-blue-950/30 dark:text-blue-300"
@@ -2977,7 +3032,11 @@ function processingHistoryDate(
                                 <span>{{ item }}</span>
                             </li>
                         </ul>
-                    </section>
+
+                            </div>
+                        </details>
+                        <!-- D2G_R10_TENANT_SCOPE_COMPACTION_END -->
+</section>
                 </div>
 
                 <!-- Contenido posterior al alcance · ancho completo -->
@@ -3015,6 +3074,7 @@ function processingHistoryDate(
                                             class="mt-1 text-xs leading-5 text-slate-500 dark:text-slate-400"
                                         >
                                             Versión V{{ tenantDefinitionReview.version }}
+                                            · Definición acordada
                                             ·
                                             {{
                                                 tenantDefinitionReview
@@ -3490,6 +3550,7 @@ function processingHistoryDate(
                             implementation_request.status ===
                                 'definition_agreed'
                             && tenantDefinitionReview
+                            && !published_evaluation
                         "
                         class="rounded-[2rem] border border-emerald-200/70 bg-emerald-50/40 p-6 shadow-sm sm:p-8 dark:border-emerald-950 dark:bg-emerald-950/10"
                     >
