@@ -2782,6 +2782,15 @@ function processingHistoryDate(
                                     Resultado de la dimensión Datos e
                                     Inteligencia.
                                 </p>
+
+                                    <p
+                                        class="mt-2 max-w-md text-[11px] leading-5 text-muted-foreground"
+                                    >
+                                        Resultado del Diagnóstico 360 inicial.
+                                        No representa el nivel de preparación
+                                        técnica de los datos ni el resultado de
+                                        esta evaluación diagnóstica.
+                                    </p>
                             </div>
                         </div>
 
@@ -5607,15 +5616,13 @@ function processingHistoryDate(
                             class="mt-5 rounded-xl border border-dashed bg-muted/20 p-4"
                         >
                             <p class="text-sm font-black">
-                                Análisis estructurado no disponible para esta evaluación publicada
+                                Análisis estructurales no disponibles para esta evaluación histórica
                             </p>
 
                             <p
                                 class="mt-1 text-xs leading-5 text-muted-foreground"
                             >
-                                Esta evaluación no contiene un snapshot diagnóstico
-                                compatible. LAUDA no reconstruye resultados históricos
-                                utilizando evidencia o reglas actuales.
+                                Esta evaluación fue publicada antes de incorporar los análisis estructurales versionados. Los hallazgos profesionales publicados se mantienen disponibles. LAUDA no reconstruye resultados históricos utilizando evidencia o reglas actuales.
                             </p>
                         </div>
                     </section>
@@ -5623,108 +5630,34 @@ function processingHistoryDate(
 
 
                     <section
-                        v-if="published_evaluation"
-                        class="rounded-[2rem] border border-emerald-200/80 bg-white p-6 shadow-sm sm:p-8 dark:border-emerald-950 dark:bg-slate-950"
-                    >
-                        <div
-                            class="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between"
+                            v-if="published_evaluation"
+                            class="rounded-[2rem] border border-emerald-200/80 bg-white p-6 shadow-sm sm:p-8 dark:border-emerald-950 dark:bg-slate-950"
                         >
+                            <!-- D2G_TENANT_PUBLISHED_FINDINGS -->
                             <div>
                                 <p
                                     class="text-[10px] font-black tracking-widest text-emerald-600 uppercase dark:text-emerald-400"
                                 >
-                                    Resultado publicado
+                                    Hallazgos profesionales
                                 </p>
 
                                 <h2
                                     class="mt-1 text-xl font-black text-slate-950 dark:text-white"
                                 >
-                                    Evaluación diagnóstica de tus datos
+                                    Conclusiones y recomendaciones publicadas
                                 </h2>
 
                                 <p
                                     class="mt-2 max-w-3xl text-sm leading-6 text-slate-500 dark:text-slate-400"
                                 >
-                                    LAUDA revisó la entrega de información y
-                                    publicó sus conclusiones profesionales.
-                                    Estos resultados describen debilidades,
-                                    oportunidades, observaciones y
-                                    recomendaciones sobre la información
-                                    recibida.
+                                    Debilidades, oportunidades y observaciones
+                                    documentadas por LAUDA a partir de la entrega
+                                    evaluada. Las recomendaciones corresponden a
+                                    la interpretación profesional publicada.
                                 </p>
                             </div>
 
                             <div
-                                v-if="publishedEvaluationDateLabel"
-                                class="shrink-0 rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-[10px] font-black tracking-wide text-emerald-700 uppercase dark:border-emerald-900 dark:bg-emerald-950/30 dark:text-emerald-300"
-                            >
-                                Publicado
-                                {{ publishedEvaluationDateLabel }}
-                            </div>
-                        </div>
-
-                        <div
-                            class="mt-6 grid gap-3 sm:grid-cols-3"
-                        >
-                            <div
-                                class="rounded-2xl border border-rose-200/70 bg-rose-50/40 p-4 dark:border-rose-950 dark:bg-rose-950/10"
-                            >
-                                <p
-                                    class="text-[10px] font-black tracking-wide text-rose-600 uppercase dark:text-rose-400"
-                                >
-                                    Debilidades
-                                </p>
-                                <p
-                                    class="mt-1 text-2xl font-black text-slate-950 dark:text-white"
-                                >
-                                    {{
-                                        published_evaluation
-                                            .summary
-                                            .weakness_count
-                                    }}
-                                </p>
-                            </div>
-
-                            <div
-                                class="rounded-2xl border border-emerald-200/70 bg-emerald-50/40 p-4 dark:border-emerald-950 dark:bg-emerald-950/10"
-                            >
-                                <p
-                                    class="text-[10px] font-black tracking-wide text-emerald-600 uppercase dark:text-emerald-400"
-                                >
-                                    Oportunidades
-                                </p>
-                                <p
-                                    class="mt-1 text-2xl font-black text-slate-950 dark:text-white"
-                                >
-                                    {{
-                                        published_evaluation
-                                            .summary
-                                            .opportunity_count
-                                    }}
-                                </p>
-                            </div>
-
-                            <div
-                                class="rounded-2xl border border-sky-200/70 bg-sky-50/40 p-4 dark:border-sky-950 dark:bg-sky-950/10"
-                            >
-                                <p
-                                    class="text-[10px] font-black tracking-wide text-sky-600 uppercase dark:text-sky-400"
-                                >
-                                    Observaciones
-                                </p>
-                                <p
-                                    class="mt-1 text-2xl font-black text-slate-950 dark:text-white"
-                                >
-                                    {{
-                                        published_evaluation
-                                            .summary
-                                            .observation_count
-                                    }}
-                                </p>
-                            </div>
-                        </div>
-
-                        <div
                             class="mt-7 space-y-7"
                         >
                             <section

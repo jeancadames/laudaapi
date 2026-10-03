@@ -126,7 +126,7 @@ final class DataTransformationBiTenantPublishedEvaluationUiContractTest
             [
                 'published_evaluation: TenantPublishedEvaluation | null',
                 'Resultado publicado',
-                'Evaluación diagnóstica de tus datos',
+                'Informe diagnóstico de datos e inteligencia BI',
                 'Debilidades',
                 'Oportunidades',
                 'Observaciones',
