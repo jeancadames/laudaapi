@@ -2987,6 +2987,61 @@ function processingHistoryDate(
                         v-if="tenantDefinitionReview"
                         class="rounded-[2rem] border border-emerald-200/70 bg-white p-6 shadow-sm sm:p-8 dark:border-emerald-950 dark:bg-slate-950"
                     >
+                        <!-- D2G_R9_TENANT_DEFINITION_COMPACTION -->
+                        <details
+                            :open="published_evaluation ? undefined : true"
+                        >
+                            <summary
+                                v-show="published_evaluation"
+                                class="cursor-pointer list-none"
+                            >
+                                <div
+                                    class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between"
+                                >
+                                    <div>
+                                        <p
+                                            class="text-[10px] font-black tracking-widest text-emerald-600 uppercase dark:text-emerald-400"
+                                        >
+                                            Definición funcional
+                                        </p>
+
+                                        <h2
+                                            class="mt-1 text-lg font-black text-slate-950 dark:text-white"
+                                        >
+                                            Consulta la definición acordada
+                                        </h2>
+
+                                        <p
+                                            class="mt-1 text-xs leading-5 text-slate-500 dark:text-slate-400"
+                                        >
+                                            Versión V{{ tenantDefinitionReview.version }}
+                                            ·
+                                            {{
+                                                tenantDefinitionReview
+                                                    .human_review
+                                                    .completed
+                                                    ? 'Revisión LAUDA completada'
+                                                    : 'Revisión LAUDA pendiente'
+                                            }}
+                                        </p>
+                                    </div>
+
+                                    <span
+                                        class="inline-flex shrink-0 items-center gap-2 rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-xs font-black text-emerald-700 dark:border-emerald-900 dark:bg-emerald-950/30 dark:text-emerald-300"
+                                    >
+                                        Ver detalle
+                                        <span aria-hidden="true">↓</span>
+                                    </span>
+                                </div>
+                            </summary>
+
+                            <div
+                                :class="
+                                    published_evaluation
+                                        ? 'mt-5 border-t border-slate-200/70 pt-5 dark:border-slate-800'
+                                        : ''
+                                "
+                            >
                         <div
                             class="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between"
                         >
@@ -3424,7 +3479,11 @@ function processingHistoryDate(
                             contratación, facturación, activación,
                             suscripción o inicio de ejecución.
                         </div>
-                    </section>
+
+                            </div>
+                        </details>
+                        <!-- D2G_R9_TENANT_DEFINITION_COMPACTION_END -->
+</section>
 
                     <section
                         v-if="
@@ -3643,6 +3702,77 @@ function processingHistoryDate(
                         v-if="source_workspace.access.can_manage"
                         class="rounded-[2rem] border border-cyan-200/70 bg-white p-6 shadow-sm sm:p-8 dark:border-cyan-950 dark:bg-slate-950"
                     >
+                        <!-- D2G_R9_TENANT_DELIVERY_COMPACTION -->
+                        <details
+                            :open="published_evaluation ? undefined : true"
+                        >
+                            <summary
+                                v-show="published_evaluation"
+                                class="cursor-pointer list-none"
+                            >
+                                <div
+                                    class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between"
+                                >
+                                    <div>
+                                        <p
+                                            class="text-[10px] font-black tracking-widest text-cyan-700 uppercase dark:text-cyan-400"
+                                        >
+                                            Entrega de información
+                                        </p>
+
+                                        <h2
+                                            class="mt-1 text-lg font-black text-slate-950 dark:text-white"
+                                        >
+                                            Consulta la entrega evaluada
+                                        </h2>
+
+                                        <p
+                                            class="mt-1 text-xs leading-5 text-slate-500 dark:text-slate-400"
+                                        >
+                                            <span
+                                                v-if="source_workspace.session"
+                                            >
+                                                Sesión #{{ source_workspace.session.id }}
+                                                ·
+                                            </span>
+
+                                            {{
+                                                source_workspace
+                                                    .readiness
+                                                    .complete_source_count
+                                            }}/{{
+                                                source_workspace
+                                                    .readiness
+                                                    .source_count
+                                            }}
+                                            fuentes completas
+                                            ·
+                                            {{ sourceWorkspaceStatusLabel }}
+
+                                            <span
+                                                v-if="!canManageSources"
+                                            >
+                                                · Solo lectura
+                                            </span>
+                                        </p>
+                                    </div>
+
+                                    <span
+                                        class="inline-flex shrink-0 items-center gap-2 rounded-full border border-cyan-200 bg-cyan-50 px-3 py-1.5 text-xs font-black text-cyan-700 dark:border-cyan-900 dark:bg-cyan-950/30 dark:text-cyan-300"
+                                    >
+                                        Ver detalle
+                                        <span aria-hidden="true">↓</span>
+                                    </span>
+                                </div>
+                            </summary>
+
+                            <div
+                                :class="
+                                    published_evaluation
+                                        ? 'mt-5 border-t border-slate-200/70 pt-5 dark:border-slate-800'
+                                        : ''
+                                "
+                            >
                         <div
                             class="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between"
                         >
@@ -5208,7 +5338,11 @@ function processingHistoryDate(
                             normalización o implementación posterior pertenece a
                             una etapa independiente.
                         </p>
-                    </section>
+
+                            </div>
+                        </details>
+                        <!-- D2G_R9_TENANT_DELIVERY_COMPACTION_END -->
+</section>
 
                     <!-- DATA_BI_TENANT_PUBLISHED_EVALUATION -->
                     <!-- D2G_TENANT_PUBLISHED_REPORT_HEADER -->
