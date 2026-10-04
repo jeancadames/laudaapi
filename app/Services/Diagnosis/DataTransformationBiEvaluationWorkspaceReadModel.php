@@ -4,6 +4,7 @@ namespace App\Services\Diagnosis;
 
 use App\Models\DataTransformationBiEvaluation;
 use App\Models\DataTransformationBiEvaluationFinding;
+use App\Models\DataTransformationBiEvaluationImplementationChallenge;
 use App\Models\DataTransformationBiIntakeSession;
 use App\Models\DataTransformationBiSourceAsset;
 use App\Models\TransformationImplementationRequest;
@@ -30,6 +31,7 @@ final class DataTransformationBiEvaluationWorkspaceReadModel
                 )
                 ->with([
                     'findings.sources',
+                    'implementationChallenges.findings',
                 ])
                 ->first();
 
@@ -288,6 +290,62 @@ final class DataTransformationBiEvaluationWorkspaceReadModel
                 ->values()
                 ->all();
 
+        $implementationChallenges =
+            $evaluation
+                ->implementationChallenges
+                ->map(
+                    function (
+                        DataTransformationBiEvaluationImplementationChallenge $challenge
+                    ) use (
+                        $evaluation
+                    ): array {
+                        return [
+                            'id' =>
+                                (int) $challenge->getKey(),
+
+                            'title' =>
+                                (string) $challenge->title,
+
+                            'details' =>
+                                (string) $challenge->details,
+
+                            'recommended_response' =>
+                                $challenge->recommended_response,
+
+                            'priority' =>
+                                $challenge->priority,
+
+                            'evidence_version' =>
+                                (int)
+                                $challenge->evidence_version,
+
+                            'evidence_current' =>
+                                (int)
+                                $challenge->evidence_version
+                                === (int)
+                                $evaluation->evidence_version,
+
+                            'sort_order' =>
+                                (int)
+                                $challenge->sort_order,
+
+                            'finding_ids' =>
+                                $challenge
+                                    ->findings
+                                    ->pluck('id')
+                                    ->map(
+                                        static fn ($id): int =>
+                                            (int) $id
+                                    )
+                                    ->values()
+                                    ->all(),
+                        ];
+                    }
+                )
+                ->values()
+                ->all();
+
+
         $staleCount =
             collect(
                 $findings
@@ -297,6 +355,17 @@ final class DataTransformationBiEvaluationWorkspaceReadModel
                     false
                 )
                 ->count();
+
+        $staleImplementationChallengeCount =
+            collect(
+                $implementationChallenges
+            )
+                ->where(
+                    'evidence_current',
+                    false
+                )
+                ->count();
+
 
         return [
             'id' =>
@@ -331,6 +400,17 @@ final class DataTransformationBiEvaluationWorkspaceReadModel
             'stale_finding_count' =>
                 $staleCount,
 
+            'implementation_challenge_count' =>
+                count(
+                    $implementationChallenges
+                ),
+
+            'stale_implementation_challenge_count' =>
+                $staleImplementationChallengeCount,
+
+            'implementation_challenges' =>
+                $implementationChallenges,
+
             'findings' =>
                 $findings,
         ];
@@ -354,6 +434,10 @@ final class DataTransformationBiEvaluationWorkspaceReadModel
                 ),
 
             'can_manage_findings' =>
+                $submitted
+                && $evaluation?->isDraft() === true,
+
+            'can_manage_implementation_challenges' =>
                 $submitted
                 && $evaluation?->isDraft() === true,
 

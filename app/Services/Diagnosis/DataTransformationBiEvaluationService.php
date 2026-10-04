@@ -4,6 +4,7 @@ namespace App\Services\Diagnosis;
 
 use App\Models\DataTransformationBiEvaluation;
 use App\Models\DataTransformationBiEvaluationFinding;
+use App\Models\DataTransformationBiEvaluationImplementationChallenge;
 use App\Models\DataTransformationBiIntakeSession;
 use App\Models\DataTransformationBiSourceAsset;
 use App\Models\User;
@@ -251,6 +252,10 @@ final class DataTransformationBiEvaluationService
                     $evaluation
                 );
 
+                $this->assertReviewableImplementationChallenges(
+                    $evaluation
+                );
+
                 $diagnosticAnalysis =
                     $this->captureDiagnosticAnalysis(
                         $evaluation
@@ -355,6 +360,10 @@ final class DataTransformationBiEvaluationService
                 );
 
                 $this->assertReviewableFindings(
+                    $evaluation
+                );
+
+                $this->assertReviewableImplementationChallenges(
                     $evaluation
                 );
 
@@ -478,6 +487,65 @@ final class DataTransformationBiEvaluationService
             ]);
         }
     }
+
+    /**
+     * Implementation challenges are optional.
+     *
+     * If professional implementation implications were authored,
+     * every challenge must already be confirmed against the exact
+     * evidence version entering review.
+     *
+     * This gate is validation-only:
+     * it never creates, updates or reconfirms challenges.
+     */
+    private function assertReviewableImplementationChallenges(
+        DataTransformationBiEvaluation $evaluation
+    ): void {
+        $challenges =
+            DataTransformationBiEvaluationImplementationChallenge
+                ::query()
+                ->where(
+                    'data_transformation_bi_evaluation_id',
+                    $evaluation->getKey()
+                )
+                ->lockForUpdate()
+                ->get([
+                    'id',
+                    'evidence_version',
+                ]);
+
+        /*
+         * Zero challenges is explicitly valid.
+         *
+         * Challenges are a professional implementation layer,
+         * not a mandatory fourth finding type.
+         */
+        if ($challenges->isEmpty()) {
+            return;
+        }
+
+        $currentEvidenceVersion =
+            (int) $evaluation
+                ->evidence_version;
+
+        $hasStaleChallenges =
+            $challenges->contains(
+                fn (
+                    DataTransformationBiEvaluationImplementationChallenge $challenge
+                ): bool =>
+                    (int) $challenge->evidence_version
+                    !== $currentEvidenceVersion
+            );
+
+        if ($hasStaleChallenges) {
+            throw ValidationException::withMessages([
+                'evaluation' => [
+                    'Hay retos de implementación que no han sido confirmados contra la versión actual de la evidencia diagnóstica.',
+                ],
+            ]);
+        }
+    }
+
 
     private function assertEvidenceStillCurrent(
         DataTransformationBiEvaluation $evaluation,
@@ -767,6 +835,28 @@ final class DataTransformationBiEvaluationService
     private function canonicalizeDiagnosticAnalysisValue(
         mixed $value
     ): mixed {
+        /*
+         * JSON numbers do not carry an integer-vs-float semantic type.
+         *
+         * MySQL JSON normalizes an integral floating-point value such as
+         * 100.0 to the JSON number 100. If the hash preserved PHP's
+         * float/int distinction, the exact same semantic snapshot could
+         * fail integrity verification after a database round-trip.
+         *
+         * Normalize only finite, mathematically integral floats that fit
+         * in the native integer range. Non-integral values keep their
+         * floating-point representation.
+         */
+        if (
+            is_float($value)
+            && is_finite($value)
+            && $value >= PHP_INT_MIN
+            && $value <= PHP_INT_MAX
+            && floor($value) === $value
+        ) {
+            return (int) $value;
+        }
+
         if (! is_array($value)) {
             return $value;
         }

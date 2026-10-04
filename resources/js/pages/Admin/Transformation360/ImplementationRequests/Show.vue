@@ -610,6 +610,19 @@ type DataBiEvaluationFinding = {
     source_ids: number[];
 };
 
+type DataBiEvaluationImplementationChallenge = {
+    id: number;
+    title: string;
+    details: string;
+    recommended_response?: string | null;
+    priority?: 'high' | 'medium' | 'low' | string | null;
+    evidence_version: number;
+    evidence_current: boolean;
+    sort_order: number;
+    finding_ids: number[];
+};
+
+
 type DataBiEvaluationState = {
     id: number;
     status: 'draft' | 'ready_for_review' | 'published' | string;
@@ -620,11 +633,15 @@ type DataBiEvaluationState = {
     finding_count: number;
     stale_finding_count: number;
     findings: DataBiEvaluationFinding[];
+    implementation_challenge_count: number;
+    stale_implementation_challenge_count: number;
+    implementation_challenges: DataBiEvaluationImplementationChallenge[];
 };
 
 type DataBiEvaluationActions = {
     can_prepare: boolean;
     can_manage_findings: boolean;
+    can_manage_implementation_challenges: boolean;
     can_mark_ready_for_review: boolean;
     can_publish: boolean;
 };
@@ -657,6 +674,15 @@ type DataBiEvaluationFindingForm = {
     priority: '' | 'high' | 'medium' | 'low';
     source_ids: number[];
 };
+
+type DataBiEvaluationImplementationChallengeForm = {
+    title: string;
+    details: string;
+    recommended_response: string;
+    priority: '' | 'high' | 'medium' | 'low';
+    finding_ids: number[];
+};
+
 
 // D2E_DIAGNOSTIC_FINDING_CONTEXT_TYPES
 type DataBiEvaluationFindingContext = {
@@ -7535,6 +7561,36 @@ function dataBiEvaluationPriorityLabel(
         : 'Sin prioridad';
 }
 
+function dataBiEvaluationLinkedFindingLabel(
+    findingId: number,
+): string {
+    const finding =
+        dataBiEvaluationWorkspace.value
+            ?.evaluation
+            ?.findings
+            ?.find(
+                (candidate) =>
+                    candidate.id === findingId,
+            );
+
+    if (!finding) {
+        return `Hallazgo #${findingId}`;
+    }
+
+    return [
+        dataBiEvaluationFindingTypeLabel(
+            finding.finding_type,
+        ),
+        finding.title,
+    ]
+        .filter(
+            (value) =>
+                value.trim() !== '',
+        )
+        .join(' · ');
+}
+
+
 
 function dataBiEvaluationSourceLabel(
     sourceId: number,
@@ -7680,6 +7736,34 @@ async function dataBiEvaluationRequest(
 }
 
 
+// D2H_IMPLEMENTATION_CHALLENGE_ADMIN_UI_STATE
+
+const dataBiEvaluationImplementationChallengeEditingId =
+    ref<number | null>(
+        null,
+    );
+
+const dataBiEvaluationImplementationChallengeForm =
+    ref<DataBiEvaluationImplementationChallengeForm>({
+        title:
+            '',
+
+        details:
+            '',
+
+        recommended_response:
+            '',
+
+        priority:
+            '',
+
+        finding_ids:
+            [],
+    });
+
+// D2H_IMPLEMENTATION_CHALLENGE_ADMIN_UI_STATE_END
+
+
 function resetDataBiEvaluationFindingForm(): void {
     dataBiEvaluationFindingEditingId.value =
         null;
@@ -7796,6 +7880,7 @@ async function loadDataBiEvaluationWorkspace(): Promise<void> {
             null;
 
         resetDataBiEvaluationFindingForm();
+        resetDataBiEvaluationImplementationChallengeForm();
 
         return;
     }
@@ -8249,6 +8334,341 @@ async function reconfirmDataBiEvaluationFinding(
 }
 
 
+// D2H_IMPLEMENTATION_CHALLENGE_ADMIN_UI_HELPERS
+
+function resetDataBiEvaluationImplementationChallengeForm(): void {
+    dataBiEvaluationImplementationChallengeEditingId.value =
+        null;
+
+    dataBiEvaluationImplementationChallengeForm.value = {
+        title:
+            '',
+
+        details:
+            '',
+
+        recommended_response:
+            '',
+
+        priority:
+            '',
+
+        finding_ids:
+            [],
+    };
+}
+
+
+function editDataBiEvaluationImplementationChallenge(
+    challenge: DataBiEvaluationImplementationChallenge,
+): void {
+    if (
+        !dataBiEvaluationWorkspace.value
+            ?.actions
+            ?.can_manage_implementation_challenges
+    ) {
+        return;
+    }
+
+    dataBiEvaluationImplementationChallengeEditingId.value =
+        challenge.id;
+
+    dataBiEvaluationImplementationChallengeForm.value = {
+        title:
+            challenge.title,
+
+        details:
+            challenge.details,
+
+        recommended_response:
+            challenge.recommended_response
+            ?? '',
+
+        priority:
+            (
+                [
+                    'high',
+                    'medium',
+                    'low',
+                ] as string[]
+            ).includes(
+                challenge.priority
+                ?? '',
+            )
+                ? challenge.priority as
+                    | 'high'
+                    | 'medium'
+                    | 'low'
+                : '',
+
+        finding_ids:
+            [
+                ...challenge.finding_ids,
+            ],
+    };
+
+    dataBiEvaluationError.value =
+        null;
+
+    dataBiEvaluationMessage.value =
+        null;
+
+    if (
+        typeof window !== 'undefined'
+    ) {
+        window.requestAnimationFrame(
+            () => {
+                document
+                    .getElementById(
+                        'data-bi-implementation-challenge-form',
+                    )
+                    ?.scrollIntoView({
+                        behavior:
+                            'smooth',
+
+                        block:
+                            'start',
+                    });
+            },
+        );
+    }
+}
+
+
+async function saveDataBiEvaluationImplementationChallenge(): Promise<void> {
+    const baseUrl =
+        dataBiEvaluationBaseUrl();
+
+    if (
+        baseUrl === null
+        || dataBiEvaluationBusy.value !== null
+        || !dataBiEvaluationWorkspace.value
+            ?.actions
+            ?.can_manage_implementation_challenges
+    ) {
+        return;
+    }
+
+    const title =
+        dataBiEvaluationImplementationChallengeForm
+            .value
+            .title
+            .trim();
+
+    const details =
+        dataBiEvaluationImplementationChallengeForm
+            .value
+            .details
+            .trim();
+
+    if (
+        title === ''
+        || details === ''
+    ) {
+        dataBiEvaluationError.value =
+            'Completa el título y el detalle del reto de implementación.';
+
+        return;
+    }
+
+    const challengeId =
+        dataBiEvaluationImplementationChallengeEditingId
+            .value;
+
+    const url =
+        challengeId === null
+            ? `${baseUrl}/implementation-challenges`
+            : `${baseUrl}/implementation-challenges/${challengeId}`;
+
+    dataBiEvaluationBusy.value =
+        challengeId === null
+            ? 'implementation-challenge:create'
+            : `implementation-challenge:update:${challengeId}`;
+
+    dataBiEvaluationError.value =
+        null;
+
+    dataBiEvaluationMessage.value =
+        null;
+
+    try {
+        const payload =
+            await dataBiEvaluationRequest(
+                url,
+                {
+                    method:
+                        challengeId === null
+                            ? 'POST'
+                            : 'PUT',
+
+                    body:
+                        JSON.stringify({
+                            title,
+
+                            details,
+
+                            recommended_response:
+                                dataBiEvaluationImplementationChallengeForm
+                                    .value
+                                    .recommended_response
+                                    .trim()
+                                || null,
+
+                            priority:
+                                dataBiEvaluationImplementationChallengeForm
+                                    .value
+                                    .priority
+                                || null,
+
+                            finding_ids:
+                                dataBiEvaluationImplementationChallengeForm
+                                    .value
+                                    .finding_ids,
+                        }),
+                },
+            );
+
+        dataBiEvaluationMessage.value =
+            payload.message
+            ?? (
+                challengeId === null
+                    ? 'Reto de implementación registrado correctamente.'
+                    : 'Reto de implementación actualizado correctamente.'
+            );
+
+        resetDataBiEvaluationImplementationChallengeForm();
+    } catch (error) {
+        dataBiEvaluationError.value =
+            error instanceof Error
+                ? error.message
+                : 'No se pudo guardar el reto de implementación.';
+    } finally {
+        dataBiEvaluationBusy.value =
+            null;
+    }
+}
+
+
+async function deleteDataBiEvaluationImplementationChallenge(
+    challenge: DataBiEvaluationImplementationChallenge,
+): Promise<void> {
+    const baseUrl =
+        dataBiEvaluationBaseUrl();
+
+    if (
+        baseUrl === null
+        || dataBiEvaluationBusy.value !== null
+        || !dataBiEvaluationWorkspace.value
+            ?.actions
+            ?.can_manage_implementation_challenges
+    ) {
+        return;
+    }
+
+    if (
+        typeof window !== 'undefined'
+        && !window.confirm(
+            `¿Eliminar el reto de implementación “${challenge.title}”?`,
+        )
+    ) {
+        return;
+    }
+
+    dataBiEvaluationBusy.value =
+        `implementation-challenge:delete:${challenge.id}`;
+
+    dataBiEvaluationError.value =
+        null;
+
+    dataBiEvaluationMessage.value =
+        null;
+
+    try {
+        const payload =
+            await dataBiEvaluationRequest(
+                `${baseUrl}/implementation-challenges/${challenge.id}`,
+                {
+                    method:
+                        'DELETE',
+                },
+            );
+
+        dataBiEvaluationMessage.value =
+            payload.message
+            ?? 'Reto de implementación eliminado correctamente.';
+
+        if (
+            dataBiEvaluationImplementationChallengeEditingId
+                .value
+            === challenge.id
+        ) {
+            resetDataBiEvaluationImplementationChallengeForm();
+        }
+    } catch (error) {
+        dataBiEvaluationError.value =
+            error instanceof Error
+                ? error.message
+                : 'No se pudo eliminar el reto de implementación.';
+    } finally {
+        dataBiEvaluationBusy.value =
+            null;
+    }
+}
+
+
+async function reconfirmDataBiEvaluationImplementationChallenge(
+    challenge: DataBiEvaluationImplementationChallenge,
+): Promise<void> {
+    const baseUrl =
+        dataBiEvaluationBaseUrl();
+
+    if (
+        baseUrl === null
+        || dataBiEvaluationBusy.value !== null
+        || challenge.evidence_current
+        || !dataBiEvaluationWorkspace.value
+            ?.actions
+            ?.can_manage_implementation_challenges
+    ) {
+        return;
+    }
+
+    dataBiEvaluationBusy.value =
+        `implementation-challenge:reconfirm:${challenge.id}`;
+
+    dataBiEvaluationError.value =
+        null;
+
+    dataBiEvaluationMessage.value =
+        null;
+
+    try {
+        const payload =
+            await dataBiEvaluationRequest(
+                `${baseUrl}/implementation-challenges/${challenge.id}/reconfirm`,
+                {
+                    method:
+                        'POST',
+                },
+            );
+
+        dataBiEvaluationMessage.value =
+            payload.message
+            ?? 'Reto de implementación reconfirmado contra la evidencia actual.';
+    } catch (error) {
+        dataBiEvaluationError.value =
+            error instanceof Error
+                ? error.message
+                : 'No se pudo reconfirmar el reto de implementación.';
+    } finally {
+        dataBiEvaluationBusy.value =
+            null;
+    }
+}
+
+// D2H_IMPLEMENTATION_CHALLENGE_ADMIN_UI_HELPERS_END
+
+
 function dataBiEvaluationCanMarkReady(): boolean {
     const workspace =
         dataBiEvaluationWorkspace.value;
@@ -8264,6 +8684,7 @@ function dataBiEvaluationCanMarkReady(): boolean {
         && evaluation !== undefined
         && evaluation.finding_count > 0
         && evaluation.stale_finding_count === 0
+        && evaluation.stale_implementation_challenge_count === 0
     );
 }
 
@@ -8283,7 +8704,7 @@ async function markDataBiEvaluationReady(): Promise<void> {
     if (
         typeof window !== 'undefined'
         && !window.confirm(
-            '¿Enviar esta evaluación diagnóstica a revisión? Los hallazgos quedarán bloqueados para edición.',
+            '¿Enviar esta evaluación diagnóstica a revisión? Los hallazgos y retos de implementación quedarán bloqueados para edición.',
         )
     ) {
         return;
@@ -8313,6 +8734,7 @@ async function markDataBiEvaluationReady(): Promise<void> {
             ?? 'Evaluación lista para revisión.';
 
         resetDataBiEvaluationFindingForm();
+        resetDataBiEvaluationImplementationChallengeForm();
     } catch (error) {
         dataBiEvaluationError.value =
             error instanceof Error
@@ -8406,6 +8828,7 @@ watch(
             null;
 
         resetDataBiEvaluationFindingForm();
+        resetDataBiEvaluationImplementationChallengeForm();
 
         if (dataBiEvaluationUiAvailable()) {
             void loadDataBiEvaluationWorkspace();
@@ -12030,6 +12453,577 @@ if (canonicalModelUiAvailable()) {
                                             </article>
                                         </div>
                                     </section>
+
+                                    <!-- D2H_IMPLEMENTATION_CHALLENGE_ADMIN_UI -->
+                                    <section
+                                        class="mt-5 rounded-xl border border-violet-200 bg-violet-50/30 p-4 dark:border-violet-900/70 dark:bg-violet-950/10"
+                                    >
+                                        <div
+                                            class="flex flex-wrap items-start justify-between gap-3"
+                                        >
+                                            <div class="max-w-3xl">
+                                                <p
+                                                    class="text-[10px] font-black uppercase tracking-widest text-violet-700 dark:text-violet-300"
+                                                >
+                                                    Implicaciones profesionales
+                                                </p>
+
+                                                <h5
+                                                    class="mt-1 text-base font-black"
+                                                >
+                                                    Retos de implementación
+                                                </h5>
+
+                                                <p
+                                                    class="mt-2 text-xs leading-5 text-muted-foreground"
+                                                >
+                                                    Documenta qué debe resolverse o
+                                                    considerarse en una futura
+                                                    implementación. Estos registros
+                                                    son independientes de los
+                                                    hallazgos diagnósticos y nunca se
+                                                    generan automáticamente.
+                                                </p>
+                                            </div>
+
+                                            <div class="flex flex-wrap gap-2">
+                                                <span
+                                                    class="rounded-full border bg-background px-3 py-1 text-[10px] font-bold uppercase"
+                                                >
+                                                    {{
+                                                        dataBiEvaluationWorkspace
+                                                            .evaluation
+                                                            ?.implementation_challenge_count
+                                                        ?? 0
+                                                    }}
+                                                    registrados
+                                                </span>
+
+                                                <span
+                                                    v-if="
+                                                        (
+                                                            dataBiEvaluationWorkspace
+                                                                .evaluation
+                                                                ?.stale_implementation_challenge_count
+                                                            ?? 0
+                                                        ) > 0
+                                                    "
+                                                    class="rounded-full border border-amber-300 bg-amber-50 px-3 py-1 text-[10px] font-bold uppercase text-amber-800 dark:border-amber-900 dark:bg-amber-950/20 dark:text-amber-200"
+                                                >
+                                                    {{
+                                                        dataBiEvaluationWorkspace
+                                                            .evaluation
+                                                            ?.stale_implementation_challenge_count
+                                                        ?? 0
+                                                    }}
+                                                    por reconfirmar
+                                                </span>
+                                            </div>
+                                        </div>
+
+                                        <div
+                                            v-if="
+                                                (
+                                                    dataBiEvaluationWorkspace
+                                                        .evaluation
+                                                        ?.stale_implementation_challenge_count
+                                                    ?? 0
+                                                ) > 0
+                                            "
+                                            class="mt-4 rounded-lg border border-amber-200 bg-amber-50 p-3 text-xs leading-5 text-amber-800 dark:border-amber-900 dark:bg-amber-950/20 dark:text-amber-200"
+                                        >
+                                            La evidencia diagnóstica cambió.
+                                            Revisa estos retos antes de
+                                            reconfirmarlos. Si un reto conserva
+                                            hallazgos vinculados, esos hallazgos
+                                            también deben estar vigentes.
+                                        </div>
+
+                                        <section
+                                            v-if="
+                                                dataBiEvaluationWorkspace
+                                                    .actions
+                                                    .can_manage_implementation_challenges
+                                            "
+                                            id="data-bi-implementation-challenge-form"
+                                            class="mt-5 rounded-xl border bg-background p-4"
+                                        >
+                                            <div
+                                                class="flex flex-wrap items-start justify-between gap-3"
+                                            >
+                                                <div>
+                                                    <p class="text-sm font-black">
+                                                        {{
+                                                            dataBiEvaluationImplementationChallengeEditingId
+                                                                === null
+                                                                ? 'Nuevo reto de implementación'
+                                                                : 'Editar reto de implementación'
+                                                        }}
+                                                    </p>
+
+                                                    <p
+                                                        class="mt-1 max-w-3xl text-xs leading-5 text-muted-foreground"
+                                                    >
+                                                        La redacción es exclusivamente
+                                                        humana. Vincular hallazgos es
+                                                        opcional y sirve solo como
+                                                        trazabilidad profesional.
+                                                    </p>
+                                                </div>
+
+                                                <button
+                                                    v-if="
+                                                        dataBiEvaluationImplementationChallengeEditingId
+                                                        !== null
+                                                    "
+                                                    type="button"
+                                                    class="cursor-pointer rounded-lg border px-3 py-1.5 text-xs font-bold"
+                                                    :disabled="
+                                                        dataBiEvaluationBusy
+                                                        !== null
+                                                    "
+                                                    @click="
+                                                        resetDataBiEvaluationImplementationChallengeForm
+                                                    "
+                                                >
+                                                    Cancelar edición
+                                                </button>
+                                            </div>
+
+                                            <div
+                                                class="mt-4 grid gap-4 lg:grid-cols-[1fr_0.35fr]"
+                                            >
+                                                <label
+                                                    class="block text-xs font-bold"
+                                                >
+                                                    Título
+
+                                                    <input
+                                                        v-model="
+                                                            dataBiEvaluationImplementationChallengeForm
+                                                                .title
+                                                        "
+                                                        type="text"
+                                                        maxlength="191"
+                                                        class="mt-1 w-full rounded-lg border bg-background px-3 py-2 text-sm"
+                                                        :disabled="
+                                                            dataBiEvaluationBusy
+                                                            !== null
+                                                        "
+                                                        placeholder="Ej. Homologar identificadores antes de integrar fuentes"
+                                                    />
+                                                </label>
+
+                                                <label
+                                                    class="block text-xs font-bold"
+                                                >
+                                                    Prioridad profesional
+
+                                                    <select
+                                                        v-model="
+                                                            dataBiEvaluationImplementationChallengeForm
+                                                                .priority
+                                                        "
+                                                        class="mt-1 w-full rounded-lg border bg-background px-3 py-2 text-sm"
+                                                        :disabled="
+                                                            dataBiEvaluationBusy
+                                                            !== null
+                                                        "
+                                                    >
+                                                        <option value="">
+                                                            Sin prioridad
+                                                        </option>
+                                                        <option value="high">
+                                                            Alta
+                                                        </option>
+                                                        <option value="medium">
+                                                            Media
+                                                        </option>
+                                                        <option value="low">
+                                                            Baja
+                                                        </option>
+                                                    </select>
+                                                </label>
+                                            </div>
+
+                                            <label
+                                                class="mt-4 block text-xs font-bold"
+                                            >
+                                                Detalle del reto
+
+                                                <textarea
+                                                    v-model="
+                                                        dataBiEvaluationImplementationChallengeForm
+                                                            .details
+                                                    "
+                                                    rows="4"
+                                                    class="mt-1 w-full rounded-lg border bg-background px-3 py-2 text-sm"
+                                                    :disabled="
+                                                        dataBiEvaluationBusy
+                                                        !== null
+                                                    "
+                                                    placeholder="Explica qué condición debe resolverse o considerarse durante una implementación futura."
+                                                />
+                                            </label>
+
+                                            <label
+                                                class="mt-4 block text-xs font-bold"
+                                            >
+                                                Respuesta recomendada
+                                                <span
+                                                    class="font-normal text-muted-foreground"
+                                                >
+                                                    · opcional
+                                                </span>
+
+                                                <textarea
+                                                    v-model="
+                                                        dataBiEvaluationImplementationChallengeForm
+                                                            .recommended_response
+                                                    "
+                                                    rows="3"
+                                                    class="mt-1 w-full rounded-lg border bg-background px-3 py-2 text-sm"
+                                                    :disabled="
+                                                        dataBiEvaluationBusy
+                                                        !== null
+                                                    "
+                                                    placeholder="Acción o tratamiento profesional sugerido para la futura implementación."
+                                                />
+                                            </label>
+
+                                            <div class="mt-4">
+                                                <p class="text-xs font-bold">
+                                                    Hallazgos relacionados
+                                                    <span
+                                                        class="font-normal text-muted-foreground"
+                                                    >
+                                                        · opcional
+                                                    </span>
+                                                </p>
+
+                                                <p
+                                                    class="mt-1 text-[11px] leading-5 text-muted-foreground"
+                                                >
+                                                    La relación no crea el reto ni
+                                                    copia automáticamente la
+                                                    recomendación, prioridad o
+                                                    contenido del hallazgo.
+                                                </p>
+
+                                                <div
+                                                    v-if="
+                                                        (
+                                                            dataBiEvaluationWorkspace
+                                                                .evaluation
+                                                                ?.findings
+                                                            ?? []
+                                                        ).length
+                                                    "
+                                                    class="mt-3 grid gap-2 lg:grid-cols-2"
+                                                >
+                                                    <label
+                                                        v-for="
+                                                            finding in
+                                                                dataBiEvaluationWorkspace
+                                                                    .evaluation
+                                                                    ?.findings
+                                                                ?? []
+                                                        "
+                                                        :key="
+                                                            `implementation-challenge-finding-${finding.id}`
+                                                        "
+                                                        class="flex cursor-pointer items-start gap-3 rounded-lg border bg-background p-3 text-xs"
+                                                    >
+                                                        <input
+                                                            v-model="
+                                                                dataBiEvaluationImplementationChallengeForm
+                                                                    .finding_ids
+                                                            "
+                                                            type="checkbox"
+                                                            :value="finding.id"
+                                                            class="mt-0.5"
+                                                            :disabled="
+                                                                dataBiEvaluationBusy
+                                                                !== null
+                                                            "
+                                                        />
+
+                                                        <span class="min-w-0 flex-1">
+                                                            <span class="font-bold">
+                                                                {{
+                                                                    dataBiEvaluationFindingTypeLabel(
+                                                                        finding.finding_type,
+                                                                    )
+                                                                }}
+                                                                ·
+                                                                {{ finding.title }}
+                                                            </span>
+
+                                                            <span
+                                                                v-if="
+                                                                    !finding.evidence_current
+                                                                "
+                                                                class="mt-1 block text-[10px] font-bold text-amber-700 dark:text-amber-300"
+                                                            >
+                                                                Requiere reconfirmación
+                                                                antes de sustentar un
+                                                                reto contra la evidencia
+                                                                actual.
+                                                            </span>
+                                                        </span>
+                                                    </label>
+                                                </div>
+
+                                                <div
+                                                    v-else
+                                                    class="mt-3 rounded-lg border border-dashed p-3 text-xs text-muted-foreground"
+                                                >
+                                                    No hay hallazgos disponibles.
+                                                    El reto puede registrarse sin
+                                                    vínculos.
+                                                </div>
+                                            </div>
+
+                                            <div
+                                                class="mt-4 flex justify-end"
+                                            >
+                                                <button
+                                                    type="button"
+                                                    class="cursor-pointer rounded-lg bg-violet-700 px-4 py-2 text-sm font-bold text-white disabled:cursor-not-allowed disabled:opacity-50"
+                                                    :disabled="
+                                                        dataBiEvaluationBusy
+                                                        !== null
+                                                    "
+                                                    @click="
+                                                        saveDataBiEvaluationImplementationChallenge
+                                                    "
+                                                >
+                                                    {{
+                                                        dataBiEvaluationBusy
+                                                            === 'implementation-challenge:create'
+                                                            || (
+                                                                dataBiEvaluationImplementationChallengeEditingId
+                                                                !== null
+                                                                && dataBiEvaluationBusy
+                                                                    === `implementation-challenge:update:${dataBiEvaluationImplementationChallengeEditingId}`
+                                                            )
+                                                            ? 'Guardando...'
+                                                            : dataBiEvaluationImplementationChallengeEditingId
+                                                                  === null
+                                                              ? 'Guardar reto'
+                                                              : 'Guardar cambios'
+                                                    }}
+                                                </button>
+                                            </div>
+                                        </section>
+
+                                        <section class="mt-5">
+                                            <div
+                                                v-if="
+                                                    !(
+                                                        dataBiEvaluationWorkspace
+                                                            .evaluation
+                                                            ?.implementation_challenges
+                                                        ?? []
+                                                    ).length
+                                                "
+                                                class="rounded-lg border border-dashed bg-background/60 p-4 text-xs text-muted-foreground"
+                                            >
+                                                No se han documentado retos de
+                                                implementación para esta evaluación.
+                                                Esto no genera retos de manera
+                                                automática.
+                                            </div>
+
+                                            <div
+                                                v-else
+                                                class="space-y-3"
+                                            >
+                                                <article
+                                                    v-for="
+                                                        challenge in
+                                                            dataBiEvaluationWorkspace
+                                                                .evaluation
+                                                                ?.implementation_challenges
+                                                            ?? []
+                                                    "
+                                                    :key="
+                                                        `implementation-challenge-${challenge.id}`
+                                                    "
+                                                    class="rounded-xl border bg-background p-4"
+                                                    :class="
+                                                        !challenge.evidence_current
+                                                            ? 'border-amber-300 dark:border-amber-900'
+                                                            : ''
+                                                    "
+                                                >
+                                                    <div
+                                                        class="flex flex-wrap items-start justify-between gap-3"
+                                                    >
+                                                        <div class="min-w-0 flex-1">
+                                                            <div
+                                                                class="flex flex-wrap items-center gap-2"
+                                                            >
+                                                                <span
+                                                                    class="rounded-full border px-2 py-1 text-[10px] font-bold uppercase"
+                                                                >
+                                                                    Reto de implementación
+                                                                </span>
+
+                                                                <span
+                                                                    class="rounded-full border px-2 py-1 text-[10px] font-bold"
+                                                                >
+                                                                    {{
+                                                                        dataBiEvaluationPriorityLabel(
+                                                                            challenge.priority,
+                                                                        )
+                                                                    }}
+                                                                </span>
+
+                                                                <span
+                                                                    v-if="
+                                                                        !challenge.evidence_current
+                                                                    "
+                                                                    class="rounded-full border border-amber-300 bg-amber-50 px-2 py-1 text-[10px] font-bold text-amber-800 dark:border-amber-900 dark:bg-amber-950/20 dark:text-amber-200"
+                                                                >
+                                                                    Requiere reconfirmación
+                                                                </span>
+                                                            </div>
+
+                                                            <h6
+                                                                class="mt-3 text-sm font-black"
+                                                            >
+                                                                {{ challenge.title }}
+                                                            </h6>
+
+                                                            <p
+                                                                class="mt-2 whitespace-pre-line text-xs leading-5 text-muted-foreground"
+                                                            >
+                                                                {{ challenge.details }}
+                                                            </p>
+
+                                                            <div
+                                                                v-if="
+                                                                    challenge.recommended_response
+                                                                "
+                                                                class="mt-3 rounded-lg border bg-muted/20 p-3"
+                                                            >
+                                                                <p
+                                                                    class="text-[10px] font-bold uppercase tracking-wide text-muted-foreground"
+                                                                >
+                                                                    Respuesta recomendada
+                                                                </p>
+
+                                                                <p
+                                                                    class="mt-1 whitespace-pre-line text-xs leading-5"
+                                                                >
+                                                                    {{
+                                                                        challenge.recommended_response
+                                                                    }}
+                                                                </p>
+                                                            </div>
+
+                                                            <div
+                                                                v-if="
+                                                                    challenge.finding_ids
+                                                                        .length
+                                                                "
+                                                                class="mt-3"
+                                                            >
+                                                                <p
+                                                                    class="text-[10px] font-bold uppercase tracking-wide text-muted-foreground"
+                                                                >
+                                                                    Hallazgos relacionados
+                                                                </p>
+
+                                                                <div
+                                                                    class="mt-2 flex flex-wrap gap-2"
+                                                                >
+                                                                    <span
+                                                                        v-for="
+                                                                            findingId in
+                                                                                challenge.finding_ids
+                                                                        "
+                                                                        :key="
+                                                                            `challenge-${challenge.id}-finding-${findingId}`
+                                                                        "
+                                                                        class="rounded-full border px-2.5 py-1 text-[10px] font-semibold"
+                                                                    >
+                                                                        {{
+                                                                            dataBiEvaluationLinkedFindingLabel(
+                                                                                findingId,
+                                                                            )
+                                                                        }}
+                                                                    </span>
+                                                                </div>
+                                                            </div>
+                                                        </div>
+
+                                                        <div
+                                                            v-if="
+                                                                dataBiEvaluationWorkspace
+                                                                    .actions
+                                                                    .can_manage_implementation_challenges
+                                                            "
+                                                            class="flex flex-wrap gap-2"
+                                                        >
+                                                            <button
+                                                                v-if="
+                                                                    !challenge.evidence_current
+                                                                "
+                                                                type="button"
+                                                                class="cursor-pointer rounded-lg border border-amber-300 px-2.5 py-2 text-xs font-bold text-amber-800 disabled:cursor-not-allowed disabled:opacity-50 dark:border-amber-900 dark:text-amber-200"
+                                                                :disabled="
+                                                                    dataBiEvaluationBusy
+                                                                    !== null
+                                                                "
+                                                                @click="
+                                                                    reconfirmDataBiEvaluationImplementationChallenge(
+                                                                        challenge,
+                                                                    )
+                                                                "
+                                                            >
+                                                                Reconfirmar
+                                                            </button>
+
+                                                            <button
+                                                                type="button"
+                                                                class="cursor-pointer rounded-lg border px-2.5 py-2 text-xs font-bold disabled:cursor-not-allowed disabled:opacity-50"
+                                                                :disabled="
+                                                                    dataBiEvaluationBusy
+                                                                    !== null
+                                                                "
+                                                                @click="
+                                                                    editDataBiEvaluationImplementationChallenge(
+                                                                        challenge,
+                                                                    )
+                                                                "
+                                                            >
+                                                                Editar
+                                                            </button>
+
+                                                            <button
+                                                                type="button"
+                                                                class="cursor-pointer rounded-lg border border-red-200 px-2.5 py-2 text-xs font-bold text-red-700 disabled:cursor-not-allowed disabled:opacity-50 dark:border-red-900 dark:text-red-300"
+                                                                :disabled="
+                                                                    dataBiEvaluationBusy
+                                                                    !== null
+                                                                "
+                                                                @click="
+                                                                    deleteDataBiEvaluationImplementationChallenge(
+                                                                        challenge,
+                                                                    )
+                                                                "
+                                                            >
+                                                                Eliminar
+                                                            </button>
+                                                        </div>
+                                                    </div>
+                                                </article>
+                                            </div>
+                                        </section>
+                                    </section>
+                                    <!-- D2H_IMPLEMENTATION_CHALLENGE_ADMIN_UI_END -->
 
                                     <div
                                         class="mt-5 flex flex-wrap items-center justify-between gap-3 border-t border-emerald-200 pt-4 dark:border-emerald-900/70"

@@ -5,10 +5,12 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\DataTransformationBiEvaluation;
 use App\Models\DataTransformationBiEvaluationFinding;
+use App\Models\DataTransformationBiEvaluationImplementationChallenge;
 use App\Models\DataTransformationBiIntakeSession;
 use App\Models\TransformationImplementationRequest;
 use App\Models\User;
 use App\Services\Diagnosis\DataTransformationBiEvaluationFindingService;
+use App\Services\Diagnosis\DataTransformationBiEvaluationImplementationChallengeService;
 use App\Services\Diagnosis\DataTransformationBiEvaluationService;
 use App\Services\Diagnosis\DataTransformationBiEvaluationWorkspaceReadModel;
 use App\Services\Diagnosis\DataTransformationBiTenantSourceWorkspaceGate;
@@ -312,6 +314,226 @@ final class AdminDataTransformationBiEvaluationController
         );
     }
 
+public function createImplementationChallenge(
+        Request $request,
+        TransformationImplementationRequest $implementationRequest,
+        int $sessionId,
+        DataTransformationBiEvaluationImplementationChallengeService $challenges,
+        DataTransformationBiEvaluationWorkspaceReadModel $workspace
+    ): JsonResponse {
+        $actor =
+            $this->actor(
+                $request
+            );
+
+        $session =
+            $this->scopedSession(
+                $implementationRequest,
+                $sessionId
+            );
+
+        $evaluation =
+            $this->scopedEvaluation(
+                $implementationRequest,
+                $session
+            );
+
+        $validated =
+            $this->implementationChallengeInput(
+                $request
+            );
+
+        try {
+            $challenges->create(
+                $evaluation,
+                $actor,
+                $validated
+            );
+        } catch (
+            ValidationException $exception
+        ) {
+            return $this->validationError(
+                $exception,
+                'No se pudo registrar el reto de implementación.'
+            );
+        }
+
+        return $this->workspaceResponse(
+            $implementationRequest,
+            $session,
+            $workspace,
+            'Reto de implementación registrado correctamente.'
+        );
+    }
+
+public function updateImplementationChallenge(
+        Request $request,
+        TransformationImplementationRequest $implementationRequest,
+        int $sessionId,
+        int $challengeId,
+        DataTransformationBiEvaluationImplementationChallengeService $challenges,
+        DataTransformationBiEvaluationWorkspaceReadModel $workspace
+    ): JsonResponse {
+        $actor =
+            $this->actor(
+                $request
+            );
+
+        $session =
+            $this->scopedSession(
+                $implementationRequest,
+                $sessionId
+            );
+
+        $evaluation =
+            $this->scopedEvaluation(
+                $implementationRequest,
+                $session
+            );
+
+        $challenge =
+            $this->scopedImplementationChallenge(
+                $evaluation,
+                $challengeId
+            );
+
+        $validated =
+            $this->implementationChallengeInput(
+                $request
+            );
+
+        try {
+            $challenges->update(
+                $evaluation,
+                $challenge,
+                $actor,
+                $validated
+            );
+        } catch (
+            ValidationException $exception
+        ) {
+            return $this->validationError(
+                $exception,
+                'No se pudo actualizar el reto de implementación.'
+            );
+        }
+
+        return $this->workspaceResponse(
+            $implementationRequest,
+            $session,
+            $workspace,
+            'Reto de implementación actualizado correctamente.'
+        );
+    }
+
+public function reconfirmImplementationChallenge(
+        Request $request,
+        TransformationImplementationRequest $implementationRequest,
+        int $sessionId,
+        int $challengeId,
+        DataTransformationBiEvaluationImplementationChallengeService $challenges,
+        DataTransformationBiEvaluationWorkspaceReadModel $workspace
+    ): JsonResponse {
+        $actor =
+            $this->actor(
+                $request
+            );
+
+        $session =
+            $this->scopedSession(
+                $implementationRequest,
+                $sessionId
+            );
+
+        $evaluation =
+            $this->scopedEvaluation(
+                $implementationRequest,
+                $session
+            );
+
+        $challenge =
+            $this->scopedImplementationChallenge(
+                $evaluation,
+                $challengeId
+            );
+
+        try {
+            $challenges->reconfirm(
+                $evaluation,
+                $challenge,
+                $actor
+            );
+        } catch (
+            ValidationException $exception
+        ) {
+            return $this->validationError(
+                $exception,
+                'No se pudo reconfirmar el reto de implementación.'
+            );
+        }
+
+        return $this->workspaceResponse(
+            $implementationRequest,
+            $session,
+            $workspace,
+            'Reto de implementación reconfirmado contra la evidencia actual.'
+        );
+    }
+
+public function deleteImplementationChallenge(
+        Request $request,
+        TransformationImplementationRequest $implementationRequest,
+        int $sessionId,
+        int $challengeId,
+        DataTransformationBiEvaluationImplementationChallengeService $challenges,
+        DataTransformationBiEvaluationWorkspaceReadModel $workspace
+    ): JsonResponse {
+        $actor =
+            $this->actor(
+                $request
+            );
+
+        $session =
+            $this->scopedSession(
+                $implementationRequest,
+                $sessionId
+            );
+
+        $evaluation =
+            $this->scopedEvaluation(
+                $implementationRequest,
+                $session
+            );
+
+        $challenge =
+            $this->scopedImplementationChallenge(
+                $evaluation,
+                $challengeId
+            );
+
+        try {
+            $challenges->delete(
+                $evaluation,
+                $challenge,
+                $actor
+            );
+        } catch (
+            ValidationException $exception
+        ) {
+            return $this->validationError(
+                $exception,
+                'No se pudo eliminar el reto de implementación.'
+            );
+        }
+
+        return $this->workspaceResponse(
+            $implementationRequest,
+            $session,
+            $workspace,
+            'Reto de implementación eliminado correctamente.'
+        );
+    }
+
     public function readyForReview(
         Request $request,
         TransformationImplementationRequest $implementationRequest,
@@ -491,6 +713,21 @@ final class AdminDataTransformationBiEvaluationController
             ->firstOrFail();
     }
 
+private function scopedImplementationChallenge(
+        DataTransformationBiEvaluation $evaluation,
+        int $challengeId
+    ): DataTransformationBiEvaluationImplementationChallenge {
+        return DataTransformationBiEvaluationImplementationChallenge::query()
+            ->whereKey(
+                $challengeId
+            )
+            ->where(
+                'data_transformation_bi_evaluation_id',
+                $evaluation->getKey()
+            )
+            ->firstOrFail();
+    }
+
     /**
      * @return array{
      *     finding_type:string,
@@ -604,7 +841,109 @@ final class AdminDataTransformationBiEvaluationController
         ];
     }
 
-    private function workspaceResponse(
+        /**
+     * @return array{
+     *     title:string,
+     *     details:string,
+     *     recommended_response:?string,
+     *     priority:?string,
+     *     finding_ids:list<int>
+     * }
+     */
+    private function implementationChallengeInput(
+        Request $request
+    ): array {
+        $validator =
+            Validator::make(
+                $request->all(),
+                [
+                    'title' => [
+                        'required',
+                        'string',
+                        'max:191',
+                    ],
+
+                    'details' => [
+                        'required',
+                        'string',
+                    ],
+
+                    'recommended_response' => [
+                        'nullable',
+                        'string',
+                    ],
+
+                    'priority' => [
+                        'nullable',
+                        'string',
+                        'max:16',
+                    ],
+
+                    'finding_ids' => [
+                        'sometimes',
+                        'array',
+                    ],
+
+                    'finding_ids.*' => [
+                        'integer',
+                        'min:1',
+                    ],
+                ]
+            );
+
+        if ($validator->fails()) {
+            throw ValidationException::withMessages(
+                $validator
+                    ->errors()
+                    ->toArray()
+            );
+        }
+
+        $validated =
+            $validator->validated();
+
+        return [
+            'title' =>
+                (string)
+                $validated['title'],
+
+            'details' =>
+                (string)
+                $validated['details'],
+
+            'recommended_response' =>
+                isset(
+                    $validated[
+                        'recommended_response'
+                    ]
+                )
+                    ? (string)
+                    $validated[
+                        'recommended_response'
+                    ]
+                    : null,
+
+            'priority' =>
+                isset(
+                    $validated['priority']
+                )
+                    ? (string)
+                    $validated['priority']
+                    : null,
+
+            'finding_ids' =>
+                array_values(
+                    array_map(
+                        'intval',
+                        $validated['finding_ids']
+                        ?? []
+                    )
+                ),
+        ];
+    }
+
+
+private function workspaceResponse(
         TransformationImplementationRequest $implementationRequest,
         DataTransformationBiIntakeSession $session,
         DataTransformationBiEvaluationWorkspaceReadModel $workspace,

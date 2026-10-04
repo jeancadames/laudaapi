@@ -586,6 +586,54 @@ Route::middleware(['auth', 'verified', 'role:admin'])
               );
 
           \Illuminate\Support\Facades\Route::post(
+              '/transformation-360/implementation-requests/{implementationRequest}/standard-intake-v2/sessions/{sessionId}/evaluation/implementation-challenges',
+              [
+                  \App\Http\Controllers\Admin\AdminDataTransformationBiEvaluationController::class,
+                  'createImplementationChallenge',
+              ]
+          )
+              ->whereNumber('sessionId')
+              ->name(
+                  'transformation360.implementation_requests.standard_intake_v2.evaluation.implementation_challenges.create'
+              );
+          \Illuminate\Support\Facades\Route::put(
+              '/transformation-360/implementation-requests/{implementationRequest}/standard-intake-v2/sessions/{sessionId}/evaluation/implementation-challenges/{challengeId}',
+              [
+                  \App\Http\Controllers\Admin\AdminDataTransformationBiEvaluationController::class,
+                  'updateImplementationChallenge',
+              ]
+          )
+              ->whereNumber('sessionId')
+              ->whereNumber('challengeId')
+              ->name(
+                  'transformation360.implementation_requests.standard_intake_v2.evaluation.implementation_challenges.update'
+              );
+          \Illuminate\Support\Facades\Route::post(
+              '/transformation-360/implementation-requests/{implementationRequest}/standard-intake-v2/sessions/{sessionId}/evaluation/implementation-challenges/{challengeId}/reconfirm',
+              [
+                  \App\Http\Controllers\Admin\AdminDataTransformationBiEvaluationController::class,
+                  'reconfirmImplementationChallenge',
+              ]
+          )
+              ->whereNumber('sessionId')
+              ->whereNumber('challengeId')
+              ->name(
+                  'transformation360.implementation_requests.standard_intake_v2.evaluation.implementation_challenges.reconfirm'
+              );
+          \Illuminate\Support\Facades\Route::delete(
+              '/transformation-360/implementation-requests/{implementationRequest}/standard-intake-v2/sessions/{sessionId}/evaluation/implementation-challenges/{challengeId}',
+              [
+                  \App\Http\Controllers\Admin\AdminDataTransformationBiEvaluationController::class,
+                  'deleteImplementationChallenge',
+              ]
+          )
+              ->whereNumber('sessionId')
+              ->whereNumber('challengeId')
+              ->name(
+                  'transformation360.implementation_requests.standard_intake_v2.evaluation.implementation_challenges.delete'
+              );
+
+          \Illuminate\Support\Facades\Route::post(
               '/transformation-360/implementation-requests/{implementationRequest}/standard-intake-v2/sessions/{sessionId}/evaluation/ready-for-review',
               [
                   \App\Http\Controllers\Admin\AdminDataTransformationBiEvaluationController::class,

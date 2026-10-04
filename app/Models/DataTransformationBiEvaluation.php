@@ -94,6 +94,15 @@ final class DataTransformationBiEvaluation extends Model
             ->orderBy('id');
     }
 
+    public function implementationChallenges(): HasMany
+    {
+        return $this->hasMany(
+            DataTransformationBiEvaluationImplementationChallenge::class,
+            'data_transformation_bi_evaluation_id'
+        );
+    }
+
+
     public function createdBy(): BelongsTo
     {
         return $this->belongsTo(
