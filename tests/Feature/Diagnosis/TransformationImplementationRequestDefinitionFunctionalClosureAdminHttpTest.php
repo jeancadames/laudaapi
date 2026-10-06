@@ -12,6 +12,7 @@ use App\Services\Diagnosis\TransformationImplementationRequestDefinitionTenantDe
 use Illuminate\Auth\Access\AuthorizationException;
 use App\Models\TransformationImplementationDefinition;
 use App\Models\TransformationImplementationRequestEvent;
+use App\Services\Diagnosis\DataTransformationBiSourceReadinessService;
 use App\Services\Diagnosis\TransformationImplementationDefinitionAutogenerator;
 use App\Services\Diagnosis\TransformationImplementationRequestContract;
 use App\Services\Diagnosis\TransformationImplementationRequestDefinitionReviewService;
@@ -217,15 +218,6 @@ final class TransformationImplementationRequestDefinitionFunctionalClosureAdminH
                     }
                 )
                 ->all();
-
-        /*
-         * Dynamic Data BI source readiness required by the current
-         * server-owned review contract.
-         */
-        $this->createCompleteDataBiSourceReadinessFixture(
-            $implementationRequest,
-            $admin
-        );
 
         /** @var TransformationImplementationRequestDefinitionReviewService $reviews */
         $reviews =
@@ -1081,7 +1073,7 @@ final class TransformationImplementationRequestDefinitionFunctionalClosureAdminH
 
         /*
          * ==========================================================
-         * 18. SIX HUMAN CONFIRMATIONS
+         * 18. DATA BI READINESS OWNERSHIP
          * ==========================================================
          */
 
@@ -1097,8 +1089,6 @@ final class TransformationImplementationRequestDefinitionFunctionalClosureAdminH
             'scope_confirmed',
             'deliverables_confirmed',
             'dependencies_confirmed',
-            'inputs_validated',
-            'accesses_validated',
             'responsibilities_confirmed',
         ] as $key) {
             $this->assertTrue(
@@ -1109,6 +1099,24 @@ final class TransformationImplementationRequestDefinitionFunctionalClosureAdminH
                 'Confirmación humana no guardada: '.$key
             );
         }
+
+        /*
+         * Data BI source readiness is machine-owned.
+         * No source exists at human-review time.
+         */
+        $this->assertFalse(
+            (bool) data_get(
+                $v2->readiness,
+                'human_validation.inputs_validated'
+            )
+        );
+
+        $this->assertFalse(
+            (bool) data_get(
+                $v2->readiness,
+                'human_validation.accesses_validated'
+            )
+        );
 
         $this->assertFalse(
             (bool) data_get(
@@ -2177,6 +2185,87 @@ final class TransformationImplementationRequestDefinitionFunctionalClosureAdminH
         $v2->refresh();
 
         /*
+         * Data BI exact PROD regression:
+         *
+         * tenant agreement happened while machine readiness was
+         * still false/false.
+         */
+        $this->assertFalse(
+            (bool) data_get(
+                $v2->readiness,
+                'human_validation.inputs_validated'
+            )
+        );
+
+        $this->assertFalse(
+            (bool) data_get(
+                $v2->readiness,
+                'human_validation.accesses_validated'
+            )
+        );
+
+        /*
+         * Tenant delivers the source after agreement.
+         */
+        $this->createCompleteDataBiSourceReadinessFixture(
+            $implementationRequest,
+            $tenant
+        );
+
+        $sourceReadiness =
+            app(
+                DataTransformationBiSourceReadinessService::class
+            )->forRequest(
+                $implementationRequest
+            );
+
+        $this->assertTrue(
+            (bool) $sourceReadiness[
+                'inputs_validated'
+            ]
+        );
+
+        $this->assertTrue(
+            (bool) $sourceReadiness[
+                'accesses_validated'
+            ]
+        );
+
+        $this->assertSame(
+            1,
+            (int) $sourceReadiness[
+                'source_count'
+            ]
+        );
+
+        $this->assertSame(
+            1,
+            (int) $sourceReadiness[
+                'complete_source_count'
+            ]
+        );
+
+        /*
+         * Source delivery itself does not rewrite the agreed
+         * Definition.
+         */
+        $v2->refresh();
+
+        $this->assertFalse(
+            (bool) data_get(
+                $v2->readiness,
+                'human_validation.inputs_validated'
+            )
+        );
+
+        $this->assertFalse(
+            (bool) data_get(
+                $v2->readiness,
+                'human_validation.accesses_validated'
+            )
+        );
+
+        /*
          * Request lifecycle only.
          */
         $this->assertSame(
@@ -2978,6 +3067,37 @@ final class TransformationImplementationRequestDefinitionFunctionalClosureAdminH
             (bool) data_get(
                 $v2->readiness,
                 'execution_started'
+            )
+        );
+
+        /*
+         * F16 server-owned synchronization.
+         */
+        $this->assertTrue(
+            (bool) data_get(
+                $v2->readiness,
+                'human_validation.inputs_validated'
+            )
+        );
+
+        $this->assertTrue(
+            (bool) data_get(
+                $v2->readiness,
+                'human_validation.accesses_validated'
+            )
+        );
+
+        $this->assertTrue(
+            (bool) data_get(
+                $v2->readiness,
+                'checks.inputs_validated'
+            )
+        );
+
+        $this->assertTrue(
+            (bool) data_get(
+                $v2->readiness,
+                'checks.accesses_validated'
             )
         );
 

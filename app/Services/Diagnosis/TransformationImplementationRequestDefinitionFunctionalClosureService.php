@@ -28,8 +28,19 @@ final class TransformationImplementationRequestDefinitionFunctionalClosureServic
         'responsibilities_confirmed',
     ];
 
+    private const DATA_BI_CAPABILITY =
+        'data_transformation_bi';
+
+    private const DATA_BI_HUMAN_CONFIRMATIONS = [
+        'scope_confirmed',
+        'deliverables_confirmed',
+        'dependencies_confirmed',
+        'responsibilities_confirmed',
+    ];
+
     public function __construct(
-        private readonly TransformationImplementationDefinitionReviewService $definitionReviews
+        private readonly TransformationImplementationDefinitionReviewService $definitionReviews,
+        private readonly DataTransformationBiSourceReadinessService $sourceReadiness
     ) {
     }
 
@@ -173,6 +184,23 @@ final class TransformationImplementationRequestDefinitionFunctionalClosureServic
                     $lockedDefinition,
                     $definitionVersion
                 );
+
+                /*
+                 * Datos BI separa:
+                 *
+                 * - confirmaciones humanas funcionales;
+                 * - readiness real de las fuentes.
+                 *
+                 * inputs_validated/accesses_validated son aliases legacy
+                 * requeridos por el DefinitionReviewService genérico.
+                 * Nunca se confía en valores enviados por navegador.
+                 */
+                $lockedDefinition =
+                    $this->synchronizeDataBiSourceReadiness(
+                        $lockedRequest,
+                        $lockedDefinition,
+                        $actor
+                    );
 
                 /*
                  * El servicio genérico ya contiene la semántica correcta
@@ -612,7 +640,9 @@ final class TransformationImplementationRequestDefinitionFunctionalClosureServic
         }
 
         foreach (
-            self::REQUIRED_CONFIRMATIONS
+            $this->requiredConfirmations(
+                $definition
+            )
             as $confirmation
         ) {
             if (
@@ -649,6 +679,163 @@ final class TransformationImplementationRequestDefinitionFunctionalClosureServic
                 ],
             ]);
         }
+    }
+
+    /**
+     * Human confirmations required by the functional agreement.
+     *
+     * Data BI deliberately excludes source-delivery readiness here:
+     * that state is machine-owned and is resolved immediately before
+     * markReady().
+     *
+     * @return array<int,string>
+     */
+    private function requiredConfirmations(
+        TransformationImplementationDefinition $definition
+    ): array {
+        if (
+            trim(
+                (string) $definition->capability_key
+            ) === self::DATA_BI_CAPABILITY
+        ) {
+            return self::DATA_BI_HUMAN_CONFIRMATIONS;
+        }
+
+        return self::REQUIRED_CONFIRMATIONS;
+    }
+
+    /**
+     * Projects authoritative Data BI source readiness into the legacy
+     * six-confirmation Definition readiness schema required by
+     * TransformationImplementationDefinitionReviewService::markReady().
+     *
+     * No remote credentials or database access are validated here.
+     */
+    private function synchronizeDataBiSourceReadiness(
+        TransformationImplementationRequest $request,
+        TransformationImplementationDefinition $definition,
+        User $actor
+    ): TransformationImplementationDefinition {
+        if (
+            trim(
+                (string) $definition->capability_key
+            ) !== self::DATA_BI_CAPABILITY
+        ) {
+            return $definition;
+        }
+
+        $sourceReadiness =
+            $this
+                ->sourceReadiness
+                ->forRequest(
+                    $request
+                );
+
+        $sourceCount =
+            (int) (
+                $sourceReadiness[
+                    'source_count'
+                ]
+                ?? 0
+            );
+
+        $completeSourceCount =
+            (int) (
+                $sourceReadiness[
+                    'complete_source_count'
+                ]
+                ?? 0
+            );
+
+        if (
+            ($sourceReadiness[
+                'inputs_validated'
+            ] ?? false) !== true
+            || ($sourceReadiness[
+                'accesses_validated'
+            ] ?? false) !== true
+            || $sourceCount <= 0
+            || $completeSourceCount !== $sourceCount
+        ) {
+            throw ValidationException::withMessages([
+                'source_readiness' => [
+                    'Todas las fuentes activas de Datos BI deben tener un archivo CSV/XLSX válido antes del cierre funcional.',
+                ],
+            ]);
+        }
+
+        $readiness =
+            is_array(
+                $definition->readiness
+            )
+                ? $definition->readiness
+                : [];
+
+        $humanValidation =
+            is_array(
+                $readiness[
+                    'human_validation'
+                ] ?? null
+            )
+                ? $readiness[
+                    'human_validation'
+                ]
+                : [];
+
+        /*
+         * Compatibility aliases only.
+         *
+         * These two values are machine-owned for Data BI even though
+         * the historical generic schema stores them under
+         * human_validation.
+         */
+        $humanValidation[
+            'inputs_validated'
+        ] = true;
+
+        $humanValidation[
+            'accesses_validated'
+        ] = true;
+
+        $readiness[
+            'human_validation'
+        ] = $humanValidation;
+
+        $checks =
+            is_array(
+                $readiness[
+                    'checks'
+                ] ?? null
+            )
+                ? $readiness[
+                    'checks'
+                ]
+                : [];
+
+        $checks[
+            'inputs_validated'
+        ] = true;
+
+        $checks[
+            'accesses_validated'
+        ] = true;
+
+        $readiness[
+            'checks'
+        ] = $checks;
+
+        $definition
+            ->forceFill([
+                'readiness' =>
+                    $readiness,
+
+                'updated_by_user_id' =>
+                    $actor->id,
+            ])
+            ->save();
+
+        return $definition->fresh()
+            ?? $definition;
     }
 
     private function assertReadyResult(
