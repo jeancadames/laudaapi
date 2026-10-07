@@ -38,7 +38,10 @@ final class DataTransformationBiCanonicalModelService
 
     public function __construct(
         private readonly DataTransformationBiIntakeActorAuthorizationService
-            $authorization
+            $authorization,
+
+        private readonly TransformationImplementationAuthorizationGate
+            $implementationAuthorizationGate
     ) {
     }
 
@@ -172,6 +175,12 @@ final class DataTransformationBiCanonicalModelService
                 $request,
                 $actor
             ): DataTransformationBiCanonicalRegistryVersion {
+                $this->implementationAuthorizationGate
+                    ->assertActiveForRequest(
+                        $request,
+                        true
+                    );
+
                 $existingDraft =
                     DataTransformationBiCanonicalRegistryVersion::query()
                         ->where(
@@ -312,6 +321,12 @@ final class DataTransformationBiCanonicalModelService
                 $description,
                 $actor
             ): DataTransformationBiCanonicalEntity {
+                $this->implementationAuthorizationGate
+                    ->assertActiveForRequest(
+                        $request,
+                        true
+                    );
+
                 $lockedRegistry =
                     DataTransformationBiCanonicalRegistryVersion::query()
                         ->whereKey(
@@ -545,6 +560,12 @@ final class DataTransformationBiCanonicalModelService
                 $normalized,
                 $actor
             ): DataTransformationBiCanonicalEntity {
+                $this->implementationAuthorizationGate
+                    ->assertActiveForRequest(
+                        $request,
+                        true
+                    );
+
                 $lockedRegistry =
                     DataTransformationBiCanonicalRegistryVersion::query()
                         ->whereKey(
@@ -701,6 +722,12 @@ final class DataTransformationBiCanonicalModelService
                 $relationships,
                 $actor
             ): DataTransformationBiCanonicalRegistryVersion {
+                $this->implementationAuthorizationGate
+                    ->assertActiveForRequest(
+                        $request,
+                        true
+                    );
+
                 $lockedRegistry =
                     DataTransformationBiCanonicalRegistryVersion::query()
                         ->whereKey(
@@ -1016,6 +1043,12 @@ final class DataTransformationBiCanonicalModelService
                 $registry,
                 $actor
             ): DataTransformationBiCanonicalRegistryVersion {
+                $this->implementationAuthorizationGate
+                    ->assertActiveForRequest(
+                        $request,
+                        true
+                    );
+
                 $locked =
                     DataTransformationBiCanonicalRegistryVersion::query()
                         ->whereKey(
