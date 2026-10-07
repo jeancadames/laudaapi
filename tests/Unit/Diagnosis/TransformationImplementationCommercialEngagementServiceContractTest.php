@@ -203,10 +203,10 @@ final class TransformationImplementationCommercialEngagementServiceContractTest
                     'public function present('
                 );
 
-            $adminStart =
+            $acceptStart =
                 strpos(
                     $service,
-                    'private function assertLaudaAdmin'
+                    'public function accept('
                 );
 
             $this->assertNotFalse(
@@ -214,14 +214,19 @@ final class TransformationImplementationCommercialEngagementServiceContractTest
             );
 
             $this->assertNotFalse(
-                $adminStart
+                $acceptStart
+            );
+
+            $this->assertGreaterThan(
+                $presentStart,
+                $acceptStart
             );
 
             $presentSection =
                 substr(
                     $service,
                     $presentStart,
-                    $adminStart - $presentStart
+                    $acceptStart - $presentStart
                 );
 
             $this->assertStringNotContainsString(
@@ -229,6 +234,217 @@ final class TransformationImplementationCommercialEngagementServiceContractTest
                 $presentSection
             );
         }
+    }
+
+    public function test_accept_is_explicit_tenant_action_and_separate_from_authorization(): void
+    {
+        $service = file_get_contents(
+            base_path(
+                'app/Services/Diagnosis/TransformationImplementationCommercialEngagementService.php'
+            )
+        );
+
+        foreach (
+            [
+                'public function accept(',
+                'STATUS_PRESENTED',
+                'STATUS_ACCEPTED',
+                'assertTenantAdminForCompany',
+                'accepted_by_user_id',
+                'accepted_at',
+                'transformation_implementation_commercial_engagement_accepted_by_tenant',
+                "'commercial_acceptance' =>\n                            true",
+                "'implementation_authorized' =>\n                            false",
+                "'execution_started' =>\n                            false",
+            ]
+            as $token
+        ) {
+            $this->assertStringContainsString(
+                $token,
+                $service
+            );
+        }
+    }
+
+    public function test_accept_revalidates_exact_request_definition_and_engagement_boundary(): void
+    {
+        $service = file_get_contents(
+            base_path(
+                'app/Services/Diagnosis/TransformationImplementationCommercialEngagementService.php'
+            )
+        );
+
+        $acceptStart =
+            strpos(
+                $service,
+                'public function accept('
+            );
+
+        $engagementContextStart =
+            strpos(
+                $service,
+                'private function assertEngagementContext'
+            );
+
+        $this->assertNotFalse(
+            $acceptStart
+        );
+
+        $this->assertNotFalse(
+            $engagementContextStart
+        );
+
+        $section =
+            substr(
+                $service,
+                $acceptStart,
+                $engagementContextStart - $acceptStart
+            );
+
+        foreach (
+            [
+                'assertRequestState(',
+                'assertTenantAdminForCompany(',
+                'resolveReadyForCommercialEvidence(',
+                'assertDefinitionContext(',
+                'assertEngagementContext(',
+                'assertPresentableCommercialTerms(',
+                'transformation_implementation_authorizations',
+            ]
+            as $token
+        ) {
+            $this->assertStringContainsString(
+                $token,
+                $section
+            );
+        }
+    }
+
+    public function test_accept_does_not_authorize_execute_subscribe_or_touch_canonical(): void
+    {
+        $service = file_get_contents(
+            base_path(
+                'app/Services/Diagnosis/TransformationImplementationCommercialEngagementService.php'
+            )
+        );
+
+        $acceptStart =
+            strpos(
+                $service,
+                'public function accept('
+            );
+
+        $engagementContextStart =
+            strpos(
+                $service,
+                'private function assertEngagementContext'
+            );
+
+        $section =
+            substr(
+                $service,
+                $acceptStart,
+                $engagementContextStart - $acceptStart
+            );
+
+        foreach (
+            [
+                'TransformationImplementationAuthorization::query()->create',
+                'DataTransformationBiCanonicalModelService',
+                'ready_for_execution',
+                'Subscription::',
+                'Invoice::',
+                'Payment::',
+                'acceptPlan(',
+            ]
+            as $forbidden
+        ) {
+            $this->assertStringNotContainsString(
+                $forbidden,
+                $section
+            );
+        }
+    }
+
+    public function test_accept_uses_exact_existing_tenant_admin_boundary(): void
+    {
+        $service = file_get_contents(
+            base_path(
+                'app/Services/Diagnosis/TransformationImplementationCommercialEngagementService.php'
+            )
+        );
+
+        foreach (
+            [
+                'SubscriberResolver',
+                'CompanyContextResolver',
+                'TenantAccessService',
+                "!== 'subscriber'",
+                'TenantAccessService::SUBSCRIBER_ADMIN',
+                "\$tenantAccess['tenant_admin']",
+                '$this->subscriberResolver',
+                '$this->tenantAccessService',
+                '$this->companyResolver',
+                'subscriber_id',
+            ]
+            as $token
+        ) {
+            $this->assertStringContainsString(
+                $token,
+                $service
+            );
+        }
+    }
+
+    public function test_accept_does_not_treat_plain_subscriber_membership_as_tenant_admin(): void
+    {
+        $service = file_get_contents(
+            base_path(
+                'app/Services/Diagnosis/TransformationImplementationCommercialEngagementService.php'
+            )
+        );
+
+        $tenantStart =
+            strpos(
+                $service,
+                'private function assertTenantAdminForCompany('
+            );
+
+        $contextStart =
+            strpos(
+                $service,
+                'private function assertEngagementContext('
+            );
+
+        $this->assertNotFalse(
+            $tenantStart
+        );
+
+        $this->assertNotFalse(
+            $contextStart
+        );
+
+        $section =
+            substr(
+                $service,
+                $tenantStart,
+                $contextStart - $tenantStart
+            );
+
+        $this->assertStringNotContainsString(
+            '$actor->subscribers()',
+            $section
+        );
+
+        $this->assertStringContainsString(
+            'TenantAccessService::SUBSCRIBER_ADMIN',
+            $section
+        );
+
+        $this->assertStringContainsString(
+            "\$tenantAccess['tenant_admin']",
+            $section
+        );
     }
 
 }

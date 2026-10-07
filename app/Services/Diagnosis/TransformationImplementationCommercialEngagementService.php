@@ -8,12 +8,22 @@ use App\Models\TransformationImplementationRequest;
 use App\Models\TransformationImplementationRequestEvent;
 use App\Models\User;
 use App\Services\AuditService;
+use App\Services\Subscribers\CompanyContextResolver;
+use App\Services\Subscribers\SubscriberResolver;
+use App\Services\Subscribers\TenantAccessService;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
 final class TransformationImplementationCommercialEngagementService
 {
+    public function __construct(
+        private readonly SubscriberResolver $subscriberResolver,
+        private readonly CompanyContextResolver $companyResolver,
+        private readonly TenantAccessService $tenantAccessService
+    ) {
+    }
+
     private const READY_FOR_COMMERCIAL_EVENT =
         'request_ready_for_commercial_by_lauda';
 
@@ -587,6 +597,309 @@ final class TransformationImplementationCommercialEngagementService
             },
             3
         );
+    }
+
+    /**
+     * Tenant explicitly accepts a presented commercial engagement.
+     *
+     * Commercial acceptance:
+     * - requires an authorized Tenant Admin for the same Company;
+     * - requires engagement = presented;
+     * - revalidates Request = ready_for_commercial;
+     * - revalidates the exact pinned Definition;
+     * - preserves the frozen commercial material;
+     * - does NOT authorize implementation;
+     * - does NOT mutate Request or Definition;
+     * - does NOT start execution;
+     * - does NOT touch Canonical.
+     */
+    public function accept(
+        TransformationImplementationCommercialEngagement $engagement,
+        User $actor
+    ): TransformationImplementationCommercialEngagement {
+        return DB::transaction(
+            function () use (
+                $engagement,
+                $actor
+            ): TransformationImplementationCommercialEngagement {
+                $lockedEngagement =
+                    TransformationImplementationCommercialEngagement::query()
+                        ->whereKey(
+                            $engagement->id
+                        )
+                        ->lockForUpdate()
+                        ->firstOrFail();
+
+                if (
+                    $lockedEngagement->status
+                    !== TransformationImplementationCommercialEngagement::STATUS_PRESENTED
+                ) {
+                    throw ValidationException::withMessages([
+                        'commercial_engagement' => [
+                            'Solo una propuesta comercial presentada puede ser aceptada.',
+                        ],
+                    ]);
+                }
+
+                if (
+                    $lockedEngagement->presented_at
+                    === null
+                    || $lockedEngagement->presented_by_user_id
+                    === null
+                ) {
+                    throw ValidationException::withMessages([
+                        'commercial_engagement' => [
+                            'La propuesta no contiene evidencia completa de presentación.',
+                        ],
+                    ]);
+                }
+
+                $request =
+                    TransformationImplementationRequest::query()
+                        ->whereKey(
+                            $lockedEngagement
+                                ->transformation_implementation_request_id
+                        )
+                        ->lockForUpdate()
+                        ->firstOrFail();
+
+                $this->assertRequestState(
+                    $request
+                );
+
+                $this->assertTenantAdminForCompany(
+                    $actor,
+                    (int) $request->company_id
+                );
+
+                $readyEvent =
+                    $this->resolveReadyForCommercialEvidence(
+                        $request
+                    );
+
+                $metadata =
+                    is_array(
+                        $readyEvent->metadata
+                    )
+                        ? $readyEvent->metadata
+                        : [];
+
+                $definition =
+                    TransformationImplementationDefinition::query()
+                        ->whereKey(
+                            $lockedEngagement
+                                ->transformation_implementation_definition_id
+                        )
+                        ->lockForUpdate()
+                        ->firstOrFail();
+
+                $expectedDefinitionVersion =
+                    (int) (
+                        $metadata[
+                            'definition_version'
+                        ]
+                        ?? 0
+                    );
+
+                if (
+                    $expectedDefinitionVersion <= 0
+                ) {
+                    throw ValidationException::withMessages([
+                        'definition' => [
+                            'La evidencia ready_for_commercial no contiene una versión de Definition válida.',
+                        ],
+                    ]);
+                }
+
+                $this->assertDefinitionContext(
+                    $request,
+                    $definition,
+                    $expectedDefinitionVersion,
+                    $metadata
+                );
+
+                $this->assertEngagementContext(
+                    $lockedEngagement,
+                    $request,
+                    $definition
+                );
+
+                $this->assertPresentableCommercialTerms(
+                    $lockedEngagement
+                );
+
+                $existingAuthorization =
+                    DB::table(
+                        'transformation_implementation_authorizations'
+                    )
+                        ->where(
+                            'transformation_implementation_commercial_engagement_id',
+                            $lockedEngagement->id
+                        )
+                        ->lockForUpdate()
+                        ->exists();
+
+                if ($existingAuthorization) {
+                    throw ValidationException::withMessages([
+                        'commercial_engagement' => [
+                            'La propuesta ya tiene una autorización de implementación y no puede aceptar nuevamente el boundary comercial.',
+                        ],
+                    ]);
+                }
+
+                $lockedEngagement->forceFill([
+                    'status' =>
+                        TransformationImplementationCommercialEngagement::STATUS_ACCEPTED,
+
+                    'accepted_by_user_id' =>
+                        $actor->id,
+
+                    'accepted_at' =>
+                        now(),
+
+                    'updated_by_user_id' =>
+                        $actor->id,
+                ])->save();
+
+                AuditService::log(
+                    'transformation_implementation_commercial_engagement_accepted_by_tenant',
+                    $lockedEngagement,
+                    [
+                        'request_id' =>
+                            (int) $request->id,
+
+                        'commercial_engagement_id' =>
+                            (int) $lockedEngagement->id,
+
+                        'commercial_engagement_version' =>
+                            (int) $lockedEngagement->version,
+
+                        'definition_id' =>
+                            (int) $definition->id,
+
+                        'definition_version' =>
+                            (int) $definition->version,
+
+                        'company_id' =>
+                            (int) $request->company_id,
+
+                        'phase_capability_id' =>
+                            (int) $request
+                                ->transformation_implementation_phase_capability_id,
+
+                        'capability_key' =>
+                            (string) $request->capability_key,
+
+                        'status' =>
+                            TransformationImplementationCommercialEngagement::STATUS_ACCEPTED,
+
+                        'commercial_acceptance' =>
+                            true,
+
+                        'implementation_authorized' =>
+                            false,
+
+                        'execution_started' =>
+                            false,
+
+                        'actor_user_id' =>
+                            (int) $actor->id,
+                    ]
+                );
+
+                return $lockedEngagement->fresh([
+                    'request',
+                    'definition',
+                ]) ?? $lockedEngagement;
+            },
+            3
+        );
+    }
+
+    private function assertTenantAdminForCompany(
+        User $actor,
+        int $companyId
+    ): void {
+        /*
+         * Exact tenant boundary already used by the Definition
+         * tenant-decision lifecycle.
+         *
+         * Merely belonging to a Subscriber is not enough:
+         *
+         * - actor must be a subscriber identity;
+         * - SubscriberResolver must resolve the active tenant;
+         * - TenantAccessService must resolve SUBSCRIBER_ADMIN;
+         * - tenant_admin must be true;
+         * - CompanyContextResolver must resolve the exact Company.
+         *
+         * LAUDA platform admins intentionally cannot commercially
+         * accept on behalf of the tenant.
+         */
+        if (
+            ($actor->role ?? null)
+            !== 'subscriber'
+        ) {
+            throw new AuthorizationException(
+                'La aceptación comercial requiere un Tenant Admin.'
+            );
+        }
+
+        $subscriberId =
+            (int) (
+                $this->subscriberResolver
+                    ->resolve(
+                        $actor
+                    )
+                ?? 0
+            );
+
+        if ($subscriberId <= 0) {
+            throw new AuthorizationException(
+                'No se pudo resolver el tenant del usuario.'
+            );
+        }
+
+        $tenantAccess =
+            $this->tenantAccessService
+                ->resolve(
+                    $actor,
+                    $subscriberId
+                );
+
+        if (
+            ($tenantAccess['mode'] ?? null)
+            !== TenantAccessService::SUBSCRIBER_ADMIN
+
+            || ! (bool) (
+                $tenantAccess['tenant_admin']
+                ?? false
+            )
+        ) {
+            throw new AuthorizationException(
+                'La aceptación comercial requiere permisos de administrador de la empresa.'
+            );
+        }
+
+        $company =
+            $this->companyResolver
+                ->resolve(
+                    $actor,
+                    $subscriberId
+                );
+
+        if (
+            ! $company
+
+            || (int) $company->id
+            !== $companyId
+
+            || (int) ($company->subscriber_id ?? 0)
+            !== $subscriberId
+        ) {
+            throw new AuthorizationException(
+                'La propuesta comercial no pertenece a la empresa del usuario.'
+            );
+        }
     }
 
     private function assertEngagementContext(
