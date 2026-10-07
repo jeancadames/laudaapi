@@ -102,4 +102,133 @@ final class TransformationImplementationCommercialEngagementServiceContractTest
             $service
         );
     }
+    public function test_present_requires_complete_draft_and_keeps_acceptance_separate(): void
+    {
+        $service = file_get_contents(
+            base_path(
+                'app/Services/Diagnosis/TransformationImplementationCommercialEngagementService.php'
+            )
+        );
+
+        foreach (
+            [
+                'public function present(',
+                'STATUS_DRAFT',
+                'STATUS_PRESENTED',
+                'assertPresentableCommercialTerms',
+                'price_amount',
+                'currency',
+                'duration_days',
+                'scope_snapshot',
+                'deliverables_snapshot',
+                'commercial_terms_snapshot',
+                'presented_by_user_id',
+                'presented_at',
+                'transformation_implementation_commercial_engagement_presented',
+            ]
+            as $token
+        ) {
+            $this->assertStringContainsString(
+                $token,
+                $service
+            );
+        }
+
+        foreach (
+            [
+                "'commercial_acceptance' =>\n                            false",
+                "'implementation_authorized' =>\n                            false",
+                "'execution_started' =>\n                            false",
+            ]
+            as $token
+        ) {
+            $this->assertStringContainsString(
+                $token,
+                $service
+            );
+        }
+    }
+
+    public function test_present_revalidates_request_definition_and_engagement_context(): void
+    {
+        $service = file_get_contents(
+            base_path(
+                'app/Services/Diagnosis/TransformationImplementationCommercialEngagementService.php'
+            )
+        );
+
+        foreach (
+            [
+                'assertRequestState(',
+                'resolveReadyForCommercialEvidence(',
+                'assertDefinitionContext(',
+                'assertEngagementContext(',
+                'transformation_implementation_request_id',
+                'transformation_implementation_definition_id',
+                'transformation_implementation_phase_capability_id',
+                'capability_key',
+            ]
+            as $token
+        ) {
+            $this->assertStringContainsString(
+                $token,
+                $service
+            );
+        }
+    }
+
+    public function test_present_does_not_accept_authorize_execute_or_touch_canonical(): void
+    {
+        $service = file_get_contents(
+            base_path(
+                'app/Services/Diagnosis/TransformationImplementationCommercialEngagementService.php'
+            )
+        );
+
+        foreach (
+            [
+                'DataTransformationBiCanonicalModelService',
+                'TransformationImplementationAuthorization::query()->create',
+                'STATUS_ACCEPTED',
+                'acceptPlan(',
+                'Subscription::',
+                'Invoice::',
+                'Payment::',
+            ]
+            as $forbidden
+        ) {
+            $presentStart =
+                strpos(
+                    $service,
+                    'public function present('
+                );
+
+            $adminStart =
+                strpos(
+                    $service,
+                    'private function assertLaudaAdmin'
+                );
+
+            $this->assertNotFalse(
+                $presentStart
+            );
+
+            $this->assertNotFalse(
+                $adminStart
+            );
+
+            $presentSection =
+                substr(
+                    $service,
+                    $presentStart,
+                    $adminStart - $presentStart
+                );
+
+            $this->assertStringNotContainsString(
+                $forbidden,
+                $presentSection
+            );
+        }
+    }
+
 }

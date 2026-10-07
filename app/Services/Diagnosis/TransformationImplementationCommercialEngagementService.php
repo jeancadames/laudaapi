@@ -370,6 +370,354 @@ final class TransformationImplementationCommercialEngagementService
         );
     }
 
+    /**
+     * Presents an existing commercial draft to the tenant.
+     *
+     * Presentation freezes the commercial version at the application
+     * lifecycle level.
+     *
+     * This action:
+     * - requires LAUDA Admin;
+     * - requires an exact draft engagement;
+     * - requires Request = ready_for_commercial;
+     * - revalidates the exact pinned Definition;
+     * - requires materially complete commercial terms;
+     * - marks only the engagement as presented;
+     * - does NOT accept commercially;
+     * - does NOT authorize implementation;
+     * - does NOT mutate Request or Definition;
+     * - does NOT start execution.
+     */
+    public function present(
+        TransformationImplementationCommercialEngagement $engagement,
+        User $actor
+    ): TransformationImplementationCommercialEngagement {
+        $this->assertLaudaAdmin(
+            $actor
+        );
+
+        return DB::transaction(
+            function () use (
+                $engagement,
+                $actor
+            ): TransformationImplementationCommercialEngagement {
+                $lockedEngagement =
+                    TransformationImplementationCommercialEngagement::query()
+                        ->whereKey(
+                            $engagement->id
+                        )
+                        ->lockForUpdate()
+                        ->firstOrFail();
+
+                if (
+                    $lockedEngagement->status
+                    !== TransformationImplementationCommercialEngagement::STATUS_DRAFT
+                ) {
+                    throw ValidationException::withMessages([
+                        'commercial_engagement' => [
+                            'Solo una propuesta comercial en draft puede ser presentada.',
+                        ],
+                    ]);
+                }
+
+                $request =
+                    TransformationImplementationRequest::query()
+                        ->whereKey(
+                            $lockedEngagement
+                                ->transformation_implementation_request_id
+                        )
+                        ->lockForUpdate()
+                        ->firstOrFail();
+
+                $this->assertRequestState(
+                    $request
+                );
+
+                $readyEvent =
+                    $this->resolveReadyForCommercialEvidence(
+                        $request
+                    );
+
+                $metadata =
+                    is_array(
+                        $readyEvent->metadata
+                    )
+                        ? $readyEvent->metadata
+                        : [];
+
+                $definition =
+                    TransformationImplementationDefinition::query()
+                        ->whereKey(
+                            $lockedEngagement
+                                ->transformation_implementation_definition_id
+                        )
+                        ->lockForUpdate()
+                        ->firstOrFail();
+
+                $expectedDefinitionVersion =
+                    (int) (
+                        $metadata[
+                            'definition_version'
+                        ]
+                        ?? 0
+                    );
+
+                if (
+                    $expectedDefinitionVersion <= 0
+                ) {
+                    throw ValidationException::withMessages([
+                        'definition' => [
+                            'La evidencia ready_for_commercial no contiene una versión de Definition válida.',
+                        ],
+                    ]);
+                }
+
+                $this->assertDefinitionContext(
+                    $request,
+                    $definition,
+                    $expectedDefinitionVersion,
+                    $metadata
+                );
+
+                $this->assertEngagementContext(
+                    $lockedEngagement,
+                    $request,
+                    $definition
+                );
+
+                $this->assertPresentableCommercialTerms(
+                    $lockedEngagement
+                );
+
+                $existingAuthorization =
+                    DB::table(
+                        'transformation_implementation_authorizations'
+                    )
+                        ->where(
+                            'transformation_implementation_commercial_engagement_id',
+                            $lockedEngagement->id
+                        )
+                        ->lockForUpdate()
+                        ->exists();
+
+                if ($existingAuthorization) {
+                    throw ValidationException::withMessages([
+                        'commercial_engagement' => [
+                            'La propuesta comercial ya tiene evidencia de autorización de implementación.',
+                        ],
+                    ]);
+                }
+
+                $lockedEngagement->forceFill([
+                    'status' =>
+                        TransformationImplementationCommercialEngagement::STATUS_PRESENTED,
+
+                    'presented_by_user_id' =>
+                        $actor->id,
+
+                    'presented_at' =>
+                        now(),
+
+                    'updated_by_user_id' =>
+                        $actor->id,
+                ])->save();
+
+                AuditService::log(
+                    'transformation_implementation_commercial_engagement_presented',
+                    $lockedEngagement,
+                    [
+                        'request_id' =>
+                            (int) $request->id,
+
+                        'commercial_engagement_id' =>
+                            (int) $lockedEngagement->id,
+
+                        'commercial_engagement_version' =>
+                            (int) $lockedEngagement->version,
+
+                        'definition_id' =>
+                            (int) $definition->id,
+
+                        'definition_version' =>
+                            (int) $definition->version,
+
+                        'ready_for_commercial_event_id' =>
+                            (int) $readyEvent->id,
+
+                        'company_id' =>
+                            (int) $request->company_id,
+
+                        'phase_capability_id' =>
+                            (int) $request
+                                ->transformation_implementation_phase_capability_id,
+
+                        'capability_key' =>
+                            (string) $request->capability_key,
+
+                        'status' =>
+                            TransformationImplementationCommercialEngagement::STATUS_PRESENTED,
+
+                        'price_amount' =>
+                            (string) $lockedEngagement->price_amount,
+
+                        'currency' =>
+                            (string) $lockedEngagement->currency,
+
+                        'duration_days' =>
+                            (int) $lockedEngagement->duration_days,
+
+                        'commercial_acceptance' =>
+                            false,
+
+                        'implementation_authorized' =>
+                            false,
+
+                        'execution_started' =>
+                            false,
+
+                        'actor_user_id' =>
+                            (int) $actor->id,
+                    ]
+                );
+
+                return $lockedEngagement->fresh([
+                    'request',
+                    'definition',
+                ]) ?? $lockedEngagement;
+            },
+            3
+        );
+    }
+
+    private function assertEngagementContext(
+        TransformationImplementationCommercialEngagement $engagement,
+        TransformationImplementationRequest $request,
+        TransformationImplementationDefinition $definition
+    ): void {
+        if (
+            (int) $engagement
+                ->transformation_implementation_request_id
+            !== (int) $request->id
+
+            || (int) $engagement
+                ->transformation_implementation_definition_id
+            !== (int) $definition->id
+
+            || (int) $engagement->company_id
+            !== (int) $request->company_id
+
+            || (int) $engagement
+                ->transformation_implementation_phase_capability_id
+            !== (int) $request
+                ->transformation_implementation_phase_capability_id
+
+            || trim(
+                (string) $engagement->capability_key
+            ) !== trim(
+                (string) $request->capability_key
+            )
+        ) {
+            throw ValidationException::withMessages([
+                'commercial_engagement' => [
+                    'La propuesta comercial no corresponde exactamente a la solicitud y Definition pinneadas.',
+                ],
+            ]);
+        }
+    }
+
+    private function assertPresentableCommercialTerms(
+        TransformationImplementationCommercialEngagement $engagement
+    ): void {
+        if (
+            $engagement->price_amount === null
+
+            || ! is_numeric(
+                $engagement->price_amount
+            )
+
+            || (float) $engagement->price_amount < 0
+        ) {
+            throw ValidationException::withMessages([
+                'price_amount' => [
+                    'La propuesta debe tener un precio comercial definido antes de presentarse.',
+                ],
+            ]);
+        }
+
+        if (
+            ! in_array(
+                strtoupper(
+                    trim(
+                        (string) $engagement->currency
+                    )
+                ),
+                [
+                    'DOP',
+                    'USD',
+                    'EUR',
+                ],
+                true
+            )
+        ) {
+            throw ValidationException::withMessages([
+                'currency' => [
+                    'La propuesta debe tener una moneda comercial válida antes de presentarse.',
+                ],
+            ]);
+        }
+
+        if (
+            $engagement->duration_days === null
+
+            || (int) $engagement->duration_days <= 0
+        ) {
+            throw ValidationException::withMessages([
+                'duration_days' => [
+                    'La propuesta debe tener una duración válida antes de presentarse.',
+                ],
+            ]);
+        }
+
+        if (
+            ! is_array(
+                $engagement->scope_snapshot
+            )
+            || $engagement->scope_snapshot === []
+        ) {
+            throw ValidationException::withMessages([
+                'scope_snapshot' => [
+                    'La propuesta debe contener el alcance funcional pinneado.',
+                ],
+            ]);
+        }
+
+        if (
+            ! is_array(
+                $engagement->deliverables_snapshot
+            )
+            || $engagement->deliverables_snapshot === []
+        ) {
+            throw ValidationException::withMessages([
+                'deliverables_snapshot' => [
+                    'La propuesta debe contener entregables definidos.',
+                ],
+            ]);
+        }
+
+        if (
+            ! is_array(
+                $engagement->commercial_terms_snapshot
+            )
+            || $engagement->commercial_terms_snapshot === []
+        ) {
+            throw ValidationException::withMessages([
+                'commercial_terms_snapshot' => [
+                    'La propuesta debe contener términos comerciales antes de presentarse.',
+                ],
+            ]);
+        }
+    }
+
     private function assertLaudaAdmin(
         User $actor
     ): void {
