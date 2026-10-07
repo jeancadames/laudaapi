@@ -793,6 +793,35 @@ Route::middleware(['auth', 'verified', 'role:admin'])
               );
 
 
+          \Illuminate\Support\Facades\Route::post(
+              '/transformation-360/implementation-requests/{implementationRequest}/standard-intake-v2/sessions/{sessionId}/source-assets/{sourceAssetId}/mappings/{mappingId}/ready',
+              [
+                  \App\Http\Controllers\Admin\AdminDataTransformationBiIntakeV2Controller::class,
+                  'markSourceAssetMappingReady',
+              ]
+          )
+              ->whereNumber('sessionId')
+              ->whereNumber('sourceAssetId')
+              ->whereNumber('mappingId')
+              ->name(
+                  'transformation360.implementation_requests.standard_intake_v2.source_assets.mappings.ready'
+              );
+
+          \Illuminate\Support\Facades\Route::post(
+              '/transformation-360/implementation-requests/{implementationRequest}/standard-intake-v2/sessions/{sessionId}/source-assets/{sourceAssetId}/mappings/{mappingId}/validate',
+              [
+                  \App\Http\Controllers\Admin\AdminDataTransformationBiIntakeV2Controller::class,
+                  'validateSourceAssetMapping',
+              ]
+          )
+              ->whereNumber('sessionId')
+              ->whereNumber('sourceAssetId')
+              ->whereNumber('mappingId')
+              ->name(
+                  'transformation360.implementation_requests.standard_intake_v2.source_assets.mappings.validate'
+              );
+
+
 
         \Illuminate\Support\Facades\Route::post(
             '/transformation-360/implementation-requests/{implementationRequest}/standard-intake-v2/domains/{domain}/sql-server-extraction/preview',

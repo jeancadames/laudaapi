@@ -905,6 +905,196 @@ final class AdminDataTransformationBiIntakeV2Controller extends Controller
         ]);
     }
 
+    /**
+     * Explicitly close one editable mapping as READY for LAUDA validation.
+     */
+    public function markSourceAssetMappingReady(
+        Request $request,
+        TransformationImplementationRequest $implementationRequest,
+        int $sessionId,
+        int $sourceAssetId,
+        int $mappingId,
+        DataTransformationBiSourceAssetMappingService $service
+    ): JsonResponse {
+        $actor =
+            $this->actor(
+                $request
+            );
+
+        $this->assertRequest(
+            $implementationRequest
+        );
+
+        $session =
+            $this->scopedSession(
+                $implementationRequest,
+                $sessionId
+            );
+
+        $asset =
+            $this->scopedSourceAsset(
+                $implementationRequest,
+                $session,
+                $sourceAssetId
+            );
+
+        $mapping =
+            $this->scopedSourceAssetMapping(
+                $implementationRequest,
+                $session,
+                $asset,
+                $mappingId
+            );
+
+        try {
+            $mapping =
+                $service->markReady(
+                    $implementationRequest,
+                    $session,
+                    $asset,
+                    $mapping,
+                    $actor
+                );
+
+            $workspace =
+                $service->workspace(
+                    $implementationRequest,
+                    $session,
+                    $asset,
+                    $actor
+                );
+        } catch (
+            ValidationException $exception
+        ) {
+            return $this->validationError(
+                $exception,
+                'No se pudo marcar el mapeo como listo para validar.'
+            );
+        } catch (
+            RuntimeException $exception
+        ) {
+            return $this->runtimeError(
+                $exception
+            );
+        }
+
+        return response()->json([
+            'ok' =>
+                true,
+
+            'message' =>
+                'Mapeo LAUDA listo para validación.',
+
+            'mapping_id' =>
+                (int) $mapping->getKey(),
+
+            'status' =>
+                (string) $mapping->status,
+
+            'workspace' =>
+                $workspace,
+        ]);
+    }
+
+    /**
+     * Explicitly validate one READY mapping as immutable LAUDA evidence.
+     */
+    public function validateSourceAssetMapping(
+        Request $request,
+        TransformationImplementationRequest $implementationRequest,
+        int $sessionId,
+        int $sourceAssetId,
+        int $mappingId,
+        DataTransformationBiSourceAssetMappingService $service
+    ): JsonResponse {
+        $actor =
+            $this->actor(
+                $request
+            );
+
+        $this->assertRequest(
+            $implementationRequest
+        );
+
+        $session =
+            $this->scopedSession(
+                $implementationRequest,
+                $sessionId
+            );
+
+        $asset =
+            $this->scopedSourceAsset(
+                $implementationRequest,
+                $session,
+                $sourceAssetId
+            );
+
+        $mapping =
+            $this->scopedSourceAssetMapping(
+                $implementationRequest,
+                $session,
+                $asset,
+                $mappingId
+            );
+
+        try {
+            $mapping =
+                $service->validate(
+                    $implementationRequest,
+                    $session,
+                    $asset,
+                    $mapping,
+                    $actor
+                );
+
+            $workspace =
+                $service->workspace(
+                    $implementationRequest,
+                    $session,
+                    $asset,
+                    $actor
+                );
+        } catch (
+            ValidationException $exception
+        ) {
+            return $this->validationError(
+                $exception,
+                'No se pudo validar el mapeo LAUDA.'
+            );
+        } catch (
+            RuntimeException $exception
+        ) {
+            return $this->runtimeError(
+                $exception
+            );
+        }
+
+        return response()->json([
+            'ok' =>
+                true,
+
+            'message' =>
+                'Mapeo LAUDA validado correctamente.',
+
+            'mapping_id' =>
+                (int) $mapping->getKey(),
+
+            'status' =>
+                (string) $mapping->status,
+
+            'validated_at' =>
+                $mapping->validated_at?->toISOString(),
+
+            'validated_by_user_id' =>
+                $mapping->validated_by_user_id !== null
+                    ? (int) $mapping->validated_by_user_id
+                    : null,
+
+            'workspace' =>
+                $workspace,
+        ]);
+    }
+
     public function previewSqlServerExtraction(
         Request $request,
         TransformationImplementationRequest $implementationRequest,

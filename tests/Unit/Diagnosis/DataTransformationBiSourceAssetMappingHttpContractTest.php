@@ -97,6 +97,101 @@ final class DataTransformationBiSourceAssetMappingHttpContractTest
         );
     }
 
+    public function test_admin_exposes_explicit_ready_and_validate_mapping_routes(): void
+    {
+        foreach (
+            [
+                '/mappings/{mappingId}/ready',
+                '/mappings/{mappingId}/validate',
+                "'markSourceAssetMappingReady'",
+                "'validateSourceAssetMapping'",
+                'source_assets.mappings.ready',
+                'source_assets.mappings.validate',
+            ]
+            as $required
+        ) {
+            self::assertStringContainsString(
+                $required,
+                $this->routes
+            );
+        }
+
+        $ready =
+            $this->methodBlock(
+                $this->controller,
+                'public function markSourceAssetMappingReady(',
+                'public function validateSourceAssetMapping('
+            );
+
+        foreach (
+            [
+                '$this->actor(',
+                '$this->assertRequest(',
+                '$this->scopedSession(',
+                '$this->scopedSourceAsset(',
+                '$this->scopedSourceAssetMapping(',
+                '$service->markReady(',
+                '$service->workspace(',
+                "'mapping_id'",
+                "'status'",
+            ]
+            as $required
+        ) {
+            self::assertStringContainsString(
+                $required,
+                $ready
+            );
+        }
+
+        $validate =
+            $this->methodBlock(
+                $this->controller,
+                'public function validateSourceAssetMapping(',
+                'public function previewSqlServerExtraction('
+            );
+
+        foreach (
+            [
+                '$this->actor(',
+                '$this->assertRequest(',
+                '$this->scopedSession(',
+                '$this->scopedSourceAsset(',
+                '$this->scopedSourceAssetMapping(',
+                '$service->validate(',
+                '$service->workspace(',
+                "'mapping_id'",
+                "'status'",
+                "'validated_at'",
+                "'validated_by_user_id'",
+            ]
+            as $required
+        ) {
+            self::assertStringContainsString(
+                $required,
+                $validate
+            );
+        }
+
+        foreach (
+            [
+                'replaceFieldMappings(',
+                'startDraft(',
+                'TransformationImplementationExecutionService',
+            ]
+            as $forbidden
+        ) {
+            self::assertStringNotContainsString(
+                $forbidden,
+                $ready
+            );
+
+            self::assertStringNotContainsString(
+                $forbidden,
+                $validate
+            );
+        }
+    }
+
     public function test_mapping_workspace_get_is_explicitly_read_only(): void
     {
         $controllerAction =
