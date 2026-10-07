@@ -2611,6 +2611,27 @@ function dynamicSourceMappingColumnLabel(
     return `${header} · ${column.key}`;
 }
 
+function dynamicSourceMappingCanMarkReady(
+    mapping?: DynamicSourceMapping | null,
+): boolean {
+    if (!mapping) {
+        return false;
+    }
+
+    return [
+        'draft',
+        'blocked',
+    ].includes(
+        mapping.status,
+    );
+}
+
+function dynamicSourceMappingCanValidate(
+    mapping?: DynamicSourceMapping | null,
+): boolean {
+    return mapping?.status === 'ready';
+}
+
 function dynamicSourceMappingStartLabel(): string {
     const mapping =
         dynamicSourceMappingCurrent();
@@ -2627,6 +2648,168 @@ function dynamicSourceMappingStartLabel(): string {
     }
 
     return 'Reanudar borrador';
+}
+
+async function markDynamicSourceMappingReady(): Promise<void> {
+    const mapping =
+        dynamicSourceMappingCurrent();
+
+    const asset =
+        dynamicSourceSelectedAsset();
+
+    const sessionId =
+        standardIntakeV2SessionId();
+
+    if (
+        !mapping
+        || !asset
+        || sessionId === null
+    ) {
+        dynamicSourceMappingError.value =
+            'No existe un mapeo válido para finalizar.';
+
+        return;
+    }
+
+    if (
+        !dynamicSourceMappingCanMarkReady(
+            mapping,
+        )
+    ) {
+        dynamicSourceMappingError.value =
+            'Solo un mapeo editable puede marcarse listo para validar.';
+
+        return;
+    }
+
+    dynamicSourceMappingBusy.value =
+        'ready';
+
+    dynamicSourceMappingError.value =
+        null;
+
+    dynamicSourceMappingMessage.value =
+        null;
+
+    try {
+        const payload =
+            await standardIntakeV2Request(
+                `${standardIntakeV2BaseUrl}/sessions/${sessionId}/source-assets/${asset.id}/mappings/${mapping.id}/ready`,
+                {
+                    method:
+                        'POST',
+                },
+            );
+
+        if (!payload.workspace) {
+            throw new Error(
+                'La respuesta no contiene el espacio de mapeo actualizado.',
+            );
+        }
+
+        dynamicSourceMappingWorkspace.value =
+            payload.workspace;
+
+        dynamicSourceMappingSelectedMappingId.value =
+            mapping.id;
+
+        hydrateDynamicSourceMappingDecisions(
+            dynamicSourceMappingCurrent(),
+        );
+
+        dynamicSourceMappingMessage.value =
+            payload.message
+            ?? 'Mapeo listo para validación.';
+    } catch (error) {
+        dynamicSourceMappingError.value =
+            error instanceof Error
+                ? error.message
+                : 'No se pudo marcar el mapeo como listo para validar.';
+    } finally {
+        dynamicSourceMappingBusy.value =
+            null;
+    }
+}
+
+async function validateDynamicSourceMapping(): Promise<void> {
+    const mapping =
+        dynamicSourceMappingCurrent();
+
+    const asset =
+        dynamicSourceSelectedAsset();
+
+    const sessionId =
+        standardIntakeV2SessionId();
+
+    if (
+        !mapping
+        || !asset
+        || sessionId === null
+    ) {
+        dynamicSourceMappingError.value =
+            'No existe un mapeo válido para validar.';
+
+        return;
+    }
+
+    if (
+        !dynamicSourceMappingCanValidate(
+            mapping,
+        )
+    ) {
+        dynamicSourceMappingError.value =
+            'Solo un mapeo listo puede validarse.';
+
+        return;
+    }
+
+    dynamicSourceMappingBusy.value =
+        'validate';
+
+    dynamicSourceMappingError.value =
+        null;
+
+    dynamicSourceMappingMessage.value =
+        null;
+
+    try {
+        const payload =
+            await standardIntakeV2Request(
+                `${standardIntakeV2BaseUrl}/sessions/${sessionId}/source-assets/${asset.id}/mappings/${mapping.id}/validate`,
+                {
+                    method:
+                        'POST',
+                },
+            );
+
+        if (!payload.workspace) {
+            throw new Error(
+                'La respuesta no contiene el espacio de mapeo actualizado.',
+            );
+        }
+
+        dynamicSourceMappingWorkspace.value =
+            payload.workspace;
+
+        dynamicSourceMappingSelectedMappingId.value =
+            mapping.id;
+
+        hydrateDynamicSourceMappingDecisions(
+            dynamicSourceMappingCurrent(),
+        );
+
+        dynamicSourceMappingMessage.value =
+            payload.message
+            ?? 'Mapeo validado correctamente.';
+    } catch (error) {
+        dynamicSourceMappingError.value =
+            error instanceof Error
+                ? error.message
+                : 'No se pudo validar el mapeo.';
+    } finally {
+        dynamicSourceMappingBusy.value =
+            null;
+    }
 }
 
 async function loadDynamicSourceMappingWorkspace(
@@ -15451,6 +15634,54 @@ if (canonicalModelUiAvailable()) {
                                                                 === 'start'
                                                                 ? 'Preparando...'
                                                                 : dynamicSourceMappingStartLabel()
+                                                        }}
+                                                    </Button>
+
+                                                    <Button
+                                                        v-if="
+                                                            dynamicSourceMappingCanMarkReady(
+                                                                dynamicSourceMappingCurrent(),
+                                                            )
+                                                        "
+                                                        type="button"
+                                                        variant="outline"
+                                                        :disabled="
+                                                            dynamicSourceMappingBusy
+                                                            !== null
+                                                        "
+                                                        @click="
+                                                            markDynamicSourceMappingReady
+                                                        "
+                                                    >
+                                                        {{
+                                                            dynamicSourceMappingBusy
+                                                                === 'ready'
+                                                                ? 'Marcando...'
+                                                                : 'Marcar listo para validar'
+                                                        }}
+                                                    </Button>
+
+                                                    <Button
+                                                        v-if="
+                                                            dynamicSourceMappingCanValidate(
+                                                                dynamicSourceMappingCurrent(),
+                                                            )
+                                                        "
+                                                        type="button"
+                                                        variant="outline"
+                                                        :disabled="
+                                                            dynamicSourceMappingBusy
+                                                            !== null
+                                                        "
+                                                        @click="
+                                                            validateDynamicSourceMapping
+                                                        "
+                                                    >
+                                                        {{
+                                                            dynamicSourceMappingBusy
+                                                                === 'validate'
+                                                                ? 'Validando...'
+                                                                : 'Validar mapeo'
                                                         }}
                                                     </Button>
 
