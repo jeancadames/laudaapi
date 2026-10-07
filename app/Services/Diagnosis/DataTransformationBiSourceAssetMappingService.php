@@ -1267,6 +1267,379 @@ DataTransformationBiSourceAssetMapping::query()
     }
 
     /**
+     * Close the editable decision set and mark one mapping ready for
+     * explicit LAUDA validation.
+     *
+     * READY is not validation and does not populate validated_at/by.
+     */
+    public function markReady(
+        TransformationImplementationRequest $implementationRequest,
+        DataTransformationBiIntakeSession $session,
+        DataTransformationBiSourceAsset $asset,
+        DataTransformationBiSourceAssetMapping $mapping,
+        User $actor
+    ): DataTransformationBiSourceAssetMapping {
+        $this->assertAdminScope(
+            $implementationRequest,
+            $session,
+            $asset,
+            $actor
+        );
+
+        $this->assertMappingScope(
+            $implementationRequest,
+            $session,
+            $asset,
+            $mapping
+        );
+
+        return DB::transaction(
+            function () use (
+                $implementationRequest,
+                $session,
+                $asset,
+                $mapping,
+                $actor
+            ): DataTransformationBiSourceAssetMapping {
+                $this->implementationAuthorizationGate
+                    ->assertActiveForRequest(
+                        $implementationRequest,
+                        true
+                    );
+
+                $lockedAsset =
+                    DataTransformationBiSourceAsset::query()
+                        ->whereKey(
+                            (int) $asset->getKey()
+                        )
+                        ->where(
+                            'company_id',
+                            (int) $implementationRequest->company_id
+                        )
+                        ->where(
+                            'data_transformation_bi_intake_session_id',
+                            (int) $session->getKey()
+                        )
+                        ->lockForUpdate()
+                        ->first();
+
+                if ($lockedAsset === null) {
+                    throw new AuthorizationException(
+                        'La fuente ya no pertenece a esta solicitud y sesión.'
+                    );
+                }
+
+                $locked =
+                    DataTransformationBiSourceAssetMapping::query()
+                        ->whereKey(
+                            (int) $mapping->getKey()
+                        )
+                        ->where(
+                            'company_id',
+                            (int) $implementationRequest->company_id
+                        )
+                        ->where(
+                            'data_transformation_bi_intake_session_id',
+                            (int) $session->getKey()
+                        )
+                        ->where(
+                            'data_transformation_bi_source_asset_id',
+                            (int) $lockedAsset->getKey()
+                        )
+                        ->lockForUpdate()
+                        ->first();
+
+                if ($locked === null) {
+                    throw new AuthorizationException(
+                        'El mapeo ya no pertenece a esta fuente y sesión.'
+                    );
+                }
+
+                if (
+                    ! in_array(
+                        (string) $locked->status,
+                        [
+                            DataTransformationBiSourceAssetMapping
+                                ::STATUS_DRAFT,
+
+                            DataTransformationBiSourceAssetMapping
+                                ::STATUS_READY,
+
+                            DataTransformationBiSourceAssetMapping
+                                ::STATUS_BLOCKED,
+                        ],
+                        true
+                    )
+                ) {
+                    throw ValidationException::withMessages([
+                        'mapping' => [
+                            'Solo un mapeo editable puede marcarse listo para validar.',
+                        ],
+                    ]);
+                }
+
+                $finalization =
+                    $this->lockedFinalizationContext(
+                        $implementationRequest,
+                        $lockedAsset,
+                        $locked,
+                        $actor
+                    );
+
+                $fields =
+                    $locked
+                        ->fieldMappings()
+                        ->orderBy(
+                            'canonical_field_key'
+                        )
+                        ->orderBy('id')
+                        ->lockForUpdate()
+                        ->get()
+                        ->all();
+
+                $this->assertFinalizationCompleteness(
+                    $locked,
+                    $finalization['registry'],
+                    $finalization['sheet'],
+                    $fields,
+                    [
+                        DataTransformationBiSourceAssetFieldMapping
+                            ::STATUS_DRAFT,
+
+                        DataTransformationBiSourceAssetFieldMapping
+                            ::STATUS_READY,
+
+                        DataTransformationBiSourceAssetFieldMapping
+                            ::STATUS_BLOCKED,
+                    ]
+                );
+
+                $now =
+                    now();
+
+                $locked
+                    ->fieldMappings()
+                    ->update([
+                        'status' =>
+                            DataTransformationBiSourceAssetFieldMapping
+                                ::STATUS_READY,
+
+                        'updated_by_user_id' =>
+                            (int) $actor->getKey(),
+
+                        'validated_by_user_id' =>
+                            null,
+
+                        'validated_at' =>
+                            null,
+
+                        'updated_at' =>
+                            $now,
+                    ]);
+
+                $locked->forceFill([
+                    'status' =>
+                        DataTransformationBiSourceAssetMapping
+                            ::STATUS_READY,
+
+                    'updated_by_user_id' =>
+                        (int) $actor->getKey(),
+
+                    'validated_by_user_id' =>
+                        null,
+
+                    'validated_at' =>
+                        null,
+                ])->save();
+
+                return $locked
+                    ->fresh(
+                        'fieldMappings'
+                    )
+                    ?? $locked;
+            }
+        );
+    }
+
+    /**
+     * Explicit LAUDA validation of one READY mapping.
+     *
+     * VALIDATED is immutable. Further semantic changes require a new
+     * mapping_version through startDraft().
+     */
+    public function validate(
+        TransformationImplementationRequest $implementationRequest,
+        DataTransformationBiIntakeSession $session,
+        DataTransformationBiSourceAsset $asset,
+        DataTransformationBiSourceAssetMapping $mapping,
+        User $actor
+    ): DataTransformationBiSourceAssetMapping {
+        $this->assertAdminScope(
+            $implementationRequest,
+            $session,
+            $asset,
+            $actor
+        );
+
+        $this->assertMappingScope(
+            $implementationRequest,
+            $session,
+            $asset,
+            $mapping
+        );
+
+        return DB::transaction(
+            function () use (
+                $implementationRequest,
+                $session,
+                $asset,
+                $mapping,
+                $actor
+            ): DataTransformationBiSourceAssetMapping {
+                $this->implementationAuthorizationGate
+                    ->assertActiveForRequest(
+                        $implementationRequest,
+                        true
+                    );
+
+                $lockedAsset =
+                    DataTransformationBiSourceAsset::query()
+                        ->whereKey(
+                            (int) $asset->getKey()
+                        )
+                        ->where(
+                            'company_id',
+                            (int) $implementationRequest->company_id
+                        )
+                        ->where(
+                            'data_transformation_bi_intake_session_id',
+                            (int) $session->getKey()
+                        )
+                        ->lockForUpdate()
+                        ->first();
+
+                if ($lockedAsset === null) {
+                    throw new AuthorizationException(
+                        'La fuente ya no pertenece a esta solicitud y sesión.'
+                    );
+                }
+
+                $locked =
+                    DataTransformationBiSourceAssetMapping::query()
+                        ->whereKey(
+                            (int) $mapping->getKey()
+                        )
+                        ->where(
+                            'company_id',
+                            (int) $implementationRequest->company_id
+                        )
+                        ->where(
+                            'data_transformation_bi_intake_session_id',
+                            (int) $session->getKey()
+                        )
+                        ->where(
+                            'data_transformation_bi_source_asset_id',
+                            (int) $lockedAsset->getKey()
+                        )
+                        ->lockForUpdate()
+                        ->first();
+
+                if ($locked === null) {
+                    throw new AuthorizationException(
+                        'El mapeo ya no pertenece a esta fuente y sesión.'
+                    );
+                }
+
+                if (
+                    (string) $locked->status
+                    !== DataTransformationBiSourceAssetMapping
+                        ::STATUS_READY
+                ) {
+                    throw ValidationException::withMessages([
+                        'mapping' => [
+                            'Solo un mapeo listo puede validarse.',
+                        ],
+                    ]);
+                }
+
+                $finalization =
+                    $this->lockedFinalizationContext(
+                        $implementationRequest,
+                        $lockedAsset,
+                        $locked,
+                        $actor
+                    );
+
+                $fields =
+                    $locked
+                        ->fieldMappings()
+                        ->orderBy(
+                            'canonical_field_key'
+                        )
+                        ->orderBy('id')
+                        ->lockForUpdate()
+                        ->get()
+                        ->all();
+
+                $this->assertFinalizationCompleteness(
+                    $locked,
+                    $finalization['registry'],
+                    $finalization['sheet'],
+                    $fields,
+                    [
+                        DataTransformationBiSourceAssetFieldMapping
+                            ::STATUS_READY,
+                    ]
+                );
+
+                $now =
+                    now();
+
+                $locked
+                    ->fieldMappings()
+                    ->update([
+                        'status' =>
+                            DataTransformationBiSourceAssetFieldMapping
+                                ::STATUS_VALIDATED,
+
+                        'updated_by_user_id' =>
+                            (int) $actor->getKey(),
+
+                        'validated_by_user_id' =>
+                            (int) $actor->getKey(),
+
+                        'validated_at' =>
+                            $now,
+
+                        'updated_at' =>
+                            $now,
+                    ]);
+
+                $locked->forceFill([
+                    'status' =>
+                        DataTransformationBiSourceAssetMapping
+                            ::STATUS_VALIDATED,
+
+                    'updated_by_user_id' =>
+                        (int) $actor->getKey(),
+
+                    'validated_by_user_id' =>
+                        (int) $actor->getKey(),
+
+                    'validated_at' =>
+                        $now,
+                ])->save();
+
+                return $locked
+                    ->fresh(
+                        'fieldMappings'
+                    )
+                    ?? $locked;
+            }
+        );
+    }
+
+    /**
      * Safe Admin representation of one source-centric mapping.
      *
      * Source SHA, private storage location and raw/sample values are not
@@ -1532,6 +1905,330 @@ DataTransformationBiSourceAssetMapping::query()
         }
 
         return $registry;
+    }
+
+    /**
+     * Revalidate every immutable pin required before READY/VALIDATED.
+     *
+     * @return array{
+     *   registry:array<string,mixed>,
+     *   sheet:array<string,mixed>
+     * }
+     */
+    private function lockedFinalizationContext(
+        TransformationImplementationRequest $implementationRequest,
+        DataTransformationBiSourceAsset $asset,
+        DataTransformationBiSourceAssetMapping $mapping,
+        User $actor
+    ): array {
+        $registry =
+            $this->assertCurrentCanonicalRegistry(
+                $implementationRequest,
+                $mapping,
+                $actor,
+                true
+            );
+
+        $context =
+            $this->currentProfileContext(
+                $implementationRequest,
+                $asset,
+                (int) $mapping->source_sheet_index,
+                true
+            );
+
+        $artifact =
+            $context['artifact'];
+
+        if (
+            (int) $mapping
+                ->data_transformation_bi_source_asset_file_id
+                !== (int) $artifact->getKey()
+
+            || (int) $mapping->source_profile_version
+                !== (int) (
+                    $context['profile']['version']
+                    ?? 0
+                )
+
+            || ! hash_equals(
+                strtolower(
+                    (string) $mapping->source_sha256
+                ),
+                strtolower(
+                    (string) $artifact->source_sha256
+                )
+            )
+        ) {
+            throw ValidationException::withMessages([
+                'mapping' => [
+                    'El mapeo ya no corresponde al archivo fuente vigente.',
+                ],
+            ]);
+        }
+
+        return [
+            'registry' =>
+                $registry,
+
+            'sheet' =>
+                $context['sheet'],
+        ];
+    }
+
+    /**
+     * A finalizable mapping contains exactly one explicit decision for every
+     * canonical target field and no decision outside that entity.
+     *
+     * TRANSFORM remains intentionally non-finalizable until LAUDA provides
+     * the controlled executable transformation catalog promised by the
+     * mapping schema.
+     *
+     * @param array<string,mixed> $registry
+     * @param array<string,mixed> $sheet
+     * @param array<int,DataTransformationBiSourceAssetFieldMapping> $fields
+     * @param array<int,string> $allowedFieldStatuses
+     */
+    private function assertFinalizationCompleteness(
+        DataTransformationBiSourceAssetMapping $mapping,
+        array $registry,
+        array $sheet,
+        array $fields,
+        array $allowedFieldStatuses
+    ): void {
+        $canonicalFields =
+            [];
+
+        foreach (
+            is_array(
+                $registry['entities']
+                ?? null
+            )
+                ? $registry['entities']
+                : []
+            as $entity
+        ) {
+            if (
+                ! is_array($entity)
+                || (string) (
+                    $entity['key']
+                    ?? ''
+                ) !== (string) $mapping->canonical_entity_key
+            ) {
+                continue;
+            }
+
+            $canonicalFields =
+                is_array(
+                    $entity['fields']
+                    ?? null
+                )
+                    ? $entity['fields']
+                    : [];
+
+            break;
+        }
+
+        if ($canonicalFields === []) {
+            throw ValidationException::withMessages([
+                'mapping' => [
+                    'La entidad canónica seleccionada no contiene campos finalizables.',
+                ],
+            ]);
+        }
+
+        $columnsByKey =
+            $this->columnsByKey(
+                $sheet
+            );
+
+        $fieldsByKey =
+            [];
+
+        foreach ($fields as $field) {
+            if (
+                (int) $field->company_id
+                !== (int) $mapping->company_id
+            ) {
+                throw new AuthorizationException(
+                    'Una decisión de mapeo no pertenece a esta empresa.'
+                );
+            }
+
+            $canonicalFieldKey =
+                (string) $field->canonical_field_key;
+
+            if (
+                ! array_key_exists(
+                    $canonicalFieldKey,
+                    $canonicalFields
+                )
+            ) {
+                throw ValidationException::withMessages([
+                    'mapping' => [
+                        'El mapeo contiene un campo que ya no pertenece '
+                        .'a la entidad canónica publicada.',
+                    ],
+                ]);
+            }
+
+            if (isset($fieldsByKey[$canonicalFieldKey])) {
+                throw ValidationException::withMessages([
+                    'mapping' => [
+                        'El mapeo contiene decisiones duplicadas para '
+                        .'un campo canónico.',
+                    ],
+                ]);
+            }
+
+            if (
+                ! in_array(
+                    (string) $field->status,
+                    $allowedFieldStatuses,
+                    true
+                )
+            ) {
+                throw ValidationException::withMessages([
+                    'mapping' => [
+                        'Una decisión de campo no está en un estado '
+                        .'compatible con la finalización.',
+                    ],
+                ]);
+            }
+
+            $fieldsByKey[$canonicalFieldKey] =
+                $field;
+        }
+
+        if (
+            count($fieldsByKey)
+            !== count($canonicalFields)
+        ) {
+            throw ValidationException::withMessages([
+                'mapping' => [
+                    'Debes registrar una decisión explícita para cada '
+                    .'campo de la entidad canónica.',
+                ],
+            ]);
+        }
+
+        foreach (
+            $canonicalFields
+            as $canonicalFieldKey => $canonicalField
+        ) {
+            $field =
+                $fieldsByKey[
+                    (string) $canonicalFieldKey
+                ]
+                ?? null;
+
+            if (
+                ! $field
+                instanceof DataTransformationBiSourceAssetFieldMapping
+            ) {
+                throw ValidationException::withMessages([
+                    'mapping' => [
+                        'Falta una decisión explícita para el campo '
+                        .'canónico '.$canonicalFieldKey.'.',
+                    ],
+                ]);
+            }
+
+            $mappingType =
+                (string) $field->mapping_type;
+
+            if (
+                $mappingType
+                === DataTransformationBiSourceAssetFieldMapping
+                    ::TYPE_TRANSFORM
+            ) {
+                throw ValidationException::withMessages([
+                    'mapping' => [
+                        'Los mapeos con transformación todavía no pueden '
+                        .'finalizarse: falta el catálogo controlado de '
+                        .'transformaciones LAUDA.',
+                    ],
+                ]);
+            }
+
+            if (
+                $mappingType
+                === DataTransformationBiSourceAssetFieldMapping
+                    ::TYPE_DIRECT
+            ) {
+                $sourceColumnKey =
+                    trim(
+                        (string) (
+                            $field->source_column_key
+                            ?? ''
+                        )
+                    );
+
+                if (
+                    $sourceColumnKey === ''
+                    || ! isset(
+                        $columnsByKey[$sourceColumnKey]
+                    )
+                ) {
+                    throw ValidationException::withMessages([
+                        'mapping' => [
+                            'Un mapeo directo apunta a una columna de '
+                            .'origen que ya no existe en el profiling.',
+                        ],
+                    ]);
+                }
+
+                continue;
+            }
+
+            if (
+                $mappingType
+                === DataTransformationBiSourceAssetFieldMapping
+                    ::TYPE_DEFAULT
+            ) {
+                if ($field->default_value === null) {
+                    throw ValidationException::withMessages([
+                        'mapping' => [
+                            'Un mapeo por defecto no tiene valor definido.',
+                        ],
+                    ]);
+                }
+
+                continue;
+            }
+
+            if (
+                $mappingType
+                === DataTransformationBiSourceAssetFieldMapping
+                    ::TYPE_UNMAPPED
+            ) {
+                if (
+                    (bool) (
+                        is_array($canonicalField)
+                            ? (
+                                $canonicalField['required']
+                                ?? false
+                            )
+                            : false
+                    )
+                ) {
+                    throw ValidationException::withMessages([
+                        'mapping' => [
+                            'Un campo canónico obligatorio no puede '
+                            .'quedar explícitamente sin mapear.',
+                        ],
+                    ]);
+                }
+
+                continue;
+            }
+
+            throw ValidationException::withMessages([
+                'mapping' => [
+                    'La decisión contiene un tipo de mapeo no finalizable.',
+                ],
+            ]);
+        }
     }
 
     private function assertAdminScope(

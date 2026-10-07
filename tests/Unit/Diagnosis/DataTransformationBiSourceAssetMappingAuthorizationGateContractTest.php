@@ -32,7 +32,7 @@ final class DataTransformationBiSourceAssetMappingAuthorizationGateContractTest
         );
     }
 
-    public function test_exactly_two_mapping_write_boundaries_require_active_authorization(): void
+    public function test_all_mapping_write_boundaries_require_active_authorization(): void
     {
         $source =
             $this->source();
@@ -47,7 +47,7 @@ $this->implementationAuthorizationGate
 PHP_SOURCE;
 
         $this->assertSame(
-            2,
+            4,
             substr_count(
                 $source,
                 $needle
@@ -64,6 +64,8 @@ PHP_SOURCE;
             [
                 'public function startDraft(',
                 'public function replaceFieldMappings(',
+                'public function markReady(',
+                'public function validate(',
             ]
             as $method
         ) {
