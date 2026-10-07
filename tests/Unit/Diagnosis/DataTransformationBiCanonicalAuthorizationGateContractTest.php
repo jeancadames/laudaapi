@@ -201,22 +201,23 @@ PHP_SOURCE;
         }
     }
 
-    public function test_mapping_service_is_not_part_of_this_patch(): void
+    public function test_canonical_service_remains_independent_from_mapping_service(): void
     {
         $source =
-            file_get_contents(
-                base_path(
-                    'app/Services/Diagnosis/DataTransformationBiSourceAssetMappingService.php'
-                )
-            );
+            $this->source();
 
         $this->assertStringNotContainsString(
-            'TransformationImplementationAuthorizationGate',
+            'DataTransformationBiSourceAssetMappingService',
             $source
         );
 
         $this->assertStringNotContainsString(
-            '->assertActiveForRequest(',
+            'DataTransformationBiSourceAssetMapping',
+            $source
+        );
+
+        $this->assertStringNotContainsString(
+            'DataTransformationBiSourceAssetFieldMapping',
             $source
         );
     }

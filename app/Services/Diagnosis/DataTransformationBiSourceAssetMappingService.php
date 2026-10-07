@@ -24,7 +24,10 @@ final class DataTransformationBiSourceAssetMappingService
             $authorization,
 
         private readonly DataTransformationBiCanonicalModelService
-            $canonicalModelService
+            $canonicalModelService,
+
+        private readonly TransformationImplementationAuthorizationGate
+            $implementationAuthorizationGate
     ) {
     }
 
@@ -371,6 +374,12 @@ final class DataTransformationBiSourceAssetMappingService
                 $sourceSheetIndex,
                 $actor
             ): DataTransformationBiSourceAssetMapping {
+                $this->implementationAuthorizationGate
+                    ->assertActiveForRequest(
+                        $implementationRequest,
+                        true
+                    );
+
                 $lockedAsset =
                     DataTransformationBiSourceAsset::query()
                         ->whereKey(
@@ -1049,6 +1058,12 @@ DataTransformationBiSourceAssetMapping::query()
                 $normalized,
                 $actor
             ): void {
+                $this->implementationAuthorizationGate
+                    ->assertActiveForRequest(
+                        $implementationRequest,
+                        true
+                    );
+
                 /*
                  * Serialize mapping writes with source-file replacement.
                  *
