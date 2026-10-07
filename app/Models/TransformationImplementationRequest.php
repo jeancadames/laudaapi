@@ -122,6 +122,26 @@ final class TransformationImplementationRequest extends Model
         )->orderBy('occurred_at');
     }
 
+    public function commercialEngagements(): HasMany
+    {
+        return $this->hasMany(
+            TransformationImplementationCommercialEngagement::class,
+            'transformation_implementation_request_id'
+        )
+            ->orderBy('version')
+            ->orderBy('id');
+    }
+
+    public function implementationAuthorizations(): HasMany
+    {
+        return $this->hasMany(
+            TransformationImplementationAuthorization::class,
+            'transformation_implementation_request_id'
+        )
+            ->orderBy('id');
+    }
+
+
     public function scopeActive(Builder $query): Builder
     {
         return $query->whereNotIn(
