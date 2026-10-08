@@ -1377,6 +1377,279 @@ class DataTransformationBiImplementationDatasetMaterializerBehaviorTest
         );
     }
 
+
+    public function test_admin_http_can_enqueue_and_poll_materialization_run(): void
+    {
+        \Illuminate\Support\Facades\Queue::fake();
+
+        $fixture =
+            $this->makeFixture([
+                [
+                    'customer_id',
+                    'name',
+                    'balance',
+                ],
+                [
+                    'C-001',
+                    'Cliente Uno',
+                    '100.5',
+                ],
+            ]);
+
+        $this->actingAs(
+            $fixture['admin']
+        );
+
+        $postUrl =
+            route(
+                'admin.transformation360.implementation_requests.standard_intake_v2.implementation_datasets.materialize',
+                [
+                    'implementationRequest' =>
+                        $fixture['request']->getKey(),
+
+                    'sessionId' =>
+                        $fixture['session']->getKey(),
+                ]
+            );
+
+        $response =
+            $this->postJson(
+                $postUrl
+            );
+
+        $response
+            ->assertStatus(202)
+            ->assertJsonPath(
+                'ok',
+                true
+            )
+            ->assertJsonPath(
+                'materialization.status',
+                \App\Models\DataTransformationBiImplementationMaterializationRun
+                    ::STATUS_QUEUED
+            )
+            ->assertJsonPath(
+                'materialization.reused_run',
+                false
+            );
+
+        $runUuid =
+            (string) $response->json(
+                'materialization.run_uuid'
+            );
+
+        $this->assertNotSame(
+            '',
+            $runUuid
+        );
+
+        \Illuminate\Support\Facades\Queue::assertPushed(
+            \App\Jobs\DataTransformationBi\MaterializeDataTransformationBiImplementationSession::class,
+            1
+        );
+
+        $statusUrl =
+            route(
+                'admin.transformation360.implementation_requests.standard_intake_v2.implementation_datasets.materialization_runs.show',
+                [
+                    'implementationRequest' =>
+                        $fixture['request']->getKey(),
+
+                    'sessionId' =>
+                        $fixture['session']->getKey(),
+
+                    'runUuid' =>
+                        $runUuid,
+                ]
+            );
+
+        $this->getJson(
+            $statusUrl
+        )
+            ->assertOk()
+            ->assertJsonPath(
+                'ok',
+                true
+            )
+            ->assertJsonPath(
+                'materialization.run_uuid',
+                $runUuid
+            )
+            ->assertJsonPath(
+                'materialization.status',
+                \App\Models\DataTransformationBiImplementationMaterializationRun
+                    ::STATUS_QUEUED
+            );
+    }
+
+    public function test_admin_http_reuses_queued_run_and_redelivers_job(): void
+    {
+        \Illuminate\Support\Facades\Queue::fake();
+
+        $fixture =
+            $this->makeFixture([
+                [
+                    'customer_id',
+                    'name',
+                    'balance',
+                ],
+                [
+                    'C-001',
+                    'Cliente Uno',
+                    '100.5',
+                ],
+            ]);
+
+        $this->actingAs(
+            $fixture['admin']
+        );
+
+        $url =
+            route(
+                'admin.transformation360.implementation_requests.standard_intake_v2.implementation_datasets.materialize',
+                [
+                    'implementationRequest' =>
+                        $fixture['request']->getKey(),
+
+                    'sessionId' =>
+                        $fixture['session']->getKey(),
+                ]
+            );
+
+        $first =
+            $this->postJson(
+                $url
+            );
+
+        $first->assertStatus(202);
+
+        $firstRunUuid =
+            (string) $first->json(
+                'materialization.run_uuid'
+            );
+
+        $second =
+            $this->postJson(
+                $url
+            );
+
+        $second
+            ->assertStatus(202)
+            ->assertJsonPath(
+                'materialization.run_uuid',
+                $firstRunUuid
+            )
+            ->assertJsonPath(
+                'materialization.reused_run',
+                true
+            );
+
+        $this->assertSame(
+            1,
+            \App\Models\DataTransformationBiImplementationMaterializationRun
+                ::query()
+                ->count()
+        );
+
+        /*
+         * QUEUED uses at-least-once delivery to close the reserve->dispatch
+         * crash window.
+         */
+        \Illuminate\Support\Facades\Queue::assertPushed(
+            \App\Jobs\DataTransformationBi\MaterializeDataTransformationBiImplementationSession::class,
+            2
+        );
+    }
+
+    public function test_materialization_status_is_scoped_to_exact_session_and_run(): void
+    {
+        \Illuminate\Support\Facades\Queue::fake();
+
+        $fixture =
+            $this->makeFixture([
+                [
+                    'customer_id',
+                    'name',
+                    'balance',
+                ],
+                [
+                    'C-001',
+                    'Cliente Uno',
+                    '100.5',
+                ],
+            ]);
+
+        $this->actingAs(
+            $fixture['admin']
+        );
+
+        $service =
+            app(
+                \App\Services\Diagnosis\DataTransformationBiImplementationMaterializationDispatchService::class
+            );
+
+        $reservation =
+            $service->reserve(
+                $fixture['request'],
+                $fixture['session'],
+                $fixture['admin']
+            );
+
+        $run =
+            $reservation['run'];
+
+        $wrongUuid =
+            (string) \Illuminate\Support\Str::uuid();
+
+        $wrongUrl =
+            route(
+                'admin.transformation360.implementation_requests.standard_intake_v2.implementation_datasets.materialization_runs.show',
+                [
+                    'implementationRequest' =>
+                        $fixture['request']->getKey(),
+
+                    'sessionId' =>
+                        $fixture['session']->getKey(),
+
+                    'runUuid' =>
+                        $wrongUuid,
+                ]
+            );
+
+        $this->getJson(
+            $wrongUrl
+        )
+            ->assertNotFound();
+
+        $rightUrl =
+            route(
+                'admin.transformation360.implementation_requests.standard_intake_v2.implementation_datasets.materialization_runs.show',
+                [
+                    'implementationRequest' =>
+                        $fixture['request']->getKey(),
+
+                    'sessionId' =>
+                        $fixture['session']->getKey(),
+
+                    'runUuid' =>
+                        (string) $run->run_uuid,
+                ]
+            );
+
+        $this->getJson(
+            $rightUrl
+        )
+            ->assertOk()
+            ->assertJsonPath(
+                'materialization.id',
+                (int) $run->getKey()
+            )
+            ->assertJsonPath(
+                'materialization.run_uuid',
+                (string) $run->run_uuid
+            );
+    }
+
     private function makeFixture(
         array $csvRows
     ): array {
@@ -1403,13 +1676,30 @@ class DataTransformationBiImplementationDatasetMaterializerBehaviorTest
                 )
                 ->firstOrFail();
 
+        /*
+         * HTTP Admin routes are protected by:
+         * auth + verified + role:admin.
+         *
+         * Earlier materializer tests only called services directly, so using
+         * an arbitrary persistent DEV admin was enough. HTTP behavior must
+         * instead own a deterministic verified LAUDA Admin fixture.
+         *
+         * DatabaseTransactions rolls this user back with the rest of the
+         * fixture.
+         */
         $admin =
-            User::query()
-                ->where(
-                    'role',
-                    'admin'
-                )
-                ->firstOrFail();
+            User::factory()
+                ->create([
+                    'role' =>
+                        'admin',
+
+                    'email_verified_at' =>
+                        now(),
+                ]);
+
+        $this->assertTrue(
+            $admin->hasVerifiedEmail()
+        );
 
         $company =
             Company::query()

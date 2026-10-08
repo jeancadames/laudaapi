@@ -896,6 +896,47 @@ Route::middleware(['auth', 'verified', 'role:admin'])
             );
 
 
+
+        /*
+        |--------------------------------------------------------------------------
+        | Data BI · Modern implementation dataset materialization
+        |--------------------------------------------------------------------------
+        |
+        | This boundary is deliberately separate from the historical
+        | standard-intake-v2 /materialize endpoint, which continues to own
+        | canonical staging.
+        |
+        | POST reserves/enqueues one modern session materialization run.
+        | GET polls one exact run UUID.
+        |
+        */
+
+        \Illuminate\Support\Facades\Route::post(
+            '/transformation-360/implementation-requests/{implementationRequest}/standard-intake-v2/sessions/{sessionId}/implementation-datasets/materialize',
+            [
+                \App\Http\Controllers\Admin\AdminDataTransformationBiImplementationMaterializationController::class,
+                'store',
+            ]
+        )
+            ->whereNumber('sessionId')
+            ->name(
+                'transformation360.implementation_requests.standard_intake_v2.implementation_datasets.materialize'
+            );
+
+        \Illuminate\Support\Facades\Route::get(
+            '/transformation-360/implementation-requests/{implementationRequest}/standard-intake-v2/sessions/{sessionId}/implementation-datasets/materialization-runs/{runUuid}',
+            [
+                \App\Http\Controllers\Admin\AdminDataTransformationBiImplementationMaterializationController::class,
+                'show',
+            ]
+        )
+            ->whereNumber('sessionId')
+            ->whereUuid('runUuid')
+            ->name(
+                'transformation360.implementation_requests.standard_intake_v2.implementation_datasets.materialization_runs.show'
+            );
+
+
         \Illuminate\Support\Facades\Route::patch(
             '/transformation-360/implementation-requests/{implementationRequest}/assign',
             [
