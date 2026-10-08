@@ -288,6 +288,396 @@ class DataTransformationBiImplementationDatasetMaterializerBehaviorTest
         );
     }
 
+
+    public function test_session_orchestrator_materializes_all_current_validated_mappings(): void
+    {
+        $fixture =
+            $this->makeFixture([
+                [
+                    'customer_id',
+                    'name',
+                    'balance',
+                ],
+                [
+                    'C-001',
+                    'Cliente Uno',
+                    '100.5',
+                ],
+                [
+                    'C-002',
+                    'Cliente Dos',
+                    '250.75',
+                ],
+            ]);
+
+        $second =
+            $this->cloneCurrentMappingTarget(
+                $fixture
+            );
+
+        $orchestrator =
+            app(
+                \App\Services\Diagnosis\DataTransformationBiImplementationDatasetOrchestrator::class
+            );
+
+        $first =
+            $orchestrator->materializeSession(
+                $fixture['request'],
+                $fixture['session'],
+                $fixture['admin']
+            );
+
+        $this->assertSame(
+            2,
+            $first['selected_mapping_count']
+        );
+
+        $this->assertSame(
+            2,
+            $first['materialized_dataset_count']
+        );
+
+        $this->assertSame(
+            0,
+            $first['reused_dataset_count']
+        );
+
+        $this->assertCount(
+            2,
+            $first['datasets']
+        );
+
+        $datasetMappingIds =
+            collect(
+                $first['datasets']
+            )
+                ->pluck(
+                    'mapping_id'
+                )
+                ->sort()
+                ->values()
+                ->all();
+
+        $expectedMappingIds =
+            collect([
+                (int) $fixture['mapping']->getKey(),
+                (int) $second['mapping']->getKey(),
+            ])
+                ->sort()
+                ->values()
+                ->all();
+
+        $this->assertSame(
+            $expectedMappingIds,
+            $datasetMappingIds
+        );
+
+        $this->assertSame(
+            2,
+            DataTransformationBiImplementationDataset::query()
+                ->count()
+        );
+
+        $this->assertSame(
+            4,
+            \App\Models\DataTransformationBiImplementationRow::query()
+                ->count()
+        );
+
+        $secondRun =
+            $orchestrator->materializeSession(
+                $fixture['request'],
+                $fixture['session'],
+                $fixture['admin']
+            );
+
+        $this->assertSame(
+            2,
+            $secondRun['selected_mapping_count']
+        );
+
+        $this->assertSame(
+            2,
+            $secondRun['materialized_dataset_count']
+        );
+
+        $this->assertSame(
+            2,
+            $secondRun['reused_dataset_count']
+        );
+
+        $this->assertSame(
+            2,
+            DataTransformationBiImplementationDataset::query()
+                ->count()
+        );
+
+        $this->assertSame(
+            4,
+            \App\Models\DataTransformationBiImplementationRow::query()
+                ->count()
+        );
+    }
+
+    public function test_session_orchestrator_never_falls_back_to_older_validated_mapping(): void
+    {
+        $fixture =
+            $this->makeFixture([
+                [
+                    'customer_id',
+                    'name',
+                    'balance',
+                ],
+                [
+                    'C-001',
+                    'Cliente Uno',
+                    '100.5',
+                ],
+                [
+                    'C-002',
+                    'Cliente Dos',
+                    '250.75',
+                ],
+            ]);
+
+        /*
+         * mapping v1 is VALIDATED.
+         *
+         * Create mapping v2 for the exact same logical target but leave it
+         * DRAFT. The orchestrator must select v2 as current and reject the
+         * session. It must NEVER silently fall back to validated v1.
+         */
+        $newer =
+            $fixture['mapping']
+                ->replicate();
+
+        $newer->forceFill([
+            'mapping_version' =>
+                (int) $fixture['mapping']->mapping_version
+                + 1,
+
+            'status' =>
+                DataTransformationBiSourceAssetMapping
+                    ::STATUS_DRAFT,
+
+            'validated_by_user_id' =>
+                null,
+
+            'validated_at' =>
+                null,
+
+            'created_by_user_id' =>
+                $fixture['admin']->getKey(),
+
+            'updated_by_user_id' =>
+                $fixture['admin']->getKey(),
+        ]);
+
+        $newer->save();
+
+        $orchestrator =
+            app(
+                \App\Services\Diagnosis\DataTransformationBiImplementationDatasetOrchestrator::class
+            );
+
+        $caught =
+            null;
+
+        try {
+            $orchestrator->materializeSession(
+                $fixture['request'],
+                $fixture['session'],
+                $fixture['admin']
+            );
+        } catch (
+            \Illuminate\Validation\ValidationException $exception
+        ) {
+            $caught =
+                $exception;
+        }
+
+        $this->assertInstanceOf(
+            \Illuminate\Validation\ValidationException::class,
+            $caught
+        );
+
+        $this->assertArrayHasKey(
+            'mappings',
+            $caught->errors()
+        );
+
+        $this->assertSame(
+            0,
+            DataTransformationBiImplementationDataset::query()
+                ->count()
+        );
+
+        $this->assertSame(
+            0,
+            \App\Models\DataTransformationBiImplementationRow::query()
+                ->count()
+        );
+
+        $this->assertSame(
+            DataTransformationBiSourceAssetMapping
+                ::STATUS_VALIDATED,
+            (string) $fixture['mapping']
+                ->fresh()
+                ->status
+        );
+
+        $this->assertSame(
+            DataTransformationBiSourceAssetMapping
+                ::STATUS_DRAFT,
+            (string) $newer
+                ->fresh()
+                ->status
+        );
+    }
+
+    /**
+     * Create a second independent current mapping target in the same
+     * Request + Session without inventing a second lifecycle.
+     *
+     * We clone the already-valid source contract from the proven R84 fixture,
+     * including its exact artifact/profile pin and field decisions.
+     */
+    private function cloneCurrentMappingTarget(
+        array $fixture
+    ): array {
+        $sourceAsset =
+            $fixture['asset'];
+
+        $sourceFile =
+            $fixture['artifact'];
+
+        $mapping =
+            $fixture['mapping'];
+
+        $clonedAsset =
+            $sourceAsset->replicate();
+
+        $clonedAsset->forceFill([
+            'display_name' =>
+                'R89 · Customers Second Source',
+
+            'source_object_name' =>
+                'R89_CUSTOMERS_SECOND',
+
+            'created_by_user_id' =>
+                $fixture['admin']->getKey(),
+
+            'updated_by_user_id' =>
+                $fixture['admin']->getKey(),
+        ]);
+
+        $clonedAsset->save();
+
+        $clonedFile =
+            $sourceFile->replicate();
+
+        $clonedFile->forceFill([
+            'data_transformation_bi_source_asset_id' =>
+                $clonedAsset->getKey(),
+
+            'uploaded_by_user_id' =>
+                $fixture['admin']->getKey(),
+
+            'uploaded_at' =>
+                now(),
+        ]);
+
+        $clonedFile->save();
+
+        $profileSnapshot =
+            (array) $clonedAsset
+                ->profiling_snapshot;
+
+        $profileSnapshot['source_file_id'] =
+            (int) $clonedFile->getKey();
+
+        $clonedAsset->forceFill([
+            'profiling_snapshot' =>
+                $profileSnapshot,
+        ])->save();
+
+        $clonedMapping =
+            $mapping->replicate();
+
+        $clonedMapping->forceFill([
+            'data_transformation_bi_source_asset_id' =>
+                $clonedAsset->getKey(),
+
+            'data_transformation_bi_source_asset_file_id' =>
+                $clonedFile->getKey(),
+
+            'mapping_version' =>
+                1,
+
+            'status' =>
+                DataTransformationBiSourceAssetMapping
+                    ::STATUS_VALIDATED,
+
+            'created_by_user_id' =>
+                $fixture['admin']->getKey(),
+
+            'updated_by_user_id' =>
+                $fixture['admin']->getKey(),
+
+            'validated_by_user_id' =>
+                $fixture['admin']->getKey(),
+
+            'validated_at' =>
+                now(),
+        ]);
+
+        $clonedMapping->save();
+
+        $fieldMappings =
+            DataTransformationBiSourceAssetFieldMapping::query()
+                ->where(
+                    'data_transformation_bi_source_asset_mapping_id',
+                    (int) $mapping->getKey()
+                )
+                ->orderBy('id')
+                ->get();
+
+        foreach ($fieldMappings as $fieldMapping) {
+            $clone =
+                $fieldMapping->replicate();
+
+            $clone->forceFill([
+                'data_transformation_bi_source_asset_mapping_id' =>
+                    $clonedMapping->getKey(),
+
+                'created_by_user_id' =>
+                    $fixture['admin']->getKey(),
+
+                'updated_by_user_id' =>
+                    $fixture['admin']->getKey(),
+
+                'validated_by_user_id' =>
+                    $fixture['admin']->getKey(),
+
+                'validated_at' =>
+                    now(),
+            ]);
+
+            $clone->save();
+        }
+
+        return [
+            'asset' =>
+                $clonedAsset,
+
+            'artifact' =>
+                $clonedFile,
+
+            'mapping' =>
+                $clonedMapping,
+        ];
+    }
+
     private function makeFixture(
         array $csvRows
     ): array {
