@@ -1077,6 +1077,49 @@ Route::middleware(['auth', 'verified', 'role:admin'])
         );
 
 
+        /*
+        |--------------------------------------------------------------------------
+        | Modern commercial engagement · Data BI
+        |--------------------------------------------------------------------------
+        |
+        | Explicit boundaries:
+        | draft -> presented -> tenant accepted -> LAUDA authorized.
+        |
+        | None of these routes starts historical execution.
+        |
+        */
+
+        \Illuminate\Support\Facades\Route::post(
+            '/transformation-360/implementation-requests/{implementationRequest}/commercial-engagements',
+            [
+                \App\Http\Controllers\Admin\AdminTransformationImplementationCommercialEngagementController::class,
+                'store'
+            ]
+        )->name(
+            'transformation360.implementation_requests.commercial_engagements.store'
+        );
+
+        \Illuminate\Support\Facades\Route::post(
+            '/transformation-360/implementation-requests/{implementationRequest}/commercial-engagements/{engagement}/present',
+            [
+                \App\Http\Controllers\Admin\AdminTransformationImplementationCommercialEngagementController::class,
+                'present'
+            ]
+        )->name(
+            'transformation360.implementation_requests.commercial_engagements.present'
+        );
+
+        \Illuminate\Support\Facades\Route::post(
+            '/transformation-360/implementation-requests/{implementationRequest}/commercial-engagements/{engagement}/authorize',
+            [
+                \App\Http\Controllers\Admin\AdminTransformationImplementationCommercialEngagementController::class,
+                'authorizeImplementation'
+            ]
+        )->name(
+            'transformation360.implementation_requests.commercial_engagements.authorize'
+        );
+
+
 
 
 

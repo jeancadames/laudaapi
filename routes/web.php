@@ -324,6 +324,28 @@ Route::middleware(['auth', 'verified'])
     });
 
 
+/*
+|--------------------------------------------------------------------------
+| Tenant Data BI · aceptación comercial moderna
+|--------------------------------------------------------------------------
+|
+| El browser no selecciona Company, Request ni Engagement.
+| El contexto comercial se resuelve server-side.
+|
+*/
+Route::middleware(['auth', 'verified'])
+    ->post(
+        '/app/transformacion-360/datos-bi/propuesta-comercial/aceptar',
+        [
+            \App\Http\Controllers\AppHubDataTransformationBiCommercialEngagementController::class,
+            'accept',
+        ]
+    )
+    ->name(
+        'app.transformation.data_bi.commercial_engagement.accept'
+    );
+
+
 Route::middleware(['auth', 'verified'])
     ->post(
         '/app/transformacion-360/capacidades/branding-identidad/activar',
