@@ -980,6 +980,40 @@ type DynamicSourceMappingWorkspace = {
     mappings: DynamicSourceMapping[];
 };
 
+// IMPLEMENTATION_MATERIALIZATION_UI_TYPES_START
+
+type ImplementationMaterializationStatus =
+    | 'queued'
+    | 'processing'
+    | 'completed'
+    | 'failed'
+    | string;
+
+type ImplementationMaterializationRun = {
+    id: number;
+    run_uuid: string;
+    status: ImplementationMaterializationStatus;
+    selected_mapping_count: number;
+    materialized_dataset_count: number;
+    reused_dataset_count: number;
+    failure_code?: string | null;
+    failure_message?: string | null;
+    queued_at?: string | null;
+    started_at?: string | null;
+    finished_at?: string | null;
+    result?: Record<string, unknown> | null;
+    reused_run?: boolean;
+};
+
+type ImplementationMaterializationHttpResponse = {
+    ok: boolean;
+    message?: string | null;
+    errors?: Record<string, string[]>;
+    materialization?: ImplementationMaterializationRun;
+};
+
+// IMPLEMENTATION_MATERIALIZATION_UI_TYPES_END
+
 type DynamicSourceMappingDecisionState = {
     mapping_type: DynamicSourceMappingType;
     source_column_key: string;
@@ -1722,6 +1756,12 @@ onBeforeUnmountDynamicProfile(
             true;
 
         dynamicSourceProfilePollers.clear();
+
+        implementationMaterializationPollingStopped =
+            true;
+
+        implementationMaterializationPoll =
+            null;
     },
 );
 
@@ -2137,6 +2177,433 @@ const dynamicSourceMappingMessage =
     ref<string | null>(
         null,
     );
+
+// IMPLEMENTATION_MATERIALIZATION_UI_STATE_START
+
+const implementationMaterializationRun =
+    ref<ImplementationMaterializationRun | null>(
+        null,
+    );
+
+const implementationMaterializationBusy =
+    ref(false);
+
+const implementationMaterializationError =
+    ref<string | null>(
+        null,
+    );
+
+const implementationMaterializationMessage =
+    ref<string | null>(
+        null,
+    );
+
+const IMPLEMENTATION_MATERIALIZATION_POLL_INTERVAL_MS =
+    3000;
+
+const IMPLEMENTATION_MATERIALIZATION_POLL_ATTEMPTS =
+    320;
+
+let implementationMaterializationPollingStopped =
+    false;
+
+let implementationMaterializationPoll:
+    Promise<void> | null =
+        null;
+
+function implementationMaterializationRunning(
+    run: ImplementationMaterializationRun | null =
+        implementationMaterializationRun.value,
+): boolean {
+    return (
+        run?.status === 'queued'
+        || run?.status === 'processing'
+    );
+}
+
+function implementationMaterializationStatusLabel(
+    status?: string | null,
+): string {
+    const labels: Record<string, string> = {
+        queued:
+            'En cola',
+
+        processing:
+            'Procesando',
+
+        completed:
+            'Completado',
+
+        failed:
+            'Con error',
+    };
+
+    return status
+        ? labels[status]
+            ?? status
+        : 'Sin iniciar';
+}
+
+function implementationMaterializationStatusClass(
+    status?: string | null,
+): string {
+    switch (status) {
+        case 'queued':
+            return 'border-amber-300 bg-amber-50 text-amber-700 dark:border-amber-900 dark:bg-amber-950/20 dark:text-amber-300';
+
+        case 'processing':
+            return 'border-sky-300 bg-sky-50 text-sky-700 dark:border-sky-900 dark:bg-sky-950/20 dark:text-sky-300';
+
+        case 'completed':
+            return 'border-emerald-300 bg-emerald-50 text-emerald-700 dark:border-emerald-900 dark:bg-emerald-950/20 dark:text-emerald-300';
+
+        case 'failed':
+            return 'border-red-300 bg-red-50 text-red-700 dark:border-red-900 dark:bg-red-950/20 dark:text-red-300';
+
+        default:
+            return 'border-border bg-muted/20 text-muted-foreground';
+    }
+}
+
+function implementationMaterializationStorageKey(
+    sessionId: number,
+): string {
+    return [
+        'lauda',
+        'data-bi',
+        'implementation-materialization',
+        props.implementation_request.id,
+        sessionId,
+    ].join(':');
+}
+
+function persistImplementationMaterializationRun(
+    sessionId: number,
+    run: ImplementationMaterializationRun,
+): void {
+    if (typeof window === 'undefined') {
+        return;
+    }
+
+    try {
+        window.sessionStorage.setItem(
+            implementationMaterializationStorageKey(
+                sessionId,
+            ),
+            run.run_uuid,
+        );
+    } catch {
+        /*
+         * Session storage is only a UI-resume convenience.
+         * The persisted MaterializationRun remains authoritative.
+         */
+    }
+}
+
+function implementationMaterializationDelay(
+    milliseconds: number,
+): Promise<void> {
+    return new Promise(
+        (resolve) => {
+            window.setTimeout(
+                resolve,
+                milliseconds,
+            );
+        },
+    );
+}
+
+/*
+ * SERVER_AUTHORITATIVE_MATERIALIZATION_GATE
+ *
+ * Do NOT reproduce currentMappings() in Vue.
+ *
+ * The browser only starts a session-wide materialization request.
+ * The backend remains authoritative for:
+ * - active implementation authorization;
+ * - latest mapping version per source/entity/sheet;
+ * - all-current-mappings VALIDATED requirement;
+ * - READY dataset idempotency.
+ */
+async function implementationMaterializationRequest(
+    url: string,
+    options: RequestInit = {},
+): Promise<ImplementationMaterializationHttpResponse> {
+    const payload =
+        await standardIntakeV2Request(
+            url,
+            options,
+        );
+
+    return payload as unknown as ImplementationMaterializationHttpResponse;
+}
+
+async function runImplementationMaterializationPoll(
+    sessionId: number,
+    runUuid: string,
+): Promise<void> {
+    for (
+        let attempt = 0;
+        attempt < IMPLEMENTATION_MATERIALIZATION_POLL_ATTEMPTS;
+        attempt += 1
+    ) {
+        if (
+            implementationMaterializationPollingStopped
+        ) {
+            return;
+        }
+
+        await implementationMaterializationDelay(
+            IMPLEMENTATION_MATERIALIZATION_POLL_INTERVAL_MS,
+        );
+
+        if (
+            implementationMaterializationPollingStopped
+        ) {
+            return;
+        }
+
+        const payload =
+            await implementationMaterializationRequest(
+                `${standardIntakeV2BaseUrl}/sessions/${sessionId}/implementation-datasets/materialization-runs/${runUuid}`,
+                {
+                    method:
+                        'GET',
+                },
+            );
+
+        if (!payload.materialization) {
+            throw new Error(
+                'La respuesta de estado no contiene la materialización.',
+            );
+        }
+
+        const current =
+            payload.materialization;
+
+        implementationMaterializationRun.value =
+            current;
+
+        persistImplementationMaterializationRun(
+            sessionId,
+            current,
+        );
+
+        if (current.status === 'completed') {
+            implementationMaterializationError.value =
+                null;
+
+            implementationMaterializationMessage.value =
+                'Datasets de implementación materializados correctamente.';
+
+            return;
+        }
+
+        if (current.status === 'failed') {
+            throw new Error(
+                current.failure_message
+                ?? 'No se pudo completar la materialización de datasets.',
+            );
+        }
+
+        if (
+            current.status !== 'queued'
+            && current.status !== 'processing'
+        ) {
+            throw new Error(
+                'La materialización quedó en un estado inesperado.',
+            );
+        }
+    }
+
+    throw new Error(
+        'No fue posible confirmar la finalización de la materialización dentro del tiempo esperado.',
+    );
+}
+
+function pollImplementationMaterialization(
+    sessionId: number,
+    runUuid: string,
+): Promise<void> {
+    if (implementationMaterializationPoll) {
+        return implementationMaterializationPoll;
+    }
+
+    implementationMaterializationPoll =
+        runImplementationMaterializationPoll(
+            sessionId,
+            runUuid,
+        )
+            .finally(
+                () => {
+                    implementationMaterializationPoll =
+                        null;
+                },
+            );
+
+    return implementationMaterializationPoll;
+}
+
+async function startImplementationMaterialization(): Promise<void> {
+    const sessionId =
+        standardIntakeV2SessionId();
+
+    if (
+        sessionId === null
+        || implementationMaterializationBusy.value
+        || implementationMaterializationRunning()
+    ) {
+        return;
+    }
+
+    implementationMaterializationBusy.value =
+        true;
+
+    implementationMaterializationError.value =
+        null;
+
+    implementationMaterializationMessage.value =
+        null;
+
+    try {
+        const payload =
+            await implementationMaterializationRequest(
+                `${standardIntakeV2BaseUrl}/sessions/${sessionId}/implementation-datasets/materialize`,
+                {
+                    method:
+                        'POST',
+                },
+            );
+
+        if (!payload.materialization) {
+            throw new Error(
+                'La respuesta no contiene el run de materialización.',
+            );
+        }
+
+        implementationMaterializationRun.value =
+            payload.materialization;
+
+        persistImplementationMaterializationRun(
+            sessionId,
+            payload.materialization,
+        );
+
+        implementationMaterializationMessage.value =
+            payload.message
+            ?? (
+                payload.materialization.reused_run
+                    ? 'La materialización ya estaba en curso.'
+                    : 'Materialización encolada. Esperando resultado...'
+            );
+
+        if (
+            implementationMaterializationRunning(
+                payload.materialization,
+            )
+        ) {
+            await pollImplementationMaterialization(
+                sessionId,
+                payload.materialization.run_uuid,
+            );
+        }
+    } catch (error) {
+        implementationMaterializationError.value =
+            error instanceof Error
+                ? error.message
+                : 'No se pudo completar la materialización de datasets.';
+
+        implementationMaterializationMessage.value =
+            null;
+    } finally {
+        implementationMaterializationBusy.value =
+            false;
+    }
+}
+
+async function resumeImplementationMaterializationFromStorage():
+    Promise<void> {
+    if (
+        typeof window === 'undefined'
+        || implementationMaterializationPollingStopped
+    ) {
+        return;
+    }
+
+    const sessionId =
+        standardIntakeV2SessionId();
+
+    if (sessionId === null) {
+        return;
+    }
+
+    let runUuid:
+        string | null =
+            null;
+
+    try {
+        runUuid =
+            window.sessionStorage.getItem(
+                implementationMaterializationStorageKey(
+                    sessionId,
+                ),
+            );
+    } catch {
+        return;
+    }
+
+    if (!runUuid) {
+        return;
+    }
+
+    implementationMaterializationError.value =
+        null;
+
+    try {
+        const payload =
+            await implementationMaterializationRequest(
+                `${standardIntakeV2BaseUrl}/sessions/${sessionId}/implementation-datasets/materialization-runs/${runUuid}`,
+                {
+                    method:
+                        'GET',
+                },
+            );
+
+        if (!payload.materialization) {
+            return;
+        }
+
+        implementationMaterializationRun.value =
+            payload.materialization;
+
+        if (
+            implementationMaterializationRunning(
+                payload.materialization,
+            )
+        ) {
+            implementationMaterializationMessage.value =
+                'Materialización técnica en proceso. Esperando resultado...';
+
+            await pollImplementationMaterialization(
+                sessionId,
+                runUuid,
+            );
+        }
+    } catch (error) {
+        if (
+            implementationMaterializationPollingStopped
+        ) {
+            return;
+        }
+
+        implementationMaterializationError.value =
+            error instanceof Error
+                ? error.message
+                : 'No se pudo recuperar el estado de la materialización.';
+    }
+}
+
+// IMPLEMENTATION_MATERIALIZATION_UI_STATE_END
 
 const dynamicSourceMappingSelectedEntityKey =
     ref<string>(
@@ -9026,6 +9493,11 @@ watch(
 // DATA_BI_DIAGNOSIS_EVALUATION_UI_END
 
 
+// IMPLEMENTATION_MATERIALIZATION_UI_RESUME
+if (typeof window !== 'undefined') {
+    void resumeImplementationMaterializationFromStorage();
+}
+
 // CANONICAL_MODEL_V2_UI_INITIAL_LOAD
 if (canonicalModelUiAvailable()) {
     void loadCanonicalModelWorkspace();
@@ -15238,6 +15710,204 @@ if (canonicalModelUiAvailable()) {
                                         "
                                         class="space-y-4"
                                     >
+                                        <!-- IMPLEMENTATION_MATERIALIZATION_ADMIN_UI -->
+                                        <div
+                                            v-if="
+                                                standardIntakeV2SessionId()
+                                                !== null
+                                            "
+                                            class="rounded-xl border border-sky-200 bg-sky-50/40 p-4 dark:border-sky-900/70 dark:bg-sky-950/10"
+                                        >
+                                            <div
+                                                class="flex flex-wrap items-start justify-between gap-4"
+                                            >
+                                                <div
+                                                    class="max-w-3xl"
+                                                >
+                                                    <div
+                                                        class="flex flex-wrap items-center gap-2"
+                                                    >
+                                                        <p
+                                                            class="text-sm font-black"
+                                                        >
+                                                            Materialización de datasets
+                                                        </p>
+
+                                                        <span
+                                                            v-if="
+                                                                implementationMaterializationRun
+                                                            "
+                                                            class="rounded-full border px-2.5 py-1 text-[10px] font-black uppercase"
+                                                            :class="
+                                                                implementationMaterializationStatusClass(
+                                                                    implementationMaterializationRun
+                                                                        .status,
+                                                                )
+                                                            "
+                                                        >
+                                                            {{
+                                                                implementationMaterializationStatusLabel(
+                                                                    implementationMaterializationRun
+                                                                        .status,
+                                                                )
+                                                            }}
+                                                        </span>
+                                                    </div>
+
+                                                    <p
+                                                        class="mt-2 text-xs leading-5 text-muted-foreground"
+                                                    >
+                                                        Alcance: toda esta sesión de implementación.
+                                                        El servidor utilizará únicamente la versión
+                                                        actual de cada mapeo y exige que todos los
+                                                        mapeos actuales estén validados antes de
+                                                        materializar.
+                                                    </p>
+
+                                                    <p
+                                                        class="mt-2 text-[11px] leading-5 text-muted-foreground"
+                                                    >
+                                                        Esta operación prepara datasets modernos
+                                                        para implementación. No inicia ejecución,
+                                                        no cambia
+                                                        <span class="font-mono">
+                                                            ready_for_execution
+                                                        </span>
+                                                        ni
+                                                        <span class="font-mono">
+                                                            execution_started
+                                                        </span>
+                                                        y no reemplaza “Preparar staging”.
+                                                    </p>
+                                                </div>
+
+                                                <Button
+                                                    type="button"
+                                                    :disabled="
+                                                        implementationMaterializationBusy
+                                                        || implementationMaterializationRunning()
+                                                    "
+                                                    @click="
+                                                        startImplementationMaterialization
+                                                    "
+                                                >
+                                                    {{
+                                                        implementationMaterializationBusy
+                                                        || implementationMaterializationRunning()
+                                                            ? 'Materializando...'
+                                                            : implementationMaterializationRun
+                                                                ?.status
+                                                                === 'failed'
+                                                                ? 'Reintentar materialización'
+                                                                : implementationMaterializationRun
+                                                                    ?.status
+                                                                    === 'completed'
+                                                                    ? 'Materializar nuevamente'
+                                                                    : 'Materializar datasets'
+                                                    }}
+                                                </Button>
+                                            </div>
+
+                                            <div
+                                                v-if="
+                                                    implementationMaterializationRun
+                                                "
+                                                class="mt-4 grid gap-3 sm:grid-cols-3"
+                                            >
+                                                <div
+                                                    class="rounded-lg border bg-background/80 p-3"
+                                                >
+                                                    <p
+                                                        class="text-[10px] font-black uppercase text-muted-foreground"
+                                                    >
+                                                        Mapeos seleccionados
+                                                    </p>
+
+                                                    <p
+                                                        class="mt-1 text-lg font-black"
+                                                    >
+                                                        {{
+                                                            implementationMaterializationRun
+                                                                .selected_mapping_count
+                                                        }}
+                                                    </p>
+                                                </div>
+
+                                                <div
+                                                    class="rounded-lg border bg-background/80 p-3"
+                                                >
+                                                    <p
+                                                        class="text-[10px] font-black uppercase text-muted-foreground"
+                                                    >
+                                                        Materializados
+                                                    </p>
+
+                                                    <p
+                                                        class="mt-1 text-lg font-black"
+                                                    >
+                                                        {{
+                                                            implementationMaterializationRun
+                                                                .materialized_dataset_count
+                                                        }}
+                                                    </p>
+                                                </div>
+
+                                                <div
+                                                    class="rounded-lg border bg-background/80 p-3"
+                                                >
+                                                    <p
+                                                        class="text-[10px] font-black uppercase text-muted-foreground"
+                                                    >
+                                                        Reutilizados
+                                                    </p>
+
+                                                    <p
+                                                        class="mt-1 text-lg font-black"
+                                                    >
+                                                        {{
+                                                            implementationMaterializationRun
+                                                                .reused_dataset_count
+                                                        }}
+                                                    </p>
+                                                </div>
+                                            </div>
+
+                                            <p
+                                                v-if="
+                                                    implementationMaterializationRun
+                                                "
+                                                class="mt-3 font-mono text-[10px] text-muted-foreground"
+                                            >
+                                                Run:
+                                                {{
+                                                    implementationMaterializationRun
+                                                        .run_uuid
+                                                }}
+                                            </p>
+
+                                            <p
+                                                v-if="
+                                                    implementationMaterializationMessage
+                                                "
+                                                class="mt-3 rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-xs font-semibold text-emerald-700 dark:border-emerald-900/70 dark:bg-emerald-950/20 dark:text-emerald-300"
+                                            >
+                                                {{
+                                                    implementationMaterializationMessage
+                                                }}
+                                            </p>
+
+                                            <p
+                                                v-if="
+                                                    implementationMaterializationError
+                                                "
+                                                class="mt-3 rounded-lg border border-red-200 bg-red-50 p-3 text-xs font-semibold text-red-700 dark:border-red-900/70 dark:bg-red-950/20 dark:text-red-300"
+                                            >
+                                                {{
+                                                    implementationMaterializationError
+                                                }}
+                                            </p>
+                                        </div>
+                                        <!-- IMPLEMENTATION_MATERIALIZATION_ADMIN_UI_END -->
                                         <div
                                             class="flex flex-wrap items-start justify-between gap-3 rounded-xl border p-4"
                                         >
