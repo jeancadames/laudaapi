@@ -678,6 +678,705 @@ class DataTransformationBiImplementationDatasetMaterializerBehaviorTest
         ];
     }
 
+
+    public function test_materialization_dispatch_reservation_is_idempotent(): void
+    {
+        $fixture =
+            $this->makeFixture([
+                [
+                    'customer_id',
+                    'name',
+                    'balance',
+                ],
+                [
+                    'C-001',
+                    'Cliente Uno',
+                    '100.5',
+                ],
+            ]);
+
+        $service =
+            app(
+                \App\Services\Diagnosis\DataTransformationBiImplementationMaterializationDispatchService::class
+            );
+
+        $first =
+            $service->reserve(
+                $fixture['request'],
+                $fixture['session'],
+                $fixture['admin']
+            );
+
+        $this->assertFalse(
+            $first['reused']
+        );
+
+        $this->assertSame(
+            \App\Models\DataTransformationBiImplementationMaterializationRun
+                ::STATUS_QUEUED,
+            (string) $first['run']->status
+        );
+
+        $this->assertSame(
+            (int) $fixture['request']->getKey(),
+            (int) $first['run']
+                ->transformation_implementation_request_id
+        );
+
+        $this->assertSame(
+            (int) $fixture['session']->getKey(),
+            (int) $first['run']
+                ->data_transformation_bi_intake_session_id
+        );
+
+        $this->assertSame(
+            (int) $fixture['admin']->getKey(),
+            (int) $first['run']
+                ->requested_by_user_id
+        );
+
+        $this->assertNotEmpty(
+            (string) $first['run']->run_uuid
+        );
+
+        $this->assertNotNull(
+            $first['run']->queued_at
+        );
+
+        $second =
+            $service->reserve(
+                $fixture['request'],
+                $fixture['session'],
+                $fixture['admin']
+            );
+
+        $this->assertTrue(
+            $second['reused']
+        );
+
+        $this->assertSame(
+            (int) $first['run']->getKey(),
+            (int) $second['run']->getKey()
+        );
+
+        $this->assertSame(
+            1,
+            \App\Models\DataTransformationBiImplementationMaterializationRun
+                ::query()
+                ->count()
+        );
+    }
+
+    public function test_processing_materialization_run_is_reused(): void
+    {
+        $fixture =
+            $this->makeFixture([
+                [
+                    'customer_id',
+                    'name',
+                    'balance',
+                ],
+                [
+                    'C-001',
+                    'Cliente Uno',
+                    '100.5',
+                ],
+            ]);
+
+        $service =
+            app(
+                \App\Services\Diagnosis\DataTransformationBiImplementationMaterializationDispatchService::class
+            );
+
+        $first =
+            $service->reserve(
+                $fixture['request'],
+                $fixture['session'],
+                $fixture['admin']
+            );
+
+        $first['run']->forceFill([
+            'status' =>
+                \App\Models\DataTransformationBiImplementationMaterializationRun
+                    ::STATUS_PROCESSING,
+
+            'started_at' =>
+                now(),
+        ])->save();
+
+        $second =
+            $service->reserve(
+                $fixture['request'],
+                $fixture['session'],
+                $fixture['admin']
+            );
+
+        $this->assertTrue(
+            $second['reused']
+        );
+
+        $this->assertSame(
+            (int) $first['run']->getKey(),
+            (int) $second['run']->getKey()
+        );
+
+        $this->assertSame(
+            \App\Models\DataTransformationBiImplementationMaterializationRun
+                ::STATUS_PROCESSING,
+            (string) $second['run']->status
+        );
+
+        $this->assertSame(
+            1,
+            \App\Models\DataTransformationBiImplementationMaterializationRun
+                ::query()
+                ->count()
+        );
+    }
+
+    public function test_completed_materialization_run_allows_new_reservation(): void
+    {
+        $fixture =
+            $this->makeFixture([
+                [
+                    'customer_id',
+                    'name',
+                    'balance',
+                ],
+                [
+                    'C-001',
+                    'Cliente Uno',
+                    '100.5',
+                ],
+            ]);
+
+        $service =
+            app(
+                \App\Services\Diagnosis\DataTransformationBiImplementationMaterializationDispatchService::class
+            );
+
+        $first =
+            $service->reserve(
+                $fixture['request'],
+                $fixture['session'],
+                $fixture['admin']
+            );
+
+        $first['run']->forceFill([
+            'status' =>
+                \App\Models\DataTransformationBiImplementationMaterializationRun
+                    ::STATUS_COMPLETED,
+
+            'finished_at' =>
+                now(),
+        ])->save();
+
+        $second =
+            $service->reserve(
+                $fixture['request'],
+                $fixture['session'],
+                $fixture['admin']
+            );
+
+        $this->assertFalse(
+            $second['reused']
+        );
+
+        $this->assertNotSame(
+            (int) $first['run']->getKey(),
+            (int) $second['run']->getKey()
+        );
+
+        $this->assertNotSame(
+            (string) $first['run']->run_uuid,
+            (string) $second['run']->run_uuid
+        );
+
+        $this->assertSame(
+            \App\Models\DataTransformationBiImplementationMaterializationRun
+                ::STATUS_QUEUED,
+            (string) $second['run']->status
+        );
+
+        $this->assertSame(
+            2,
+            \App\Models\DataTransformationBiImplementationMaterializationRun
+                ::query()
+                ->count()
+        );
+    }
+
+
+    public function test_materialization_dispatch_redelivers_queued_run_but_not_processing_run(): void
+    {
+        \Illuminate\Support\Facades\Queue::fake();
+
+        $fixture =
+            $this->makeFixture([
+                [
+                    'customer_id',
+                    'name',
+                    'balance',
+                ],
+                [
+                    'C-001',
+                    'Cliente Uno',
+                    '100.5',
+                ],
+            ]);
+
+        $service =
+            app(
+                \App\Services\Diagnosis\DataTransformationBiImplementationMaterializationDispatchService::class
+            );
+
+        /*
+         * First call creates the run and enqueues one delivery.
+         */
+        $first =
+            $service->dispatch(
+                $fixture['request'],
+                $fixture['session'],
+                $fixture['admin']
+            );
+
+        $this->assertFalse(
+            $first['reused']
+        );
+
+        \Illuminate\Support\Facades\Queue::assertPushed(
+            \App\Jobs\DataTransformationBi\MaterializeDataTransformationBiImplementationSession::class,
+            function ($job) use (
+                $first,
+                $fixture
+            ): bool {
+                return
+                    (int) $job->runId
+                        === (int) $first['run']->getKey()
+
+                    && (string) $job->runUuid
+                        === (string) $first['run']->run_uuid
+
+                    && (int) $job->implementationRequestId
+                        === (int) $fixture['request']->getKey()
+
+                    && (int) $job->companyId
+                        === (int) $fixture['request']->company_id
+
+                    && (int) $job->sessionId
+                        === (int) $fixture['session']->getKey()
+
+                    && (int) $job->actorUserId
+                        === (int) $fixture['admin']->getKey()
+
+                    && $job->connection
+                        === 'data_bi'
+
+                    && $job->queue
+                        === 'data-bi';
+            }
+        );
+
+        /*
+         * The same active QUEUED run is reused, but deliberately delivered
+         * again. This closes the reserve->dispatch process-crash gap.
+         */
+        $second =
+            $service->dispatch(
+                $fixture['request'],
+                $fixture['session'],
+                $fixture['admin']
+            );
+
+        $this->assertTrue(
+            $second['reused']
+        );
+
+        $this->assertSame(
+            (int) $first['run']->getKey(),
+            (int) $second['run']->getKey()
+        );
+
+        \Illuminate\Support\Facades\Queue::assertPushed(
+            \App\Jobs\DataTransformationBi\MaterializeDataTransformationBiImplementationSession::class,
+            2
+        );
+
+        /*
+         * Once PROCESSING, a worker owns the run. Further requests reuse the
+         * run but MUST NOT enqueue additional deliveries.
+         */
+        $first['run']->forceFill([
+            'status' =>
+                \App\Models\DataTransformationBiImplementationMaterializationRun
+                    ::STATUS_PROCESSING,
+
+            'started_at' =>
+                now(),
+        ])->save();
+
+        $third =
+            $service->dispatch(
+                $fixture['request'],
+                $fixture['session'],
+                $fixture['admin']
+            );
+
+        $this->assertTrue(
+            $third['reused']
+        );
+
+        $this->assertSame(
+            (int) $first['run']->getKey(),
+            (int) $third['run']->getKey()
+        );
+
+        \Illuminate\Support\Facades\Queue::assertPushed(
+            \App\Jobs\DataTransformationBi\MaterializeDataTransformationBiImplementationSession::class,
+            2
+        );
+
+        $this->assertSame(
+            1,
+            \App\Models\DataTransformationBiImplementationMaterializationRun
+                ::query()
+                ->count()
+        );
+    }
+
+    public function test_materialization_job_completes_real_session_run(): void
+    {
+        $fixture =
+            $this->makeFixture([
+                [
+                    'customer_id',
+                    'name',
+                    'balance',
+                ],
+                [
+                    'C-001',
+                    'Cliente Uno',
+                    '100.5',
+                ],
+                [
+                    'C-002',
+                    'Cliente Dos',
+                    '250.75',
+                ],
+            ]);
+
+        $service =
+            app(
+                \App\Services\Diagnosis\DataTransformationBiImplementationMaterializationDispatchService::class
+            );
+
+        $reservation =
+            $service->reserve(
+                $fixture['request'],
+                $fixture['session'],
+                $fixture['admin']
+            );
+
+        $run =
+            $reservation['run'];
+
+        $job =
+            new \App\Jobs\DataTransformationBi\MaterializeDataTransformationBiImplementationSession(
+                (int) $run->getKey(),
+                (string) $run->run_uuid,
+                (int) $fixture['request']->getKey(),
+                (int) $fixture['request']->company_id,
+                (int) $fixture['session']->getKey(),
+                (int) $fixture['admin']->getKey()
+            );
+
+        $job->handle(
+            app(
+                \App\Services\Diagnosis\DataTransformationBiImplementationDatasetOrchestrator::class
+            )
+        );
+
+        $fresh =
+            $run->fresh();
+
+        $this->assertSame(
+            \App\Models\DataTransformationBiImplementationMaterializationRun
+                ::STATUS_COMPLETED,
+            (string) $fresh->status
+        );
+
+        $this->assertNotNull(
+            $fresh->started_at
+        );
+
+        $this->assertNotNull(
+            $fresh->finished_at
+        );
+
+        $this->assertSame(
+            1,
+            (int) $fresh->selected_mapping_count
+        );
+
+        $this->assertSame(
+            1,
+            (int) $fresh->materialized_dataset_count
+        );
+
+        $this->assertSame(
+            0,
+            (int) $fresh->reused_dataset_count
+        );
+
+        $this->assertIsArray(
+            $fresh->result_snapshot
+        );
+
+        $this->assertSame(
+            1,
+            $fresh->result_snapshot[
+                'selected_mapping_count'
+            ]
+        );
+
+        $this->assertNull(
+            $fresh->failure_code
+        );
+
+        $this->assertNull(
+            $fresh->failure_message
+        );
+
+        $this->assertSame(
+            1,
+            DataTransformationBiImplementationDataset::query()
+                ->count()
+        );
+
+        $this->assertSame(
+            2,
+            \App\Models\DataTransformationBiImplementationRow::query()
+                ->count()
+        );
+    }
+
+    public function test_materialization_job_marks_run_failed_when_orchestration_fails(): void
+    {
+        $fixture =
+            $this->makeFixture([
+                [
+                    'customer_id',
+                    'name',
+                    'balance',
+                ],
+                [
+                    'C-001',
+                    'Cliente Uno',
+                    '100.5',
+                ],
+            ]);
+
+        /*
+         * Latest semantic version is deliberately DRAFT.
+         * The older VALIDATED mapping must not be used as fallback.
+         */
+        $newer =
+            $fixture['mapping']
+                ->replicate();
+
+        $newer->forceFill([
+            'mapping_version' =>
+                (int) $fixture['mapping']->mapping_version
+                + 1,
+
+            'status' =>
+                DataTransformationBiSourceAssetMapping
+                    ::STATUS_DRAFT,
+
+            'validated_by_user_id' =>
+                null,
+
+            'validated_at' =>
+                null,
+
+            'created_by_user_id' =>
+                $fixture['admin']->getKey(),
+
+            'updated_by_user_id' =>
+                $fixture['admin']->getKey(),
+        ]);
+
+        $newer->save();
+
+        $service =
+            app(
+                \App\Services\Diagnosis\DataTransformationBiImplementationMaterializationDispatchService::class
+            );
+
+        $reservation =
+            $service->reserve(
+                $fixture['request'],
+                $fixture['session'],
+                $fixture['admin']
+            );
+
+        $run =
+            $reservation['run'];
+
+        $job =
+            new \App\Jobs\DataTransformationBi\MaterializeDataTransformationBiImplementationSession(
+                (int) $run->getKey(),
+                (string) $run->run_uuid,
+                (int) $fixture['request']->getKey(),
+                (int) $fixture['request']->company_id,
+                (int) $fixture['session']->getKey(),
+                (int) $fixture['admin']->getKey()
+            );
+
+        $caught =
+            null;
+
+        try {
+            $job->handle(
+                app(
+                    \App\Services\Diagnosis\DataTransformationBiImplementationDatasetOrchestrator::class
+                )
+            );
+        } catch (
+            \Illuminate\Validation\ValidationException $exception
+        ) {
+            $caught =
+                $exception;
+        }
+
+        $this->assertInstanceOf(
+            \Illuminate\Validation\ValidationException::class,
+            $caught
+        );
+
+        $fresh =
+            $run->fresh();
+
+        $this->assertSame(
+            \App\Models\DataTransformationBiImplementationMaterializationRun
+                ::STATUS_FAILED,
+            (string) $fresh->status
+        );
+
+        $this->assertSame(
+            'implementation_materialization_failed',
+            (string) $fresh->failure_code
+        );
+
+        $this->assertNotNull(
+            $fresh->finished_at
+        );
+
+        $this->assertSame(
+            0,
+            DataTransformationBiImplementationDataset::query()
+                ->count()
+        );
+
+        $this->assertSame(
+            0,
+            \App\Models\DataTransformationBiImplementationRow::query()
+                ->count()
+        );
+    }
+
+    public function test_stale_materialization_job_is_skipped(): void
+    {
+        $fixture =
+            $this->makeFixture([
+                [
+                    'customer_id',
+                    'name',
+                    'balance',
+                ],
+                [
+                    'C-001',
+                    'Cliente Uno',
+                    '100.5',
+                ],
+            ]);
+
+        $service =
+            app(
+                \App\Services\Diagnosis\DataTransformationBiImplementationMaterializationDispatchService::class
+            );
+
+        $reservation =
+            $service->reserve(
+                $fixture['request'],
+                $fixture['session'],
+                $fixture['admin']
+            );
+
+        $run =
+            $reservation['run'];
+
+        /*
+         * Simulate that this queued attempt was superseded/closed before the
+         * delayed job reached a worker.
+         */
+        $run->forceFill([
+            'status' =>
+                \App\Models\DataTransformationBiImplementationMaterializationRun
+                    ::STATUS_FAILED,
+
+            'failure_code' =>
+                'synthetic_stale_run',
+
+            'failure_message' =>
+                'Synthetic stale run.',
+            'finished_at' =>
+                now(),
+        ])->save();
+
+        $job =
+            new \App\Jobs\DataTransformationBi\MaterializeDataTransformationBiImplementationSession(
+                (int) $run->getKey(),
+                (string) $run->run_uuid,
+                (int) $fixture['request']->getKey(),
+                (int) $fixture['request']->company_id,
+                (int) $fixture['session']->getKey(),
+                (int) $fixture['admin']->getKey()
+            );
+
+        $job->handle(
+            app(
+                \App\Services\Diagnosis\DataTransformationBiImplementationDatasetOrchestrator::class
+            )
+        );
+
+        $fresh =
+            $run->fresh();
+
+        $this->assertSame(
+            \App\Models\DataTransformationBiImplementationMaterializationRun
+                ::STATUS_FAILED,
+            (string) $fresh->status
+        );
+
+        $this->assertSame(
+            'synthetic_stale_run',
+            (string) $fresh->failure_code
+        );
+
+        $this->assertSame(
+            0,
+            DataTransformationBiImplementationDataset::query()
+                ->count()
+        );
+
+        $this->assertSame(
+            0,
+            \App\Models\DataTransformationBiImplementationRow::query()
+                ->count()
+        );
+    }
+
     private function makeFixture(
         array $csvRows
     ): array {
