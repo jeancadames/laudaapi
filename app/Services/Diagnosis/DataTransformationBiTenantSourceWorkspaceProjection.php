@@ -190,8 +190,20 @@ final class DataTransformationBiTenantSourceWorkspaceProjection
                     $asset
                 )
             ) {
+                /*
+                 * Do not disclose raw parser, SQL or storage
+                 * errors to the tenant. Admin LAUDA retains
+                 * the original technical evidence.
+                 */
                 $result[$key] =
-                    $asset[$key];
+                    $key === 'failure_message'
+                        ? (
+                            is_string($asset[$key])
+                            && trim($asset[$key]) !== ''
+                                ? 'No se pudo procesar la fuente. Contacta al equipo de LAUDA para revisar el problema.'
+                                : null
+                        )
+                        : $asset[$key];
             }
         }
 

@@ -60,6 +60,47 @@ final class DataTransformationBiTenantPublishedEvaluationProjection
     }
 
     /**
+     * Published historical results, bounded to an authorized company.
+     * Excludes the current implementation request.
+     * Uses the existing tenant-safe projection.
+     *
+     * @return list<array<string,mixed>>
+     */
+    public function forCompanyHistory(
+        int $companyId,
+        ?int $currentRequestId
+    ): array {
+        if ($companyId <= 0 || $currentRequestId === null
+            || $currentRequestId <= 0) {
+            return [];
+        }
+
+        return DataTransformationBiEvaluation::query()
+            ->where('company_id', $companyId)
+            ->where(
+                'status',
+                DataTransformationBiEvaluation::STATUS_PUBLISHED
+            )
+            ->whereNotNull('published_at')
+            ->where(
+                'transformation_implementation_request_id',
+                '!=',
+                $currentRequestId
+            )
+            ->with(['findings.sources'])
+            ->orderByDesc('published_at')
+            ->orderByDesc('id')
+            ->limit(20)
+            ->get()
+            ->map(fn (DataTransformationBiEvaluation $evaluation) =>
+                $this->project($evaluation)
+            )
+            ->filter(fn ($result) => is_array($result))
+            ->values()
+            ->all();
+    }
+
+    /**
      * Deliberately narrow tenant projection.
      *
      * It must not expose:
@@ -180,8 +221,127 @@ final class DataTransformationBiTenantPublishedEvaluationProjection
                     $evaluation
                 ),
 
+            'executive_summary' =>
+                $this->tenantExecutiveSummary(
+                    $evaluation
+                ),
+
             'findings' =>
                 $findings->all(),
+        ];
+    }
+
+    /**
+     * Tenant-safe executive summary from frozen evidence.
+     *
+     * Never recomputes analysis or exposes source snapshots.
+     *
+     * @return array<string,mixed>
+     */
+    private function tenantExecutiveSummary(
+        DataTransformationBiEvaluation $evaluation
+    ): array {
+        $unavailable = [
+            'available' => false,
+            'source_count' => null,
+            'declared_domain_count' => null,
+            'analysis_count' => null,
+            'supported_count' => null,
+            'partial_count' => null,
+            'insufficient_evidence_count' => null,
+        ];
+
+        $version = (int) (
+            $evaluation->diagnostic_analysis_schema_version ?? 0
+        );
+
+        if (! in_array(
+            $version,
+            self::KNOWN_DIAGNOSTIC_ANALYSIS_SCHEMA_VERSIONS,
+            true
+        )) {
+            return $unavailable;
+        }
+
+        $snapshot = $evaluation->diagnostic_analysis_snapshot;
+
+        if (
+            ! is_array($snapshot)
+            || ($snapshot['kind'] ?? null)
+                !== 'data_bi_diagnostic_analysis'
+            || (int) ($snapshot['schema_version'] ?? 0)
+                !== $version
+            || ($snapshot['available'] ?? false) !== true
+            || ! is_array($snapshot['analyses'] ?? null)
+        ) {
+            return $unavailable;
+        }
+
+        $counts = [
+            'supported' => 0,
+            'partial' => 0,
+            'not_supported_by_current_evidence' => 0,
+        ];
+
+        $validAnalysisCount = 0;
+
+        foreach ($snapshot['analyses'] as $analysis) {
+            $projected = $this->tenantDiagnosticAnalysisItem(
+                $analysis
+            );
+
+            if ($projected === null) {
+                continue;
+            }
+
+            $validAnalysisCount++;
+
+            $status = $projected['status'];
+
+            if (array_key_exists($status, $counts)) {
+                $counts[$status]++;
+            }
+        }
+
+        $classification = data_get(
+            $snapshot,
+            'semantic_diagnostic.classification'
+        );
+
+        $declaredDomainCount = null;
+
+        if (
+            is_array($classification)
+            && isset($classification['unique_domain_count'])
+            && is_numeric($classification['unique_domain_count'])
+        ) {
+            $declaredDomainCount = max(
+                0,
+                (int) $classification['unique_domain_count']
+            );
+        }
+
+        $sourceCount = null;
+
+        if (
+            isset($snapshot['source_count'])
+            && is_numeric($snapshot['source_count'])
+        ) {
+            $sourceCount = max(
+                0,
+                (int) $snapshot['source_count']
+            );
+        }
+
+        return [
+            'available' => true,
+            'source_count' => $sourceCount,
+            'declared_domain_count' => $declaredDomainCount,
+            'analysis_count' => $validAnalysisCount,
+            'supported_count' => $counts['supported'],
+            'partial_count' => $counts['partial'],
+            'insufficient_evidence_count' =>
+                $counts['not_supported_by_current_evidence'],
         ];
     }
 

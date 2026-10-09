@@ -527,6 +527,14 @@ $dataPreparation =
                 'published_evaluation' =>
                     $publishedEvaluation,
 
+                'published_evaluation_history' =>
+                    $publishedEvaluationProjection->forCompanyHistory(
+                        (int) $company->id,
+                        $sourceWorkspaceRequest !== null
+                            ? (int) $sourceWorkspaceRequest->getKey()
+                            : null
+                    ),
+
                 'processing_history' =>
                     $processingHistory,
 

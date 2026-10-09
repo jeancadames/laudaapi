@@ -254,6 +254,15 @@ type TenantPublishedEvaluation = {
         opportunity_count: number;
         observation_count: number;
     };
+    executive_summary: {
+        available: boolean;
+        source_count: number | null;
+        declared_domain_count: number | null;
+        analysis_count: number | null;
+        supported_count: number | null;
+        partial_count: number | null;
+        insufficient_evidence_count: number | null;
+    };
     diagnostic_analysis: TenantPublishedDiagnosticAnalysis;
     findings: TenantPublishedEvaluationFinding[];
 };
@@ -498,6 +507,7 @@ const props = defineProps<{
     source_workspace: SourceWorkspace;
     source_assets: DynamicSourceAsset[];
     published_evaluation: TenantPublishedEvaluation | null;
+    published_evaluation_history: TenantPublishedEvaluation[];
 
     processing_history: ProcessingHistory;
     usable_dataset: UsableDatasetStatus;
@@ -5624,6 +5634,82 @@ function tenantCommercialTerms(
                     </section>
                     <!-- D2G_TENANT_PUBLISHED_REPORT_HEADER_END -->
 
+                    <!-- AT_D7_2_EXECUTIVE_DASHBOARD -->
+                    <section
+                        v-if="
+                            published_evaluation
+                            && published_evaluation.executive_summary?.available
+                        "
+                        class="mb-6 rounded-2xl border bg-card p-5 shadow-sm"
+                    >
+                        <div>
+                            <p class="text-[11px] font-black uppercase tracking-wide text-muted-foreground">
+                                Resumen ejecutivo
+                            </p>
+                            <h3 class="mt-1 text-lg font-black">
+                                Panorama de la entrega evaluada
+                            </h3>
+                            <p class="mt-2 text-sm leading-6 text-muted-foreground">
+                                Indicadores procedentes exclusivamente del diagnóstico publicado.
+                                La cobertura declarada no implica calidad validada ni preparación
+                                para operar BI en producción.
+                            </p>
+                        </div>
+
+                        <div class="mt-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+                            <article
+                                v-for="item in [
+                                    {
+                                        key: 'sources',
+                                        label: 'Fuentes evaluadas',
+                                        value: published_evaluation.executive_summary.source_count,
+                                    },
+                                    {
+                                        key: 'domains',
+                                        label: 'Dominios declarados',
+                                        value: published_evaluation.executive_summary.declared_domain_count,
+                                    },
+                                    {
+                                        key: 'analyses',
+                                        label: 'Análisis estructurales',
+                                        value: published_evaluation.executive_summary.analysis_count,
+                                    },
+                                    {
+                                        key: 'supported',
+                                        label: 'Análisis sustentados',
+                                        value: published_evaluation.executive_summary.supported_count,
+                                    },
+                                    {
+                                        key: 'partial',
+                                        label: 'Análisis parciales',
+                                        value: published_evaluation.executive_summary.partial_count,
+                                    },
+                                    {
+                                        key: 'insufficient',
+                                        label: 'Sin evidencia suficiente',
+                                        value: published_evaluation.executive_summary.insufficient_evidence_count,
+                                    },
+                                ]"
+                                :key="item.key"
+                                class="rounded-xl border bg-muted/20 p-4"
+                            >
+                                <p class="text-xs font-semibold text-muted-foreground">
+                                    {{ item.label }}
+                                </p>
+                                <p class="mt-2 text-2xl font-black">
+                                    {{ item.value ?? 'No disponible' }}
+                                </p>
+                            </article>
+                        </div>
+
+                        <p class="mt-4 text-xs leading-5 text-muted-foreground">
+                            Los resultados describen únicamente la evidencia congelada
+                            de esta entrega. Una ausencia de evidencia no demuestra
+                            que la empresa carezca de esa información.
+                        </p>
+                    </section>
+                    <!-- AT_D7_2_EXECUTIVE_DASHBOARD_END -->
+
                     <!-- D2D_TENANT_PUBLISHED_DIAGNOSTIC_ANALYSIS_UI -->
                     <section
                         v-if="published_evaluation"
@@ -6059,6 +6145,93 @@ function tenantCommercialTerms(
                             independiente.
                         </p>
                     </section>
+
+                    <!-- AT_D7_4_PUBLISHED_DIAGNOSTIC_HISTORY -->
+                    <section
+                        v-if="published_evaluation_history.length > 0"
+                        class="mb-6 rounded-2xl border border-slate-200 p-5 dark:border-slate-800"
+                    >
+                        <div class="mb-4">
+                            <p class="text-xs font-bold uppercase tracking-wide text-slate-500">
+                                Historial diagnóstico
+                            </p>
+                            <h3 class="mt-1 text-lg font-bold">
+                                Evaluaciones publicadas anteriores
+                            </h3>
+                            <p class="mt-2 text-sm text-slate-500">
+                                Resultados conservados de evaluaciones anteriores.
+                                No se recalculan con los datos actuales.
+                            </p>
+                        </div>
+
+                        <div class="space-y-3">
+                            <details
+                                v-for="(historical, index) in published_evaluation_history"
+                                :key="index"
+                                class="rounded-xl border border-slate-200 p-4 dark:border-slate-800"
+                            >
+                                <summary class="cursor-pointer font-semibold">
+                                    Evaluación publicada:
+                                    {{
+                                        historical.published_at
+                                            ? new Date(historical.published_at).toLocaleDateString('es-DO')
+                                            : 'fecha no disponible'
+                                    }}
+                                </summary>
+
+                                <div class="mt-4 space-y-4 text-sm">
+                                    <p class="text-slate-500">
+                                        Debilidades: {{ historical.summary.weakness_count }}
+                                        · Oportunidades: {{ historical.summary.opportunity_count }}
+                                        · Observaciones: {{ historical.summary.observation_count }}
+                                    </p>
+
+                                    <p
+                                        v-if="!historical.diagnostic_analysis.available"
+                                        class="text-slate-500"
+                                    >
+                                        Esta evaluación no dispone de análisis
+                                        estructurales congelados. Se conservan
+                                        sus hallazgos publicados.
+                                    </p>
+
+                                    <div
+                                        v-for="(analysis, analysisIndex) in historical.diagnostic_analysis.analyses"
+                                        :key="analysisIndex"
+                                        class="rounded-lg border p-3"
+                                    >
+                                        <p class="font-semibold">
+                                            {{ analysis.label }}
+                                        </p>
+                                        <p class="mt-1 text-slate-500">
+                                            Estado: {{ analysis.status }}
+                                        </p>
+                                    </div>
+
+                                    <div
+                                        v-for="(finding, findingIndex) in historical.findings"
+                                        :key="findingIndex"
+                                        class="rounded-lg border p-3"
+                                    >
+                                        <p class="font-semibold">
+                                            {{ finding.title }}
+                                        </p>
+                                        <p class="mt-2 whitespace-pre-line">
+                                            {{ finding.details }}
+                                        </p>
+                                        <p
+                                            v-if="finding.recommendation"
+                                            class="mt-2 text-slate-500"
+                                        >
+                                            Recomendación:
+                                            {{ finding.recommendation }}
+                                        </p>
+                                    </div>
+                                </div>
+                            </details>
+                        </div>
+                    </section>
+                    <!-- AT_D7_4_PUBLISHED_DIAGNOSTIC_HISTORY_END -->
 
                     <!-- P7_DATA_PREPARATION_STATUS -->
                     <section
