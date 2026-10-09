@@ -489,6 +489,9 @@ const props = defineProps<{
             duration_days: number | null;
             scope_snapshot: Record<string, unknown> | null;
             deliverables_snapshot: Array<Record<string, unknown>> | null;
+            contract_scope_schema_version: number | null;
+            contracted_scope_snapshot: Record<string, any> | null;
+            contracted_deliverables_snapshot: Array<Record<string, any>> | null;
             commercial_terms_snapshot: Record<string, unknown> | null;
             presented_at: string | null;
             accepted_at: string | null;
@@ -7417,17 +7420,60 @@ function tenantCommercialTerms(
                                 </div>
                             </div>
 
-                            <div class="mt-4 space-y-4">
+
+                            <!-- D2I_R1_D1B_CONTRACTED_SCOPE_UI -->
+                            <section
+                                v-if="props.modern_commercial.engagement.contracted_scope_snapshot
+                                    && props.modern_commercial.engagement.contracted_deliverables_snapshot?.length"
+                                class="mt-4 rounded-xl border border-blue-200 p-4 dark:border-blue-900"
+                            >
+                                <h4 class="text-sm font-bold">Alcance contratado de esta propuesta</h4>
+                                <p class="mt-2 text-sm">
+                                    Modalidad:
+                                    {{ props.modern_commercial.engagement.contracted_scope_snapshot.mode === 'full'
+                                        ? 'Completa' : 'Parcial' }}
+                                </p>
+                                <ul class="mt-3 list-disc space-y-2 pl-5 text-sm">
+                                    <li
+                                        v-for="(item, index) in (props.modern_commercial.engagement.contracted_deliverables_snapshot ?? [])"
+                                        :key="index"
+                                    >
+                                        {{ item.deliverable }}
+                                    </li>
+                                </ul>
+                                <div class="mt-4 space-y-2 text-sm">
+                                    <p><strong>Criterios de aceptación:</strong>
+                                        {{ props.modern_commercial.engagement.contracted_scope_snapshot.conditions?.acceptance_criteria }}</p>
+                                    <p v-if="props.modern_commercial.engagement.contracted_scope_snapshot.conditions?.dependencies">
+                                        <strong>Dependencias:</strong>
+                                        {{ props.modern_commercial.engagement.contracted_scope_snapshot.conditions.dependencies }}</p>
+                                    <p v-if="props.modern_commercial.engagement.contracted_scope_snapshot.conditions?.assumptions">
+                                        <strong>Supuestos:</strong>
+                                        {{ props.modern_commercial.engagement.contracted_scope_snapshot.conditions.assumptions }}</p>
+                                    <p v-if="props.modern_commercial.engagement.contracted_scope_snapshot.conditions?.exclusions">
+                                        <strong>Exclusiones:</strong>
+                                        {{ props.modern_commercial.engagement.contracted_scope_snapshot.conditions.exclusions }}</p>
+                                </div>
+                            </section>
+                            <p v-else class="mt-4 rounded-xl border p-3 text-sm text-amber-700 dark:text-amber-300">
+                                Propuesta de esquema anterior: no dispone de selección contractual estructurada.
+                                Verifica cuidadosamente las condiciones y la definición original antes de aceptarla.
+                            </p>
+                            <p class="mt-4 text-xs text-muted-foreground">
+                                La información general que sigue es la definición funcional de referencia.
+                                No amplía los entregables expresamente contratados en esta propuesta.
+                            </p>
+<div class="mt-4 space-y-4">
                                 <div class="rounded-xl border p-4">
                                     <h4 class="text-sm font-semibold">
-                                        Alcance de implementación
+                                        Alcance general de referencia
                                     </h4>
                                     <pre class="mt-3 overflow-auto whitespace-pre-wrap break-words text-xs leading-6">{{ tenantCommercialSnapshot(props.modern_commercial.engagement.scope_snapshot) }}</pre>
                                 </div>
 
                                 <div class="rounded-xl border p-4">
                                     <h4 class="text-sm font-semibold">
-                                        Entregables
+                                        Entregables generales de referencia
                                     </h4>
                                     <pre class="mt-3 overflow-auto whitespace-pre-wrap break-words text-xs leading-6">{{ tenantCommercialSnapshot(props.modern_commercial.engagement.deliverables_snapshot) }}</pre>
                                 </div>

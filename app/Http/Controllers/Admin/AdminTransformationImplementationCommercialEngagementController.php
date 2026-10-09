@@ -59,6 +59,16 @@ final class AdminTransformationImplementationCommercialEngagementController
                     'min:1',
                 ],
 
+                'contract_scope_mode' => ['required', 'in:full,partial'],
+                'contract_deliverable_indices' => ['required', 'array', 'min:1'],
+                'contract_deliverable_indices.*' => ['required', 'integer', 'min:0'],
+                'contract_scope_terms' => ['required', 'array'],
+                'contract_scope_terms.acceptance_criteria' => [
+                    'required', 'string', 'min:1', 'max:10000',
+                ],
+                'contract_scope_terms.dependencies' => ['nullable', 'string', 'max:10000'],
+                'contract_scope_terms.assumptions' => ['nullable', 'string', 'max:10000'],
+                'contract_scope_terms.exclusions' => ['nullable', 'string', 'max:10000'],
                 'internal_notes' => [
                     'nullable',
                     'string',
@@ -88,6 +98,9 @@ final class AdminTransformationImplementationCommercialEngagementController
                         'commercial_terms_snapshot'
                     ],
 
+                'contract_scope_mode' => $validated['contract_scope_mode'],
+                'contract_deliverable_indices' => $validated['contract_deliverable_indices'],
+                'contract_scope_terms' => $validated['contract_scope_terms'],
                 'internal_notes' =>
                     $validated['internal_notes']
                     ?? null,

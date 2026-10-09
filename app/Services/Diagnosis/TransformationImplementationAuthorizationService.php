@@ -126,6 +126,23 @@ final class TransformationImplementationAuthorizationService
                     $lockedEngagement
                 );
 
+                if ($lockedEngagement->contract_scope_schema_version === null) {
+                    // Compatibility with genuine historical engagements.
+                    if ($lockedEngagement->contracted_scope_snapshot !== null
+                        || $lockedEngagement->contracted_deliverables_snapshot !== null) {
+                        throw ValidationException::withMessages([
+                            'contracted_scope_snapshot' => ['La propuesta histórica tiene evidencia contractual inconsistente.'],
+                        ]);
+                    }
+                } elseif ((int) $lockedEngagement->contract_scope_schema_version === 1) {
+                    app(TransformationImplementationCommercialScopeService::class)
+                        ->assertPersistedContract($lockedEngagement, $definition);
+                } else {
+                    throw ValidationException::withMessages([
+                        'contract_scope_schema_version' => ['Versión de contrato comercial no soportada.'],
+                    ]);
+                }
+
                 /*
                  * One authorization aggregate per immutable commercial
                  * engagement version.
@@ -252,6 +269,15 @@ final class TransformationImplementationAuthorizationService
 
                         'deliverables_snapshot' =>
                             $lockedEngagement->deliverables_snapshot,
+
+                        'contract_scope_schema_version' =>
+                            $lockedEngagement->contract_scope_schema_version,
+
+                        'contracted_scope_snapshot' =>
+                            $lockedEngagement->contracted_scope_snapshot,
+
+                        'contracted_deliverables_snapshot' =>
+                            $lockedEngagement->contracted_deliverables_snapshot,
 
                         'commercial_terms_snapshot' =>
                             $lockedEngagement->commercial_terms_snapshot,

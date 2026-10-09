@@ -246,6 +246,9 @@ final class TransformationImplementationCommercialProjection
             'duration_days' => $engagement->duration_days,
             'scope_snapshot' => $engagement->scope_snapshot,
             'deliverables_snapshot' => $engagement->deliverables_snapshot,
+            'contract_scope_schema_version' => $engagement->contract_scope_schema_version,
+            'contracted_scope_snapshot' => $engagement->contracted_scope_snapshot,
+            'contracted_deliverables_snapshot' => $engagement->contracted_deliverables_snapshot,
             'commercial_terms_snapshot' =>
                 $engagement->commercial_terms_snapshot,
             'presented_at' => $engagement->presented_at?->toISOString(),

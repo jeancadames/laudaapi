@@ -258,6 +258,10 @@ final class TransformationImplementationCommercialEngagementService
                     ]);
                 }
 
+                $contracted = app(
+                    TransformationImplementationCommercialScopeService::class
+                )->build($definition, $data);
+
                 $engagement =
                     TransformationImplementationCommercialEngagement::query()
                         ->create([
@@ -305,6 +309,11 @@ final class TransformationImplementationCommercialEngagementService
                             'deliverables_snapshot' =>
                                 $definition->deliverables,
 
+                            'contract_scope_schema_version' => 1,
+                            'contracted_scope_snapshot' =>
+                                $contracted['contracted_scope_snapshot'],
+                            'contracted_deliverables_snapshot' =>
+                                $contracted['contracted_deliverables_snapshot'],
                             'commercial_terms_snapshot' =>
                                 $commercialTerms,
 
@@ -496,7 +505,8 @@ final class TransformationImplementationCommercialEngagementService
                 );
 
                 $this->assertPresentableCommercialTerms(
-                    $lockedEngagement
+                    $lockedEngagement,
+                    $definition
                 );
 
                 $existingAuthorization =
@@ -725,7 +735,8 @@ final class TransformationImplementationCommercialEngagementService
                 );
 
                 $this->assertPresentableCommercialTerms(
-                    $lockedEngagement
+                    $lockedEngagement,
+                    $definition
                 );
 
                 $existingAuthorization =
@@ -939,8 +950,26 @@ final class TransformationImplementationCommercialEngagementService
     }
 
     private function assertPresentableCommercialTerms(
-        TransformationImplementationCommercialEngagement $engagement
+        TransformationImplementationCommercialEngagement $engagement,
+        TransformationImplementationDefinition $definition
     ): void {
+        if ($engagement->contract_scope_schema_version === null) {
+            // Historical commercial versions must not contain half-populated V1 fields.
+            if ($engagement->contracted_scope_snapshot !== null
+                || $engagement->contracted_deliverables_snapshot !== null) {
+                throw ValidationException::withMessages([
+                    'contracted_scope_snapshot' => ['La propuesta histórica tiene evidencia contractual inconsistente.'],
+                ]);
+            }
+        } elseif ((int) $engagement->contract_scope_schema_version === 1) {
+            app(TransformationImplementationCommercialScopeService::class)
+                ->assertPersistedContract($engagement, $definition);
+        } else {
+            throw ValidationException::withMessages([
+                'contract_scope_schema_version' => ['Versión de contrato comercial no soportada.'],
+            ]);
+        }
+
         if (
             $engagement->price_amount === null
 

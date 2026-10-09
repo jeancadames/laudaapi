@@ -141,6 +141,9 @@ const props = defineProps<{
             duration_days: number | null;
             scope_snapshot: Record<string, any> | null;
             deliverables_snapshot: Array<Record<string, any>> | null;
+            contract_scope_schema_version: number | null;
+            contracted_scope_snapshot: Record<string, any> | null;
+            contracted_deliverables_snapshot: Array<Record<string, any>> | null;
             commercial_terms_snapshot: Record<string, any> | null;
             internal_notes: string | null;
             definition_id: number;
@@ -167,6 +170,9 @@ const props = defineProps<{
                 internal_notes: string | null;
                 scope_snapshot: Record<string, any> | null;
                 deliverables_snapshot: Array<Record<string, any>> | null;
+                contract_scope_schema_version: number | null;
+                contracted_scope_snapshot: Record<string, any> | null;
+                contracted_deliverables_snapshot: Array<Record<string, any>> | null;
                 commercial_terms_snapshot: Record<string, any> | null;
             };
             authorization: {
@@ -9559,15 +9565,32 @@ if (canonicalModelUiAvailable()) {
 
 
 // R116_E3A_ADMIN_COMMERCIAL
+// D2I_R1_D1B_CONTRACTED_SCOPE_UI
 const commercialDraftForm = useForm({
     currency: 'DOP',
     price_amount: '',
     duration_days: '',
+    contract_scope_mode: '' as '' | 'full' | 'partial',
+    contract_deliverable_indices: [] as number[],
+    contract_scope_terms: {
+        acceptance_criteria: '',
+        dependencies: '',
+        assumptions: '',
+        exclusions: '',
+    },
     commercial_terms_snapshot: {
         terms_text: '',
     },
     internal_notes: '',
 });
+
+function chooseCommercialScopeMode(): void {
+    const items = props.definition_review?.deliverables ?? [];
+    commercialDraftForm.contract_deliverable_indices =
+        commercialDraftForm.contract_scope_mode === 'full'
+            ? items.map((_, index) => index)
+            : [];
+}
 
 const commercialActionBusy = ref(false);
 const commercialActionError = ref('');
@@ -9584,6 +9607,14 @@ function createCommercialDraft(): void {
             currency: data.currency,
             price_amount: data.price_amount,
             duration_days: Number(data.duration_days),
+            contract_scope_mode: data.contract_scope_mode,
+            contract_deliverable_indices: [...data.contract_deliverable_indices],
+            contract_scope_terms: {
+                acceptance_criteria: data.contract_scope_terms.acceptance_criteria.trim(),
+                dependencies: data.contract_scope_terms.dependencies.trim(),
+                assumptions: data.contract_scope_terms.assumptions.trim(),
+                exclusions: data.contract_scope_terms.exclusions.trim(),
+            },
             commercial_terms_snapshot: {
                 terms_text: data.commercial_terms_snapshot.terms_text.trim(),
             },
@@ -19715,6 +19746,96 @@ function commercialSnapshotText(value: unknown): string {
                     @submit.prevent="createCommercialDraft"
                 >
                     <h3 class="font-semibold">Crear borrador comercial</h3>
+                    <!-- D2I-R1-D1B: alcance contractual explícito -->
+                    <section class="space-y-4 rounded-xl border border-blue-200 p-4 dark:border-blue-900">
+                        <h4 class="text-sm font-bold">Alcance de esta propuesta</h4>
+                        <p class="text-xs leading-5 text-muted-foreground">
+                            La definición funcional general permanece intacta. Solo los entregables
+                            seleccionados aquí constituyen el alcance contratado en esta versión.
+                        </p>
+                        <label class="block text-sm font-medium">
+                            Modalidad contractual
+                            <select
+                                v-model="commercialDraftForm.contract_scope_mode"
+                                required
+                                class="mt-1 w-full rounded-lg border bg-background px-3 py-2"
+                                @change="chooseCommercialScopeMode"
+                            >
+                                <option value="" disabled>Selecciona una modalidad</option>
+                                <option value="full">Completa: todos los entregables</option>
+                                <option value="partial">Parcial: entregables seleccionados</option>
+                            </select>
+                        </label>
+                        <p v-if="!props.definition_review?.deliverables?.length" class="text-sm text-red-600">
+                            La definición no tiene entregables visibles. No crees una propuesta sin verificarla.
+                        </p>
+                        <div v-else class="space-y-2">
+                            <p class="text-xs font-semibold">Entregables de la definición acordada</p>
+                            <label
+                                v-for="(item, index) in (props.definition_review?.deliverables ?? [])"
+                                :key="index"
+                                class="flex items-start gap-3 rounded-lg border p-3 text-sm"
+                            >
+                                <input
+                                    v-model="commercialDraftForm.contract_deliverable_indices"
+                                    type="checkbox"
+                                    :value="index"
+                                    :disabled="commercialDraftForm.contract_scope_mode !== 'partial'"
+                                    class="mt-1"
+                                />
+                                <span>{{ item.deliverable ?? 'Entregable sin descripción' }}</span>
+                            </label>
+                        </div>
+                        <p class="text-xs text-muted-foreground">
+                            Seleccionados: {{ commercialDraftForm.contract_deliverable_indices.length }}
+                            de {{ props.definition_review?.deliverables?.length ?? 0 }}.
+                        </p>
+                        <p v-if="commercialDraftForm.errors.contract_scope_mode" class="text-xs text-red-600">
+                            {{ commercialDraftForm.errors.contract_scope_mode }}
+                        </p>
+                        <p v-if="commercialDraftForm.errors.contract_deliverable_indices" class="text-xs text-red-600">
+                            {{ commercialDraftForm.errors.contract_deliverable_indices }}
+                        </p>
+                        <label class="block text-sm font-medium">
+                            Criterios de aceptación del alcance contratado
+                            <textarea
+                                v-model="commercialDraftForm.contract_scope_terms.acceptance_criteria"
+                                rows="3" required maxlength="10000"
+                                class="mt-1 w-full rounded-lg border bg-background px-3 py-2"
+                            />
+                        </label>
+                        <label class="block text-sm font-medium">
+                            Dependencias específicas
+                            <textarea
+                                v-model="commercialDraftForm.contract_scope_terms.dependencies"
+                                rows="2" maxlength="10000"
+                                class="mt-1 w-full rounded-lg border bg-background px-3 py-2"
+                            />
+                        </label>
+                        <label class="block text-sm font-medium">
+                            Supuestos de esta propuesta
+                            <textarea
+                                v-model="commercialDraftForm.contract_scope_terms.assumptions"
+                                rows="2" maxlength="10000"
+                                class="mt-1 w-full rounded-lg border bg-background px-3 py-2"
+                            />
+                        </label>
+                        <label class="block text-sm font-medium">
+                            Exclusiones de esta propuesta
+                            <textarea
+                                v-model="commercialDraftForm.contract_scope_terms.exclusions"
+                                rows="2" maxlength="10000"
+                                class="mt-1 w-full rounded-lg border bg-background px-3 py-2"
+                            />
+                        </label>
+                        <p v-if="commercialDraftForm.errors.contract_scope_terms" class="text-xs text-red-600">
+                            {{ commercialDraftForm.errors.contract_scope_terms }}
+                        </p>
+                        <p v-if="commercialDraftForm.errors['contract_scope_terms.acceptance_criteria']" class="text-xs text-red-600">
+                            {{ commercialDraftForm.errors['contract_scope_terms.acceptance_criteria'] }}
+                        </p>
+                    </section>
+
 
                     <div class="grid gap-4 md:grid-cols-3">
                         <label class="text-sm font-medium">
@@ -19834,13 +19955,52 @@ function commercialSnapshotText(value: unknown): string {
                         días
                     </p>
 
+
+                    <!-- D2I-R1-D1B: contenido vinculante de esta versión -->
+                    <section
+                        v-if="props.modern_commercial.engagement.contracted_scope_snapshot
+                            && props.modern_commercial.engagement.contracted_deliverables_snapshot?.length"
+                        class="rounded-xl border border-blue-200 p-4 dark:border-blue-900"
+                    >
+                        <h4 class="text-sm font-bold">Alcance contratado de esta propuesta</h4>
+                        <p class="mt-2 text-sm">
+                            Modalidad:
+                            {{ props.modern_commercial.engagement.contracted_scope_snapshot.mode === 'full'
+                                ? 'Completa' : 'Parcial' }}
+                        </p>
+                        <ol class="mt-3 list-decimal space-y-2 pl-5 text-sm">
+                            <li v-for="(item, index) in (props.modern_commercial.engagement.contracted_deliverables_snapshot ?? [])" :key="index">
+                                {{ item.deliverable }}
+                            </li>
+                        </ol>
+                        <div class="mt-4 space-y-2 text-sm">
+                            <p><strong>Criterios de aceptación:</strong>
+                                {{ props.modern_commercial.engagement.contracted_scope_snapshot.conditions?.acceptance_criteria }}</p>
+                            <p v-if="props.modern_commercial.engagement.contracted_scope_snapshot.conditions?.dependencies">
+                                <strong>Dependencias:</strong>
+                                {{ props.modern_commercial.engagement.contracted_scope_snapshot.conditions.dependencies }}</p>
+                            <p v-if="props.modern_commercial.engagement.contracted_scope_snapshot.conditions?.assumptions">
+                                <strong>Supuestos:</strong>
+                                {{ props.modern_commercial.engagement.contracted_scope_snapshot.conditions.assumptions }}</p>
+                            <p v-if="props.modern_commercial.engagement.contracted_scope_snapshot.conditions?.exclusions">
+                                <strong>Exclusiones:</strong>
+                                {{ props.modern_commercial.engagement.contracted_scope_snapshot.conditions.exclusions }}</p>
+                        </div>
+                    </section>
+                    <p v-else class="rounded-xl border p-3 text-sm text-amber-700 dark:text-amber-300">
+                        Versión anterior sin selección contractual estructurada: revisar las condiciones y la referencia original.
+                    </p>
+                    <p class="text-xs text-muted-foreground">
+                        Lo siguiente corresponde a la definición funcional general de referencia,
+                        no amplía los entregables contratados de esta propuesta.
+                    </p>
                     <div class="grid gap-4 lg:grid-cols-2">
                         <div class="rounded-xl border p-4">
-                            <p class="text-sm font-semibold">Alcance acordado</p>
+                            <p class="text-sm font-semibold">Alcance general (referencia)</p>
                             <pre class="mt-3 overflow-auto whitespace-pre-wrap break-words text-xs">{{ commercialSnapshotText(props.modern_commercial.engagement.scope_snapshot) }}</pre>
                         </div>
                         <div class="rounded-xl border p-4">
-                            <p class="text-sm font-semibold">Entregables</p>
+                            <p class="text-sm font-semibold">Entregables generales (referencia)</p>
                             <pre class="mt-3 overflow-auto whitespace-pre-wrap break-words text-xs">{{ commercialSnapshotText(props.modern_commercial.engagement.deliverables_snapshot) }}</pre>
                         </div>
                     </div>
@@ -20023,7 +20183,16 @@ function commercialSnapshotText(value: unknown): string {
                             <div class="grid gap-3 lg:grid-cols-2">
                                 <div class="rounded-lg border p-3">
                                     <p class="font-semibold">Alcance</p>
-                                    <pre class="mt-2 overflow-auto whitespace-pre-wrap break-words text-xs">{{ commercialSnapshotText(item.engagement.scope_snapshot) }}</pre>
+
+                    <!-- D2I-R1-D1B: versioned contractual history -->
+                    <div v-if="item.engagement.contracted_scope_snapshot" class="mt-3 rounded-lg border border-blue-200 p-3 dark:border-blue-900">
+                        <p class="text-xs font-semibold">Alcance contratado de esta versión histórica</p>
+                        <pre class="mt-2 overflow-auto whitespace-pre-wrap break-words text-xs">{{ commercialSnapshotText(item.engagement.contracted_scope_snapshot) }}</pre>
+                        <p class="mt-3 text-xs font-semibold">Entregables contratados</p>
+                        <pre class="mt-2 overflow-auto whitespace-pre-wrap break-words text-xs">{{ commercialSnapshotText(item.engagement.contracted_deliverables_snapshot) }}</pre>
+                    </div>
+                    <p v-else class="mt-2 text-xs text-muted-foreground">Versión histórica anterior sin selección contractual estructurada.</p>
+                    <pre class="mt-2 overflow-auto whitespace-pre-wrap break-words text-xs">{{ commercialSnapshotText(item.engagement.scope_snapshot) }}</pre>
                                 </div>
 
                                 <div class="rounded-lg border p-3">
