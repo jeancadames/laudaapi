@@ -131,6 +131,60 @@ const props = defineProps<{
     } | null;
 
 
+    modern_commercial: {
+        engagement: {
+            id: number;
+            version: number;
+            status: string;
+            currency: string;
+            price_amount: string | number | null;
+            duration_days: number | null;
+            scope_snapshot: Record<string, any> | null;
+            deliverables_snapshot: Array<Record<string, any>> | null;
+            commercial_terms_snapshot: Record<string, any> | null;
+            internal_notes: string | null;
+            definition_id: number;
+            presented_at: string | null;
+            accepted_at: string | null;
+        } | null;
+        authorization: {
+            status: string;
+            active: boolean;
+            authorized_at: string | null;
+            revoked_at: string | null;
+        } | null;
+        history: Array<{
+            engagement: {
+                id: number;
+                version: number;
+                status: string;
+                currency: string;
+                price_amount: string | number | null;
+                duration_days: number | null;
+                definition_id: number;
+                presented_at: string | null;
+                accepted_at: string | null;
+                internal_notes: string | null;
+                scope_snapshot: Record<string, any> | null;
+                deliverables_snapshot: Array<Record<string, any>> | null;
+                commercial_terms_snapshot: Record<string, any> | null;
+            };
+            authorization: {
+                status: string;
+                active: boolean;
+                authorized_at: string | null;
+                revoked_at: string | null;
+            } | null;
+        }>;
+        actions: {
+            can_create: boolean;
+            can_present: boolean;
+            can_authorize: boolean;
+            create_endpoint: string | null;
+            present_endpoint: string | null;
+            authorize_endpoint: string | null;
+        };
+    };
     ready_for_commercial_context: {
         agreement_event_id: number | null;
         functional_closure_event_id: number | null;
@@ -9501,6 +9555,73 @@ if (typeof window !== 'undefined') {
 // CANONICAL_MODEL_V2_UI_INITIAL_LOAD
 if (canonicalModelUiAvailable()) {
     void loadCanonicalModelWorkspace();
+}
+
+
+// R116_E3A_ADMIN_COMMERCIAL
+const commercialDraftForm = useForm({
+    currency: 'DOP',
+    price_amount: '',
+    duration_days: '',
+    commercial_terms_snapshot: {
+        terms_text: '',
+    },
+    internal_notes: '',
+});
+
+const commercialActionBusy = ref(false);
+const commercialActionError = ref('');
+
+function createCommercialDraft(): void {
+    const endpoint = props.modern_commercial.actions.create_endpoint;
+
+    if (!endpoint || commercialDraftForm.processing) return;
+
+    commercialDraftForm.clearErrors();
+
+    commercialDraftForm
+        .transform(data => ({
+            currency: data.currency,
+            price_amount: data.price_amount,
+            duration_days: Number(data.duration_days),
+            commercial_terms_snapshot: {
+                terms_text: data.commercial_terms_snapshot.terms_text.trim(),
+            },
+            internal_notes: data.internal_notes || null,
+        }))
+        .post(endpoint, {
+            preserveScroll: true,
+            onSuccess: () => {
+                commercialDraftForm.reset();
+            },
+        });
+}
+
+function performCommercialAction(endpoint: string | null): void {
+    if (!endpoint || commercialActionBusy.value) return;
+
+    commercialActionError.value = '';
+    commercialActionBusy.value = true;
+
+    router.post(endpoint, {}, {
+        preserveScroll: true,
+        onError: errors => {
+            commercialActionError.value =
+                Object.values(errors).join(' ') ||
+                'No se pudo completar la operación.';
+        },
+        onFinish: () => {
+            commercialActionBusy.value = false;
+        },
+    });
+}
+
+function commercialSnapshotText(value: unknown): string {
+    if (value === null || value === undefined) return 'No disponible';
+
+    if (typeof value === 'string') return value;
+
+    return JSON.stringify(value, null, 2);
 }
 
 </script>
@@ -19565,6 +19686,381 @@ if (canonicalModelUiAvailable()) {
             </div>
         </section>
 
+
+
+        <!-- R116_E3A_ADMIN_COMMERCIAL_PANEL -->
+        <section
+            v-if="props.capability.key === 'data_transformation_bi'
+                && props.implementation_request.status === 'ready_for_commercial'"
+            class="mx-auto mt-6 w-full max-w-7xl px-4 pb-3 sm:px-6 lg:px-8"
+        >
+            <div class="rounded-2xl border bg-background p-5 shadow-sm">
+                <p class="text-xs font-bold uppercase tracking-widest text-muted-foreground">
+                    LAUDA · Gestión comercial
+                </p>
+
+                <h2 class="mt-2 text-lg font-bold">
+                    Propuesta de implementación Data BI
+                </h2>
+
+                <p class="mt-2 text-sm leading-6 text-muted-foreground">
+                    La propuesta, su aceptación y la autorización de implementación
+                    son decisiones independientes. Ninguna inicia ejecución.
+                </p>
+
+                <form
+                    v-if="props.modern_commercial.actions.can_create
+                        && props.modern_commercial.actions.create_endpoint"
+                    class="mt-5 space-y-4 rounded-xl border p-4"
+                    @submit.prevent="createCommercialDraft"
+                >
+                    <h3 class="font-semibold">Crear borrador comercial</h3>
+
+                    <div class="grid gap-4 md:grid-cols-3">
+                        <label class="text-sm font-medium">
+                            Moneda
+                            <select
+                                v-model="commercialDraftForm.currency"
+                                class="mt-1 w-full rounded-lg border bg-background px-3 py-2"
+                            >
+                                <option value="DOP">DOP</option>
+                                <option value="USD">USD</option>
+                                <option value="EUR">EUR</option>
+                            </select>
+                            <span class="mt-1 block text-xs text-red-600">
+                                {{ commercialDraftForm.errors.currency }}
+                            </span>
+                        </label>
+
+                        <label class="text-sm font-medium">
+                            Precio
+                            <input
+                                v-model="commercialDraftForm.price_amount"
+                                type="number"
+                                min="0"
+                                step="0.01"
+                                required
+                                class="mt-1 w-full rounded-lg border bg-background px-3 py-2"
+                            />
+                            <span class="mt-1 block text-xs text-red-600">
+                                {{ commercialDraftForm.errors.price_amount }}
+                            </span>
+                        </label>
+
+                        <label class="text-sm font-medium">
+                            Duración en días
+                            <input
+                                v-model="commercialDraftForm.duration_days"
+                                type="number"
+                                min="1"
+                                step="1"
+                                required
+                                class="mt-1 w-full rounded-lg border bg-background px-3 py-2"
+                            />
+                            <span class="mt-1 block text-xs text-red-600">
+                                {{ commercialDraftForm.errors.duration_days }}
+                            </span>
+                        </label>
+                    </div>
+
+                    <label class="block text-sm font-medium">
+                        Términos comerciales
+                        <textarea
+                            v-model="commercialDraftForm.commercial_terms_snapshot.terms_text"
+                            rows="4"
+                            required
+                            class="mt-1 w-full rounded-lg border bg-background px-3 py-2"
+                        />
+                        <span class="mt-1 block text-xs text-red-600">
+                            {{
+                                commercialDraftForm.errors['commercial_terms_snapshot']
+                                || commercialDraftForm.errors['commercial_terms_snapshot.terms_text']
+                            }}
+                        </span>
+                    </label>
+
+                    <label class="block text-sm font-medium">
+                        Notas internas de LAUDA
+                        <textarea
+                            v-model="commercialDraftForm.internal_notes"
+                            rows="3"
+                            maxlength="10000"
+                            class="mt-1 w-full rounded-lg border bg-background px-3 py-2"
+                        />
+                        <span class="mt-1 block text-xs text-muted-foreground">
+                            Estas notas no se incluyen en la propuesta del tenant.
+                        </span>
+                    </label>
+
+                    <button
+                        type="submit"
+                        class="rounded-lg bg-slate-950 px-4 py-2.5 text-sm font-bold text-white disabled:opacity-50 dark:bg-white dark:text-slate-950"
+                        :disabled="commercialDraftForm.processing"
+                    >
+                        {{
+                            commercialDraftForm.processing
+                                ? 'Creando...'
+                                : 'Crear borrador'
+                        }}
+                    </button>
+                </form>
+
+                <div
+                    v-if="props.modern_commercial.engagement"
+                    class="mt-5 space-y-4"
+                >
+                    <div class="flex flex-wrap items-center justify-between gap-3">
+                        <div>
+                            <p class="text-sm font-bold">
+                                Propuesta V{{ props.modern_commercial.engagement.version }}
+                            </p>
+                            <p class="mt-1 text-xs text-muted-foreground">
+                                Estado: {{ props.modern_commercial.engagement.status }}
+                            </p>
+                        </div>
+                        <p class="text-lg font-bold">
+                            {{
+                                props.modern_commercial.engagement.currency
+                            }}
+                            {{
+                                props.modern_commercial.engagement.price_amount
+                            }}
+                        </p>
+                    </div>
+
+                    <p class="text-sm">
+                        Duración:
+                        {{ props.modern_commercial.engagement.duration_days }}
+                        días
+                    </p>
+
+                    <div class="grid gap-4 lg:grid-cols-2">
+                        <div class="rounded-xl border p-4">
+                            <p class="text-sm font-semibold">Alcance acordado</p>
+                            <pre class="mt-3 overflow-auto whitespace-pre-wrap break-words text-xs">{{ commercialSnapshotText(props.modern_commercial.engagement.scope_snapshot) }}</pre>
+                        </div>
+                        <div class="rounded-xl border p-4">
+                            <p class="text-sm font-semibold">Entregables</p>
+                            <pre class="mt-3 overflow-auto whitespace-pre-wrap break-words text-xs">{{ commercialSnapshotText(props.modern_commercial.engagement.deliverables_snapshot) }}</pre>
+                        </div>
+                    </div>
+
+                    <div class="rounded-xl border p-4">
+                        <p class="text-sm font-semibold">Términos comerciales</p>
+                        <pre class="mt-3 overflow-auto whitespace-pre-wrap break-words text-xs">{{ commercialSnapshotText(props.modern_commercial.engagement.commercial_terms_snapshot) }}</pre>
+                    </div>
+
+                    <div
+                        v-if="props.modern_commercial.engagement.internal_notes"
+                        class="rounded-xl border p-4"
+                    >
+                        <p class="text-sm font-semibold">
+                            Notas internas · Solo LAUDA
+                        </p>
+                        <p class="mt-2 whitespace-pre-wrap text-sm">
+                            {{ props.modern_commercial.engagement.internal_notes }}
+                        </p>
+                    </div>
+
+                    <div
+                        v-if="props.modern_commercial.authorization"
+                        class="rounded-xl border p-4 text-sm"
+                    >
+                        <p class="font-semibold">Autorización de implementación</p>
+                        <p class="mt-2">
+                            Estado: {{ props.modern_commercial.authorization.status }}
+                        </p>
+                        <p>
+                            Activa:
+                            {{ props.modern_commercial.authorization.active ? 'Sí' : 'No' }}
+                        </p>
+                        <p v-if="props.modern_commercial.authorization.authorized_at">
+                            Fecha: {{ props.modern_commercial.authorization.authorized_at }}
+                        </p>
+                    </div>
+
+                    <p
+                        v-if="props.modern_commercial.engagement.status === 'presented'"
+                        class="rounded-xl border p-3 text-sm"
+                    >
+                        Propuesta presentada. Pendiente de aceptación expresa del Tenant Admin.
+                    </p>
+
+                    <p
+                        v-if="props.modern_commercial.engagement.status === 'accepted'
+                            && !props.modern_commercial.authorization"
+                        class="rounded-xl border p-3 text-sm"
+                    >
+                        Propuesta aceptada por el tenant. La autorización de LAUDA
+                        todavía está pendiente.
+                    </p>
+
+                    <p
+                        v-if="props.modern_commercial.authorization?.status === 'revoked'"
+                        class="rounded-xl border p-3 text-sm"
+                    >
+                        La autorización fue revocada. Esta versión comercial
+                        no puede volver a autorizarse.
+                    </p>
+
+                    <p v-if="commercialActionError" class="text-sm text-red-600">
+                        {{ commercialActionError }}
+                    </p>
+
+                    <div class="flex flex-wrap justify-end gap-3">
+                        <button
+                            v-if="props.modern_commercial.actions.can_present"
+                            type="button"
+                            class="rounded-lg bg-blue-700 px-4 py-2.5 text-sm font-bold text-white disabled:opacity-50"
+                            :disabled="commercialActionBusy"
+                            @click="performCommercialAction(props.modern_commercial.actions.present_endpoint)"
+                        >
+                            Presentar propuesta al tenant
+                        </button>
+
+                        <button
+                            v-if="props.modern_commercial.actions.can_authorize"
+                            type="button"
+                            class="rounded-lg bg-emerald-700 px-4 py-2.5 text-sm font-bold text-white disabled:opacity-50"
+                            :disabled="commercialActionBusy"
+                            @click="performCommercialAction(props.modern_commercial.actions.authorize_endpoint)"
+                        >
+                            Autorizar implementación
+                        </button>
+                    </div>
+                </div>
+            </div>
+            <!-- R116_E4L2B_ADMIN_HISTORY_UI -->
+            <section
+                v-if="props.modern_commercial.history.length > 0"
+                class="mt-6 rounded-xl border p-4 sm:p-5"
+                aria-label="Historial comercial"
+            >
+                <div class="mb-4">
+                    <h3 class="text-base font-bold">
+                        Historial comercial
+                    </h3>
+                    <p class="mt-1 text-sm text-muted-foreground">
+                        Versiones anteriores de esta solicitud.
+                        Información de consulta, sin acciones comerciales.
+                    </p>
+                </div>
+
+                <div class="space-y-3">
+                    <details
+                        v-for="item in props.modern_commercial.history"
+                        :key="item.engagement.id"
+                        class="rounded-xl border p-4"
+                    >
+                        <summary class="cursor-pointer">
+                            <span class="font-semibold">
+                                Propuesta V{{ item.engagement.version }}
+                            </span>
+
+                            <span class="ml-2 text-sm text-muted-foreground">
+                                {{ item.engagement.status }}
+                            </span>
+
+                            <span class="block mt-1 text-sm">
+                                {{ item.engagement.currency }}
+                                {{ item.engagement.price_amount ?? 'Sin precio' }}
+                            </span>
+
+                            <span
+                                v-if="item.authorization"
+                                class="block mt-1 text-xs text-muted-foreground"
+                            >
+                                Autorización:
+                                {{ item.authorization.status }}
+                                · Activa:
+                                {{ item.authorization.active ? 'Sí' : 'No' }}
+                            </span>
+                        </summary>
+
+                        <div class="mt-4 space-y-3 border-t pt-4 text-sm">
+                            <p>
+                                Duración:
+                                {{ item.engagement.duration_days ?? 'No definida' }}
+                                días
+                            </p>
+
+                            <p>
+                                Definition:
+                                {{ item.engagement.definition_id }}
+                            </p>
+
+                            <p v-if="item.engagement.presented_at">
+                                Presentada:
+                                {{ item.engagement.presented_at }}
+                            </p>
+
+                            <p v-if="item.engagement.accepted_at">
+                                Aceptada:
+                                {{ item.engagement.accepted_at }}
+                            </p>
+
+                            <div v-if="item.authorization" class="rounded-lg border p-3">
+                                <p class="font-semibold">
+                                    Autorización histórica
+                                </p>
+
+                                <p>
+                                    Estado:
+                                    {{ item.authorization.status }}
+                                </p>
+
+                                <p v-if="item.authorization.authorized_at">
+                                    Autorizada:
+                                    {{ item.authorization.authorized_at }}
+                                </p>
+
+                                <p v-if="item.authorization.revoked_at">
+                                    Revocada:
+                                    {{ item.authorization.revoked_at }}
+                                </p>
+                            </div>
+
+                            <div class="grid gap-3 lg:grid-cols-2">
+                                <div class="rounded-lg border p-3">
+                                    <p class="font-semibold">Alcance</p>
+                                    <pre class="mt-2 overflow-auto whitespace-pre-wrap break-words text-xs">{{ commercialSnapshotText(item.engagement.scope_snapshot) }}</pre>
+                                </div>
+
+                                <div class="rounded-lg border p-3">
+                                    <p class="font-semibold">Entregables</p>
+                                    <pre class="mt-2 overflow-auto whitespace-pre-wrap break-words text-xs">{{ commercialSnapshotText(item.engagement.deliverables_snapshot) }}</pre>
+                                </div>
+                            </div>
+
+                            <div class="rounded-lg border p-3">
+                                <p class="font-semibold">Términos comerciales</p>
+                                <pre class="mt-2 overflow-auto whitespace-pre-wrap break-words text-xs">{{ commercialSnapshotText(item.engagement.commercial_terms_snapshot) }}</pre>
+                            </div>
+
+                            <div
+                                v-if="item.engagement.internal_notes"
+                                class="rounded-lg border p-3"
+                            >
+                                <p class="font-semibold">
+                                    Notas internas · Solo LAUDA
+                                </p>
+
+                                <p class="mt-2 whitespace-pre-wrap">
+                                    {{ item.engagement.internal_notes }}
+                                </p>
+                            </div>
+
+                            <p class="text-xs text-muted-foreground">
+                                Registro histórico de solo lectura.
+                                No representa una autorización de la
+                                propuesta comercial actual.
+                            </p>
+                        </div>
+                    </details>
+                </div>
+            </section>
+        </section>
+        <!-- R116_E3A_ADMIN_COMMERCIAL_PANEL_END -->
 
         <section
             v-if="props.ready_for_commercial_context"

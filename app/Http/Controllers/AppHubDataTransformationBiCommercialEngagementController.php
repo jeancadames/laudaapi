@@ -94,11 +94,6 @@ final class AppHubDataTransformationBiCommercialEngagementController
                     'capability_key',
                     'data_transformation_bi'
                 )
-                ->where(
-                    'status',
-                    TransformationImplementationRequestContract
-                        ::STATUS_READY_FOR_COMMERCIAL
-                )
                 ->orderByDesc(
                     'attempt'
                 )
@@ -107,8 +102,12 @@ final class AppHubDataTransformationBiCommercialEngagementController
                 )
                 ->first();
 
+        // R116-E4H: never accept an offer from an older attempt.
         abort_unless(
-            $implementationRequest,
+            $implementationRequest
+            && $implementationRequest->status
+                === TransformationImplementationRequestContract
+                    ::STATUS_READY_FOR_COMMERCIAL,
             404
         );
 

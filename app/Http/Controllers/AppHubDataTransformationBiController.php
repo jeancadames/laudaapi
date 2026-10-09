@@ -470,6 +470,10 @@ $dataPreparation =
         return Inertia::render(
             'App/DataTransformationBi',
             [
+                'modern_commercial' =>
+                    app(\App\Services\Diagnosis\TransformationImplementationCommercialProjection::class)
+                        ->forTenant((int) $company->id),
+
                 'company' => [
                     'id' =>
                         (int) $company->id,

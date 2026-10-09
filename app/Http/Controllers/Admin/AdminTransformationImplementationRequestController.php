@@ -2214,6 +2214,10 @@ final class AdminTransformationImplementationRequestController
         return Inertia::render(
             'Admin/Transformation360/ImplementationRequests/Show',
             [
+                'modern_commercial' =>
+                    app(\App\Services\Diagnosis\TransformationImplementationCommercialProjection::class)
+                        ->forAdmin($implementationRequest),
+
                 'implementation_request' => [
                     'id' =>
                         (int) $context->id,

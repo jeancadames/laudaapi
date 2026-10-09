@@ -470,6 +470,31 @@ const props = defineProps<{
         }>;
     } | null;
 
+    modern_commercial: {
+        engagement: {
+            id: number;
+            version: number;
+            status: 'presented' | 'accepted';
+            currency: string;
+            price_amount: string | number | null;
+            duration_days: number | null;
+            scope_snapshot: Record<string, unknown> | null;
+            deliverables_snapshot: Array<Record<string, unknown>> | null;
+            commercial_terms_snapshot: Record<string, unknown> | null;
+            presented_at: string | null;
+            accepted_at: string | null;
+        };
+        authorization: {
+            status: string;
+            active: boolean;
+            authorized_at: string | null;
+            revoked_at: string | null;
+        } | null;
+        actions: {
+            can_accept: boolean;
+            accept_endpoint: string | null;
+        };
+    } | null;
     source_workspace: SourceWorkspace;
     source_assets: DynamicSourceAsset[];
     published_evaluation: TenantPublishedEvaluation | null;
@@ -2629,6 +2654,70 @@ function processingHistoryDate(
             timeStyle: 'short',
         },
     ).format(date);
+}
+
+
+// R116_E3B_TENANT_COMMERCIAL
+const commercialAcceptanceConfirmed = ref(false);
+const commercialAcceptanceBusy = ref(false);
+const commercialAcceptanceError = ref('');
+
+function acceptModernCommercialProposal(): void {
+    const commercial = props.modern_commercial;
+
+    if (
+        !commercial
+        || commercial.engagement.status !== 'presented'
+        || !commercial.actions.can_accept
+        || !commercial.actions.accept_endpoint
+        || !commercialAcceptanceConfirmed.value
+        || commercialAcceptanceBusy.value
+    ) {
+        return;
+    }
+
+    commercialAcceptanceError.value = '';
+    commercialAcceptanceBusy.value = true;
+
+    router.post(commercial.actions.accept_endpoint, {}, {
+        preserveScroll: true,
+        onError: errors => {
+            commercialAcceptanceError.value =
+                Object.values(errors).join(' ')
+                || 'No fue posible aceptar la propuesta.';
+        },
+        onFinish: () => {
+            commercialAcceptanceBusy.value = false;
+            commercialAcceptanceConfirmed.value = false;
+        },
+    });
+}
+
+function tenantCommercialSnapshot(value: unknown): string {
+    if (value === null || value === undefined) {
+        return 'No disponible';
+    }
+
+    if (typeof value === 'string') {
+        return value;
+    }
+
+    return JSON.stringify(value, null, 2);
+}
+
+function tenantCommercialTerms(
+    value: Record<string, unknown> | null
+): string {
+    if (!value) return 'No disponibles';
+
+    if (
+        typeof value.terms_text === 'string'
+        && value.terms_text.trim()
+    ) {
+        return value.terms_text;
+    }
+
+    return tenantCommercialSnapshot(value);
 }
 
 </script>
@@ -7108,6 +7197,147 @@ function processingHistoryDate(
                         >
                             Próximo paso
                         </p>
+
+
+                        <!-- R116_E3B_TENANT_COMMERCIAL_PANEL -->
+                        <section
+                            v-if="props.modern_commercial"
+                            class="mt-5 rounded-2xl border border-blue-200 bg-white p-5 shadow-sm dark:border-blue-900 dark:bg-slate-950"
+                        >
+                            <p class="text-xs font-bold uppercase tracking-widest text-blue-700 dark:text-blue-300">
+                                Propuesta comercial · LAUDA
+                            </p>
+
+                            <h3 class="mt-2 text-lg font-bold">
+                                Implementación de Transformación de Datos para BI
+                            </h3>
+
+                            <p class="mt-2 text-sm text-muted-foreground">
+                                Propuesta V{{ props.modern_commercial.engagement.version }}
+                                ·
+                                {{
+                                    props.modern_commercial.engagement.status === 'presented'
+                                        ? 'Pendiente de aceptación'
+                                        : 'Aceptada'
+                                }}
+                            </p>
+
+                            <div class="mt-5 grid gap-3 sm:grid-cols-2">
+                                <div class="rounded-xl border p-4">
+                                    <p class="text-xs text-muted-foreground">
+                                        Precio de implementación
+                                    </p>
+                                    <p class="mt-1 text-xl font-bold">
+                                        {{ props.modern_commercial.engagement.currency }}
+                                        {{ props.modern_commercial.engagement.price_amount }}
+                                    </p>
+                                </div>
+
+                                <div class="rounded-xl border p-4">
+                                    <p class="text-xs text-muted-foreground">
+                                        Duración estimada
+                                    </p>
+                                    <p class="mt-1 text-xl font-bold">
+                                        {{ props.modern_commercial.engagement.duration_days }}
+                                        días
+                                    </p>
+                                </div>
+                            </div>
+
+                            <div class="mt-4 space-y-4">
+                                <div class="rounded-xl border p-4">
+                                    <h4 class="text-sm font-semibold">
+                                        Alcance de implementación
+                                    </h4>
+                                    <pre class="mt-3 overflow-auto whitespace-pre-wrap break-words text-xs leading-6">{{ tenantCommercialSnapshot(props.modern_commercial.engagement.scope_snapshot) }}</pre>
+                                </div>
+
+                                <div class="rounded-xl border p-4">
+                                    <h4 class="text-sm font-semibold">
+                                        Entregables
+                                    </h4>
+                                    <pre class="mt-3 overflow-auto whitespace-pre-wrap break-words text-xs leading-6">{{ tenantCommercialSnapshot(props.modern_commercial.engagement.deliverables_snapshot) }}</pre>
+                                </div>
+
+                                <div class="rounded-xl border p-4">
+                                    <h4 class="text-sm font-semibold">
+                                        Condiciones comerciales
+                                    </h4>
+                                    <p class="mt-3 whitespace-pre-wrap break-words text-sm leading-6">
+                                        {{ tenantCommercialTerms(props.modern_commercial.engagement.commercial_terms_snapshot) }}
+                                    </p>
+                                </div>
+                            </div>
+
+                            <div
+                                v-if="props.modern_commercial.engagement.status === 'presented'
+                                    && props.modern_commercial.actions.can_accept
+                                    && props.modern_commercial.actions.accept_endpoint"
+                                class="mt-5 rounded-xl border border-blue-200 p-4 dark:border-blue-900"
+                            >
+                                <h4 class="text-sm font-bold">
+                                    Aceptación expresa de la propuesta
+                                </h4>
+
+                                <p class="mt-2 text-sm leading-6 text-muted-foreground">
+                                    Confirma que has revisado el alcance, los entregables,
+                                    el precio, la duración y las condiciones comerciales.
+                                    Esta aceptación no inicia ejecución ni genera
+                                    autorización automática de implementación.
+                                </p>
+
+                                <label class="mt-4 flex cursor-pointer items-start gap-3 text-sm">
+                                    <input
+                                        v-model="commercialAcceptanceConfirmed"
+                                        type="checkbox"
+                                        class="mt-1"
+                                    />
+                                    <span>
+                                        He revisado y acepto expresamente las condiciones
+                                        comerciales presentadas a mi empresa.
+                                    </span>
+                                </label>
+
+                                <p
+                                    v-if="commercialAcceptanceError"
+                                    class="mt-3 text-sm text-red-600"
+                                >
+                                    {{ commercialAcceptanceError }}
+                                </p>
+
+                                <button
+                                    type="button"
+                                    class="mt-4 rounded-lg bg-blue-700 px-5 py-3 text-sm font-bold text-white disabled:cursor-not-allowed disabled:opacity-50"
+                                    :disabled="!commercialAcceptanceConfirmed || commercialAcceptanceBusy"
+                                    @click="acceptModernCommercialProposal"
+                                >
+                                    {{
+                                        commercialAcceptanceBusy
+                                            ? 'Registrando aceptación...'
+                                            : 'Aceptar propuesta comercial'
+                                    }}
+                                </button>
+                            </div>
+
+                            <div
+                                v-else-if="props.modern_commercial.engagement.status === 'accepted'"
+                                class="mt-5 rounded-xl border border-emerald-200 p-4 text-sm dark:border-emerald-900"
+                            >
+                                <p class="font-semibold">
+                                    Propuesta aceptada por tu empresa
+                                </p>
+                                <p class="mt-2 text-muted-foreground">
+                                    {{
+                                        props.modern_commercial.authorization?.active
+                                            ? 'LAUDA ha autorizado la implementación. Esto no significa que se haya iniciado la ejecución.'
+                                            : props.modern_commercial.authorization?.status === 'revoked'
+                                                ? 'La autorización de esta versión fue revocada.'
+                                                : 'Pendiente de autorización de implementación por LAUDA.'
+                                    }}
+                                </p>
+                            </div>
+                        </section>
+                        <!-- R116_E3B_TENANT_COMMERCIAL_PANEL_END -->
 
                         <!-- Solicitud activa -->
                         <template
