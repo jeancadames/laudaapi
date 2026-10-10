@@ -9745,7 +9745,7 @@ function commercialSnapshotText(value: unknown): string {
                 </div>
             </section>
 
-            <div class="grid gap-6 xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
+            <div class="grid gap-6">
                 <div class="min-w-0 space-y-6">
                     <section
                         class="rounded-[2rem] border border-slate-200/70 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-950"
@@ -9756,7 +9756,7 @@ function commercialSnapshotText(value: unknown): string {
                             Contexto de la solicitud
                         </h2>
 
-                        <div class="mt-5 grid gap-4 sm:grid-cols-2">
+                        <div class="mt-5 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
                             <div
                                 class="rounded-2xl border border-slate-200/70 bg-slate-50/60 p-4 dark:border-slate-800 dark:bg-slate-900/30"
                             >
@@ -9816,7 +9816,7 @@ function commercialSnapshotText(value: unknown): string {
 
                 </div>
 
-                <aside class="min-w-0 space-y-6 xl:self-start">
+                <aside class="grid min-w-0 items-start gap-6 lg:grid-cols-2">
                     <section
                         class="rounded-[2rem] border border-slate-200/70 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-950"
                     >
@@ -9910,7 +9910,7 @@ function commercialSnapshotText(value: unknown): string {
                             actions.can_mutate
                             && actions.allowed_transitions.length
                         "
-                        class="rounded-[2rem] border border-blue-200 bg-blue-50/60 p-6 dark:border-blue-900 dark:bg-blue-950/20"
+                        class="rounded-[2rem] border border-blue-200 bg-blue-50/60 p-6 lg:col-span-2 dark:border-blue-900 dark:bg-blue-950/20"
                     >
                         <p class="text-[10px] font-black tracking-widest text-blue-600 uppercase dark:text-blue-400">
                             Gestión de solicitud
@@ -9961,7 +9961,7 @@ function commercialSnapshotText(value: unknown): string {
 
                     <section
                         v-else
-                        class="rounded-[2rem] border border-slate-200/70 bg-slate-50 p-5 text-sm leading-6 text-slate-500 dark:border-slate-800 dark:bg-slate-900/30"
+                        class="rounded-[2rem] border border-slate-200/70 bg-slate-50 p-5 text-sm leading-6 text-slate-500 lg:col-span-2 dark:border-slate-800 dark:bg-slate-900/30"
                     >
                         No hay cambios de estado administrativos disponibles en este
                         momento. El siguiente paso se gestiona desde la
