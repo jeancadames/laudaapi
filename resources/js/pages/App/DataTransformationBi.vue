@@ -2987,7 +2987,8 @@ function tenantCommercialTerms(
 
             <!-- Contenido principal -->
             <div
-                class="grid gap-6 xl:grid-cols-[minmax(0,1.55fr)_minmax(18rem,0.8fr)] xl:items-start"
+                class="grid gap-6 xl:items-start"
+                :class="implementation_request.can_request ? 'xl:grid-cols-1' : 'xl:grid-cols-[minmax(0,1.55fr)_minmax(18rem,0.8fr)]'"
             >
                 <div class="space-y-6">
                     <!-- Justificación -->
@@ -7715,7 +7716,7 @@ function tenantCommercialTerms(
                                     <p class="mt-1 text-sm text-slate-600 dark:text-slate-300">Selecciona las mejoras que se ajustan a tu empresa. Puedes combinar Operaciones, Gestión y Finanzas.</p>
                                 </div>
                                 <!-- UX01_T13_CHECKBOX_CLARITY_V1 -->
-                                <div class="grid gap-4 lg:grid-cols-3">
+                                <div class="grid gap-4 md:grid-cols-2 2xl:grid-cols-3">
                                     <fieldset
                                         v-for="group in props.request_business_groups"
                                         :key="group.key"
