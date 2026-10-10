@@ -182,35 +182,39 @@ function planStatusLabel(status: string): string {
         ?? status;
 }
 
+// UX02_BI_MULTISECTOR_V1
 const businessImprovementGroups = [
     {
         number: '01',
         title: 'Operaciones',
-        purpose: 'Eficiencia y control de los procesos operativos.',
+        purpose: 'Eficiencia, ejecución y control operativo.',
         improvements: [
-            'Inventarios, existencias y rotación',
-            'Compras, abastecimiento y suplidores',
-            'Disponibilidad, productividad y costos operativos',
+            'Procesos, servicios y actividades operativas',
+            'Ejecución de proyectos, trabajos y eventos',
+            'Uso de recursos, capacidad y tiempos',
+            'Calidad, cumplimiento y productividad',
         ],
     },
     {
         number: '02',
         title: 'Gestión',
-        purpose: 'Planificación, desempeño y toma de decisiones.',
+        purpose: 'Planificación, desempeño y decisiones.',
         improvements: [
-            'Clientes, segmentos y comportamiento comercial',
-            'Ventas por producto, sucursal y vendedor',
-            'Indicadores, tendencias, riesgos y oportunidades',
+            'Clientes, usuarios y relaciones comerciales',
+            'Resultados por área, servicio, proyecto o evento',
+            'Indicadores, objetivos y desempeño',
+            'Tendencias, riesgos y oportunidades',
         ],
     },
     {
         number: '03',
         title: 'Finanzas',
-        purpose: 'Visibilidad y control del desempeño financiero.',
+        purpose: 'Control y planificación financiera.',
         improvements: [
-            'Ingresos, costos, márgenes y rentabilidad',
-            'Cuentas por cobrar y exposición financiera',
-            'Análisis histórico y planificación financiera',
+            'Ingresos, costos, gastos y resultados',
+            'Presupuestos, ejecución y desviaciones',
+            'Cobros, pagos y flujo de caja',
+            'Rentabilidad o sostenibilidad por actividad',
         ],
     },
 ] as const;
@@ -595,8 +599,8 @@ const businessImprovementGroups = [
                         Oportunidades de mejora mediante BI
                     </CardTitle>
                     <CardDescription>
-                        Tres ámbitos empresariales para orientar
-                        los objetivos del servicio.
+                        Tres grupos transversales para empresas de
+                        productos, servicios, proyectos y otras actividades.
                     </CardDescription>
                 </CardHeader>
 
@@ -655,11 +659,11 @@ const businessImprovementGroups = [
                         >
                             <span>
                                 <span class="block text-sm font-medium">
-                                    Capacidades de datos de referencia
+                                    Ejemplos de capacidades técnicas
                                 </span>
                                 <span class="text-xs text-muted-foreground">
                                     {{ props.capability.scope_items.length }}
-                                    capacidades del catálogo técnico
+                                    referencias del catálogo existente
                                 </span>
                             </span>
 
@@ -683,6 +687,12 @@ const businessImprovementGroups = [
                                 {{ props.capability.purpose }}
                             </p>
 
+                            <p class="mb-3 text-xs leading-5 text-muted-foreground">
+                                Estas son capacidades de referencia.
+                                No todas aplican a cada tipo de empresa.
+                                Su pertinencia se determina durante
+                                la definición funcional.
+                            </p>
                             <ul class="grid gap-2 text-sm md:grid-cols-2">
                                 <li
                                     v-for="item in props.capability.scope_items"
