@@ -200,7 +200,7 @@ final class AppHubDataTransformationBiRequestController
             $tenantNote .= "\nInformación adicional: {$additional}";
         }
 
-        $implementationRequests->requestFromTenantAdmin(
+        $submission = $implementationRequests->requestFromTenantAdmin(
             $company,
             $assessment,
             $plan,
@@ -212,7 +212,9 @@ final class AppHubDataTransformationBiRequestController
 
         return back()->with(
             'success',
-            'Solicitud de implementación enviada. LAUDA revisará el alcance antes de avanzar.'
+            $submission->wasRecentlyCreated
+                ? 'Solicitud de implementación enviada. LAUDA revisará el alcance antes de avanzar.'
+                : 'Ya existe una solicitud activa para Datos BI. No se creó otra ni se reemplazaron las necesidades registradas.'
         );
     }
 }

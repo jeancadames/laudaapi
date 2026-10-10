@@ -216,9 +216,12 @@ final class TransformationImplementationRequestService
                 ]
             );
 
-            return $request->fresh([
+            // UX03_B1_SUBMISSION_OUTCOME
+            $created = $request->fresh([
                 'events',
             ]);
+            $created->wasRecentlyCreated = true;
+            return $created;
         }, 3);
     }
 

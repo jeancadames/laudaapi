@@ -273,12 +273,17 @@ final class DataTransformationBiTenantImplementationRequestHttpTest
         /*
          * 3. Segundo POST: idempotente.
          */
+        // UX03_Q3F_EXISTING_FLASH_ASSERTION
         $this->actingAs($user)
             ->post(
                 route('app.transformation.data_bi.request'),
                 $repeatPayload
             )
-            ->assertRedirect();
+            ->assertRedirect()
+            ->assertSessionHas(
+                'success',
+                'Ya existe una solicitud activa para Datos BI. No se creó otra ni se reemplazaron las necesidades registradas.'
+            );
         $original = DB::table(
             'transformation_implementation_requests'
         )->where('id', $firstRequestId)->first();
