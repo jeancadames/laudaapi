@@ -42,6 +42,22 @@ final class DataTransformationBiTenantImplementationRequestHttpTest
     public function test_tenant_admin_can_request_bi_idempotently(): void
     {
         $context = $this->createTenantBiFixture();
+        // UX01_T5_HTTP_PAYLOAD_V1
+        $needsPayload = [
+            'selected_improvements' => [
+                'operaciones_procesos',
+                'gestion_indicadores',
+                'finanzas_ingresos',
+            ],
+            'need' => 'Necesitamos mejorar el seguimiento de los procesos y resultados de la empresa.',
+            'expected_result' => 'Disponer de indicadores confiables para tomar decisiones.',
+            'additional_info' => 'También queremos identificar oportunidades de mejora.',
+        ];
+
+        $repeatPayload = $needsPayload;
+        $repeatPayload['need'] =
+            'Esta segunda solicitud no debe sobrescribir la primera.';
+
 
         /** @var User $user */
         $user = $context['user'];
@@ -137,9 +153,8 @@ final class DataTransformationBiTenantImplementationRequestHttpTest
          */
         $this->actingAs($user)
             ->post(
-                route(
-                    'app.transformation.data_bi.request'
-                )
+                route('app.transformation.data_bi.request'),
+                $needsPayload
             )
             ->assertRedirect()
             ->assertSessionHas(
@@ -202,6 +217,34 @@ final class DataTransformationBiTenantImplementationRequestHttpTest
         );
 
         $this->assertIsArray($snapshot);
+        $this->assertSame(
+            ['operaciones', 'gestion', 'finanzas'],
+            data_get($snapshot, 'business_needs.groups')
+        );
+
+        $this->assertSame(
+            $needsPayload['selected_improvements'],
+            array_column(
+                data_get($snapshot, 'business_needs.improvements', []),
+                'key'
+            )
+        );
+
+        $this->assertSame(
+            $needsPayload['need'],
+            data_get($snapshot, 'business_needs.need')
+        );
+
+        $this->assertSame(
+            $needsPayload['expected_result'],
+            data_get($snapshot, 'business_needs.expected_result')
+        );
+
+        $this->assertStringContainsString(
+            $needsPayload['need'],
+            (string) $row->tenant_note
+        );
+
 
         $this->assertSame(
             (int) $company->id,
@@ -232,11 +275,24 @@ final class DataTransformationBiTenantImplementationRequestHttpTest
          */
         $this->actingAs($user)
             ->post(
-                route(
-                    'app.transformation.data_bi.request'
-                )
+                route('app.transformation.data_bi.request'),
+                $repeatPayload
             )
             ->assertRedirect();
+        $original = DB::table(
+            'transformation_implementation_requests'
+        )->where('id', $firstRequestId)->first();
+
+        $this->assertNotNull($original);
+
+        $this->assertSame(
+            $needsPayload['need'],
+            data_get(
+                json_decode((string) $original->source_snapshot, true),
+                'business_needs.need'
+            )
+        );
+
 
         $requests = DB::table(
             'transformation_implementation_requests'
@@ -333,6 +389,166 @@ final class DataTransformationBiTenantImplementationRequestHttpTest
                 'Side effect no permitido en '.$table
             );
         }
+    }
+
+
+    public function test_tenant_rejects_incomplete_business_needs(): void
+    {
+        $context = $this->createTenantBiFixture();
+
+        $this->actingAs($context['user'])
+            ->post(route('app.transformation.data_bi.request'), [])
+            ->assertSessionHasErrors([
+                'selected_improvements',
+                'need',
+                'expected_result',
+            ]);
+
+        $this->assertSame(
+            0,
+            DB::table('transformation_implementation_requests')
+                ->where('company_id', $context['company']->id)
+                ->count()
+        );
+    }
+
+    public function test_tenant_rejects_unknown_improvement(): void
+    {
+        $context = $this->createTenantBiFixture();
+
+        $this->actingAs($context['user'])
+            ->post(route('app.transformation.data_bi.request'), [
+                'selected_improvements' => ['codigo_no_autorizado'],
+                'need' => 'Necesitamos mejorar el seguimiento de nuestras actividades.',
+                'expected_result' => 'Disponer de indicadores confiables.',
+            ])
+            ->assertSessionHasErrors([
+                'selected_improvements.0',
+            ]);
+
+        $this->assertSame(
+            0,
+            DB::table('transformation_implementation_requests')
+                ->where('company_id', $context['company']->id)
+                ->count()
+        );
+    }
+
+    // UX01_T9_ADMIN_HTTP_V1
+    public function test_lauda_admin_reads_business_needs_and_legacy_note(): void
+    {
+        $context = $this->createTenantBiFixture();
+
+        $payload = [
+            'selected_improvements' => [
+                'operaciones_procesos',
+                'gestion_indicadores',
+                'finanzas_ingresos',
+            ],
+            'need' => 'Necesitamos mejorar el seguimiento de los procesos empresariales.',
+            'expected_result' => 'Disponer de indicadores confiables para tomar decisiones.',
+            'additional_info' => 'Priorizar mejoras por área de la empresa.',
+        ];
+
+        $this->actingAs($context['user'])
+            ->post(
+                route('app.transformation.data_bi.request'),
+                $payload
+            )
+            ->assertRedirect();
+
+        $row = DB::table('transformation_implementation_requests')
+            ->where('company_id', $context['company']->id)
+            ->where('capability_key', 'data_transformation_bi')
+            ->first();
+
+        $this->assertNotNull($row);
+
+        $admin = User::factory()->create([
+            'name' => 'LAUDA Admin T9 QA',
+            'role' => 'admin',
+        ]);
+
+        $url = route(
+            'admin.transformation360.implementation_requests.show',
+            ['implementationRequest' => $row->id]
+        );
+
+        $this->actingAs($admin)
+            ->get($url)
+            ->assertOk()
+            ->assertInertia(
+                fn (Assert $page) => $page
+                    ->component(
+                        'Admin/Transformation360/ImplementationRequests/Show'
+                    )
+                    ->where(
+                        'implementation_request.business_needs.groups',
+                        ['operaciones', 'gestion', 'finanzas']
+                    )
+                    ->where(
+                        'implementation_request.business_needs.improvements.0.key',
+                        'operaciones_procesos'
+                    )
+                    ->where(
+                        'implementation_request.business_needs.need',
+                        $payload['need']
+                    )
+                    ->where(
+                        'implementation_request.business_needs.expected_result',
+                        $payload['expected_result']
+                    )
+                    ->where(
+                        'implementation_request.business_needs.additional_info',
+                        $payload['additional_info']
+                    )
+                    ->etc()
+            );
+
+        // Simular un expediente anterior, sin business_needs.
+        $snapshot = json_decode(
+            (string) $row->source_snapshot,
+            true,
+            512,
+            JSON_THROW_ON_ERROR
+        );
+
+        $this->assertIsArray($snapshot);
+        unset($snapshot['business_needs']);
+
+        DB::table('transformation_implementation_requests')
+            ->where('id', $row->id)
+            ->update([
+                'source_snapshot' => json_encode(
+                    $snapshot,
+                    JSON_THROW_ON_ERROR
+                ),
+                'tenant_note' => 'Nota heredada de la empresa',
+            ]);
+
+        $this->actingAs($admin)
+            ->get($url)
+            ->assertOk()
+            ->assertInertia(
+                fn (Assert $page) => $page
+                    ->component(
+                        'Admin/Transformation360/ImplementationRequests/Show'
+                    )
+                    ->where(
+                        'implementation_request.business_needs',
+                        null
+                    )
+                    ->where(
+                        'implementation_request.tenant_note',
+                        'Nota heredada de la empresa'
+                    )
+                    ->etc()
+            );
+
+        // El administrador del Tenant no puede abrir el expediente Admin.
+        $this->actingAs($context['user'])
+            ->get($url)
+            ->assertForbidden();
     }
 
     public function test_lauda_admin_cannot_submit_tenant_request(): void

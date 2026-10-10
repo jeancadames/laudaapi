@@ -35,7 +35,8 @@ final class TransformationImplementationRequestService
         TransformationImplementationPlan $plan,
         TransformationImplementationPhaseCapability $phaseCapability,
         User $actor,
-        ?string $tenantNote = null
+        ?string $tenantNote = null,
+        ?array $businessNeeds = null // UX01_T2_BUSINESS_NEEDS_V1
     ): TransformationImplementationRequest {
         $catalog = $this->assertRequestableContext(
             $company,
@@ -51,6 +52,7 @@ final class TransformationImplementationRequestService
             $phaseCapability,
             $actor,
             $tenantNote,
+            $businessNeeds,
             $catalog
         ): TransformationImplementationRequest {
             /*
@@ -166,6 +168,7 @@ final class TransformationImplementationRequestService
                                     ] ?? false
                                 ),
                         ],
+                        ...($businessNeeds !== null ? ['business_needs' => $businessNeeds] : []),
                         'request_contract' => [
                             'request_is_activation' => false,
                             'definition_auto_create' => false,

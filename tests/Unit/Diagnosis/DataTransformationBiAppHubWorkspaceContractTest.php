@@ -222,10 +222,10 @@ final class DataTransformationBiAppHubWorkspaceContractTest
         foreach ([
             'Servicio profesional',
             'Solicitar evaluación para implementación',
-            'Enviar la solicitud no genera cargos ni contrata',
-            'LAUDA podrá presentar alcance comercial, precio y',
-            'Definición funcional presentada',
-            'No contiene precios',
+            'No constituye contratación, no genera cargos ni inicia ejecución.',
+            'La solicitud inicia una revisión funcional.',
+            'selected_improvements',
+            'expected_result',
         ] as $required) {
             $this->assertStringContainsString(
                 $required,

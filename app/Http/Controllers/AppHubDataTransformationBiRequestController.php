@@ -6,6 +6,8 @@ use App\Models\DiagnosisAssessment;
 use App\Models\TransformationImplementationPhaseCapability;
 use App\Models\TransformationImplementationPlan;
 use App\Services\Diagnosis\TransformationImplementationRequestService;
+use App\Services\Diagnosis\DataBiBusinessNeedsCatalog;
+use Illuminate\Validation\Rule;
 use App\Services\Ecosystem\SubscriberTransformation360DashboardService;
 use App\Services\Subscribers\CompanyContextResolver;
 use App\Services\Subscribers\SubscriberResolver;
@@ -166,12 +168,46 @@ final class AppHubDataTransformationBiRequestController
             'Datos e Inteligencia BI no forma parte del Plan de Implementación presentado.'
         );
 
+        // UX01_T2_BUSINESS_NEEDS_V1 · Validación en servidor; empresa e IDs no vienen del navegador.
+        $improvementMap = DataBiBusinessNeedsCatalog::improvementMap();
+        $validated = $request->validate([
+            'selected_improvements' => ['required', 'array', 'min:1', 'max:15'],
+            'selected_improvements.*' => [
+                'required', 'string', 'distinct', Rule::in(array_keys($improvementMap)),
+            ],
+            'need' => ['required', 'string', 'min:20', 'max:1000'],
+            'expected_result' => ['required', 'string', 'min:10', 'max:500'],
+            'additional_info' => ['nullable', 'string', 'max:1000'],
+        ]);
+        $improvements = array_map(
+            static fn (string $code): array => $improvementMap[$code],
+            $validated['selected_improvements']
+        );
+        $groups = array_values(array_unique(array_column($improvements, 'group')));
+        $need = trim($validated['need']);
+        $expected = trim($validated['expected_result']);
+        $additional = trim($validated['additional_info'] ?? '');
+        $businessNeeds = [
+            'schema_version' => 1,
+            'groups' => $groups,
+            'improvements' => $improvements,
+            'need' => $need,
+            'expected_result' => $expected,
+            'additional_info' => $additional !== '' ? $additional : null,
+        ];
+        $tenantNote = "Necesidad principal: {$need}\nResultado esperado: {$expected}";
+        if ($additional !== '') {
+            $tenantNote .= "\nInformación adicional: {$additional}";
+        }
+
         $implementationRequests->requestFromTenantAdmin(
             $company,
             $assessment,
             $plan,
             $phaseCapability,
-            $user
+            $user,
+            $tenantNote,
+            $businessNeeds
         );
 
         return back()->with(

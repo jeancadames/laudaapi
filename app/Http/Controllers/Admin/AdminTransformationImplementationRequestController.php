@@ -2236,6 +2236,15 @@ final class AdminTransformationImplementationRequestController
                     'source_type' =>
                         (string) $context->source_type,
 
+                    // UX01_T8_ADMIN_NEEDS_V1
+                    'business_needs' =>
+                        is_array(data_get($snapshot, 'business_needs.groups'))
+                        && is_array(data_get($snapshot, 'business_needs.improvements'))
+                        && is_string(data_get($snapshot, 'business_needs.need'))
+                        && is_string(data_get($snapshot, 'business_needs.expected_result'))
+                            ? data_get($snapshot, 'business_needs')
+                            : null,
+
                     'tenant_note' =>
                         $context->tenant_note
                             ? (string) $context->tenant_note

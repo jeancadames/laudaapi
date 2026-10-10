@@ -309,7 +309,16 @@ type SourceWorkspaceApiResponse = {
     preview?: SqlServerExtractionPreview;
 };
 
+// UX01_T2_BUSINESS_NEEDS_V1
+type RequestBusinessGroup = {
+    key: string;
+    title: string;
+    purpose: string;
+    improvements: Array<{ key: string; label: string }>;
+};
+
 const props = defineProps<{
+    request_business_groups: RequestBusinessGroup[];
     company: {
         id: number;
         name: string;
@@ -833,33 +842,40 @@ const requestProgress = computed(() => [
     },
 ]);
 
+const requestNeedsForm = useForm({
+    selected_improvements: [] as string[],
+    need: '',
+    expected_result: '',
+    additional_info: '',
+});
+const requestSelectionError = ref('');
+const canSendBusinessNeeds = computed(() =>
+    requestNeedsForm.selected_improvements.length > 0
+    && requestNeedsForm.need.trim().length >= 20
+    && requestNeedsForm.expected_result.trim().length >= 10,
+);
+function toggleBusinessImprovement(code: string): void {
+    const old = requestNeedsForm.selected_improvements;
+    requestNeedsForm.selected_improvements = old.includes(code)
+        ? old.filter(item => item !== code)
+        : [...old, code];
+    requestSelectionError.value = '';
+}
 const requestImplementation = () => {
-    const endpoint =
-        props.implementation_request.request_endpoint;
-
-    if (
-        !endpoint ||
-        !props.implementation_request.can_request ||
-        requestSubmitting.value
-    ) {
+    const endpoint = props.implementation_request.request_endpoint;
+    if (!endpoint || !props.implementation_request.can_request
+        || requestSubmitting.value || requestNeedsForm.processing) return;
+    if (!canSendBusinessNeeds.value) {
+        requestSelectionError.value = 'Selecciona al menos una mejora y completa los dos campos obligatorios.';
         return;
     }
-
-    router.post(
-        endpoint,
-        {},
-        {
-            preserveScroll: true,
-            onStart: () => {
-                requestSubmitting.value = true;
-            },
-            onFinish: () => {
-                requestSubmitting.value = false;
-            },
-        },
-    );
+    requestSelectionError.value = '';
+    requestNeedsForm.post(endpoint, {
+        preserveScroll: true,
+        onStart: () => { requestSubmitting.value = true; },
+        onFinish: () => { requestSubmitting.value = false; },
+    });
 };
-
 
 const tenantDefinitionReview = computed(
     () =>
@@ -7693,31 +7709,47 @@ function tenantCommercialTerms(
                                 funcional y no constituye contratación del servicio.
                             </p>
 
-                            <button
-                                type="button"
-                                class="cursor-pointer mt-5 inline-flex w-full items-center justify-center rounded-xl bg-slate-950 px-4 py-3 text-sm font-black text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60 dark:bg-white dark:text-slate-950 dark:hover:bg-slate-200"
-                                :disabled="requestSubmitting"
-                                @click="requestImplementation"
-                            >
-                                {{
-                                    requestSubmitting
-                                        ? 'Enviando solicitud...'
-                                        : implementation_request.status ===
-                                            'cancelled'
-                                          ? 'Volver a solicitar evaluación para implementación'
-                                          : 'Solicitar evaluación para implementación'
-                                }}
-                            </button>
+                            <form class="mt-5 space-y-5" @submit.prevent="requestImplementation">
+                                <div>
+                                    <h3 class="text-base font-bold text-slate-950 dark:text-white">¿Qué deseas mejorar con BI?</h3>
+                                    <p class="mt-1 text-sm text-slate-600 dark:text-slate-300">Selecciona las mejoras que se ajustan a tu empresa. Puedes combinar Operaciones, Gestión y Finanzas.</p>
+                                </div>
+                                <div class="grid gap-3 lg:grid-cols-3">
+                                    <fieldset v-for="group in props.request_business_groups" :key="group.key" class="min-w-0 rounded-xl border p-4 dark:border-slate-700">
+                                        <legend class="sr-only">{{ group.title }}</legend>
+                                        <p class="font-bold text-slate-950 dark:text-white">{{ group.title }}</p>
+                                        <p class="mt-1 text-xs leading-5 text-slate-500 dark:text-slate-400">{{ group.purpose }}</p>
+                                        <div class="mt-3 space-y-3">
+                                            <label v-for="item in group.improvements" :key="item.key" class="flex cursor-pointer items-start gap-2 text-sm leading-5 text-slate-800 dark:text-slate-200">
+                                                <input type="checkbox" class="mt-1 h-4 w-4 shrink-0 rounded border-slate-300" :checked="requestNeedsForm.selected_improvements.includes(item.key)" @change="toggleBusinessImprovement(item.key)" />
+                                                <span>{{ item.label }}</span>
+                                            </label>
+                                        </div>
+                                    </fieldset>
+                                </div>
+                                <p v-if="requestSelectionError || requestNeedsForm.errors.selected_improvements" class="text-sm text-red-600" role="alert">{{ requestSelectionError || requestNeedsForm.errors.selected_improvements }}</p>
+                                <div>
+                                    <label for="bi-request-need" class="block text-sm font-semibold text-slate-950 dark:text-white">¿Qué problema o necesidad deseas resolver? *</label>
+                                    <textarea id="bi-request-need" v-model="requestNeedsForm.need" required minlength="20" maxlength="1000" rows="3" class="mt-2 w-full rounded-xl border bg-white p-3 text-sm text-slate-950 dark:border-slate-700 dark:bg-slate-950 dark:text-white" placeholder="Describe qué está ocurriendo actualmente en tu empresa..."></textarea>
+                                    <p v-if="requestNeedsForm.errors.need" class="mt-1 text-sm text-red-600" role="alert">{{ requestNeedsForm.errors.need }}</p>
+                                </div>
+                                <div>
+                                    <label for="bi-request-result" class="block text-sm font-semibold text-slate-950 dark:text-white">¿Qué resultado esperas conseguir? *</label>
+                                    <textarea id="bi-request-result" v-model="requestNeedsForm.expected_result" required minlength="10" maxlength="500" rows="3" class="mt-2 w-full rounded-xl border bg-white p-3 text-sm text-slate-950 dark:border-slate-700 dark:bg-slate-950 dark:text-white" placeholder="Ej.: Identificar retrasos y mejorar la planificación de servicios..."></textarea>
+                                    <p v-if="requestNeedsForm.errors.expected_result" class="mt-1 text-sm text-red-600" role="alert">{{ requestNeedsForm.errors.expected_result }}</p>
+                                </div>
+                                <div>
+                                    <label for="bi-request-extra" class="block text-sm font-semibold text-slate-950 dark:text-white">Información adicional (opcional)</label>
+                                    <textarea id="bi-request-extra" v-model="requestNeedsForm.additional_info" maxlength="1000" rows="2" class="mt-2 w-full rounded-xl border bg-white p-3 text-sm text-slate-950 dark:border-slate-700 dark:bg-slate-950 dark:text-white" placeholder="Cualquier otra necesidad que quieras comentar..."></textarea>
+                                    <p v-if="requestNeedsForm.errors.additional_info" class="mt-1 text-sm text-red-600" role="alert">{{ requestNeedsForm.errors.additional_info }}</p>
+                                </div>
+                                <p class="text-xs leading-5 text-slate-500 dark:text-slate-400">La solicitud inicia una revisión funcional. No constituye contratación, no genera cargos ni inicia ejecución.</p>
+                                <button type="submit" :disabled="requestSubmitting || requestNeedsForm.processing || !canSendBusinessNeeds" class="inline-flex w-full items-center justify-center rounded-xl bg-slate-950 px-4 py-3 text-sm font-bold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60 dark:bg-white dark:text-slate-950">
+                                    {{ requestSubmitting ? 'Enviando solicitud...' : 'Enviar solicitud a LAUDA' }}
+                                </button>
+                            </form>
 
-                            <div
-                                class="mt-4 rounded-xl border border-blue-200/70 bg-white/70 p-4 text-xs leading-5 text-slate-600 dark:border-blue-950 dark:bg-slate-950/40 dark:text-slate-400"
-                            >
-                                Enviar la solicitud no genera cargos ni contrata
-                                el servicio. Si la revisión funcional avanza,
-                                LAUDA podrá presentar alcance comercial, precio y
-                                condiciones para tu aprobación antes de cualquier
-                                contratación o ejecución.
-                            </div>
+
                         </template>
 
                         <!-- No elegible todavía -->

@@ -508,6 +508,9 @@ $dataPreparation =
                             ?? false
                         ),
                 ],
+                // UX01_T2_BUSINESS_NEEDS_V1
+                'request_business_groups' =>
+                    \App\Services\Diagnosis\DataBiBusinessNeedsCatalog::groups(),
                 'implementation_request' =>
                     $implementationRequest,
 

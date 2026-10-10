@@ -98,7 +98,7 @@ final class DataTransformationBiTenantUiContractTest extends TestCase
         );
 
         $this->assertStringContainsString(
-            'Enviar la solicitud no genera cargos ni contrata',
+            'No constituye contratación, no genera cargos ni inicia ejecución.',
             $source
         );
 

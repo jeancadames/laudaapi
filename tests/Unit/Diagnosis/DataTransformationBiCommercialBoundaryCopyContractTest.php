@@ -56,10 +56,8 @@ final class DataTransformationBiCommercialBoundaryCopyContractTest
 
         foreach ([
             'no constituye contratación del servicio',
-            'Enviar la solicitud no genera cargos ni contrata',
-            'LAUDA podrá presentar alcance comercial, precio y',
-            'condiciones para tu aprobación antes de cualquier',
-            'contratación o ejecución.',
+            'La solicitud inicia una revisión funcional.',
+            'No constituye contratación, no genera cargos ni inicia ejecución.',
         ] as $required) {
             $this->assertStringContainsString(
                 $required,
@@ -126,9 +124,9 @@ final class DataTransformationBiCommercialBoundaryCopyContractTest
         );
 
         foreach ([
-            'Empresas con alcance BI identificado en Plan 360',
-            'Servicio profesional opcional',
-            'Alcance potencial del servicio',
+            'Empresas con BI en Plan 360',
+            'Estas mejoras son orientativas.',
+            'Oportunidades de mejora mediante BI',
         ] as $required) {
             $this->assertStringContainsString(
                 $required,

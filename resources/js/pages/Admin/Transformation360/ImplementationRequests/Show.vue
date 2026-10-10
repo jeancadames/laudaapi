@@ -39,6 +39,27 @@ type EventItem = {
     occurred_at: string | null;
 };
 
+// UX01_T8_ADMIN_NEEDS_V1
+type AdminBusinessNeeds = {
+    schema_version: number;
+    groups: string[];
+    improvements: Array<{
+        key: string;
+        label: string;
+        group: string;
+        group_label: string;
+    }>;
+    need: string;
+    expected_result: string;
+    additional_info: string | null;
+};
+
+const businessNeedsGroupLabels: Record<string, string> = {
+    operaciones: 'Operaciones',
+    gestion: 'Gestión',
+    finanzas: 'Finanzas',
+};
+
 const props = defineProps<{
     implementation_request: {
         id: number;
@@ -46,6 +67,7 @@ const props = defineProps<{
         status_label: string;
         attempt: number;
         source_type: string;
+        business_needs: AdminBusinessNeeds | null;
         tenant_note: string | null;
         internal_notes: string | null;
         requested_at: string | null;
@@ -9789,16 +9811,89 @@ function commercialSnapshotText(value: unknown): string {
                         </div>
 
                         <div
-                            v-if="implementation_request.tenant_note"
-                            class="mt-5 rounded-2xl border border-slate-200 p-5 dark:border-slate-800"
+                            v-if="implementation_request.business_needs || implementation_request.tenant_note"
+                            class="mt-5 rounded-2xl border border-slate-200 bg-slate-50/60 p-5 dark:border-slate-800 dark:bg-slate-900/30"
                         >
-                            <p class="text-[10px] font-black tracking-widest text-slate-400 uppercase">
-                                Nota de la empresa
-                            </p>
+                            <h3 class="text-base font-bold text-slate-950 dark:text-white">
+                                Necesidades y objetivos de la empresa
+                            </h3>
 
-                            <p class="mt-2 whitespace-pre-line text-sm leading-6 text-slate-600 dark:text-slate-300">
-                                {{ implementation_request.tenant_note }}
-                            </p>
+                            <template v-if="implementation_request.business_needs">
+                                <div class="mt-5">
+                                    <p class="text-xs font-semibold text-slate-500 dark:text-slate-400">
+                                        Ámbitos seleccionados
+                                    </p>
+                                    <div class="mt-2 flex flex-wrap gap-2">
+                                        <span
+                                            v-for="group in implementation_request.business_needs.groups"
+                                            :key="group"
+                                            class="rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-semibold text-slate-700 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-200"
+                                        >
+                                            {{ businessNeedsGroupLabels[group] || group }}
+                                        </span>
+                                    </div>
+                                </div>
+
+                                <div class="mt-5">
+                                    <p class="text-xs font-semibold text-slate-500 dark:text-slate-400">
+                                        Mejoras solicitadas
+                                    </p>
+                                    <ul class="mt-2 grid gap-2 md:grid-cols-2">
+                                        <li
+                                            v-for="improvement in implementation_request.business_needs.improvements"
+                                            :key="improvement.key"
+                                            class="rounded-xl border border-slate-200 bg-white p-3 dark:border-slate-700 dark:bg-slate-950"
+                                        >
+                                            <p class="text-xs text-slate-500 dark:text-slate-400">
+                                                {{ improvement.group_label }}
+                                            </p>
+                                            <p class="mt-1 text-sm font-medium text-slate-900 dark:text-white">
+                                                {{ improvement.label }}
+                                            </p>
+                                        </li>
+                                    </ul>
+                                </div>
+
+                                <div class="mt-5 grid gap-4 lg:grid-cols-2">
+                                    <div>
+                                        <p class="text-xs font-semibold text-slate-500 dark:text-slate-400">
+                                            Necesidad principal
+                                        </p>
+                                        <p class="mt-2 whitespace-pre-line text-sm leading-6 text-slate-800 dark:text-slate-200">
+                                            {{ implementation_request.business_needs.need }}
+                                        </p>
+                                    </div>
+                                    <div>
+                                        <p class="text-xs font-semibold text-slate-500 dark:text-slate-400">
+                                            Resultado esperado
+                                        </p>
+                                        <p class="mt-2 whitespace-pre-line text-sm leading-6 text-slate-800 dark:text-slate-200">
+                                            {{ implementation_request.business_needs.expected_result }}
+                                        </p>
+                                    </div>
+                                </div>
+
+                                <div
+                                    v-if="implementation_request.business_needs.additional_info"
+                                    class="mt-5 border-t border-slate-200 pt-4 dark:border-slate-800"
+                                >
+                                    <p class="text-xs font-semibold text-slate-500 dark:text-slate-400">
+                                        Información adicional
+                                    </p>
+                                    <p class="mt-2 whitespace-pre-line text-sm leading-6 text-slate-800 dark:text-slate-200">
+                                        {{ implementation_request.business_needs.additional_info }}
+                                    </p>
+                                </div>
+                            </template>
+
+                            <template v-else>
+                                <p class="mt-3 text-xs font-semibold text-slate-500 dark:text-slate-400">
+                                    Nota de la empresa
+                                </p>
+                                <p class="mt-2 whitespace-pre-line text-sm leading-6 text-slate-600 dark:text-slate-300">
+                                    {{ implementation_request.tenant_note }}
+                                </p>
+                            </template>
                         </div>
                     </section>
 
