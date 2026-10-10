@@ -842,6 +842,7 @@ const requestProgress = computed(() => [
     },
 ]);
 
+const ux01ScopeExpanded = ref(false);
 const requestNeedsForm = useForm({
     selected_improvements: [] as string[],
     need: '',
@@ -3051,58 +3052,54 @@ function tenantCommercialTerms(
                     </section>
 
                     <!-- Alcance -->
+
+<section
+    class="rounded-[2rem] border border-slate-200/70 bg-white p-6 shadow-sm sm:p-8 dark:border-slate-800 dark:bg-slate-950"
+>
+    <!-- D2G_R10_TENANT_SCOPE_COMPACTION -->
+    <!-- UX01_T17B_SCOPE_OUTSIDE_ROW -->
+    <div class="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+        <div class="min-w-0">
+            <p class="text-[10px] font-black tracking-widest text-blue-600 uppercase dark:text-blue-400">
+                Datos BI
+            </p>
+
+            <h2 class="mt-1 text-lg font-black text-slate-950 dark:text-white">
+                Alcance potencial del servicio
+            </h2>
+
+            <p class="mt-2 text-xs leading-5 text-slate-500 dark:text-slate-400">
+                {{ capabilityIncludesForDisplay.length }}
+                {{ capabilityIncludesForDisplay.length === 1 ? 'área contemplada' : 'áreas contempladas' }}
+                · Consulta el alcance considerado para una implementación futura.
+            </p>
+        </div>
+
+        <button
+            type="button"
+            class="inline-flex shrink-0 items-center justify-center gap-2 rounded-full border border-blue-200 bg-blue-50 px-4 py-2 text-xs font-black text-blue-700 transition hover:bg-blue-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 dark:border-blue-900 dark:bg-blue-950/30 dark:text-blue-300"
+            :aria-expanded="ux01ScopeExpanded"
+            aria-controls="ux01-bi-scope-details"
+            @click="ux01ScopeExpanded = !ux01ScopeExpanded"
+        >
+            {{ ux01ScopeExpanded ? 'Ocultar detalle' : 'Ver detalle' }}
+            <span aria-hidden="true">
+                {{ ux01ScopeExpanded ? '↑' : '↓' }}
+            </span>
+        </button>
+    </div>
+    <!-- D2G_R10_TENANT_SCOPE_COMPACTION_END -->
+</section>
+
+                    </div>
+
+                    <!-- UX01_T17B_FULL_WIDTH_DETAIL -->
                     <section
+                        v-show="ux01ScopeExpanded"
+                        id="ux01-bi-scope-details"
                         class="rounded-[2rem] border border-slate-200/70 bg-white p-6 shadow-sm sm:p-8 dark:border-slate-800 dark:bg-slate-950"
                     >
-                        <!-- D2G_R10_TENANT_SCOPE_COMPACTION -->
-                        <details
-                            :open="published_evaluation ? undefined : true"
-                        >
-                            <summary
-                                v-show="published_evaluation"
-                                class="cursor-pointer list-none"
-                            >
-                                <div
-                                    class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between"
-                                >
-                                    <div>
-                                        <p
-                                            class="text-[10px] font-black tracking-widest text-blue-600 uppercase dark:text-blue-400"
-                                        >
-                                            Datos BI
-                                        </p>
-
-                                        <h2
-                                            class="mt-1 text-lg font-black text-slate-950 dark:text-white"
-                                        >
-                                            Alcance potencial del servicio
-                                        </h2>
-
-                                        <p
-                                            class="mt-1 text-xs leading-5 text-slate-500 dark:text-slate-400"
-                                        >
-                                            {{
-                                                capabilityIncludesForDisplay.length
-                                            }}
-                                            {{
-                                                capabilityIncludesForDisplay.length === 1
-                                                    ? 'área contemplada'
-                                                    : 'áreas contempladas'
-                                            }}
-                                            · Consulta el alcance considerado para una implementación futura.
-                                        </p>
-                                    </div>
-
-                                    <span
-                                        class="inline-flex shrink-0 items-center gap-2 rounded-full border border-blue-200 bg-blue-50 px-3 py-1.5 text-xs font-black text-blue-700 dark:border-blue-900 dark:bg-blue-950/30 dark:text-blue-300"
-                                    >
-                                        Ver detalle
-                                        <span aria-hidden="true">↓</span>
-                                    </span>
-                                </div>
-                            </summary>
-
-                            <div
+<div
                                 :class="
                                     published_evaluation
                                         ? 'mt-5 border-t border-slate-200/70 pt-5 dark:border-slate-800'
@@ -3156,10 +3153,8 @@ function tenantCommercialTerms(
                         </ul>
 
                             </div>
-                        </details>
-                        <!-- D2G_R10_TENANT_SCOPE_COMPACTION_END -->
-</section>
-                    </div>
+                    </section>
+
                 </div>
 
                 <!-- Contenido posterior al alcance · ancho completo -->
