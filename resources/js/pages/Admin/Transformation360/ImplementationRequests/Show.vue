@@ -7173,6 +7173,44 @@ const humanReviewForm = useForm({
     },
 });
 
+function dataBiAssessmentCanConfirm(): boolean {
+    const needs = props.implementation_request.business_needs;
+
+    if (
+        props.capability.key !== 'data_transformation_bi'
+        || !needs
+        || needs.improvements.length === 0
+    ) {
+        return true;
+    }
+
+    const items =
+        humanReviewForm.implementation_scope
+            .business_needs_assessment?.items;
+
+    if (
+        !Array.isArray(items)
+        || items.length !== needs.improvements.length
+    ) {
+        return false;
+    }
+
+    return needs.improvements.every((improvement, index) => {
+        const item = items[index];
+
+        if (!item || item.key !== improvement.key) {
+            return false;
+        }
+
+        return item.status === 'included'
+            || (
+                item.status === 'excluded'
+                && typeof item.rationale === 'string'
+                && item.rationale.trim().length > 0
+            );
+    });
+}
+
 const DATA_BI_CAPABILITY =
     'data_transformation_bi';
 
@@ -7364,6 +7402,51 @@ function syncHumanReviewForm(): void {
                 ?? {}
             );
 
+    // BI08_P1_T1 · Evaluaciones vinculadas a las claves
+    // originales de la solicitud, sin alterar business_needs.
+    if (
+        props.capability.key === DATA_BI_CAPABILITY
+        && props.implementation_request.business_needs
+    ) {
+        const savedRaw =
+            source?.implementation_scope
+                ?.business_needs_assessment?.items;
+
+        const savedItems: Array<Record<string, any>> =
+            Array.isArray(savedRaw) ? savedRaw : [];
+
+        const savedByKey = new Map(
+            savedItems.map(
+                (item) => [String(item.key ?? ''), item] as const,
+            ),
+        );
+
+        humanReviewForm.implementation_scope.business_needs_assessment = {
+            schema_version: 1,
+            items: props.implementation_request.business_needs
+                .improvements.map((improvement) => {
+                    const previous = savedByKey.get(improvement.key);
+                    const status = previous?.status;
+
+                    return {
+                        key: improvement.key,
+                        status: [
+                            'pending',
+                            'included',
+                            'clarification',
+                            'excluded',
+                        ].includes(status)
+                            ? status
+                            : 'pending',
+                        rationale:
+                            typeof previous?.rationale === 'string'
+                                ? previous.rationale
+                                : '',
+                    };
+                }),
+        };
+    }
+
     humanReviewForm.deliverables =
         props.capability.key
             === DATA_BI_CAPABILITY
@@ -7388,13 +7471,26 @@ function syncHumanReviewForm(): void {
                 ?? []
             );
 
+    // BI08_P1_T3_UI · Conservar responsabilidades existentes.
     const assignments =
         source?.responsibility_model
             ?.assignments ?? [];
 
+    const hasUsableAssignments =
+        Array.isArray(assignments)
+        && assignments.length > 0
+        && assignments.every(
+            (assignment) =>
+                typeof assignment?.initiative_id === 'string'
+                && assignment.initiative_id.trim() !== ''
+                && ['lauda', 'client', 'shared'].includes(
+                    assignment.responsible_party,
+                ),
+        );
+
     humanReviewForm.responsibility_model.assignments =
-        props.capability.key
-            === DATA_BI_CAPABILITY
+        props.capability.key === DATA_BI_CAPABILITY
+            && !hasUsableAssignments
             ? dataBiGeneralResponsibilityAssignments()
             : assignments.map(
                 (assignment) => ({
@@ -10431,6 +10527,125 @@ function commercialSnapshotText(value: unknown): string {
                             y legible.
                         </p>
                     </div>
+
+                    <!-- BI08_P1_T1 · Evaluación de necesidades -->
+                    <section
+                        v-if="
+                            props.capability.key === DATA_BI_CAPABILITY
+                            && implementation_request.business_needs
+                            && implementation_request.business_needs.improvements.length
+                        "
+                        class="rounded-2xl border bg-background p-5"
+                    >
+                        <div class="flex flex-wrap items-start justify-between gap-3">
+                            <div>
+                                <p class="text-sm font-black">
+                                    Evaluación de necesidades empresariales
+                                </p>
+                                <p class="mt-1 text-xs leading-5 text-muted-foreground">
+                                    Las mejoras seleccionadas por la empresa
+                                    son solicitudes, no compromisos aprobados.
+                                    LAUDA debe evaluar cada una.
+                                </p>
+                            </div>
+
+                            <span
+                                class="rounded-full border px-3 py-1 text-xs font-semibold"
+                            >
+                                {{
+                                    implementation_request.business_needs.improvements.length
+                                }} necesidades
+                            </span>
+                        </div>
+
+                        <div class="mt-5 grid gap-4 lg:grid-cols-2">
+                            <article
+                                v-for="(improvement, index) in implementation_request.business_needs.improvements"
+                                :key="improvement.key"
+                                class="rounded-xl border p-4"
+                            >
+                                <p class="text-xs font-semibold text-muted-foreground">
+                                    {{ improvement.group_label }}
+                                </p>
+
+                                <p class="mt-1 text-sm font-semibold">
+                                    {{ improvement.label }}
+                                </p>
+
+                                <label
+                                    class="mt-4 block text-xs font-semibold"
+                                    :for="`need-decision-${index}`"
+                                >
+                                    Evaluación de LAUDA
+                                </label>
+
+                                <select
+                                    :id="`need-decision-${index}`"
+                                    v-model="
+                                        humanReviewForm.implementation_scope
+                                            .business_needs_assessment
+                                            .items[index].status
+                                    "
+                                    :disabled="humanReviewForm.processing"
+                                    class="mt-2 w-full rounded-xl border bg-background px-3 py-2 text-sm"
+                                    @change="
+                                        humanReviewForm.readiness.scope_confirmed = false
+                                    "
+                                >
+                                    <option value="pending">
+                                        Por evaluar
+                                    </option>
+                                    <option value="included">
+                                        Incluir en el alcance
+                                    </option>
+                                    <option value="clarification">
+                                        Requiere aclaración
+                                    </option>
+                                    <option value="excluded">
+                                        Excluir del alcance
+                                    </option>
+                                </select>
+
+                                <label
+                                    class="mt-3 block text-xs font-semibold"
+                                    :for="`need-rationale-${index}`"
+                                >
+                                    Justificación o información requerida
+                                </label>
+
+                                <textarea
+                                    :id="`need-rationale-${index}`"
+                                    v-model="
+                                        humanReviewForm.implementation_scope
+                                            .business_needs_assessment
+                                            .items[index].rationale
+                                    "
+                                    :disabled="humanReviewForm.processing"
+                                    maxlength="2000"
+                                    rows="2"
+                                    placeholder="Indicar el fundamento de la evaluación..."
+                                    class="mt-2 w-full rounded-xl border bg-background px-3 py-2 text-sm"
+                                    @input="
+                                        humanReviewForm.readiness.scope_confirmed = false
+                                    "
+                                ></textarea>
+                            </article>
+                        </div>
+
+                        <p class="mt-4 text-xs leading-5 text-muted-foreground">
+                            Para confirmar el alcance, todas las necesidades
+                            deben estar incluidas o excluidas. Las exclusiones
+                            requieren justificación. Una necesidad pendiente
+                            de aclaración impide confirmar el alcance.
+                        </p>
+
+                        <p class="mt-2 text-xs leading-5 text-muted-foreground">
+                            Guardar revisión humana conserva las evaluaciones
+                            y cambia la Definición a En revisión, incluso
+                            cuando queden necesidades pendientes. No la
+                            presenta al cliente ni inicia ejecución.
+                        </p>
+                    </section>
 
                     <section
                         class="rounded-2xl border bg-background p-5"
@@ -19720,7 +19935,7 @@ function commercialSnapshotText(value: unknown): string {
                             <input
                                 v-model="humanReviewForm.readiness.scope_confirmed"
                                 type="checkbox"
-                                :disabled="humanReviewForm.processing"
+                                :disabled="humanReviewForm.processing || !dataBiAssessmentCanConfirm()"
                             />
 
                             <span class="text-sm">

@@ -1016,6 +1016,483 @@ final class TransformationImplementationRequestDefinitionHumanReviewAdminHttpTes
         }
     }
 
+
+    /*
+     * BI08_P1_T2_HTTP
+     *
+     * Integra evaluaciones de necesidades reales del snapshot
+     * de una solicitud sintética. DatabaseTransactions garantiza
+     * rollback de todos los registros generados en estas pruebas.
+     */
+
+    private function needsAssessmentHttpContext(): array
+    {
+        $context = $this->fixture();
+
+        $request = $context['request'];
+        $admin = $context['admin'];
+
+        $snapshot = $request->source_snapshot;
+
+        if (is_string($snapshot)) {
+            $snapshot = json_decode($snapshot, true, 512, JSON_THROW_ON_ERROR);
+        }
+
+        $this->assertIsArray($snapshot);
+
+        $snapshot['business_needs'] = [
+            'schema_version' => 1,
+            'groups' => ['operaciones', 'finanzas'],
+            'improvements' => [
+                [
+                    'key' => 'qa_operaciones_uno',
+                    'label' => 'Mejora operativa QA',
+                    'group' => 'operaciones',
+                    'group_label' => 'Operaciones',
+                ],
+                [
+                    'key' => 'qa_finanzas_dos',
+                    'label' => 'Mejora financiera QA',
+                    'group' => 'finanzas',
+                    'group_label' => 'Finanzas',
+                ],
+            ],
+            'need' => 'Necesidad funcional sintética',
+            'expected_result' => 'Resultado funcional sintético',
+            'additional_info' => null,
+        ];
+
+        $snapshotJson = json_encode($snapshot, JSON_THROW_ON_ERROR);
+
+        DB::table($request->getTable())
+            ->where('id', $request->id)
+            ->update(['source_snapshot' => $snapshotJson]);
+
+        $request->refresh();
+
+        $detailUrl = route(
+            'admin.transformation360.implementation_requests.show',
+            ['implementationRequest' => $request->id]
+        );
+
+        $this->actingAs($admin)
+            ->from($detailUrl)
+            ->post(route(
+                'admin.transformation360.implementation_requests.definition.create',
+                ['implementationRequest' => $request->id]
+            ))
+            ->assertRedirect($detailUrl);
+
+        $definition = TransformationImplementationDefinition::query()
+            ->where(
+                'transformation_implementation_request_id',
+                $request->id
+            )
+            ->sole();
+
+        $this->actingAs($admin)
+            ->from($detailUrl)
+            ->post(route(
+                'admin.transformation360.implementation_requests.definition.generate',
+                [
+                    'implementationRequest' => $request->id,
+                    'definition' => $definition->id,
+                ]
+            ))
+            ->assertRedirect($detailUrl);
+
+        $definition->refresh();
+
+        $reviewUrl = route(
+            'admin.transformation360.implementation_requests.definition.review',
+            [
+                'implementationRequest' => $request->id,
+                'definition' => $definition->id,
+            ]
+        );
+
+        return [
+            'admin' => $admin,
+            'request' => $request,
+            'definition' => $definition,
+            'detail_url' => $detailUrl,
+            'review_url' => $reviewUrl,
+            'snapshot_json' => $snapshotJson,
+        ];
+    }
+
+    private function needsAssessmentHttpPayload(
+        TransformationImplementationDefinition $definition,
+        array $items,
+        bool $scopeConfirmed
+    ): array {
+        $scope = $definition->implementation_scope;
+
+        $this->assertIsArray($scope);
+
+        $scope['business_needs_assessment'] = [
+            'schema_version' => 1,
+            'items' => $items,
+        ];
+
+        $assignments = data_get(
+            $definition->responsibility_model,
+            'assignments',
+            []
+        );
+
+        $this->assertIsArray($assignments);
+        $this->assertNotEmpty($assignments);
+
+        $assignments = array_map(
+            static fn (array $assignment): array => array_merge(
+                $assignment,
+                ['responsible_party' => 'lauda']
+            ),
+            $assignments
+        );
+
+        return [
+            'implementation_scope' => $scope,
+            'responsibility_model' => [
+                'assignments' => $assignments,
+            ],
+            'readiness' => [
+                'scope_confirmed' => $scopeConfirmed,
+                'deliverables_confirmed' => true,
+                'dependencies_confirmed' => true,
+                'responsibilities_confirmed' => true,
+            ],
+        ];
+    }
+
+    public function test_bi_assessment_http_persists_and_recovers_decisions(): void
+    {
+        $context = $this->needsAssessmentHttpContext();
+
+        $payload = $this->needsAssessmentHttpPayload(
+            $context['definition'],
+            [
+                [
+                    'key' => 'qa_operaciones_uno',
+                    'status' => 'included',
+                    'rationale' => '',
+                ],
+                [
+                    'key' => 'qa_finanzas_dos',
+                    'status' => 'excluded',
+                    'rationale' => 'Fuera del alcance funcional evaluado.',
+                ],
+            ],
+            true
+        );
+
+        $this->actingAs($context['admin'])
+            ->from($context['detail_url'])
+            ->patch($context['review_url'], $payload)
+            ->assertRedirect($context['detail_url'])
+            ->assertSessionHas('success');
+
+        $definition = $context['definition']->fresh();
+
+        $this->assertSame(
+            TransformationImplementationDefinition::STATUS_UNDER_REVIEW,
+            $definition->status
+        );
+
+        $this->assertSame(
+            'included',
+            data_get(
+                $definition->implementation_scope,
+                'business_needs_assessment.items.0.status'
+            )
+        );
+
+        $this->assertSame(
+            'excluded',
+            data_get(
+                $definition->implementation_scope,
+                'business_needs_assessment.items.1.status'
+            )
+        );
+
+        $this->assertTrue(
+            (bool) data_get(
+                $definition->readiness,
+                'human_validation.scope_confirmed'
+            )
+        );
+
+        $this->assertSame(
+            TransformationImplementationRequestContract::STATUS_DEFINITION_PREPARATION,
+            $context['request']->fresh()->status
+        );
+
+        $this->assertNull($definition->ready_at);
+
+        $this->assertJsonStringEqualsJsonString(
+            $context['snapshot_json'],
+            DB::table($context['request']->getTable())
+                ->where('id', $context['request']->id)
+                ->value('source_snapshot')
+        );
+
+        $this->actingAs($context['admin'])
+            ->get($context['detail_url'])
+            ->assertOk()
+            ->assertInertia(
+                fn (Assert $page) => $page
+                    ->where(
+                        'definition_review.implementation_scope.business_needs_assessment.items.1.status',
+                        'excluded'
+                    )
+                    ->etc()
+            );
+    }
+
+    public function test_bi_assessment_http_rejects_foreign_improvement(): void
+    {
+        $context = $this->needsAssessmentHttpContext();
+
+        $payload = $this->needsAssessmentHttpPayload(
+            $context['definition'],
+            [
+                [
+                    'key' => 'qa_operaciones_uno',
+                    'status' => 'included',
+                    'rationale' => '',
+                ],
+                [
+                    'key' => 'qa_no_solicitada',
+                    'status' => 'included',
+                    'rationale' => '',
+                ],
+            ],
+            true
+        );
+
+        $this->actingAs($context['admin'])
+            ->from($context['detail_url'])
+            ->patch($context['review_url'], $payload)
+            ->assertRedirect($context['detail_url'])
+            ->assertSessionHasErrors(
+                'implementation_scope.business_needs_assessment'
+            );
+
+        $definition = $context['definition']->fresh();
+
+        $this->assertSame(
+            TransformationImplementationDefinition::STATUS_DRAFT,
+            $definition->status
+        );
+
+        $this->assertNull(
+            data_get(
+                $definition->implementation_scope,
+                'business_needs_assessment'
+            )
+        );
+    }
+
+    public function test_bi_assessment_http_blocks_pending_scope_confirmation(): void
+    {
+        $context = $this->needsAssessmentHttpContext();
+
+        $payload = $this->needsAssessmentHttpPayload(
+            $context['definition'],
+            [
+                [
+                    'key' => 'qa_operaciones_uno',
+                    'status' => 'included',
+                    'rationale' => '',
+                ],
+                [
+                    'key' => 'qa_finanzas_dos',
+                    'status' => 'pending',
+                    'rationale' => '',
+                ],
+            ],
+            true
+        );
+
+        $this->actingAs($context['admin'])
+            ->from($context['detail_url'])
+            ->patch($context['review_url'], $payload)
+            ->assertRedirect($context['detail_url'])
+            ->assertSessionHasErrors(
+                'implementation_scope.business_needs_assessment'
+            );
+
+        $this->assertSame(
+            TransformationImplementationDefinition::STATUS_DRAFT,
+            $context['definition']->fresh()->status
+        );
+    }
+
+    public function test_bi_assessment_http_saves_pending_without_confirming_scope(): void
+    {
+        $context = $this->needsAssessmentHttpContext();
+
+        $payload = $this->needsAssessmentHttpPayload(
+            $context['definition'],
+            [
+                [
+                    'key' => 'qa_operaciones_uno',
+                    'status' => 'included',
+                    'rationale' => '',
+                ],
+                [
+                    'key' => 'qa_finanzas_dos',
+                    'status' => 'pending',
+                    'rationale' => '',
+                ],
+            ],
+            false
+        );
+
+        $this->actingAs($context['admin'])
+            ->from($context['detail_url'])
+            ->patch($context['review_url'], $payload)
+            ->assertRedirect($context['detail_url'])
+            ->assertSessionHas('success');
+
+        $definition = $context['definition']->fresh();
+
+        $this->assertSame(
+            'pending',
+            data_get(
+                $definition->implementation_scope,
+                'business_needs_assessment.items.1.status'
+            )
+        );
+
+        $this->assertFalse(
+            (bool) data_get(
+                $definition->readiness,
+                'human_validation.scope_confirmed'
+            )
+        );
+
+        // El contrato existente guarda la revisión como under_review,
+        // incluso cuando el alcance todavía no está confirmado.
+        $this->assertSame(
+            TransformationImplementationDefinition::STATUS_UNDER_REVIEW,
+            $definition->status
+        );
+
+        $this->assertNull($definition->ready_at);
+    }
+
+
+    /*
+     * BI08_P1_T3_HTTP
+     * Revisión parcial, continuación y responsabilidades.
+     */
+    public function test_bi_partial_review_can_be_completed_without_losing_responsibilities(): void
+    {
+        $context = $this->needsAssessmentHttpContext();
+
+        $partial = $this->needsAssessmentHttpPayload(
+            $context['definition'],
+            [
+                [
+                    'key' => 'qa_operaciones_uno',
+                    'status' => 'included',
+                    'rationale' => '',
+                ],
+                [
+                    'key' => 'qa_finanzas_dos',
+                    'status' => 'pending',
+                    'rationale' => '',
+                ],
+            ],
+            false
+        );
+
+        $this->actingAs($context['admin'])
+            ->from($context['detail_url'])
+            ->patch($context['review_url'], $partial)
+            ->assertRedirect($context['detail_url'])
+            ->assertSessionHas('success');
+
+        $definition = $context['definition']->fresh();
+
+        $this->assertSame(
+            TransformationImplementationDefinition::STATUS_UNDER_REVIEW,
+            $definition->status
+        );
+
+        $this->assertFalse(
+            (bool) data_get(
+                $definition->readiness,
+                'human_validation.scope_confirmed'
+            )
+        );
+
+        $complete = $this->needsAssessmentHttpPayload(
+            $definition,
+            [
+                [
+                    'key' => 'qa_operaciones_uno',
+                    'status' => 'included',
+                    'rationale' => '',
+                ],
+                [
+                    'key' => 'qa_finanzas_dos',
+                    'status' => 'excluded',
+                    'rationale' =>
+                        'Excluida tras evaluación funcional.',
+                ],
+            ],
+            true
+        );
+
+        $this->assertNotEmpty(
+            $complete['responsibility_model']['assignments']
+        );
+
+        $complete['responsibility_model']
+            ['assignments'][0]['responsible_party'] = 'shared';
+
+        $this->actingAs($context['admin'])
+            ->from($context['detail_url'])
+            ->patch($context['review_url'], $complete)
+            ->assertRedirect($context['detail_url'])
+            ->assertSessionHas('success');
+
+        $definition = $definition->fresh();
+
+        $this->assertTrue(
+            (bool) data_get(
+                $definition->readiness,
+                'human_validation.scope_confirmed'
+            )
+        );
+
+        $this->assertSame(
+            'excluded',
+            data_get(
+                $definition->implementation_scope,
+                'business_needs_assessment.items.1.status'
+            )
+        );
+
+        $this->assertSame(
+            'shared',
+            data_get(
+                $definition->responsibility_model,
+                'assignments.0.responsible_party'
+            )
+        );
+
+        $this->assertSame(
+            TransformationImplementationRequestContract::STATUS_DEFINITION_PREPARATION,
+            $context['request']->fresh()->status
+        );
+
+        $this->assertNull($definition->ready_at);
+    }
+
     private function fixture(): array
     {
         $suffix =

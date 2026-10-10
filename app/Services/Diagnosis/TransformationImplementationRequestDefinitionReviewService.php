@@ -285,6 +285,43 @@ final class TransformationImplementationRequestDefinitionReviewService
                 true;
         }
 
+        /*
+         * BI08_P1_T1 · La evaluación de necesidades se valida
+         * contra el snapshot original de la solicitud.
+         *
+         * Nunca se confía en claves o etiquetas inventadas
+         * desde el navegador.
+         */
+        if (
+            trim((string) $request->capability_key)
+            === 'data_transformation_bi'
+        ) {
+            $snapshot = $request->source_snapshot;
+
+            if (is_string($snapshot)) {
+                $snapshot = json_decode($snapshot, true);
+            }
+
+            $scope = is_array(
+                $data['implementation_scope'] ?? null
+            )
+                ? $data['implementation_scope']
+                : (
+                    is_array($definition->implementation_scope)
+                        ? $definition->implementation_scope
+                        : []
+                );
+
+            $data['implementation_scope'] =
+                TransformationImplementationRequestBusinessNeedsAssessment::normalize(
+                    is_array($snapshot) ? $snapshot : [],
+                    $scope,
+                    is_array($data['readiness'] ?? null)
+                        ? $data['readiness']
+                        : []
+                );
+        }
+
         foreach ([
             'deliverables',
             'dependencies',
