@@ -3073,6 +3073,15 @@ function tenantCommercialTerms(
                 {{ capabilityIncludesForDisplay.length === 1 ? 'área contemplada' : 'áreas contempladas' }}
                 · Consulta el alcance considerado para una implementación futura.
             </p>
+
+            <!-- UX01_T19_SCOPE_DESCRIPTION -->
+            <p class="mt-4 max-w-2xl text-sm leading-6 text-slate-600 dark:text-slate-300">
+                Esta capacidad permite conectar y aprovechar la información
+                de clientes, ventas, productos y suplidores para construir
+                indicadores útiles, identificar oportunidades y apoyar
+                decisiones mejor informadas. El alcance específico se
+                definirá durante la evaluación.
+            </p>
         </div>
 
         <button
