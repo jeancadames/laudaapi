@@ -2994,10 +2994,10 @@ function tenantCommercialTerms(
                 <!-- UX01_T15B_LAYOUT_FIX_V1 -->
                 <div class="space-y-6">
                                         <!-- UX01_T16B_INDEPENDENT_CONTEXT_ROW -->
-                    <div class="grid min-w-0 gap-6 xl:grid-cols-[minmax(0,0.9fr)_minmax(0,1.4fr)] xl:items-start">
+                    <div class="grid min-w-0 gap-6 xl:grid-cols-[minmax(0,0.9fr)_minmax(0,1.4fr)] xl:items-stretch">
 <!-- Justificación -->
                     <section
-                        class="rounded-[2rem] border border-slate-200/70 bg-white p-6 shadow-sm sm:p-8 dark:border-slate-800 dark:bg-slate-950"
+                        class="h-full rounded-[2rem] border border-slate-200/70 bg-white p-6 shadow-sm sm:p-8 dark:border-slate-800 dark:bg-slate-950"
                     >
                         <div class="flex items-start gap-3">
                             <div
@@ -3054,7 +3054,7 @@ function tenantCommercialTerms(
                     <!-- Alcance -->
 
 <section
-    class="rounded-[2rem] border border-slate-200/70 bg-white p-6 shadow-sm sm:p-8 dark:border-slate-800 dark:bg-slate-950"
+    class="h-full rounded-[2rem] border border-slate-200/70 bg-white p-6 shadow-sm sm:p-8 dark:border-slate-800 dark:bg-slate-950"
 >
     <!-- D2G_R10_TENANT_SCOPE_COMPACTION -->
     <!-- UX01_T17B_SCOPE_OUTSIDE_ROW -->
@@ -3089,71 +3089,44 @@ function tenantCommercialTerms(
         </button>
     </div>
     <!-- D2G_R10_TENANT_SCOPE_COMPACTION_END -->
+
+
+                    <!-- UX01_T18_INLINE_SCOPE_DETAILS -->
+                    <div
+                        v-show="ux01ScopeExpanded"
+                        id="ux01-bi-scope-details"
+                        class="mt-5 max-h-96 overflow-y-auto border-t border-slate-200/70 pt-5 pr-1 dark:border-slate-800"
+                    >
+                            <p
+                                                                class="mt-2 max-w-3xl text-sm leading-6 text-slate-500 dark:text-slate-400"
+                                                            >
+                                                                El alcance definitivo se delimita durante la
+                                                                evaluación y puede incluir las siguientes áreas,
+                                                                según las necesidades y datos disponibles de tu empresa.
+                                                            </p>
+
+                            <ul
+                                                        class="mt-4 grid gap-3"
+                                                    >
+                                                        <li
+                                                            v-for="item in capabilityIncludesForDisplay"
+                                                            :key="item"
+                                                            class="flex h-full gap-3 rounded-2xl border border-slate-200/70 bg-slate-50/50 p-4 text-sm leading-6 text-slate-600 dark:border-slate-800 dark:bg-slate-900/20 dark:text-slate-300"
+                                                        >
+                                                            <CheckCircle2
+                                                                class="mt-1 h-4 w-4 shrink-0 text-emerald-600 dark:text-emerald-400"
+                                                            />
+
+                                                            <span>{{ item }}</span>
+                                                        </li>
+                                                    </ul>
+                    </div>
+
 </section>
 
                     </div>
 
-                    <!-- UX01_T17B_FULL_WIDTH_DETAIL -->
-                    <section
-                        v-show="ux01ScopeExpanded"
-                        id="ux01-bi-scope-details"
-                        class="rounded-[2rem] border border-slate-200/70 bg-white p-6 shadow-sm sm:p-8 dark:border-slate-800 dark:bg-slate-950"
-                    >
-<div
-                                :class="
-                                    published_evaluation
-                                        ? 'mt-5 border-t border-slate-200/70 pt-5 dark:border-slate-800'
-                                        : ''
-                                "
-                            >
-                        <div class="flex items-start gap-3">
-                            <div
-                                class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-blue-50 text-blue-600 dark:bg-blue-950/30 dark:text-blue-300"
-                            >
-                                <Layers3 class="h-5 w-5" />
-                            </div>
 
-                            <div>
-                                <p
-                                    class="text-[10px] font-black tracking-widest text-slate-400 uppercase"
-                                >
-                                    Datos BI
-                                </p>
-
-                                <h2
-                                    class="mt-1 text-xl font-black text-slate-950 dark:text-white"
-                                >
-                                    Alcance potencial del servicio
-                                </h2>
-
-                                <p
-                                    class="mt-2 max-w-3xl text-sm leading-6 text-slate-500 dark:text-slate-400"
-                                >
-                                    El alcance definitivo se delimita durante la
-                                    evaluación y puede incluir las siguientes áreas,
-                                    según las necesidades y datos disponibles de tu empresa.
-                                </p>
-                            </div>
-                        </div>
-
-                        <ul
-                            class="mt-6 grid gap-3 md:grid-cols-2"
-                        >
-                            <li
-                                v-for="item in capabilityIncludesForDisplay"
-                                :key="item"
-                                class="flex h-full gap-3 rounded-2xl border border-slate-200/70 bg-slate-50/50 p-4 text-sm leading-6 text-slate-600 dark:border-slate-800 dark:bg-slate-900/20 dark:text-slate-300"
-                            >
-                                <CheckCircle2
-                                    class="mt-1 h-4 w-4 shrink-0 text-emerald-600 dark:text-emerald-400"
-                                />
-
-                                <span>{{ item }}</span>
-                            </li>
-                        </ul>
-
-                            </div>
-                    </section>
 
                 </div>
 
