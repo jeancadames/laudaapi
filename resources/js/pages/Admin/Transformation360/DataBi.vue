@@ -181,6 +181,39 @@ function planStatusLabel(status: string): string {
     }[status]
         ?? status;
 }
+
+const businessImprovementGroups = [
+    {
+        number: '01',
+        title: 'Operaciones',
+        purpose: 'Eficiencia y control de los procesos operativos.',
+        improvements: [
+            'Inventarios, existencias y rotación',
+            'Compras, abastecimiento y suplidores',
+            'Disponibilidad, productividad y costos operativos',
+        ],
+    },
+    {
+        number: '02',
+        title: 'Gestión',
+        purpose: 'Planificación, desempeño y toma de decisiones.',
+        improvements: [
+            'Clientes, segmentos y comportamiento comercial',
+            'Ventas por producto, sucursal y vendedor',
+            'Indicadores, tendencias, riesgos y oportunidades',
+        ],
+    },
+    {
+        number: '03',
+        title: 'Finanzas',
+        purpose: 'Visibilidad y control del desempeño financiero.',
+        improvements: [
+            'Ingresos, costos, márgenes y rentabilidad',
+            'Cuentas por cobrar y exposición financiera',
+            'Análisis histórico y planificación financiera',
+        ],
+    },
+] as const;
 </script>
 
 <template>
@@ -555,22 +588,109 @@ function planStatusLabel(status: string): string {
                 </CardContent>
             </Card>
 
-            <!-- UX02_ADMIN_OVERVIEW_V1 -->
-            <Card v-if="props.capability.scope_items.length">
-                <CardContent class="pt-6">
-                    <details class="group">
-                        <summary class="flex cursor-pointer list-none items-center justify-between gap-3 rounded-md focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring">
+                        <!-- UX02_BI_BUSINESS_GROUPS_V1 -->
+            <Card>
+                <CardHeader class="pb-3">
+                    <CardTitle>
+                        Oportunidades de mejora mediante BI
+                    </CardTitle>
+                    <CardDescription>
+                        Tres ámbitos empresariales para orientar
+                        los objetivos del servicio.
+                    </CardDescription>
+                </CardHeader>
+
+                <CardContent class="space-y-4">
+                    <div class="grid gap-3 lg:grid-cols-3">
+                        <section
+                            v-for="group in businessImprovementGroups"
+                            :key="group.number"
+                            class="rounded-xl border bg-muted/20 p-4"
+                        >
+                            <div class="flex items-start gap-3">
+                                <span
+                                    class="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border bg-background text-xs font-bold text-muted-foreground"
+                                >
+                                    {{ group.number }}
+                                </span>
+
+                                <div>
+                                    <h3 class="font-semibold">
+                                        {{ group.title }}
+                                    </h3>
+                                    <p class="mt-1 text-xs leading-5 text-muted-foreground">
+                                        {{ group.purpose }}
+                                    </p>
+                                </div>
+                            </div>
+
+                            <ul class="mt-4 space-y-2 border-t pt-3 text-sm">
+                                <li
+                                    v-for="improvement in group.improvements"
+                                    :key="improvement"
+                                    class="flex gap-2 leading-5"
+                                >
+                                    <span
+                                        aria-hidden="true"
+                                        class="text-muted-foreground"
+                                    >•</span>
+                                    <span>{{ improvement }}</span>
+                                </li>
+                            </ul>
+                        </section>
+                    </div>
+
+                    <p class="text-xs leading-5 text-muted-foreground">
+                        Estas mejoras son orientativas. Su pertinencia,
+                        alcance y requisitos se determinarán durante
+                        la definición funcional de cada empresa.
+                    </p>
+
+                    <details
+                        v-if="props.capability.scope_items.length"
+                        class="group rounded-lg border px-4 py-3"
+                    >
+                        <summary
+                            class="flex cursor-pointer list-none items-center justify-between gap-3"
+                        >
                             <span>
-                                <span class="block font-semibold">Alcance potencial del servicio</span>
-                                <span class="text-sm text-muted-foreground">{{ props.capability.scope_items.length }} áreas de referencia</span>
+                                <span class="block text-sm font-medium">
+                                    Capacidades de datos de referencia
+                                </span>
+                                <span class="text-xs text-muted-foreground">
+                                    {{ props.capability.scope_items.length }}
+                                    capacidades del catálogo técnico
+                                </span>
                             </span>
-                            <span class="text-xs text-muted-foreground group-open:hidden">Ver áreas</span>
-                            <span class="hidden text-xs text-muted-foreground group-open:inline">Ocultar áreas</span>
+
+                            <span
+                                class="text-xs text-muted-foreground group-open:hidden"
+                            >
+                                Ver detalle
+                            </span>
+                            <span
+                                class="hidden text-xs text-muted-foreground group-open:inline"
+                            >
+                                Ocultar detalle
+                            </span>
                         </summary>
+
                         <div class="mt-4 border-t pt-4">
-                            <p v-if="props.capability.purpose" class="mb-4 text-sm text-muted-foreground">{{ props.capability.purpose }}</p>
+                            <p
+                                v-if="props.capability.purpose"
+                                class="mb-4 text-sm text-muted-foreground"
+                            >
+                                {{ props.capability.purpose }}
+                            </p>
+
                             <ul class="grid gap-2 text-sm md:grid-cols-2">
-                                <li v-for="item in props.capability.scope_items" :key="item" class="rounded-lg border px-3 py-2">{{ item }}</li>
+                                <li
+                                    v-for="item in props.capability.scope_items"
+                                    :key="item"
+                                    class="rounded-lg border px-3 py-2"
+                                >
+                                    {{ item }}
+                                </li>
                             </ul>
                         </div>
                     </details>
