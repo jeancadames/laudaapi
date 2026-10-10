@@ -197,7 +197,7 @@ function planStatusLabel(status: string): string {
                     <p
                         class="text-[10px] font-black tracking-[0.18em] text-[#F53003] uppercase"
                     >
-                        LAUDA 360 · Capacidad profesional
+                        LAUDA 360 · Administración
                     </p>
 
                     <h1
@@ -206,23 +206,14 @@ function planStatusLabel(status: string): string {
                         Datos e Inteligencia BI
                     </h1>
 
-                    <p
-                        class="mt-2 max-w-4xl text-sm font-semibold"
-                    >
-                        {{ props.capability.title }}
-                    </p>
-
-                    <p
-                        v-if="props.capability.purpose"
-                        class="mt-2 max-w-4xl text-sm leading-6 text-muted-foreground"
-                    >
-                        {{ props.capability.purpose }}
+                    <p class="mt-2 max-w-3xl text-sm leading-6 text-muted-foreground">
+                        Gestiona solicitudes y supervisa el avance de las empresas con BI en su Plan 360.
                     </p>
                 </div>
 
                 <Button as-child variant="outline">
                     <Link href="/admin/transformation-360">
-                        Transformación 360
+                        Volver a Transformación 360
                     </Link>
                 </Button>
             </div>
@@ -231,7 +222,7 @@ function planStatusLabel(status: string): string {
                 <Card>
                     <CardHeader class="pb-2">
                         <CardDescription>
-                            Empresas con alcance BI identificado en Plan 360
+                            Empresas con BI en Plan 360
                         </CardDescription>
                         <CardTitle class="text-3xl">
                             {{ props.stats.total }}
@@ -253,7 +244,7 @@ function planStatusLabel(status: string): string {
                 <Card>
                     <CardHeader class="pb-2">
                         <CardDescription>
-                            Definitions listas
+                            Definiciones listas
                         </CardDescription>
                         <CardTitle class="text-3xl">
                             {{ props.stats.ready }}
@@ -262,42 +253,14 @@ function planStatusLabel(status: string): string {
                 </Card>
             </div>
 
-            <Card
-                v-if="props.capability.scope_items.length"
-            >
-                <CardHeader>
-                    <CardTitle>
-                        Alcance potencial del servicio
-                    </CardTitle>
-
-                    <CardDescription>
-                        Áreas de referencia del servicio profesional de LAUDA 360.
-                    </CardDescription>
-                </CardHeader>
-
-                <CardContent>
-                    <ul
-                        class="grid gap-2 text-sm md:grid-cols-2"
-                    >
-                        <li
-                            v-for="item in props.capability.scope_items"
-                            :key="item"
-                            class="rounded-lg border px-3 py-2"
-                        >
-                            {{ item }}
-                        </li>
-                    </ul>
-                </CardContent>
-            </Card>
-
             <Card>
                 <CardHeader>
                     <CardTitle>
-                        Empresas con alcance BI identificado en Plan 360
+                        Empresas y solicitudes BI
                     </CardTitle>
 
                     <CardDescription>
-                        Solo aparecen empresas cuyo Plan 360 identifica Datos e Inteligencia BI como una capacidad profesional aplicable a su contexto.
+                        Empresas cuyo Plan 360 incluye esta capacidad. Consulta sus estados y expedientes.
                     </CardDescription>
                 </CardHeader>
 
@@ -306,7 +269,7 @@ function planStatusLabel(status: string): string {
                         v-if="props.rows.length === 0"
                         class="rounded-xl border border-dashed p-10 text-center text-sm text-muted-foreground"
                     >
-                        No hay Planes con Datos BI actualmente.
+                        No hay empresas con BI identificado en sus Planes 360.
                     </div>
 
                     <div
@@ -316,12 +279,12 @@ function planStatusLabel(status: string): string {
                         <div
                             v-for="row in props.rows"
                             :key="row.assessment_id"
-                            class="rounded-xl border p-4"
+                            class="rounded-xl border p-4 transition-colors hover:bg-muted/20"
                         >
                             <div
                                 class="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between"
                             >
-                                <div>
+                                <div class="min-w-0 flex-1">
                                     <div
                                         class="flex flex-wrap items-center gap-2"
                                     >
@@ -329,15 +292,11 @@ function planStatusLabel(status: string): string {
                                             {{ row.company }}
                                         </h2>
 
-                                        <Badge variant="secondary">
-                                            Servicio profesional opcional
-                                        </Badge>
-
                                         <Badge variant="outline">
                                             {{
                                                 row.implementation_request
                                                     ?.status_label
-                                                    ?? 'Sin solicitud BI'
+                                                    ?? 'Sin solicitud'
                                             }}
                                         </Badge>
 
@@ -350,7 +309,7 @@ function planStatusLabel(status: string): string {
                                     </div>
 
                                     <p
-                                        class="mt-1 text-sm text-muted-foreground"
+                                        class="mt-1 break-words text-sm text-muted-foreground"
                                     >
                                         {{ row.contact.name }}
                                         ·
@@ -366,10 +325,13 @@ function planStatusLabel(status: string): string {
                                         {{ planStatusLabel(row.plan.status) }}
                                     </p>
 
-                                    <div
-                                        v-if="row.implementation_request"
-                                        class="mt-3 flex flex-wrap items-center gap-2"
-                                    >
+                                    <details v-if="row.implementation_request" class="group mt-3 rounded-lg border bg-muted/20 p-3">
+                                        <summary class="flex cursor-pointer list-none items-center justify-between gap-2 text-xs font-medium">
+                                            <span>Datos · {{ row.data_preparation?.stage_label ?? 'Sin procesamiento' }}</span>
+                                            <span class="text-muted-foreground group-open:hidden">Ver detalles</span>
+                                            <span class="hidden text-muted-foreground group-open:inline">Ocultar detalles</span>
+                                        </summary>
+                                        <div class="mt-3 flex flex-wrap items-center gap-2">
                                         <Badge
                                             :variant="
                                                 row.data_preparation
@@ -569,61 +531,49 @@ function planStatusLabel(status: string): string {
                                                 con advertencias
                                             </template>
                                         </span>
-
-                                    </div>
-
+                                        </div>
+                                    </details>
                                 </div>
 
-                                <div class="flex flex-wrap gap-2">
-                                    <Button
-                                        as-child
-                                        size="sm"
-                                        variant="outline"
-                                    >
-                                        <Link :href="row.urls.diagnosis">
-                                            Ver Diagnóstico 360
-                                        </Link>
+                                <div class="flex flex-wrap items-center gap-2 lg:max-w-[350px] lg:justify-end">
+                                    <Button v-if="row.implementation_request" as-child size="sm">
+                                        <Link :href="row.implementation_request.detail_url">Ver solicitud BI</Link>
                                     </Button>
-
-                                    <Button
-                                        as-child
-                                        size="sm"
-                                        variant="outline"
-                                    >
-                                        <Link
-                                            :href="row.urls.implementation_plan"
-                                        >
-                                            Ver Plan 360 completo
-                                        </Link>
+                                    <span v-else class="rounded-md border bg-muted/40 px-3 py-2 text-xs text-muted-foreground">
+                                        Esperando solicitud del cliente
+                                    </span>
+                                    <Button as-child size="sm" variant="outline">
+                                        <Link :href="row.urls.diagnosis">Ver Diagnóstico 360</Link>
                                     </Button>
-
-                                    <Button
-                                        v-if="row.implementation_request"
-                                        as-child
-                                        size="sm"
-                                    >
-                                        <Link
-                                            :href="
-                                                row.implementation_request
-                                                    .detail_url
-                                            "
-                                        >
-                                            Ver solicitud BI
-                                        </Link>
-                                    </Button>
-
-                                    <Button
-                                        v-else
-                                        size="sm"
-                                        variant="secondary"
-                                        disabled
-                                    >
-                                        Esperando solicitud de BI
+                                    <Button as-child size="sm" variant="outline">
+                                        <Link :href="row.urls.implementation_plan">Ver Plan 360</Link>
                                     </Button>
                                 </div>
                             </div>
                         </div>
                     </div>
+                </CardContent>
+            </Card>
+
+            <!-- UX02_ADMIN_OVERVIEW_V1 -->
+            <Card v-if="props.capability.scope_items.length">
+                <CardContent class="pt-6">
+                    <details class="group">
+                        <summary class="flex cursor-pointer list-none items-center justify-between gap-3 rounded-md focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring">
+                            <span>
+                                <span class="block font-semibold">Alcance potencial del servicio</span>
+                                <span class="text-sm text-muted-foreground">{{ props.capability.scope_items.length }} áreas de referencia</span>
+                            </span>
+                            <span class="text-xs text-muted-foreground group-open:hidden">Ver áreas</span>
+                            <span class="hidden text-xs text-muted-foreground group-open:inline">Ocultar áreas</span>
+                        </summary>
+                        <div class="mt-4 border-t pt-4">
+                            <p v-if="props.capability.purpose" class="mb-4 text-sm text-muted-foreground">{{ props.capability.purpose }}</p>
+                            <ul class="grid gap-2 text-sm md:grid-cols-2">
+                                <li v-for="item in props.capability.scope_items" :key="item" class="rounded-lg border px-3 py-2">{{ item }}</li>
+                            </ul>
+                        </div>
+                    </details>
                 </CardContent>
             </Card>
 
