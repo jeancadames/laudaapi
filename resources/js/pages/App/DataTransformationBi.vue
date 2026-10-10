@@ -7714,15 +7714,70 @@ function tenantCommercialTerms(
                                     <h3 class="text-base font-bold text-slate-950 dark:text-white">¿Qué deseas mejorar con BI?</h3>
                                     <p class="mt-1 text-sm text-slate-600 dark:text-slate-300">Selecciona las mejoras que se ajustan a tu empresa. Puedes combinar Operaciones, Gestión y Finanzas.</p>
                                 </div>
-                                <div class="grid gap-3 lg:grid-cols-3">
-                                    <fieldset v-for="group in props.request_business_groups" :key="group.key" class="min-w-0 rounded-xl border p-4 dark:border-slate-700">
+                                <!-- UX01_T13_CHECKBOX_CLARITY_V1 -->
+                                <div class="grid gap-4 lg:grid-cols-3">
+                                    <fieldset
+                                        v-for="group in props.request_business_groups"
+                                        :key="group.key"
+                                        class="min-w-0 rounded-2xl border border-slate-200 bg-slate-50/60 p-4 sm:p-5 dark:border-slate-700 dark:bg-slate-900/30"
+                                    >
                                         <legend class="sr-only">{{ group.title }}</legend>
-                                        <p class="font-bold text-slate-950 dark:text-white">{{ group.title }}</p>
-                                        <p class="mt-1 text-xs leading-5 text-slate-500 dark:text-slate-400">{{ group.purpose }}</p>
-                                        <div class="mt-3 space-y-3">
-                                            <label v-for="item in group.improvements" :key="item.key" class="flex cursor-pointer items-start gap-2 text-sm leading-5 text-slate-800 dark:text-slate-200">
-                                                <input type="checkbox" class="mt-1 h-4 w-4 shrink-0 rounded border-slate-300" :checked="requestNeedsForm.selected_improvements.includes(item.key)" @change="toggleBusinessImprovement(item.key)" />
-                                                <span>{{ item.label }}</span>
+
+                                        <div class="flex items-start justify-between gap-3">
+                                            <p class="text-base font-bold text-slate-950 dark:text-white">
+                                                {{ group.title }}
+                                            </p>
+                                            <span class="shrink-0 text-xs font-medium text-slate-500 dark:text-slate-400">
+                                                {{ group.improvements.filter(item => requestNeedsForm.selected_improvements.includes(item.key)).length }} / {{ group.improvements.length }}
+                                            </span>
+                                        </div>
+
+                                        <p class="mt-1 text-xs leading-5 text-slate-600 dark:text-slate-400">
+                                            {{ group.purpose }}
+                                        </p>
+
+                                        <div class="mt-4 space-y-2">
+                                            <label
+                                                v-for="item in group.improvements"
+                                                :key="item.key"
+                                                class="flex min-h-14 cursor-pointer items-start gap-3 rounded-xl border px-3 py-3 text-sm leading-5 transition-colors focus-within:ring-2 focus-within:ring-blue-500 focus-within:ring-offset-2 dark:focus-within:ring-offset-slate-900"
+                                                :class="requestNeedsForm.selected_improvements.includes(item.key)
+                                                    ? 'border-blue-500 bg-blue-50 dark:border-blue-400 dark:bg-blue-950/40'
+                                                    : 'border-slate-200 bg-white hover:border-slate-400 hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-950 dark:hover:border-slate-500'"
+                                            >
+                                                <input
+                                                    type="checkbox"
+                                                    class="sr-only"
+                                                    :checked="requestNeedsForm.selected_improvements.includes(item.key)"
+                                                    @change="toggleBusinessImprovement(item.key)"
+                                                />
+
+                                                <span
+                                                    aria-hidden="true"
+                                                    class="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-md border-2 shadow-sm"
+                                                    :class="requestNeedsForm.selected_improvements.includes(item.key)
+                                                        ? 'border-blue-600 bg-blue-600 dark:border-blue-400 dark:bg-blue-500'
+                                                        : 'border-slate-500 bg-white dark:border-slate-400 dark:bg-slate-900'"
+                                                >
+                                                    <svg
+                                                        v-if="requestNeedsForm.selected_improvements.includes(item.key)"
+                                                        xmlns="http://www.w3.org/2000/svg"
+                                                        width="14"
+                                                        height="14"
+                                                        viewBox="0 0 24 24"
+                                                        fill="none"
+                                                        stroke="white"
+                                                        stroke-width="3"
+                                                        stroke-linecap="round"
+                                                        stroke-linejoin="round"
+                                                    >
+                                                        <path d="m5 12 4 4L19 6" />
+                                                    </svg>
+                                                </span>
+
+                                                <span class="min-w-0 flex-1 font-medium text-slate-800 dark:text-slate-200">
+                                                    {{ item.label }}
+                                                </span>
                                             </label>
                                         </div>
                                     </fieldset>
