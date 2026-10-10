@@ -43,8 +43,8 @@ final class DiagnosisTransformationDeliverablesUxContractTest extends TestCase
             'diagnosisPublished && adminExpandedReportUrl',
             'expandedReportAvailable &&',
             'adminRoadmapUrl',
-            'Informe generado automáticamente',
-            'Roadmap generado automáticamente tras el Informe',
+            'Disponible después de publicar el diagnóstico',
+            'Disponible tras presentar el Informe Ampliado',
             'Gestionar Informe Ampliado',
             'Gestionar Roadmap Detallado',
         ] as $token) {
@@ -96,7 +96,7 @@ final class DiagnosisTransformationDeliverablesUxContractTest extends TestCase
         );
 
         foreach ([
-            "'grid gap-4'",
+            "'grid gap-2'",
             "'grid gap-4 xl:grid-cols-2'",
             'p-5 shadow-sm',
             'Siguiente acción:',

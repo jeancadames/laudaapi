@@ -107,7 +107,7 @@ const expandedStatus = computed(() => {
     if (expandedReportValidated.value) return 'Validado';
     if (expandedReportReviewed.value) return 'Revisado';
     if (expandedReportAvailable.value) return 'Presentado';
-    if (diagnosisPublished.value) return 'Generando';
+    if (diagnosisPublished.value) return 'No presentado';
 
     return 'Pendiente';
 });
@@ -116,7 +116,7 @@ const roadmapStatus = computed(() => {
     if (roadmapValidated.value) return 'Validado';
     if (roadmapReviewed.value) return 'Revisado';
     if (roadmapAvailable.value) return 'Presentado';
-    if (diagnosisPublished.value) return 'Generando';
+    if (diagnosisPublished.value) return 'No presentado';
 
     return 'Pendiente';
 });
@@ -130,7 +130,7 @@ function statusClass(status: string): string {
         return 'border-primary/20 bg-primary/5 text-primary';
     }
 
-    if (status === 'En revisión' || status === 'Revisado' || status === 'Generando') {
+    if (status === 'En revisión' || status === 'Revisado' || status === 'No presentado') {
         return 'border-amber-200 bg-amber-50 text-amber-800 dark:border-amber-900 dark:bg-amber-950/30 dark:text-amber-200';
     }
 
@@ -148,6 +148,7 @@ const disabledClass =
 </script>
 
 <template>
+    <!-- UX04_T1_ADMIN_COMPACT -->
     <section class="rounded-2xl border bg-card p-5 shadow-sm sm:p-6">
         <div class="mb-5">
             <p
@@ -166,12 +167,13 @@ const disabledClass =
 
         <div
             :class="
-                mode === 'admin' ? 'grid gap-5' : 'grid gap-4 md:grid-cols-3'
+                mode === 'admin' ? 'grid gap-4 lg:grid-cols-3' : 'grid gap-4 md:grid-cols-3'
             "
         >
             <article
-                id="informe-diagnostico"
-                class="flex min-h-[250px] flex-col rounded-2xl border bg-background p-5"
+                :id="mode === 'client' ? 'informe-diagnostico' : undefined"
+                class="flex flex-col rounded-2xl border bg-background"
+                :class="mode === 'admin' ? 'min-h-[190px] p-4' : 'min-h-[250px] p-5'"
             >
                 <div class="flex items-start justify-between gap-3">
                     <div
@@ -234,7 +236,8 @@ const disabledClass =
 
             <article
                 id="informe-ampliado"
-                class="flex min-h-[250px] flex-col rounded-2xl border bg-background p-5"
+                class="flex flex-col rounded-2xl border bg-background"
+                :class="mode === 'admin' ? 'min-h-[190px] p-4' : 'min-h-[250px] p-5'"
             >
                 <div class="flex items-start justify-between gap-3">
                     <div
@@ -294,14 +297,15 @@ const disabledClass =
 
                         <span v-else :class="disabledClass">
                             <Clock3 class="size-4" />
-                            Informe generado automáticamente
+                            Disponible después de publicar el diagnóstico
                         </span>
                     </template>
                 </div>
             </article>
 
             <article
-                class="flex min-h-[250px] flex-col rounded-2xl border bg-background p-5"
+                class="flex flex-col rounded-2xl border bg-background"
+                :class="mode === 'admin' ? 'min-h-[190px] p-4' : 'min-h-[250px] p-5'"
             >
                 <div class="flex items-start justify-between gap-3">
                     <div
@@ -358,7 +362,7 @@ const disabledClass =
 
                         <span v-else :class="disabledClass">
                             <Clock3 class="size-4" />
-                            Roadmap generado automáticamente tras el Informe
+                            Disponible tras presentar el Informe Ampliado
                         </span>
                     </template>
                 </div>
@@ -438,7 +442,7 @@ const disabledClass =
             class="mt-4 flex items-center gap-2 text-xs font-semibold text-emerald-700 dark:text-emerald-300"
         >
             <CheckCircle2 class="size-4" />
-            Entregables del Diagnóstico 360 presentados automáticamente.
+            Informe Ampliado y Roadmap Detallado presentados.
         </div>
     </section>
 </template>

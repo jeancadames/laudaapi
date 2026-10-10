@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { CheckCircle2, Circle, Clock3, ShieldAlert } from 'lucide-vue-next';
+import { ref } from 'vue';
 
 import { Badge } from '@/components/ui/badge';
 import {
@@ -14,6 +15,8 @@ defineProps<{
     progress: Record<string, any> | null;
     admin?: boolean;
 }>();
+
+const adminStepDetailsExpanded = ref(false);
 
 function formatDate(value: string | null) {
     if (!value) return null;
@@ -72,7 +75,7 @@ function statusLabel(status: string) {
             </div>
         </CardHeader>
 
-        <CardContent class="space-y-6 p-5 sm:p-6">
+        <CardContent class="p-5 sm:p-6" :class="admin ? 'space-y-4' : 'space-y-6'">
             <div
                 v-if="progress.current_step_label"
                 class="rounded-2xl border border-primary/20 bg-primary/5 p-5"
@@ -105,7 +108,22 @@ function statusLabel(status: string) {
                 </div>
             </div>
 
-            <div :class="admin ? 'grid gap-4' : 'grid gap-4 xl:grid-cols-2'">
+            <!-- UX04_T1_ADMIN_COMPACT -->
+            <button
+                v-if="admin"
+                type="button"
+                class="inline-flex min-h-10 items-center gap-2 rounded-xl border bg-background px-4 py-2 text-sm font-semibold transition hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+                :aria-expanded="adminStepDetailsExpanded"
+                @click="adminStepDetailsExpanded = !adminStepDetailsExpanded"
+            >
+                {{
+                    adminStepDetailsExpanded
+                        ? 'Ocultar descripciones de los pasos'
+                        : 'Ver descripciones de los pasos'
+                }}
+            </button>
+
+            <div :class="admin ? 'grid gap-2' : 'grid gap-4 xl:grid-cols-2'">
                 <div
                     v-for="(step, index) in progress.steps"
                     :key="step.code"
@@ -117,6 +135,7 @@ function statusLabel(status: string) {
                             step.status === 'current',
                         'border-destructive/30 bg-destructive/5':
                             step.status === 'blocked',
+                        '!p-3': admin,
                     }"
                 >
                     <div class="flex items-start gap-4">
@@ -175,13 +194,14 @@ function statusLabel(status: string) {
                             </div>
 
                             <p
+                                v-if="!admin || adminStepDetailsExpanded"
                                 class="mt-3 text-sm leading-6 text-muted-foreground"
                             >
                                 {{ step.description }}
                             </p>
 
                             <p
-                                v-if="step.occurred_at"
+                                v-if="step.occurred_at && (!admin || adminStepDetailsExpanded)"
                                 class="mt-3 text-xs font-medium text-muted-foreground"
                             >
                                 {{ formatDate(step.occurred_at) }}
@@ -190,6 +210,7 @@ function statusLabel(status: string) {
                             <div
                                 v-if="
                                     admin &&
+                                    adminStepDetailsExpanded &&
                                     (step.admin_detail ||
                                         (['current', 'blocked'].includes(
                                             step.status,

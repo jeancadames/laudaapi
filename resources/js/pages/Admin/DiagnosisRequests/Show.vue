@@ -1455,31 +1455,7 @@ function publish() {
                                 <div
                                     class="flex flex-wrap items-center justify-between gap-2"
                                 >
-                                    <Card
-                                        v-if="
-                                            assessment?.status === 'reviewed' &&
-                                            assessment?.published_at
-                                        "
-                                    >
-                                        <CardHeader>
-                                            <CardTitle>
-                                                Informe Ampliado LAUDA 360
-                                            </CardTitle>
-                                            <CardDescription>
-                                                Entregable posterior al
-                                                diagnóstico inicial sin costo.
-                                            </CardDescription>
-                                        </CardHeader>
-                                        <CardContent>
-                                            <Button as-child>
-                                                <Link
-                                                    :href="`/admin/diagnosis-requests/${contact.id}/expanded-report`"
-                                                >
-                                                    Gestionar Informe Ampliado
-                                                </Link>
-                                            </Button>
-                                        </CardContent>
-                                    </Card>
+<!-- UX04_T1_ADMIN_COMPACT -->
 
                                     <CardTitle>
                                         Revisión LAUDA y publicación
