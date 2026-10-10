@@ -2990,7 +2990,13 @@ function tenantCommercialTerms(
                 class="grid gap-6 xl:items-start"
                 :class="implementation_request.can_request ? 'xl:grid-cols-1' : 'xl:grid-cols-[minmax(0,1.55fr)_minmax(18rem,0.8fr)]'"
             >
-                <div class="space-y-6">
+                <!-- UX01_T15B_LAYOUT_FIX_V1 -->
+                <div
+                    class="space-y-6"
+                    :class="implementation_request.can_request
+                        ? 'xl:grid xl:grid-cols-2 xl:items-start xl:gap-6 xl:space-y-0'
+                        : ''"
+                >
                     <!-- Justificación -->
                     <section
                         class="rounded-[2rem] border border-slate-200/70 bg-white p-6 shadow-sm sm:p-8 dark:border-slate-800 dark:bg-slate-950"
@@ -7378,9 +7384,12 @@ function tenantCommercialTerms(
 
                 </div>
 
-                <!-- Columna de contexto -->
+                <!-- Columna de contexto / solicitud -->
                 <aside
-                    class="space-y-6 xl:col-start-2 xl:row-start-1 xl:sticky xl:top-6"
+                    class="min-w-0 space-y-6"
+                    :class="implementation_request.can_request
+                        ? 'xl:col-auto xl:row-auto xl:static xl:top-auto'
+                        : 'xl:col-start-2 xl:row-start-1 xl:sticky xl:top-6'"
                 >
                     <section
                         class="rounded-[2rem] border border-blue-200/70 bg-blue-50/50 p-6 shadow-sm dark:border-blue-950 dark:bg-blue-950/10"
