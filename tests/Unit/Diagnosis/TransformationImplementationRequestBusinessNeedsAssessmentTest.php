@@ -2,12 +2,157 @@
 
 namespace Tests\Unit\Diagnosis;
 
+use App\Models\TransformationImplementationDefinition;
+use App\Models\TransformationImplementationRequest;
 use App\Services\Diagnosis\TransformationImplementationRequestBusinessNeedsAssessment;
 use Illuminate\Validation\ValidationException;
 use Tests\TestCase;
 
 final class TransformationImplementationRequestBusinessNeedsAssessmentTest extends TestCase
 {
+
+    // BI11_T1 · Validación adicional en puntos críticos.
+
+    private function transitionModels(
+        array $snapshot,
+        array $scope
+    ): array {
+        $request = new TransformationImplementationRequest();
+
+        $request->forceFill([
+            'capability_key' => 'data_transformation_bi',
+            'source_snapshot' => $snapshot,
+        ]);
+
+        $definition = new TransformationImplementationDefinition();
+
+        $definition->forceFill([
+            'implementation_scope' => $scope,
+        ]);
+
+        return [$request, $definition];
+    }
+
+    public function test_transition_rejects_missing_assessment(): void
+    {
+        [$request, $definition] = $this->transitionModels(
+            $this->snapshot(),
+            ['purpose' => 'Alcance BI']
+        );
+
+        $this->expectException(ValidationException::class);
+
+        TransformationImplementationRequestBusinessNeedsAssessment::assertTransitionReady(
+            $request,
+            $definition
+        );
+    }
+
+    public function test_transition_rejects_pending_assessment(): void
+    {
+        [$request, $definition] = $this->transitionModels(
+            $this->snapshot(),
+            $this->scope([
+                [
+                    'key' => 'operaciones:uno',
+                    'status' => 'included',
+                    'rationale' => '',
+                ],
+                [
+                    'key' => 'finanzas:dos',
+                    'status' => 'pending',
+                    'rationale' => '',
+                ],
+            ])
+        );
+
+        $this->expectException(ValidationException::class);
+
+        TransformationImplementationRequestBusinessNeedsAssessment::assertTransitionReady(
+            $request,
+            $definition
+        );
+    }
+
+    public function test_transition_accepts_complete_assessment(): void
+    {
+        [$request, $definition] = $this->transitionModels(
+            $this->snapshot(),
+            $this->scope([
+                [
+                    'key' => 'operaciones:uno',
+                    'status' => 'included',
+                    'rationale' => '',
+                ],
+                [
+                    'key' => 'finanzas:dos',
+                    'status' => 'excluded',
+                    'rationale' => 'Exclusión revisada por LAUDA.',
+                ],
+            ])
+        );
+
+        TransformationImplementationRequestBusinessNeedsAssessment::assertTransitionReady(
+            $request,
+            $definition
+        );
+
+        $this->assertTrue(true);
+    }
+
+    public function test_legacy_transition_without_business_needs_is_compatible(): void
+    {
+        [$request, $definition] = $this->transitionModels(
+            [],
+            ['purpose' => 'Alcance histórico']
+        );
+
+        TransformationImplementationRequestBusinessNeedsAssessment::assertTransitionReady(
+            $request,
+            $definition
+        );
+
+        $this->assertTrue(true);
+    }
+
+    public function test_transition_gates_precede_state_changes(): void
+    {
+        $tenant = file_get_contents(
+            base_path(
+                'app/Services/Diagnosis/TransformationImplementationRequestDefinitionTenantReviewService.php'
+            )
+        );
+
+        $closure = file_get_contents(
+            base_path(
+                'app/Services/Diagnosis/TransformationImplementationRequestDefinitionFunctionalClosureService.php'
+            )
+        );
+
+        $this->assertIsString($tenant);
+        $this->assertIsString($closure);
+
+        $needle =
+            'TransformationImplementationRequestBusinessNeedsAssessment::assertTransitionReady(';
+
+        $tenantGate = strpos($tenant, $needle);
+        $tenantTransition = strpos($tenant, '->transitionByLauda(');
+
+        $closureGate = strpos($closure, $needle);
+        $closureSync = strpos(
+            $closure,
+            '$this->synchronizeDataBiSourceReadiness('
+        );
+
+        $this->assertNotFalse($tenantGate);
+        $this->assertNotFalse($tenantTransition);
+        $this->assertNotFalse($closureGate);
+        $this->assertNotFalse($closureSync);
+
+        $this->assertLessThan($tenantTransition, $tenantGate);
+        $this->assertLessThan($closureSync, $closureGate);
+    }
+
     private function snapshot(): array
     {
         return [

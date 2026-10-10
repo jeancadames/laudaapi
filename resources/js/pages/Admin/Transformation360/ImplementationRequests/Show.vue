@@ -10655,7 +10655,11 @@ function commercialSnapshotText(value: unknown): string {
                         >
                             <div>
                                 <p class="text-sm font-black">
-                                    Alcance funcional
+                                    {{
+                                        humanReviewForm.readiness.scope_confirmed
+                                            ? 'Alcance funcional revisado por LAUDA'
+                                            : 'Alcance funcional propuesto por LAUDA'
+                                    }}
                                 </p>
 
                                 <p

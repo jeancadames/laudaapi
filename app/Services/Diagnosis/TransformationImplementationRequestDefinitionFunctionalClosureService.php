@@ -185,6 +185,13 @@ final class TransformationImplementationRequestDefinitionFunctionalClosureServic
                     $definitionVersion
                 );
 
+                // BI11_T1 · La versión acordada debe conservar
+                // evaluaciones completas y válidas.
+                TransformationImplementationRequestBusinessNeedsAssessment::assertTransitionReady(
+                    $lockedRequest,
+                    $lockedDefinition
+                );
+
                 /*
                  * Datos BI separa:
                  *

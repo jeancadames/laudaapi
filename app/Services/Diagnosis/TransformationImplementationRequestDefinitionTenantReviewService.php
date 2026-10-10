@@ -95,6 +95,13 @@ final class TransformationImplementationRequestDefinitionTenantReviewService
                     $lockedDefinition
                 );
 
+                // BI11_T1 · Revalidar necesidades originales
+                // antes de cualquier transición al tenant.
+                TransformationImplementationRequestBusinessNeedsAssessment::assertTransitionReady(
+                    $lockedRequest,
+                    $lockedDefinition
+                );
+
                 /*
                  * Esta es la única transición de lifecycle
                  * realizada por este servicio.

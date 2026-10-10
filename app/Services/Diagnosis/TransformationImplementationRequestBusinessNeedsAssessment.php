@@ -2,6 +2,8 @@
 
 namespace App\Services\Diagnosis;
 
+use App\Models\TransformationImplementationDefinition;
+use App\Models\TransformationImplementationRequest;
 use Illuminate\Validation\ValidationException;
 
 final class TransformationImplementationRequestBusinessNeedsAssessment
@@ -12,6 +14,52 @@ final class TransformationImplementationRequestBusinessNeedsAssessment
         'clarification',
         'excluded',
     ];
+
+    /**
+     * BI11_T1 · Control antes de presentar o cerrar.
+     *
+     * Lee únicamente la solicitud original y la definición
+     * persistida. No modifica registros ni snapshots.
+     */
+    public static function assertTransitionReady(
+        TransformationImplementationRequest $request,
+        TransformationImplementationDefinition $definition
+    ): void {
+        if (
+            trim((string) $request->capability_key)
+            !== 'data_transformation_bi'
+        ) {
+            return;
+        }
+
+        $snapshot = $request->source_snapshot;
+
+        if (is_string($snapshot)) {
+            $snapshot = json_decode($snapshot, true);
+        }
+
+        if (! is_array($snapshot)) {
+            self::fail(
+                'No se pudo verificar el origen de las necesidades de la solicitud.'
+            );
+        }
+
+        $scope = $definition->implementation_scope;
+
+        if (! is_array($scope)) {
+            self::fail(
+                'La definición no contiene un alcance funcional válido.'
+            );
+        }
+
+        // Fuerza la revisión completa independientemente
+        // de los flags guardados previamente.
+        self::normalize(
+            $snapshot,
+            $scope,
+            ['scope_confirmed' => true]
+        );
+    }
 
     public static function normalize(
         array $sourceSnapshot,
