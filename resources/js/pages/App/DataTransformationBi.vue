@@ -2991,13 +2991,10 @@ function tenantCommercialTerms(
                 :class="implementation_request.can_request ? 'xl:grid-cols-1' : 'xl:grid-cols-[minmax(0,1.55fr)_minmax(18rem,0.8fr)]'"
             >
                 <!-- UX01_T15B_LAYOUT_FIX_V1 -->
-                <div
-                    class="space-y-6"
-                    :class="implementation_request.can_request
-                        ? 'xl:grid xl:grid-cols-2 xl:items-start xl:gap-6 xl:space-y-0'
-                        : ''"
-                >
-                    <!-- Justificación -->
+                <div class="space-y-6">
+                                        <!-- UX01_T16B_INDEPENDENT_CONTEXT_ROW -->
+                    <div class="grid min-w-0 gap-6 xl:grid-cols-[minmax(0,0.9fr)_minmax(0,1.4fr)] xl:items-start">
+<!-- Justificación -->
                     <section
                         class="rounded-[2rem] border border-slate-200/70 bg-white p-6 shadow-sm sm:p-8 dark:border-slate-800 dark:bg-slate-950"
                     >
@@ -3162,6 +3159,7 @@ function tenantCommercialTerms(
                         </details>
                         <!-- D2G_R10_TENANT_SCOPE_COMPACTION_END -->
 </section>
+                    </div>
                 </div>
 
                 <!-- Contenido posterior al alcance · ancho completo -->
