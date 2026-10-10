@@ -9745,8 +9745,8 @@ function commercialSnapshotText(value: unknown): string {
                 </div>
             </section>
 
-            <div class="grid gap-6 xl:grid-cols-[1fr_0.72fr]">
-                <div class="space-y-6">
+            <div class="grid gap-6 xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
+                <div class="min-w-0 space-y-6">
                     <section
                         class="rounded-[2rem] border border-slate-200/70 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-950"
                     >
@@ -9810,152 +9810,13 @@ function commercialSnapshotText(value: unknown): string {
                             </div>
                         </div>
 
-                        <div
-                            v-if="implementation_request.business_needs || implementation_request.tenant_note"
-                            class="mt-5 rounded-2xl border border-slate-200 bg-slate-50/60 p-5 dark:border-slate-800 dark:bg-slate-900/30"
-                        >
-                            <h3 class="text-base font-bold text-slate-950 dark:text-white">
-                                Necesidades y objetivos de la empresa
-                            </h3>
 
-                            <template v-if="implementation_request.business_needs">
-                                <div class="mt-5">
-                                    <p class="text-xs font-semibold text-slate-500 dark:text-slate-400">
-                                        Ámbitos seleccionados
-                                    </p>
-                                    <div class="mt-2 flex flex-wrap gap-2">
-                                        <span
-                                            v-for="group in implementation_request.business_needs.groups"
-                                            :key="group"
-                                            class="rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-semibold text-slate-700 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-200"
-                                        >
-                                            {{ businessNeedsGroupLabels[group] || group }}
-                                        </span>
-                                    </div>
-                                </div>
-
-                                <div class="mt-5">
-                                    <p class="text-xs font-semibold text-slate-500 dark:text-slate-400">
-                                        Mejoras solicitadas
-                                    </p>
-                                    <ul class="mt-2 grid gap-2 md:grid-cols-2">
-                                        <li
-                                            v-for="improvement in implementation_request.business_needs.improvements"
-                                            :key="improvement.key"
-                                            class="rounded-xl border border-slate-200 bg-white p-3 dark:border-slate-700 dark:bg-slate-950"
-                                        >
-                                            <p class="text-xs text-slate-500 dark:text-slate-400">
-                                                {{ improvement.group_label }}
-                                            </p>
-                                            <p class="mt-1 text-sm font-medium text-slate-900 dark:text-white">
-                                                {{ improvement.label }}
-                                            </p>
-                                        </li>
-                                    </ul>
-                                </div>
-
-                                <div class="mt-5 grid gap-4 lg:grid-cols-2">
-                                    <div>
-                                        <p class="text-xs font-semibold text-slate-500 dark:text-slate-400">
-                                            Necesidad principal
-                                        </p>
-                                        <p class="mt-2 whitespace-pre-line text-sm leading-6 text-slate-800 dark:text-slate-200">
-                                            {{ implementation_request.business_needs.need }}
-                                        </p>
-                                    </div>
-                                    <div>
-                                        <p class="text-xs font-semibold text-slate-500 dark:text-slate-400">
-                                            Resultado esperado
-                                        </p>
-                                        <p class="mt-2 whitespace-pre-line text-sm leading-6 text-slate-800 dark:text-slate-200">
-                                            {{ implementation_request.business_needs.expected_result }}
-                                        </p>
-                                    </div>
-                                </div>
-
-                                <div
-                                    v-if="implementation_request.business_needs.additional_info"
-                                    class="mt-5 border-t border-slate-200 pt-4 dark:border-slate-800"
-                                >
-                                    <p class="text-xs font-semibold text-slate-500 dark:text-slate-400">
-                                        Información adicional
-                                    </p>
-                                    <p class="mt-2 whitespace-pre-line text-sm leading-6 text-slate-800 dark:text-slate-200">
-                                        {{ implementation_request.business_needs.additional_info }}
-                                    </p>
-                                </div>
-                            </template>
-
-                            <template v-else>
-                                <p class="mt-3 text-xs font-semibold text-slate-500 dark:text-slate-400">
-                                    Nota de la empresa
-                                </p>
-                                <p class="mt-2 whitespace-pre-line text-sm leading-6 text-slate-600 dark:text-slate-300">
-                                    {{ implementation_request.tenant_note }}
-                                </p>
-                            </template>
-                        </div>
                     </section>
 
-                    <section
-                        class="rounded-[2rem] border border-slate-200/70 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-950"
-                    >
-                        <h2
-                            class="text-lg font-black text-slate-950 dark:text-white"
-                        >
-                            Historial
-                        </h2>
 
-                        <div
-                            v-if="events.length"
-                            class="mt-6 space-y-5"
-                        >
-                            <div
-                                v-for="event in events"
-                                :key="event.id"
-                                class="flex gap-4"
-                            >
-                                <div
-                                    class="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-slate-200 bg-slate-50 dark:border-slate-800 dark:bg-slate-900"
-                                >
-                                    <CheckCircle2 class="h-4 w-4" />
-                                </div>
-
-                                <div class="min-w-0 flex-1 border-b border-slate-100 pb-5 last:border-0 dark:border-slate-800">
-                                    <div class="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
-                                        <p class="text-sm font-black">
-                                            {{ event.event_label }}
-                                        </p>
-
-                                        <p
-                                            v-if="event.occurred_at"
-                                            class="text-xs text-slate-400"
-                                        >
-                                            {{ event.occurred_at }}
-                                        </p>
-                                    </div>
-
-                                    <p class="mt-1 text-xs text-slate-500">
-                                        {{ event.actor_type_label }}
-
-                                        <template v-if="event.actor?.name">
-                                            · {{ event.actor.name }}
-                                        </template>
-                                    </p>
-
-                                    <p
-                                        v-if="event.notes"
-                                        class="mt-2 whitespace-pre-line text-sm leading-6 text-slate-600 dark:text-slate-300"
-                                    >
-                                        {{ event.notes }}
-                                    </p>
-                                </div>
-                            </div>
-                        </div>
-                    </section>
                 </div>
 
-                <aside class="space-y-6 xl:sticky xl:top-6 xl:self-start">
+                <aside class="min-w-0 space-y-6 xl:self-start">
                     <section
                         class="rounded-[2rem] border border-slate-200/70 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-950"
                     >
@@ -10108,6 +9969,150 @@ function commercialSnapshotText(value: unknown): string {
                     </section>
                 </aside>
             </div>
+
+            <!-- UXBI05_T1_FULLWIDTH_LAYOUT -->
+            <div
+                v-if="implementation_request.business_needs || implementation_request.tenant_note"
+                class="rounded-[2rem] border border-slate-200/70 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-950"
+            >
+                <h3 class="text-base font-bold text-slate-950 dark:text-white">
+                    Necesidades y objetivos de la empresa
+                </h3>
+
+                <template v-if="implementation_request.business_needs">
+                    <div class="mt-5">
+                        <p class="text-xs font-semibold text-slate-500 dark:text-slate-400">
+                            Ámbitos seleccionados
+                        </p>
+                        <div class="mt-2 flex flex-wrap gap-2">
+                            <span
+                                v-for="group in implementation_request.business_needs.groups"
+                                :key="group"
+                                class="rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-semibold text-slate-700 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-200"
+                            >
+                                {{ businessNeedsGroupLabels[group] || group }}
+                            </span>
+                        </div>
+                    </div>
+
+                    <div class="mt-5">
+                        <p class="text-xs font-semibold text-slate-500 dark:text-slate-400">
+                            Mejoras solicitadas
+                        </p>
+                        <ul class="mt-2 grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
+                            <li
+                                v-for="improvement in implementation_request.business_needs.improvements"
+                                :key="improvement.key"
+                                class="rounded-xl border border-slate-200 bg-white p-3 dark:border-slate-700 dark:bg-slate-950"
+                            >
+                                <p class="text-xs text-slate-500 dark:text-slate-400">
+                                    {{ improvement.group_label }}
+                                </p>
+                                <p class="mt-1 text-sm font-medium text-slate-900 dark:text-white">
+                                    {{ improvement.label }}
+                                </p>
+                            </li>
+                        </ul>
+                    </div>
+
+                    <div class="mt-5 grid gap-4 lg:grid-cols-2">
+                        <div>
+                            <p class="text-xs font-semibold text-slate-500 dark:text-slate-400">
+                                Necesidad principal
+                            </p>
+                            <p class="mt-2 whitespace-pre-line text-sm leading-6 text-slate-800 dark:text-slate-200">
+                                {{ implementation_request.business_needs.need }}
+                            </p>
+                        </div>
+                        <div>
+                            <p class="text-xs font-semibold text-slate-500 dark:text-slate-400">
+                                Resultado esperado
+                            </p>
+                            <p class="mt-2 whitespace-pre-line text-sm leading-6 text-slate-800 dark:text-slate-200">
+                                {{ implementation_request.business_needs.expected_result }}
+                            </p>
+                        </div>
+                    </div>
+
+                    <div
+                        v-if="implementation_request.business_needs.additional_info"
+                        class="mt-5 border-t border-slate-200 pt-4 dark:border-slate-800"
+                    >
+                        <p class="text-xs font-semibold text-slate-500 dark:text-slate-400">
+                            Información adicional
+                        </p>
+                        <p class="mt-2 whitespace-pre-line text-sm leading-6 text-slate-800 dark:text-slate-200">
+                            {{ implementation_request.business_needs.additional_info }}
+                        </p>
+                    </div>
+                </template>
+
+                <template v-else>
+                    <p class="mt-3 text-xs font-semibold text-slate-500 dark:text-slate-400">
+                        Nota de la empresa
+                    </p>
+                    <p class="mt-2 whitespace-pre-line text-sm leading-6 text-slate-600 dark:text-slate-300">
+                        {{ implementation_request.tenant_note }}
+                    </p>
+                </template>
+            </div>
+
+            <section
+                class="rounded-[2rem] border border-slate-200/70 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-950"
+            >
+                <h2
+                    class="text-lg font-black text-slate-950 dark:text-white"
+                >
+                    Historial
+                </h2>
+
+                <div
+                    v-if="events.length"
+                    class="mt-6 space-y-5"
+                >
+                    <div
+                        v-for="event in events"
+                        :key="event.id"
+                        class="flex gap-4"
+                    >
+                        <div
+                            class="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-slate-200 bg-slate-50 dark:border-slate-800 dark:bg-slate-900"
+                        >
+                            <CheckCircle2 class="h-4 w-4" />
+                        </div>
+
+                        <div class="min-w-0 flex-1 border-b border-slate-100 pb-5 last:border-0 dark:border-slate-800">
+                            <div class="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
+                                <p class="text-sm font-black">
+                                    {{ event.event_label }}
+                                </p>
+
+                                <p
+                                    v-if="event.occurred_at"
+                                    class="text-xs text-slate-400"
+                                >
+                                    {{ event.occurred_at }}
+                                </p>
+                            </div>
+
+                            <p class="mt-1 text-xs text-slate-500">
+                                {{ event.actor_type_label }}
+
+                                <template v-if="event.actor?.name">
+                                    · {{ event.actor.name }}
+                                </template>
+                            </p>
+
+                            <p
+                                v-if="event.notes"
+                                class="mt-2 whitespace-pre-line text-sm leading-6 text-slate-600 dark:text-slate-300"
+                            >
+                                {{ event.notes }}
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            </section>
         </div>
 
         <section
