@@ -322,6 +322,35 @@ final class TransformationImplementationRequestDefinitionReviewService
                 );
         }
 
+
+        // BI12_T1 · Validación de fuentes esperadas y vínculos.
+        // Sin cargas, staging, migraciones ni escrituras adicionales.
+        if (
+            trim((string) $request->capability_key)
+            === 'data_transformation_bi'
+        ) {
+            $sourceSnapshot = $request->source_snapshot;
+
+            if (is_string($sourceSnapshot)) {
+                $sourceSnapshot = json_decode($sourceSnapshot, true);
+            }
+
+            $scope = $data['implementation_scope']
+                ?? $definition->implementation_scope
+                ?? [];
+
+            $deliverables = $data['deliverables']
+                ?? $definition->deliverables
+                ?? [];
+
+            $data['implementation_scope'] =
+                TransformationImplementationRequestExpectedSourcesPlan::normalize(
+                    is_array($sourceSnapshot) ? $sourceSnapshot : [],
+                    is_array($scope) ? $scope : [],
+                    is_array($deliverables) ? $deliverables : []
+                );
+        }
+
         foreach ([
             'deliverables',
             'dependencies',

@@ -59,6 +59,16 @@ final class TransformationImplementationRequestBusinessNeedsAssessment
             $scope,
             ['scope_confirmed' => true]
         );
+
+        // BI12_T1 · Segunda validación del plan, si existe,
+        // antes de presentar al tenant o cerrar funcionalmente.
+        TransformationImplementationRequestExpectedSourcesPlan::normalize(
+            $snapshot,
+            $scope,
+            is_array($definition->deliverables)
+                ? $definition->deliverables
+                : []
+        );
     }
 
     public static function normalize(

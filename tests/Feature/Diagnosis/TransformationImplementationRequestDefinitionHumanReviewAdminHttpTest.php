@@ -11,6 +11,7 @@ use App\Models\TransformationImplementationPlan;
 use App\Models\TransformationImplementationRequest;
 use App\Models\User;
 use App\Services\Diagnosis\TransformationImplementationRequestContract;
+use App\Services\Diagnosis\TransformationImplementationRequestExpectedSourcesPlan;
 use App\Services\Diagnosis\TransformationImplementationRequestService;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Facades\DB;
@@ -1491,6 +1492,283 @@ final class TransformationImplementationRequestDefinitionHumanReviewAdminHttpTes
         );
 
         $this->assertNull($definition->ready_at);
+    }
+
+
+    // BI12_T2_F1_HTTP · Persistencia del plan de información.
+
+    private function bi12ExpectedSourcesPayload(array $context): array
+    {
+        $payload = $this->needsAssessmentHttpPayload(
+            $context['definition'],
+            [
+                [
+                    'key' => 'qa_operaciones_uno',
+                    'status' => 'included',
+                    'rationale' => '',
+                ],
+                [
+                    'key' => 'qa_finanzas_dos',
+                    'status' => 'clarification',
+                    'rationale' => 'Pendiente precisar la información.',
+                ],
+            ],
+            false
+        );
+
+        $deliverables = $payload['deliverables'] ?? [];
+
+        $firstDeliverable = null;
+
+        foreach ($deliverables as $item) {
+            if (
+                is_array($item)
+                && is_string($item['deliverable'] ?? null)
+                && trim($item['deliverable']) !== ''
+            ) {
+                $firstDeliverable = $item;
+                break;
+            }
+        }
+
+        // BI12_T2_F1_FIX1
+        // El fixture histórico puede no tener entregables
+        // estructurados. Solo en QA creamos uno para comprobar
+        // las referencias y su persistencia HTTP.
+        if ($firstDeliverable === null) {
+            $scope = $payload['implementation_scope'] ?? [];
+
+            $firstDeliverable = [
+                'source' => 'professional_capability',
+                'phase_id' => (int) ($scope['phase_id'] ?? 0),
+                'phase_name' => (string) ($scope['phase_name'] ?? ''),
+                'phase_sequence' => (int) ($scope['phase_sequence'] ?? 0),
+                'phase_capability_id' => (int) ($scope['phase_capability_id'] ?? 0),
+                'capability_key' => 'data_transformation_bi',
+                'deliverable' => 'QA: preparación funcional de información para probar relaciones.',
+            ];
+
+            $deliverables[] = $firstDeliverable;
+            $payload['deliverables'] = $deliverables;
+        }
+
+        $this->assertNotNull($firstDeliverable);
+
+        $ref =
+            TransformationImplementationRequestExpectedSourcesPlan::deliverableRef(
+                $firstDeliverable
+            );
+
+        $payload['implementation_scope']['expected_sources_plan'] = [
+            'schema_version' => 1,
+            'sources' => [
+                [
+                    'key' => 'src_qa_operaciones_1',
+                    'name' => 'Información requerida de operaciones',
+                    'source_type' => 'to_define',
+                    'origin_hint' => 'Por confirmar con el cliente',
+                    'data_domains' => ['operaciones'],
+                    'notes' => 'Requisito funcional pendiente de identificar.',
+                ],
+                [
+                    'key' => 'src_qa_compartida_2',
+                    'name' => 'Información transversal requerida',
+                    'source_type' => 'to_define',
+                    'origin_hint' => '',
+                    'data_domains' => ['operaciones', 'finanzas'],
+                    'notes' => 'Requisito compartido por confirmar.',
+                ],
+            ],
+            'links' => [
+                [
+                    'need_key' => 'qa_operaciones_uno',
+                    'source_keys' => [
+                        'src_qa_operaciones_1',
+                        'src_qa_compartida_2',
+                    ],
+                    'deliverable_refs' => [$ref],
+                    'notes' => 'Relación funcional preliminar.',
+                ],
+                [
+                    'need_key' => 'qa_finanzas_dos',
+                    'source_keys' => [
+                        'src_qa_compartida_2',
+                    ],
+                    'deliverable_refs' => [$ref],
+                    'notes' => 'Pendiente de aclaración.',
+                ],
+            ],
+        ];
+
+        return $payload;
+    }
+
+    public function test_bi12_http_persists_and_recovers_expected_information_plan(): void
+    {
+        $context = $this->needsAssessmentHttpContext();
+
+        $payload = $this->bi12ExpectedSourcesPayload($context);
+
+        $this->actingAs($context['admin'])
+            ->from($context['detail_url'])
+            ->patch($context['review_url'], $payload)
+            ->assertRedirect($context['detail_url'])
+            ->assertSessionHas('success');
+
+        $definition = $context['definition']->fresh();
+
+        $plan = data_get(
+            $definition->implementation_scope,
+            'expected_sources_plan'
+        );
+
+        $this->assertIsArray($plan);
+        $this->assertCount(2, $plan['sources']);
+        $this->assertCount(2, $plan['links']);
+
+        $this->assertSame(
+            'Por confirmar con el cliente',
+            $plan['sources'][0]['origin_hint']
+        );
+
+        $this->assertSame(
+            'to_define',
+            $plan['sources'][0]['source_type']
+        );
+
+        $this->assertSame(
+            [
+                'src_qa_operaciones_1',
+                'src_qa_compartida_2',
+            ],
+            $plan['links'][0]['source_keys']
+        );
+
+        $this->assertSame(
+            ['src_qa_compartida_2'],
+            $plan['links'][1]['source_keys']
+        );
+
+        $this->assertSame(
+            $plan['links'][0]['deliverable_refs'],
+            $plan['links'][1]['deliverable_refs']
+        );
+
+        $this->assertSame(
+            'clarification',
+            data_get(
+                $definition->implementation_scope,
+                'business_needs_assessment.items.1.status'
+            )
+        );
+
+        $this->assertFalse(
+            (bool) data_get(
+                $definition->readiness,
+                'human_validation.scope_confirmed',
+                false
+            )
+        );
+
+        $this->assertSame(
+            TransformationImplementationRequestContract::STATUS_DEFINITION_PREPARATION,
+            $context['request']->fresh()->status
+        );
+
+        $this->assertNull($definition->ready_at);
+
+        $this->actingAs($context['admin'])
+            ->get($context['detail_url'])
+            ->assertOk()
+            ->assertInertia(
+                fn (Assert $page) => $page
+                    ->where(
+                        'definition_review.implementation_scope.expected_sources_plan.sources.0.origin_hint',
+                        'Por confirmar con el cliente'
+                    )
+                    ->where(
+                        'definition_review.implementation_scope.expected_sources_plan.links.1.need_key',
+                        'qa_finanzas_dos'
+                    )
+                    ->etc()
+            );
+    }
+
+    public function test_bi12_http_rejects_unknown_source_without_partial_write(): void
+    {
+        $context = $this->needsAssessmentHttpContext();
+
+        $payload = $this->bi12ExpectedSourcesPayload($context);
+
+        $payload['implementation_scope']
+            ['expected_sources_plan']['links'][0]['source_keys'][] =
+            'src_otra_empresa_999';
+
+        $before = $context['definition']->fresh();
+        $beforeScope = $before->implementation_scope;
+        $beforeStatus = $before->status;
+
+        $this->actingAs($context['admin'])
+            ->from($context['detail_url'])
+            ->patch($context['review_url'], $payload)
+            ->assertRedirect($context['detail_url'])
+            ->assertSessionHasErrors([
+                'implementation_scope.expected_sources_plan',
+            ]);
+
+        $after = $context['definition']->fresh();
+
+        $this->assertSame(
+            $beforeScope,
+            $after->implementation_scope
+        );
+
+        $this->assertSame(
+            $beforeStatus,
+            $after->status
+        );
+
+        $this->assertSame(
+            TransformationImplementationRequestContract::STATUS_DEFINITION_PREPARATION,
+            $context['request']->fresh()->status
+        );
+    }
+
+    public function test_bi12_http_rejects_links_to_excluded_need(): void
+    {
+        $context = $this->needsAssessmentHttpContext();
+
+        $payload = $this->bi12ExpectedSourcesPayload($context);
+
+        $payload['implementation_scope']
+            ['business_needs_assessment']['items'][0]['status'] =
+            'excluded';
+
+        $payload['implementation_scope']
+            ['business_needs_assessment']['items'][0]['rationale'] =
+            'Necesidad excluida en la evaluación funcional.';
+
+        $before = $context['definition']->fresh();
+
+        $this->actingAs($context['admin'])
+            ->from($context['detail_url'])
+            ->patch($context['review_url'], $payload)
+            ->assertRedirect($context['detail_url'])
+            ->assertSessionHasErrors([
+                'implementation_scope.expected_sources_plan',
+            ]);
+
+        $after = $context['definition']->fresh();
+
+        $this->assertSame(
+            $before->implementation_scope,
+            $after->implementation_scope
+        );
+
+        $this->assertSame(
+            $before->status,
+            $after->status
+        );
     }
 
     private function fixture(): array

@@ -7384,6 +7384,327 @@ function dataBiGeneralResponsibilityAssignments():
 }
 
 
+
+// BI12_T2_UI · Requisitos de información.
+// No representan fuentes cargadas ni verificadas.
+
+type DataBiDeliverableOption = {
+    ref: string;
+    label: string;
+};
+
+const dataBiDeliverableOptions =
+    ref<DataBiDeliverableOption[]>([]);
+
+const dataBiDeliverableHashError = ref('');
+
+let dataBiDeliverableHashVersion = 0;
+
+const dataBiExpectedSourceTypes = [
+    { value: 'to_define', label: 'Por definir' },
+    { value: 'sql_server', label: 'SQL Server, por confirmar' },
+    { value: 'mysql', label: 'MySQL, por confirmar' },
+    { value: 'postgresql', label: 'PostgreSQL, por confirmar' },
+    { value: 'dbf', label: 'DBF, por confirmar' },
+    { value: 'quickbooks', label: 'QuickBooks, por confirmar' },
+    { value: 'excel', label: 'Excel, por confirmar' },
+    { value: 'csv', label: 'CSV, por confirmar' },
+    { value: 'api', label: 'API, por confirmar' },
+    { value: 'other', label: 'Otro, por confirmar' },
+];
+
+function dataBiExpectedPlan(): Record<string, any> {
+    const plan =
+        humanReviewForm.implementation_scope
+            ?.expected_sources_plan;
+
+    if (
+        !plan
+        || !Array.isArray(plan.sources)
+        || !Array.isArray(plan.links)
+    ) {
+        return {
+            schema_version: 1,
+            sources: [],
+            links: [],
+        };
+    }
+
+    return plan;
+}
+
+function dataBiPlanEditable(): boolean {
+    return props.actions.can_review_definition
+        && !humanReviewForm.processing;
+}
+
+function dataBiPlanChanged(): void {
+    humanReviewForm.readiness.scope_confirmed = false;
+}
+
+function dataBiAddInformationRequirement(): void {
+    if (!dataBiPlanEditable()) {
+        return;
+    }
+
+    const plan = dataBiExpectedPlan();
+
+    let key = '';
+
+    do {
+        key =
+            `src_${Date.now().toString(36)}_${Math.random()
+                .toString(36)
+                .slice(2, 12)}`;
+    } while (
+        plan.sources.some(
+            (item: any) => item.key === key,
+        )
+    );
+
+    plan.sources.push({
+        key,
+        name: '',
+        source_type: 'to_define',
+        origin_hint: '',
+        data_domains: [],
+        notes: '',
+    });
+
+    dataBiPlanChanged();
+}
+
+function dataBiRemoveInformationRequirement(
+    key: string,
+): void {
+    if (!dataBiPlanEditable()) {
+        return;
+    }
+
+    const plan = dataBiExpectedPlan();
+
+    plan.sources = plan.sources.filter(
+        (source: any) => source.key !== key,
+    );
+
+    for (const link of plan.links) {
+        link.source_keys = (
+            link.source_keys ?? []
+        ).filter(
+            (sourceKey: string) => sourceKey !== key,
+        );
+    }
+
+    dataBiPlanChanged();
+}
+
+function dataBiNeedDecisionStatus(
+    key: string,
+): string {
+    const items =
+        humanReviewForm.implementation_scope
+            ?.business_needs_assessment
+            ?.items ?? [];
+
+    return items.find(
+        (item: any) => item.key === key,
+    )?.status ?? 'pending';
+}
+
+function dataBiNeedDecisionChanged(
+    key: string,
+): void {
+    dataBiPlanChanged();
+
+    if (
+        dataBiNeedDecisionStatus(key)
+        === 'excluded'
+    ) {
+        const plan = dataBiExpectedPlan();
+
+        plan.links = plan.links.filter(
+            (link: any) => link.need_key !== key,
+        );
+    }
+}
+
+function dataBiNeedLink(
+    key: string,
+): Record<string, any> | undefined {
+    return dataBiExpectedPlan().links.find(
+        (link: any) => link.need_key === key,
+    );
+}
+
+function dataBiEnsureNeedLink(
+    key: string,
+): Record<string, any> {
+    const existing = dataBiNeedLink(key);
+
+    if (existing) {
+        return existing;
+    }
+
+    const link = {
+        need_key: key,
+        source_keys: [] as string[],
+        deliverable_refs: [] as string[],
+        notes: '',
+    };
+
+    dataBiExpectedPlan().links.push(link);
+
+    return link;
+}
+
+function dataBiToggleNeedRelation(
+    needKey: string,
+    field: 'source_keys' | 'deliverable_refs',
+    value: string,
+    event: Event,
+): void {
+    if (
+        !dataBiPlanEditable()
+        || dataBiNeedDecisionStatus(needKey)
+            === 'excluded'
+    ) {
+        return;
+    }
+
+    const checked =
+        (event.target as HTMLInputElement).checked;
+
+    const link = dataBiEnsureNeedLink(needKey);
+
+    const values: string[] =
+        Array.isArray(link[field])
+            ? link[field]
+            : [];
+
+    link[field] = checked
+        ? [...new Set([...values, value])]
+        : values.filter(
+            (item) => item !== value,
+        );
+
+    dataBiPlanChanged();
+}
+
+function dataBiUpdateNeedLinkNotes(
+    needKey: string,
+    event: Event,
+): void {
+    if (!dataBiPlanEditable()) {
+        return;
+    }
+
+    const value =
+        (event.target as HTMLTextAreaElement)
+            .value;
+
+    const link = dataBiEnsureNeedLink(needKey);
+
+    link.notes = value;
+
+    dataBiPlanChanged();
+}
+
+/**
+ * La referencia calculada debe coincidir
+ * con deliverableRef() en PHP.
+ *
+ * No utilizamos índices visuales.
+ */
+async function dataBiRefreshDeliverableOptions():
+    Promise<void> {
+    const version =
+        ++dataBiDeliverableHashVersion;
+
+    dataBiDeliverableOptions.value = [];
+    dataBiDeliverableHashError.value = '';
+
+    if (
+        props.capability.key !== DATA_BI_CAPABILITY
+        || typeof window === 'undefined'
+    ) {
+        return;
+    }
+
+    if (!window.crypto?.subtle) {
+        dataBiDeliverableHashError.value =
+            'El navegador no permite calcular '
+            + 'las referencias de entregables.';
+
+        return;
+    }
+
+    try {
+        const options = await Promise.all(
+            humanReviewForm.deliverables.map(
+                async (item) => {
+                    const parts = [
+                        String(item.source ?? ''),
+                        String(item.phase_id ?? ''),
+                        String(item.capability_key ?? ''),
+                        String(item.deliverable ?? '')
+                            .trim(),
+                    ];
+
+                    const bytes =
+                        new TextEncoder().encode(
+                            JSON.stringify(parts),
+                        );
+
+                    const digest =
+                        await window.crypto.subtle.digest(
+                            'SHA-256',
+                            bytes,
+                        );
+
+                    const hash =
+                        Array.from(
+                            new Uint8Array(digest),
+                        )
+                            .map(
+                                (byte) =>
+                                    byte.toString(16)
+                                        .padStart(2, '0'),
+                            )
+                            .join('');
+
+                    return {
+                        ref: `del_${hash}`,
+                        label:
+                            String(
+                                item.deliverable ?? '',
+                            ).trim(),
+                    };
+                },
+            ),
+        );
+
+        if (
+            version
+            === dataBiDeliverableHashVersion
+        ) {
+            dataBiDeliverableOptions.value =
+                options.filter(
+                    (option) =>
+                        option.label !== '',
+                );
+        }
+    } catch {
+        if (
+            version
+            === dataBiDeliverableHashVersion
+        ) {
+            dataBiDeliverableHashError.value =
+                'No se pudieron preparar los '
+                + 'vínculos con entregables.';
+        }
+    }
+}
+
 function syncHumanReviewForm(): void {
     const source =
         props.definition_review;
@@ -7401,6 +7722,47 @@ function syncHumanReviewForm(): void {
                 source?.implementation_scope
                 ?? {}
             );
+
+    // BI12_T2_UI · Recuperar planificación existente.
+    // Nunca crear fuentes reales automáticamente.
+    if (
+        props.capability.key === DATA_BI_CAPABILITY
+        && props.implementation_request.business_needs
+    ) {
+        const existing =
+            humanReviewForm.implementation_scope
+                .expected_sources_plan;
+
+        if (existing == null) {
+            humanReviewForm.implementation_scope
+                .expected_sources_plan = {
+                    schema_version: 1,
+                    sources: [],
+                    links: [],
+                };
+        } else if (
+            existing.schema_version === 1
+            && Array.isArray(existing.sources)
+            && Array.isArray(existing.links)
+        ) {
+            humanReviewForm.implementation_scope
+                .expected_sources_plan = {
+                    schema_version: 1,
+                    sources: existing.sources.map(
+                        (source: any) => ({
+                            ...source,
+                            origin_hint:
+                                source.origin_hint ?? '',
+                        }),
+                    ),
+                    links: existing.links.map(
+                        (link: any) => ({
+                            ...link,
+                        }),
+                    ),
+                };
+        }
+    }
 
     // BI08_P1_T1 · Evaluaciones vinculadas a las claves
     // originales de la solicitud, sin alterar business_needs.
@@ -7458,6 +7820,9 @@ function syncHumanReviewForm(): void {
                 source?.deliverables
                 ?? []
             );
+
+    // BI12_T2_UI · Referencias de entregables.
+    void dataBiRefreshDeliverableOptions();
 
     humanReviewForm.dependencies =
         props.capability.key
@@ -10588,9 +10953,7 @@ function commercialSnapshotText(value: unknown): string {
                                     "
                                     :disabled="humanReviewForm.processing"
                                     class="mt-2 w-full rounded-xl border bg-background px-3 py-2 text-sm"
-                                    @change="
-                                        humanReviewForm.readiness.scope_confirmed = false
-                                    "
+                                    @change="dataBiNeedDecisionChanged(improvement.key)"
                                 >
                                     <option value="pending">
                                         Por evaluar
@@ -10644,6 +11007,320 @@ function commercialSnapshotText(value: unknown): string {
                             y cambia la Definición a En revisión, incluso
                             cuando queden necesidades pendientes. No la
                             presenta al cliente ni inicia ejecución.
+                        </p>
+                    </section>
+
+
+                    <!-- BI12_T2_UI · Planificación funcional -->
+                    <section
+                        v-if="
+                            props.capability.key === DATA_BI_CAPABILITY
+                            && implementation_request.business_needs
+                            && implementation_request.business_needs.improvements.length
+                        "
+                        class="rounded-2xl border bg-background p-5"
+                    >
+                        <div class="flex flex-wrap items-start justify-between gap-3">
+                            <div>
+                                <p class="text-sm font-black">
+                                    Requisitos de información y fuentes por confirmar
+                                </p>
+
+                                <p class="mt-1 max-w-3xl text-xs leading-5 text-muted-foreground">
+                                    LAUDA describe qué información
+                                    necesitaría para atender las
+                                    mejoras solicitadas. Esto no
+                                    significa que el cliente tenga
+                                    esas fuentes ni que las haya
+                                    entregado.
+                                </p>
+                            </div>
+
+                            <span class="rounded-full border px-3 py-1 text-xs font-semibold">
+                                {{ dataBiExpectedPlan().sources.length }}
+                                requisitos
+                            </span>
+                        </div>
+
+                        <div class="mt-5 flex flex-wrap items-center justify-between gap-3">
+                            <p class="text-sm font-semibold">
+                                Información necesaria
+                            </p>
+
+                            <button
+                                type="button"
+                                class="rounded-xl border px-3 py-2 text-xs font-semibold hover:bg-muted disabled:opacity-50"
+                                :disabled="!dataBiPlanEditable()"
+                                @click="dataBiAddInformationRequirement"
+                            >
+                                + Agregar requisito de información
+                            </button>
+                        </div>
+
+                        <p
+                            v-if="!dataBiExpectedPlan().sources.length"
+                            class="mt-3 rounded-xl border border-dashed p-4 text-sm text-muted-foreground"
+                        >
+                            Aún no se han definido requisitos
+                            de información. No se crearán
+                            fuentes automáticamente.
+                        </p>
+
+                        <div class="mt-4 grid gap-4 lg:grid-cols-2">
+                            <article
+                                v-for="(source, index) in dataBiExpectedPlan().sources"
+                                :key="source.key"
+                                class="rounded-xl border p-4"
+                            >
+                                <div class="flex items-center justify-between gap-3">
+                                    <p class="text-sm font-semibold">
+                                        Requisito {{ index + 1 }}
+                                    </p>
+
+                                    <button
+                                        type="button"
+                                        class="text-xs font-semibold text-destructive disabled:opacity-50"
+                                        :disabled="!dataBiPlanEditable()"
+                                        @click="dataBiRemoveInformationRequirement(source.key)"
+                                    >
+                                        Quitar
+                                    </button>
+                                </div>
+
+                                <label class="mt-4 block text-xs font-semibold">
+                                    Información requerida
+                                </label>
+
+                                <input
+                                    v-model="source.name"
+                                    type="text"
+                                    maxlength="180"
+                                    placeholder="¿Qué información se necesitaría?"
+                                    class="mt-2 w-full rounded-xl border bg-background px-3 py-2 text-sm"
+                                    :disabled="!dataBiPlanEditable()"
+                                    @input="dataBiPlanChanged"
+                                />
+
+                                <label class="mt-4 block text-xs font-semibold">
+                                    Origen o sistema probable (sin validar)
+                                </label>
+
+                                <input
+                                    v-model="source.origin_hint"
+                                    type="text"
+                                    maxlength="200"
+                                    placeholder="Por identificar con el cliente"
+                                    class="mt-2 w-full rounded-xl border bg-background px-3 py-2 text-sm"
+                                    :disabled="!dataBiPlanEditable()"
+                                    @input="dataBiPlanChanged"
+                                />
+
+                                <label class="mt-4 block text-xs font-semibold">
+                                    Formato o tipo previsto
+                                </label>
+
+                                <select
+                                    v-model="source.source_type"
+                                    class="mt-2 w-full rounded-xl border bg-background px-3 py-2 text-sm"
+                                    :disabled="!dataBiPlanEditable()"
+                                    @change="dataBiPlanChanged"
+                                >
+                                    <option
+                                        v-for="option in dataBiExpectedSourceTypes"
+                                        :key="option.value"
+                                        :value="option.value"
+                                    >
+                                        {{ option.label }}
+                                    </option>
+                                </select>
+
+                                <label class="mt-4 block text-xs font-semibold">
+                                    Observaciones y aclaraciones pendientes
+                                </label>
+
+                                <textarea
+                                    v-model="source.notes"
+                                    rows="3"
+                                    maxlength="2000"
+                                    placeholder="Qué debe aclararse con la empresa"
+                                    class="mt-2 w-full rounded-xl border bg-background px-3 py-2 text-sm"
+                                    :disabled="!dataBiPlanEditable()"
+                                    @input="dataBiPlanChanged"
+                                ></textarea>
+                            </article>
+                        </div>
+
+                        <div class="mt-6 border-t pt-5">
+                            <p class="text-sm font-semibold">
+                                Vinculación con necesidades y entregables
+                            </p>
+
+                            <p class="mt-1 text-xs leading-5 text-muted-foreground">
+                                Abre una necesidad para relacionarla
+                                con la información prevista y los
+                                entregables reales. Una necesidad
+                                puede utilizar varias fuentes y
+                                una fuente puede sustentar varias
+                                necesidades.
+                            </p>
+
+                            <p
+                                v-if="dataBiDeliverableHashError"
+                                class="mt-3 text-xs text-destructive"
+                            >
+                                {{ dataBiDeliverableHashError }}
+                            </p>
+
+                            <div class="mt-4 space-y-3">
+                                <details
+                                    v-for="improvement in implementation_request.business_needs.improvements"
+                                    :key="improvement.key"
+                                    class="rounded-xl border p-4"
+                                >
+                                    <summary class="cursor-pointer text-sm font-semibold">
+                                        {{ improvement.label }}
+
+                                        <span class="ml-2 text-xs font-normal text-muted-foreground">
+                                            {{
+                                                dataBiNeedDecisionStatus(improvement.key)
+                                                === 'excluded'
+                                                    ? 'Excluida'
+                                                    : 'Vinculación pendiente o editable'
+                                            }}
+                                        </span>
+                                    </summary>
+
+                                    <p
+                                        v-if="dataBiNeedDecisionStatus(improvement.key) === 'excluded'"
+                                        class="mt-3 text-xs text-muted-foreground"
+                                    >
+                                        Esta necesidad fue excluida y
+                                        no admite vinculaciones con
+                                        fuentes ni entregables.
+                                    </p>
+
+                                    <div
+                                        v-else
+                                        class="mt-4 grid gap-5 lg:grid-cols-2"
+                                    >
+                                        <div>
+                                            <p class="text-xs font-semibold">
+                                                Información requerida relacionada
+                                            </p>
+
+                                            <p
+                                                v-if="!dataBiExpectedPlan().sources.length"
+                                                class="mt-2 text-xs text-muted-foreground"
+                                            >
+                                                Primero registra un
+                                                requisito de información.
+                                            </p>
+
+                                            <label
+                                                v-for="source in dataBiExpectedPlan().sources"
+                                                :key="source.key"
+                                                class="mt-3 flex items-start gap-2 text-xs"
+                                            >
+                                                <input
+                                                    type="checkbox"
+                                                    class="mt-0.5"
+                                                    :checked="
+                                                        dataBiNeedLink(improvement.key)
+                                                            ?.source_keys?.includes(source.key)
+                                                        ?? false
+                                                    "
+                                                    :disabled="!dataBiPlanEditable()"
+                                                    @change="
+                                                        dataBiToggleNeedRelation(
+                                                            improvement.key,
+                                                            'source_keys',
+                                                            source.key,
+                                                            $event
+                                                        )
+                                                    "
+                                                />
+
+                                                <span>
+                                                    {{
+                                                        source.name
+                                                        || 'Requisito sin descripción'
+                                                    }}
+                                                </span>
+                                            </label>
+                                        </div>
+
+                                        <div>
+                                            <p class="text-xs font-semibold">
+                                                Entregables relacionados
+                                            </p>
+
+                                            <label
+                                                v-for="deliverable in dataBiDeliverableOptions"
+                                                :key="deliverable.ref"
+                                                class="mt-3 flex items-start gap-2 text-xs"
+                                            >
+                                                <input
+                                                    type="checkbox"
+                                                    class="mt-0.5"
+                                                    :checked="
+                                                        dataBiNeedLink(improvement.key)
+                                                            ?.deliverable_refs?.includes(deliverable.ref)
+                                                        ?? false
+                                                    "
+                                                    :disabled="!dataBiPlanEditable()"
+                                                    @change="
+                                                        dataBiToggleNeedRelation(
+                                                            improvement.key,
+                                                            'deliverable_refs',
+                                                            deliverable.ref,
+                                                            $event
+                                                        )
+                                                    "
+                                                />
+
+                                                <span>
+                                                    {{ deliverable.label }}
+                                                </span>
+                                            </label>
+                                        </div>
+
+                                        <div class="lg:col-span-2">
+                                            <label class="block text-xs font-semibold">
+                                                Aclaración de la relación
+                                            </label>
+
+                                            <textarea
+                                                :value="dataBiNeedLink(improvement.key)?.notes ?? ''"
+                                                rows="2"
+                                                maxlength="2000"
+                                                placeholder="Dependencias, excepciones o información pendiente"
+                                                class="mt-2 w-full rounded-xl border bg-background px-3 py-2 text-sm"
+                                                :disabled="!dataBiPlanEditable()"
+                                                @input="dataBiUpdateNeedLinkNotes(improvement.key, $event)"
+                                            ></textarea>
+                                        </div>
+                                    </div>
+                                </details>
+                            </div>
+                        </div>
+
+                        <p
+                            v-if="humanReviewForm.errors['implementation_scope.expected_sources_plan']"
+                            class="mt-4 text-xs font-semibold text-destructive"
+                        >
+                            {{
+                                humanReviewForm.errors[
+                                    'implementation_scope.expected_sources_plan'
+                                ]
+                            }}
+                        </p>
+
+                        <p class="mt-5 text-xs leading-5 text-muted-foreground">
+                            Estos requisitos pertenecen a la
+                            revisión funcional. Se guardan con
+                            «Guardar revisión humana».
+                            No activan cargas, conexiones,
+                            staging ni procesamiento.
                         </p>
                     </section>
 
