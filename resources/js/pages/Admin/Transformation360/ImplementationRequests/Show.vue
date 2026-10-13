@@ -7433,6 +7433,119 @@ function dataBiExpectedPlan(): Record<string, any> {
     return plan;
 }
 
+// BI13_T3_COVERAGE · Indicadores informativos; sin persistencia ni gates.
+type DataBiFunctionalCoverageMetrics = {
+    totalNeeds: number;
+    activeNeeds: number;
+    excludedNeeds: number;
+    linkedNeeds: number;
+    unlinkedNeeds: number;
+    pendingDecisions: number;
+    clarificationNeeds: number;
+    unlinkedRequirementCount: number;
+    distinctDeliverables: number;
+    pendingProposals: number | null;
+    unlinkedNeedLabels: string[];
+    clarificationNeedLabels: string[];
+    unlinkedRequirementNames: string[];
+};
+
+function dataBiFunctionalCoverageMetrics(): DataBiFunctionalCoverageMetrics {
+    const improvementsValue =
+        props.implementation_request?.business_needs?.improvements;
+    const improvements: Record<string, any>[] =
+        Array.isArray(improvementsValue) ? improvementsValue : [];
+    const plan = dataBiExpectedPlan();
+    const requirements: Record<string, any>[] =
+        Array.isArray(plan.sources) ? plan.sources : [];
+    const links: Record<string, any>[] =
+        Array.isArray(plan.links) ? plan.links : [];
+
+    const activeKeys = new Set<string>();
+    const needLabels = new Map<string, string>();
+    const clarificationNeedLabels: string[] = [];
+    let excludedNeeds = 0;
+    let pendingDecisions = 0;
+    for (const need of improvements) {
+        const key = String(need.key ?? '').trim();
+        if (!key) continue;
+        const label = String(need.label ?? key);
+        needLabels.set(key, label);
+        const status = dataBiNeedDecisionStatus(key);
+        if (status === 'excluded') {
+            excludedNeeds++;
+            continue;
+        }
+        activeKeys.add(key);
+        if (status === 'pending') pendingDecisions++;
+        if (status === 'clarification') {
+            clarificationNeedLabels.push(label);
+        }
+    }
+
+    const validRequirementKeys = new Set(
+        requirements.map((item) => String(item.key ?? '')).filter(Boolean),
+    );
+    const usedRequirementKeys = new Set<string>();
+    const linkedNeedKeys = new Set<string>();
+    const relatedDeliverables = new Set<string>();
+    for (const link of links) {
+        const needKey = String(link.need_key ?? '');
+        if (!activeKeys.has(needKey)) continue;
+        const keys: string[] = Array.isArray(link.source_keys)
+            ? link.source_keys : [];
+        const refs: string[] = Array.isArray(link.deliverable_refs)
+            ? link.deliverable_refs : [];
+        let hasValidRequirement = false;
+        for (const raw of keys) {
+            const key = String(raw);
+            if (validRequirementKeys.has(key)) {
+                usedRequirementKeys.add(key);
+                hasValidRequirement = true;
+            }
+        }
+        const realRefs = refs.map(String).filter(Boolean);
+        for (const ref of realRefs) relatedDeliverables.add(ref);
+        if (hasValidRequirement || realRefs.length > 0) {
+            linkedNeedKeys.add(needKey);
+        }
+    }
+
+    const unlinkedNeedLabels = improvements
+        .filter((need) => {
+            const key = String(need.key ?? '');
+            return activeKeys.has(key) && !linkedNeedKeys.has(key);
+        })
+        .map((need) => needLabels.get(String(need.key)) ?? String(need.key));
+    const unlinkedRequirementNames = requirements
+        .filter((item) => !usedRequirementKeys.has(String(item.key ?? '')))
+        .map((item) => String(item.name ?? '').trim() || '(Sin descripción)');
+
+    // La vista previa puede quedar obsoleta tras una edición manual.
+    // En ese caso no presentamos sugerencias antiguas como pendientes.
+    const freshPreview = dataBiProposalPreview.value !== null
+        && dataBiProposalSignature() === dataBiProposalPreviewSignature;
+    const pendingProposals = freshPreview
+        ? dataBiProposalPreview.value!.suggestions.length
+        : null;
+
+    return {
+        totalNeeds: improvements.length,
+        activeNeeds: activeKeys.size,
+        excludedNeeds,
+        linkedNeeds: linkedNeedKeys.size,
+        unlinkedNeeds: unlinkedNeedLabels.length,
+        pendingDecisions,
+        clarificationNeeds: clarificationNeedLabels.length,
+        unlinkedRequirementCount: unlinkedRequirementNames.length,
+        distinctDeliverables: relatedDeliverables.size,
+        pendingProposals,
+        unlinkedNeedLabels,
+        clarificationNeedLabels,
+        unlinkedRequirementNames,
+    };
+}
+
 function dataBiPlanEditable(): boolean {
     return props.actions.can_review_definition
         && !humanReviewForm.processing;
@@ -7440,6 +7553,202 @@ function dataBiPlanEditable(): boolean {
 
 function dataBiPlanChanged(): void {
     humanReviewForm.readiness.scope_confirmed = false;
+}
+
+// BI13_T2 · Vista previa separada del formulario BI12.
+type DataBiFunctionalProposal = {
+    need_key: string;
+    need_label: string;
+    action: 'create_requirement' | 'reuse_requirement';
+    source: Record<string, any> | null;
+    link: {
+        need_key: string;
+        source_keys: string[];
+        deliverable_refs: string[];
+        notes: string;
+    };
+    coverage: string;
+    requires_human_review: boolean;
+    source_verified: boolean;
+};
+
+type DataBiFunctionalPreview = {
+    mode: string;
+    suggestions: DataBiFunctionalProposal[];
+    skipped: {need_key: string; reason: string}[];
+    summary: {total_needs: number; suggested: number; not_suggested: number};
+};
+
+const dataBiProposalPreview = ref<DataBiFunctionalPreview | null>(null);
+const dataBiProposalSelected = ref<string[]>([]);
+const dataBiProposalBusy = ref(false);
+const dataBiProposalMessage = ref('');
+let dataBiProposalPreviewSignature = '';
+let dataBiProposalBaselineSignature = '';
+
+function dataBiProposalSignature(): string {
+    return JSON.stringify({
+        assessment: humanReviewForm.implementation_scope?.business_needs_assessment,
+        plan: humanReviewForm.implementation_scope?.expected_sources_plan,
+        deliverables: humanReviewForm.deliverables,
+    });
+}
+
+function dataBiProposalEndpoint(): string {
+    return String((props.actions as unknown as Record<string, any>)
+        .functional_proposals_preview_endpoint ?? '');
+}
+
+async function dataBiGenerateFunctionalProposals(): Promise<void> {
+    const endpoint = dataBiProposalEndpoint();
+    if (!dataBiPlanEditable() || !endpoint || dataBiProposalBusy.value) return;
+    if (dataBiProposalSignature() !== dataBiProposalBaselineSignature) {
+        dataBiProposalMessage.value =
+            'Guarda primero los cambios de la revisión humana para generar propuestas actualizadas.';
+        return;
+    }
+
+    dataBiProposalBusy.value = true;
+    dataBiProposalMessage.value = '';
+    dataBiProposalPreview.value = null;
+    dataBiProposalSelected.value = [];
+
+    try {
+        const response = await fetch(endpoint, {
+            method: 'GET',
+            credentials: 'same-origin',
+            headers: {Accept: 'application/json'},
+            cache: 'no-store',
+        });
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}`);
+        }
+        const result = await response.json() as DataBiFunctionalPreview;
+        if (
+            result.mode !== 'preview_only'
+            || !Array.isArray(result.suggestions)
+            || !Array.isArray(result.skipped)
+        ) {
+            throw new Error('Contrato de vista previa inválido');
+        }
+        dataBiProposalPreview.value = result;
+        dataBiProposalPreviewSignature = dataBiProposalSignature();
+    } catch {
+        dataBiProposalMessage.value =
+            'No se pudo generar la vista previa. Comprueba los permisos y vuelve a intentar.';
+    } finally {
+        dataBiProposalBusy.value = false;
+    }
+}
+
+function dataBiToggleFunctionalProposal(key: string, event: Event): void {
+    const checked = (event.target as HTMLInputElement).checked;
+    dataBiProposalSelected.value = checked
+        ? [...new Set([...dataBiProposalSelected.value, key])]
+        : dataBiProposalSelected.value.filter((item) => item !== key);
+}
+
+function dataBiApplyFunctionalProposals(): void {
+    const preview = dataBiProposalPreview.value;
+    const selected = new Set(dataBiProposalSelected.value);
+    if (!preview || selected.size === 0 || !dataBiPlanEditable()) return;
+
+    if (
+        dataBiProposalSignature() !== dataBiProposalBaselineSignature
+        || dataBiProposalSignature() !== dataBiProposalPreviewSignature
+    ) {
+        dataBiProposalMessage.value =
+            'La revisión cambió desde la vista previa. Guarda y vuelve a generar las propuestas.';
+        return;
+    }
+
+    const plan = dataBiExpectedPlan();
+    const existingSourceKeys = new Set(plan.sources.map((source: any) => String(source.key)));
+    const existingNames = new Set(plan.sources.map((source: any) =>
+        String(source.name ?? '').trim().toLocaleLowerCase()));
+    const existingNeeds = new Set(plan.links.map((link: any) => String(link.need_key)));
+    const allowedDeliverables = new Set(dataBiDeliverableOptions.value.map((item) => item.ref));
+    const newSources: Record<string, any>[] = [];
+    const newLinks: Record<string, any>[] = [];
+
+    for (const suggestion of preview.suggestions) {
+        if (!selected.has(suggestion.need_key)) continue;
+        const link = suggestion.link;
+        const refs = link?.deliverable_refs ?? [];
+        const keys = link?.source_keys ?? [];
+        const source = suggestion.source;
+        if (
+            existingNeeds.has(suggestion.need_key)
+            || dataBiNeedDecisionStatus(suggestion.need_key) === 'excluded'
+            || link.need_key !== suggestion.need_key
+            || refs.length !== 1 || !allowedDeliverables.has(refs[0])
+            || keys.length !== 1 || suggestion.source_verified !== false
+            || suggestion.requires_human_review !== true
+        ) {
+            dataBiProposalMessage.value =
+                'La propuesta contiene una relación no válida o ya existente. Genera de nuevo.';
+            return;
+        }
+        if (source !== null) {
+            const key = String(source.key ?? '');
+            const name = String(source.name ?? '').trim();
+            if (
+                suggestion.action !== 'create_requirement'
+                || !key || !name || source.source_type !== 'to_define'
+                || keys[0] !== key
+                || existingSourceKeys.has(key)
+                || existingNames.has(name.toLocaleLowerCase())
+            ) {
+                dataBiProposalMessage.value =
+                    'Se detectó un requisito duplicado o incompatible. Genera de nuevo.';
+                return;
+            }
+            newSources.push({...source});
+            existingSourceKeys.add(key);
+            existingNames.add(name.toLocaleLowerCase());
+        } else if (
+            suggestion.action !== 'reuse_requirement'
+            || !existingSourceKeys.has(keys[0])
+        ) {
+            dataBiProposalMessage.value =
+                'El requisito que debía reutilizarse ya no está disponible.';
+            return;
+        }
+        newLinks.push({
+            need_key: link.need_key,
+            source_keys: [...keys],
+            deliverable_refs: [...refs],
+            notes: link.notes,
+        });
+        existingNeeds.add(suggestion.need_key);
+    }
+
+    if (newLinks.length !== selected.size) {
+        dataBiProposalMessage.value = 'La selección no coincide con la vista previa.';
+        return;
+    }
+
+    plan.sources.push(...newSources);
+    plan.links.push(...newLinks);
+    dataBiPlanChanged();
+    dataBiProposalPreview.value = null;
+    dataBiProposalSelected.value = [];
+    dataBiProposalMessage.value =
+        `${newLinks.length} propuestas aplicadas al formulario. `
+        + 'Para conservarlas debes pulsar «Guardar revisión humana».';
+}
+
+function dataBiProposalSkippedLabel(reason: string): string {
+    const labels: Record<string, string> = {
+        existing_human_link: 'Relación humana ya existente',
+        excluded_by_lauda: 'Necesidad excluida',
+        no_verified_rule: 'Sin regla verificada en el catálogo',
+        deliverable_missing: 'Entregable no disponible',
+        deliverable_ambiguous: 'Entregable ambiguo',
+        existing_requirement_ambiguous: 'Requisito existente ambiguo',
+        generated_key_collision: 'Conflicto de clave',
+    };
+    return labels[reason] ?? reason;
 }
 
 function dataBiAddInformationRequirement(): void {
@@ -7706,6 +8015,9 @@ async function dataBiRefreshDeliverableOptions():
 }
 
 function syncHumanReviewForm(): void {
+    dataBiProposalPreview.value = null;
+    dataBiProposalSelected.value = [];
+    dataBiProposalPreviewSignature = '';
     const source =
         props.definition_review;
 
@@ -7892,6 +8204,7 @@ watch(
     () => props.definition_review,
     () => {
         syncHumanReviewForm();
+        dataBiProposalBaselineSignature = dataBiProposalSignature();
     },
     {
         deep: true,
@@ -11038,8 +11351,166 @@ function commercialSnapshotText(value: unknown): string {
 
                             <span class="rounded-full border px-3 py-1 text-xs font-semibold">
                                 {{ dataBiExpectedPlan().sources.length }}
-                                requisitos
+                                {{ dataBiExpectedPlan().sources.length === 1 ? 'requisito' : 'requisitos' }}
                             </span>
+                        </div>
+
+                        <!-- BI13_T3_COVERAGE · Actualización reactiva del formulario -->
+                        <div class="mt-5 rounded-xl border p-4">
+                            <div class="flex flex-wrap items-start justify-between gap-3">
+                                <div>
+                                    <p class="text-sm font-bold">Cobertura funcional y pendientes</p>
+                                    <p class="mt-1 text-xs text-muted-foreground">
+                                        Indicadores del formulario actual. Vincular no significa
+                                        aprobar la necesidad ni verificar una fuente.
+                                    </p>
+                                </div>
+                                <span class="rounded-full border px-3 py-1 text-xs font-semibold">
+                                    {{ dataBiFunctionalCoverageMetrics().linkedNeeds }} / {{ dataBiFunctionalCoverageMetrics().activeNeeds }} vinculadas
+                                </span>
+                            </div>
+                            <div class="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-3 xl:grid-cols-6">
+                                <div class="rounded-lg border p-3">
+                                    <p class="text-xl font-bold tabular-nums">{{ dataBiFunctionalCoverageMetrics().linkedNeeds }}</p>
+                                    <p class="text-xs text-muted-foreground">Necesidades vinculadas</p>
+                                </div>
+                                <div class="rounded-lg border p-3">
+                                    <p class="text-xl font-bold tabular-nums">{{ dataBiFunctionalCoverageMetrics().unlinkedNeeds }}</p>
+                                    <p class="text-xs text-muted-foreground">Sin vinculación</p>
+                                </div>
+                                <div class="rounded-lg border p-3">
+                                    <p class="text-xl font-bold tabular-nums">{{ dataBiFunctionalCoverageMetrics().unlinkedRequirementCount }}</p>
+                                    <p class="text-xs text-muted-foreground">Requisitos sin usar</p>
+                                </div>
+                                <div class="rounded-lg border p-3">
+                                    <p class="text-xl font-bold tabular-nums">{{ dataBiFunctionalCoverageMetrics().clarificationNeeds }}</p>
+                                    <p class="text-xs text-muted-foreground">Aclaraciones pendientes</p>
+                                </div>
+                                <div class="rounded-lg border p-3">
+                                    <p class="text-xl font-bold tabular-nums">{{ dataBiFunctionalCoverageMetrics().distinctDeliverables }}</p>
+                                    <p class="text-xs text-muted-foreground">Entregables relacionados</p>
+                                </div>
+                                <div class="rounded-lg border p-3">
+                                    <p class="text-xl font-bold tabular-nums">
+                                        {{ dataBiFunctionalCoverageMetrics().pendingProposals ?? '—' }}
+                                    </p>
+                                    <p class="text-xs text-muted-foreground">Propuestas sin aplicar</p>
+                                </div>
+                            </div>
+                            <p class="mt-3 text-xs text-muted-foreground">
+                                {{ dataBiFunctionalCoverageMetrics().pendingDecisions }} necesidades por evaluar ·
+                                {{ dataBiFunctionalCoverageMetrics().excludedNeeds }} excluidas ·
+                                {{ dataBiFunctionalCoverageMetrics().totalNeeds }} originales.
+                                «—» significa que no hay una vista previa vigente.
+                            </p>
+                            <details
+                                v-if="dataBiFunctionalCoverageMetrics().unlinkedNeedLabels.length || dataBiFunctionalCoverageMetrics().unlinkedRequirementNames.length || dataBiFunctionalCoverageMetrics().clarificationNeedLabels.length"
+                                class="mt-3 rounded-lg border p-3 text-xs"
+                            >
+                                <summary class="cursor-pointer font-semibold">Ver pendientes por revisar</summary>
+                                <div class="mt-3 grid gap-4 lg:grid-cols-3">
+                                    <div v-if="dataBiFunctionalCoverageMetrics().unlinkedNeedLabels.length">
+                                        <p class="font-semibold">Necesidades sin vínculos</p>
+                                        <ul class="mt-2 list-disc space-y-1 pl-4 text-muted-foreground">
+                                            <li v-for="label in dataBiFunctionalCoverageMetrics().unlinkedNeedLabels" :key="label">{{ label }}</li>
+                                        </ul>
+                                    </div>
+                                    <div v-if="dataBiFunctionalCoverageMetrics().unlinkedRequirementNames.length">
+                                        <p class="font-semibold">Requisitos sin utilizar</p>
+                                        <ul class="mt-2 list-disc space-y-1 pl-4 text-muted-foreground">
+                                            <li v-for="(name, index) in dataBiFunctionalCoverageMetrics().unlinkedRequirementNames" :key="index">{{ name }}</li>
+                                        </ul>
+                                    </div>
+                                    <div v-if="dataBiFunctionalCoverageMetrics().clarificationNeedLabels.length">
+                                        <p class="font-semibold">Aclaraciones abiertas</p>
+                                        <ul class="mt-2 list-disc space-y-1 pl-4 text-muted-foreground">
+                                            <li v-for="label in dataBiFunctionalCoverageMetrics().clarificationNeedLabels" :key="label">{{ label }}</li>
+                                        </ul>
+                                    </div>
+                                </div>
+                            </details>
+                        </div>
+
+                        <!-- BI13_T2 · Sugerencias sin persistencia automática -->
+                        <div
+                            v-if="dataBiProposalEndpoint()"
+                            class="mt-5 rounded-xl border border-dashed p-4"
+                        >
+                            <div class="flex flex-wrap items-start justify-between gap-3">
+                                <div>
+                                    <p class="text-sm font-bold">Propuestas funcionales automáticas</p>
+                                    <p class="mt-1 text-xs text-muted-foreground">
+                                        Reglas verificadas del catálogo. Cobertura parcial,
+                                        sin confirmar fuentes ni cambiar decisiones humanas.
+                                    </p>
+                                </div>
+                                <button
+                                    type="button"
+                                    class="rounded-xl border px-3 py-2 text-xs font-semibold hover:bg-muted disabled:opacity-50"
+                                    :disabled="!dataBiPlanEditable() || dataBiProposalBusy || dataBiProposalSignature() !== dataBiProposalBaselineSignature"
+                                    @click="dataBiGenerateFunctionalProposals"
+                                >
+                                    {{ dataBiProposalBusy ? 'Generando...' : 'Generar propuesta funcional' }}
+                                </button>
+                            </div>
+                            <p v-if="dataBiProposalSignature() !== dataBiProposalBaselineSignature" class="mt-2 text-xs text-amber-700">
+                                Guarda los cambios actuales antes de solicitar una nueva vista previa.
+                            </p>
+                            <p v-if="dataBiProposalMessage" class="mt-3 text-xs" role="status">
+                                {{ dataBiProposalMessage }}
+                            </p>
+                            <div v-if="dataBiProposalPreview" class="mt-4 space-y-3">
+                                <p class="text-xs font-semibold">
+                                    {{ dataBiProposalPreview.summary.suggested }} sugeridas ·
+                                    {{ dataBiProposalPreview.summary.not_suggested }} sin propuesta
+                                </p>
+                                <label
+                                    v-for="suggestion in dataBiProposalPreview.suggestions"
+                                    :key="suggestion.need_key"
+                                    class="flex cursor-pointer items-start gap-3 rounded-lg border p-3 text-sm"
+                                >
+                                    <input
+                                        type="checkbox"
+                                        class="mt-1"
+                                        :checked="dataBiProposalSelected.includes(suggestion.need_key)"
+                                        @change="dataBiToggleFunctionalProposal(suggestion.need_key, $event)"
+                                    />
+                                    <span class="space-y-1">
+                                        <span class="block font-semibold">{{ suggestion.need_label }}</span>
+                                        <span class="block text-xs">
+                                            {{ suggestion.source?.name ?? 'Reutilizar requisito de información existente' }}
+                                        </span>
+                                        <span class="block text-xs text-muted-foreground">
+                                            Cobertura parcial · Revisión humana obligatoria · Fuente no verificada
+                                        </span>
+                                    </span>
+                                </label>
+                                <details v-if="dataBiProposalPreview.skipped.length" class="text-xs">
+                                    <summary class="cursor-pointer font-semibold">
+                                        Ver necesidades sin propuesta automática
+                                    </summary>
+                                    <ul class="mt-2 list-disc space-y-1 pl-5 text-muted-foreground">
+                                        <li
+                                            v-for="item in dataBiProposalPreview.skipped"
+                                            :key="item.need_key"
+                                        >
+                                            {{ item.need_key }}: {{ dataBiProposalSkippedLabel(item.reason) }}
+                                        </li>
+                                    </ul>
+                                </details>
+                                <button
+                                    type="button"
+                                    class="rounded-xl border px-3 py-2 text-xs font-semibold hover:bg-muted disabled:opacity-50"
+                                    :disabled="!dataBiProposalSelected.length || !dataBiPlanEditable()"
+                                    @click="dataBiApplyFunctionalProposals"
+                                >
+                                    Aplicar {{ dataBiProposalSelected.length }} seleccionadas al formulario
+                                </button>
+                                <p class="text-xs text-muted-foreground">
+                                    Aplicar no guarda en MySQL. Revisa los cambios y usa
+                                    «Guardar revisión humana» para persistirlos.
+                                </p>
+                            </div>
                         </div>
 
                         <div class="mt-5 flex flex-wrap items-center justify-between gap-3">

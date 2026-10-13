@@ -2647,6 +2647,23 @@ final class AdminTransformationImplementationRequestController
                             )
                             : null,
 
+                    // BI13_T2 · URL separada del generador de contenido.
+                    'functional_proposals_preview_endpoint' =>
+                        $implementationRequest->status
+                            === \App\Services\Diagnosis\TransformationImplementationRequestContract::STATUS_DEFINITION_PREPARATION
+                        && (string) $implementationRequest->capability_key === 'data_transformation_bi'
+                        && $latestDefinition !== null
+                        && $latestDefinition->isEditable()
+                        && $definitionContentPrepared
+                            ? route(
+                                'admin.transformation360.implementation_requests.definition.functional_proposals.preview',
+                                [
+                                    'implementationRequest' => $implementationRequest->id,
+                                    'definition' => $latestDefinition->id,
+                                ]
+                            )
+                            : null,
+
                     'can_review_definition' =>
                         $implementationRequest->status
                             === \App\Services\Diagnosis\TransformationImplementationRequestContract::STATUS_DEFINITION_PREPARATION

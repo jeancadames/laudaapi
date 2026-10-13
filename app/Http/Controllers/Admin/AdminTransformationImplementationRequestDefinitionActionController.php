@@ -13,6 +13,8 @@ use App\Services\Diagnosis\TransformationImplementationRequestDefinitionRevision
 use App\Services\Diagnosis\TransformationImplementationRequestDefinitionService;
 use App\Services\Diagnosis\TransformationImplementationRequestDefinitionTenantReviewService;
 use App\Services\Diagnosis\TransformationImplementationRequestReadyForCommercialService;
+use App\Services\Diagnosis\TransformationImplementationRequestFunctionalProposalEngine;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\ValidationException;
@@ -166,6 +168,66 @@ final class AdminTransformationImplementationRequestDefinitionActionController e
      *
      * No marca ready y no cambia el lifecycle del Request.
      */
+    /**
+     * BI13_T2 · La vista previa consulta SOLO información persistida.
+     * No modifica Definition, Request ni el estado funcional.
+     */
+    public function previewFunctionalProposals(
+        Request $request,
+        TransformationImplementationRequest $implementationRequest,
+        TransformationImplementationDefinition $definition
+    ): JsonResponse {
+        $this->authorizeAdmin($request);
+        $this->assertDefinitionContext($implementationRequest, $definition);
+
+        $isDataBi = trim((string) $implementationRequest->capability_key)
+            === 'data_transformation_bi';
+        $inPreparation = $implementationRequest->status
+            === TransformationImplementationRequestContract::STATUS_DEFINITION_PREPARATION;
+        $latest = TransformationImplementationDefinition::query()
+            ->where('transformation_implementation_request_id', $implementationRequest->id)
+            ->orderByDesc('version')
+            ->first();
+
+        if (
+            ! $isDataBi || ! $inPreparation
+            || ! $definition->isEditable()
+            || $latest === null
+            || (int) $latest->id !== (int) $definition->id
+        ) {
+            throw ValidationException::withMessages([
+                'definition' => [
+                    'La vista previa solo está disponible para la última definición BI editable en preparación.',
+                ],
+            ]);
+        }
+
+        $decode = static function (mixed $value): array {
+            if (is_string($value)) {
+                $value = json_decode($value, true, 512, JSON_THROW_ON_ERROR);
+            }
+            if (! is_array($value)) {
+                throw ValidationException::withMessages([
+                    'definition' => ['Los datos funcionales persistidos tienen una estructura inválida.'],
+                ]);
+            }
+            return $value;
+        };
+
+        $snapshot = $decode($implementationRequest->source_snapshot);
+        $scope = $decode($definition->implementation_scope);
+        $deliverables = $decode($definition->deliverables);
+
+        $preview = TransformationImplementationRequestFunctionalProposalEngine::preview(
+            $snapshot,
+            $scope,
+            $deliverables
+        );
+
+        return response()->json($preview)
+            ->header('Cache-Control', 'no-store, private');
+    }
+
     public function review(
         Request $request,
         TransformationImplementationRequest $implementationRequest,

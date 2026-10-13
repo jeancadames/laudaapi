@@ -2658,4 +2658,106 @@ final class TransformationImplementationRequestDefinitionHumanReviewAdminHttpTes
 
         return 'QA F5D2';
     }
+
+
+    /* BI13_T4_HTTP_RELEASE_GATE · Endpoint HTTP real / MySQL DEV. */
+
+    private function bi13PreviewUrlFor(
+        TransformationImplementationRequest $request,
+        TransformationImplementationDefinition $definition
+    ): string {
+        return route(
+            'admin.transformation360.implementation_requests.definition.functional_proposals.preview',
+            [
+                'implementationRequest' => $request->id,
+                'definition' => $definition->id,
+            ]
+        );
+    }
+
+    public function test_bi13_http_preview_is_read_only_and_non_cacheable(): void
+    {
+        $context = $this->needsAssessmentHttpContext();
+        $request = $context['request'];
+        $definition = $context['definition'];
+
+        $requestBefore = $request->fresh()->getRawOriginal();
+        $definitionBefore = $definition->fresh()->getRawOriginal();
+        $mutations = [];
+        $requestTable = $request->getTable();
+        $definitionTable = $definition->getTable();
+
+        DB::listen(static function ($query) use (&$mutations, $requestTable, $definitionTable): void {
+            $sql = trim((string) $query->sql);
+            if (
+                preg_match('/^(insert|update|delete|replace|truncate)\\b/i', $sql)
+                && (str_contains($sql, $requestTable) || str_contains($sql, $definitionTable))
+            ) {
+                $mutations[] = $sql;
+            }
+        });
+
+        $response = $this->actingAs($context['admin'])
+            ->getJson($this->bi13PreviewUrlFor($request, $definition))
+            ->assertOk()
+            ->assertJsonPath('mode', 'preview_only')
+            ->assertJsonStructure([
+                'schema_version', 'rules_version', 'mode',
+                'suggestions', 'skipped',
+                'summary' => ['total_needs', 'suggested', 'not_suggested'],
+            ]);
+
+        $this->assertStringContainsString(
+            'no-store',
+            (string) $response->headers->get('Cache-Control')
+        );
+        $this->assertSame([], $mutations, 'La vista previa no debe escribir Request ni Definition.');
+        $this->assertSame($requestBefore, $request->fresh()->getRawOriginal());
+        $this->assertSame($definitionBefore, $definition->fresh()->getRawOriginal());
+    }
+
+    public function test_bi13_http_preview_rejects_non_admin(): void
+    {
+        $context = $this->needsAssessmentHttpContext();
+        $regular = $this->fixture()['regular'];
+
+        $this->actingAs($regular)
+            ->getJson($this->bi13PreviewUrlFor(
+                $context['request'],
+                $context['definition']
+            ))
+            ->assertForbidden();
+    }
+
+    public function test_bi13_http_preview_rejects_definition_from_other_request(): void
+    {
+        $context = $this->needsAssessmentHttpContext();
+        $other = $this->fixture();
+
+        $response = $this->actingAs($context['admin'])
+            ->getJson($this->bi13PreviewUrlFor(
+                $other['request'],
+                $context['definition']
+            ));
+
+        $this->assertContains($response->getStatusCode(), [403, 404, 422]);
+    }
+
+    public function test_bi13_http_preview_rejects_obsolete_definition_version(): void
+    {
+        $context = $this->needsAssessmentHttpContext();
+        $definition = $context['definition'];
+
+        $newer = $definition->replicate();
+        $newer->version = (int) $definition->version + 1;
+        $newer->save();
+
+        $this->actingAs($context['admin'])
+            ->getJson($this->bi13PreviewUrlFor(
+                $context['request'],
+                $definition
+            ))
+            ->assertUnprocessable();
+    }
+
 }

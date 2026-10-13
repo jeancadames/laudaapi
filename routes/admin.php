@@ -987,6 +987,17 @@ Route::middleware(['auth', 'verified', 'role:admin'])
             'transformation360.implementation_requests.definition.generate'
         );
 
+        /* BI13_T2 · Vista previa sin escrituras ni transiciones. */
+        \Illuminate\Support\Facades\Route::get(
+            '/transformation-360/implementation-requests/{implementationRequest}/definition/{definition}/functional-proposals/preview',
+            [
+                \App\Http\Controllers\Admin\AdminTransformationImplementationRequestDefinitionActionController::class,
+                'previewFunctionalProposals',
+            ]
+        )->name(
+            'transformation360.implementation_requests.definition.functional_proposals.preview'
+        );
+
         \Illuminate\Support\Facades\Route::patch(
             '/transformation-360/implementation-requests/{implementationRequest}/definition/{definition}/review',
             [
