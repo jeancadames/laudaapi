@@ -60,6 +60,28 @@ const businessNeedsGroupLabels: Record<string, string> = {
     finanzas: 'Finanzas',
 };
 
+// BI13_UX2_R1_SAFE_NAV · Códigos visuales; nunca identificadores persistidos
+const bi13Ux2VisualNeedCodes: Record<string, string> = {
+    'operaciones_inventarios': 'OP-01',
+    'operaciones_calidad': 'OP-02',
+    'operaciones_recursos': 'OP-03',
+    'operaciones_proyectos': 'OP-04',
+    'operaciones_procesos': 'OP-05',
+    'gestion_clientes': 'GE-01',
+    'gestion_desempeno': 'GE-02',
+    'gestion_indicadores': 'GE-03',
+    'gestion_planificacion': 'GE-04',
+    'gestion_riesgos': 'GE-05',
+    'finanzas_ingresos': 'FI-01',
+    'finanzas_presupuestos': 'FI-02',
+    'finanzas_cobros': 'FI-03',
+    'finanzas_rentabilidad': 'FI-04',
+    'finanzas_proyecciones': 'FI-05',
+};
+function bi13Ux2VisualNeedCode(key: string): string {
+    return bi13Ux2VisualNeedCodes[key] ?? key;
+}
+
 const props = defineProps<{
     implementation_request: {
         id: number;
@@ -11208,8 +11230,33 @@ function commercialSnapshotText(value: unknown): string {
                         </p>
                     </div>
 
+                    <!-- BI13_UX2_R1_SAFE_NAV: barra horizontal de una sola fila, sin nuevos refs -->
+                    <nav
+                        v-if="props.capability.key === DATA_BI_CAPABILITY
+                            && implementation_request.business_needs?.improvements?.length"
+                        aria-label="Accesos rápidos de la definición funcional"
+                        class="sticky top-2 z-20 rounded-xl border bg-background/95 px-3 py-2 shadow-sm backdrop-blur"
+                    >
+                        <div class="flex items-center gap-2">
+                            <div class="flex min-w-0 flex-1 items-center gap-1 overflow-x-auto whitespace-nowrap">
+                                <a href="#bi-ux2-needs" class="rounded-lg px-3 py-2 text-xs font-semibold hover:bg-muted focus-visible:outline">01 · Necesidades</a>
+                                <a href="#bi-ux2-proposals" class="rounded-lg px-3 py-2 text-xs font-semibold hover:bg-muted focus-visible:outline">02 · Propuestas</a>
+                                <a href="#bi-ux2-requirements" class="rounded-lg px-3 py-2 text-xs font-semibold hover:bg-muted focus-visible:outline">03 · Requisitos</a>
+                                <a href="#bi-ux2-links" class="rounded-lg px-3 py-2 text-xs font-semibold hover:bg-muted focus-visible:outline">04 · Vinculaciones</a>
+                                <a href="#bi-ux2-review" class="rounded-lg px-3 py-2 text-xs font-semibold hover:bg-muted focus-visible:outline">05 · Revisión</a>
+                            </div>
+                            <button
+                                type="button"
+                                class="shrink-0 rounded-lg bg-slate-950 px-3 py-2 text-xs font-semibold text-white disabled:cursor-not-allowed disabled:opacity-50 dark:bg-white dark:text-slate-950"
+                                :disabled="humanReviewForm.processing || !props.actions.can_review_definition || !props.actions.definition_review_endpoint"
+                                @click="saveImplementationDefinitionHumanReview"
+                            >
+                                {{ humanReviewForm.processing ? 'Guardando...' : 'Guardar revisión' }}
+                            </button>
+                        </div>
+                    </nav>
                     <!-- BI08_P1_T1 · Evaluación de necesidades -->
-                    <section
+                    <section id="bi-ux2-needs"
                         v-if="
                             props.capability.key === DATA_BI_CAPABILITY
                             && implementation_request.business_needs
@@ -11220,7 +11267,7 @@ function commercialSnapshotText(value: unknown): string {
                         <div class="flex flex-wrap items-start justify-between gap-3">
                             <div>
                                 <p class="text-sm font-black">
-                                    Evaluación de necesidades empresariales
+                                    01 · Evaluación de necesidades empresariales
                                 </p>
                                 <p class="mt-1 text-xs leading-5 text-muted-foreground">
                                     Las mejoras seleccionadas por la empresa
@@ -11249,7 +11296,7 @@ function commercialSnapshotText(value: unknown): string {
                                 </p>
 
                                 <p class="mt-1 text-sm font-semibold">
-                                    {{ improvement.label }}
+                                    {{ bi13Ux2VisualNeedCode(improvement.key) }} · {{ improvement.label }}
                                 </p>
 
                                 <label
@@ -11435,8 +11482,9 @@ function commercialSnapshotText(value: unknown): string {
 
                         <!-- BI13_T2 · Sugerencias sin persistencia automática -->
                         <div
+                            id="bi-ux2-proposals"
                             v-if="dataBiProposalEndpoint()"
-                            class="mt-5 rounded-xl border border-dashed p-4"
+                            class="mt-5 scroll-mt-24 rounded-xl border border-dashed p-4"
                         >
                             <div class="flex flex-wrap items-start justify-between gap-3">
                                 <div>
@@ -11478,7 +11526,7 @@ function commercialSnapshotText(value: unknown): string {
                                         @change="dataBiToggleFunctionalProposal(suggestion.need_key, $event)"
                                     />
                                     <span class="space-y-1">
-                                        <span class="block font-semibold">{{ suggestion.need_label }}</span>
+                                        <span class="block font-semibold">{{ bi13Ux2VisualNeedCode(suggestion.need_key) }} · {{ suggestion.need_label }}</span>
                                         <span class="block text-xs">
                                             {{ suggestion.source?.name ?? 'Reutilizar requisito de información existente' }}
                                         </span>
@@ -11516,8 +11564,8 @@ function commercialSnapshotText(value: unknown): string {
                         </div>
 
                         <div class="mt-5 flex flex-wrap items-center justify-between gap-3">
-                            <p class="text-sm font-semibold">
-                                Información necesaria
+                            <p id="bi-ux2-requirements" class="scroll-mt-24 text-sm font-semibold">
+                                03 · Información necesaria
                             </p>
 
                             <button
@@ -11547,7 +11595,7 @@ function commercialSnapshotText(value: unknown): string {
                             >
                                 <div class="flex items-center justify-between gap-3">
                                     <p class="text-sm font-semibold">
-                                        Requisito {{ index + 1 }}
+                                        R-{{ String(index + 1).padStart(2, '0') }} · Requisito {{ index + 1 }}
                                     </p>
 
                                     <button
@@ -11624,8 +11672,8 @@ function commercialSnapshotText(value: unknown): string {
                         </div>
 
                         <div class="mt-6 border-t pt-5">
-                            <p class="text-sm font-semibold">
-                                Vinculación con necesidades y entregables
+                            <p id="bi-ux2-links" class="scroll-mt-24 text-sm font-semibold">
+                                04 · Vinculación con necesidades y entregables
                             </p>
 
                             <p class="mt-1 text-xs leading-5 text-muted-foreground">
@@ -11651,7 +11699,7 @@ function commercialSnapshotText(value: unknown): string {
                                     class="rounded-xl border p-4"
                                 >
                                     <summary class="cursor-pointer text-sm font-semibold">
-                                        {{ improvement.label }}
+                                        {{ bi13Ux2VisualNeedCode(improvement.key) }} · {{ improvement.label }}
 
                                         <span class="ml-2 text-xs font-normal text-muted-foreground">
                                             {{
@@ -21169,7 +21217,7 @@ function commercialSnapshotText(value: unknown): string {
                     </ul>
                 </div>
 
-                <div class="mt-6 flex justify-end">
+                <div id="bi-ux2-review" class="mt-6 flex scroll-mt-24 justify-end">
                     <button
                         type="button"
                         class="inline-flex items-center justify-center rounded-xl bg-slate-950 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-white dark:text-slate-950 dark:hover:bg-slate-200"
