@@ -7728,8 +7728,10 @@ function dataBiApplyFunctionalProposals(): void {
         return;
     }
 
-    plan.sources.push(...newSources);
-    plan.links.push(...newLinks);
+    // BI13_FIX1: actualizar referencias para refrescar
+    // requisitos y casillas de vinculación.
+    plan.sources = [...plan.sources, ...newSources];
+    plan.links = [...plan.links, ...newLinks];
     dataBiPlanChanged();
     dataBiProposalPreview.value = null;
     dataBiProposalSelected.value = [];
