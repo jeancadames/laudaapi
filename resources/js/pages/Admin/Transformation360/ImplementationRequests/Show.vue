@@ -82,6 +82,50 @@ function bi13Ux2VisualNeedCode(key: string): string {
     return bi13Ux2VisualNeedCodes[key] ?? key;
 }
 
+// BI13_UX2_R2_SAFE_FILTERS · Solo visibilidad, nunca mutar/reindexar el formulario
+const bi13Ux2R2Search = ref('');
+const bi13Ux2R2Group = ref('all');
+const bi13Ux2R2Status = ref('all');
+
+function bi13Ux2R2Clear(): void {
+    bi13Ux2R2Search.value = '';
+    bi13Ux2R2Group.value = 'all';
+    bi13Ux2R2Status.value = 'all';
+}
+
+function bi13Ux2R2Matches(
+    need: AdminBusinessNeeds['improvements'][number],
+): boolean {
+    const query = bi13Ux2R2Search.value.trim().toLocaleLowerCase();
+    const searchText = [
+        bi13Ux2VisualNeedCode(need.key),
+        need.label,
+        need.group_label,
+    ].join(' ').toLocaleLowerCase();
+    if (query && !searchText.includes(query)) return false;
+    if (bi13Ux2R2Group.value !== 'all'
+        && bi13Ux2R2Group.value !== need.group) return false;
+
+    const status = bi13Ux2R2Status.value;
+    if (status === 'all') return true;
+    if (status === 'linked' || status === 'unlinked') {
+        const link = dataBiNeedLink(need.key);
+        const hasSource = Array.isArray(link?.source_keys)
+            && link.source_keys.length > 0;
+        const hasDeliverable = Array.isArray(link?.deliverable_refs)
+            && link.deliverable_refs.length > 0;
+        const hasRelation = hasSource || hasDeliverable;
+        return status === 'linked' ? hasRelation : !hasRelation;
+    }
+    return dataBiNeedDecisionStatus(need.key) === status;
+}
+
+function bi13Ux2R2MatchCount(): number {
+    return (
+        props.implementation_request.business_needs?.improvements ?? []
+    ).filter(bi13Ux2R2Matches).length;
+}
+
 const props = defineProps<{
     implementation_request: {
         id: number;
@@ -11254,7 +11298,54 @@ function commercialSnapshotText(value: unknown): string {
                                 {{ humanReviewForm.processing ? 'Guardando...' : 'Guardar revisión' }}
                             </button>
                         </div>
-                    </nav>
+                                            <!-- BI13_UX2_R2_FILTER_UI · Plegado por defecto -->
+                        <details class="mt-2 border-t pt-2 text-xs">
+                            <summary class="cursor-pointer font-semibold text-foreground">
+                                Buscar / filtrar necesidades
+                                <span class="ml-2 font-normal text-muted-foreground">
+                                    {{ bi13Ux2R2MatchCount() }} de {{ implementation_request.business_needs?.improvements?.length ?? 0 }}
+                                </span>
+                            </summary>
+                            <div class="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-[minmax(10rem,2fr)_1fr_1fr_auto]">
+                                <label class="block font-semibold">
+                                    Código o nombre
+                                    <input v-model="bi13Ux2R2Search" type="search"
+                                        aria-label="Buscar necesidad por código o nombre"
+                                        placeholder="GE-01, clientes, inventarios..."
+                                        class="mt-1 w-full rounded-lg border bg-background px-3 py-2 text-sm" />
+                                </label>
+                                <label class="block font-semibold">
+                                    Área
+                                    <select v-model="bi13Ux2R2Group" aria-label="Filtrar necesidades por área"
+                                        class="mt-1 w-full rounded-lg border bg-background px-3 py-2 text-sm">
+                                        <option value="all">Todas</option>
+                                        <option value="operaciones">Operaciones</option>
+                                        <option value="gestion">Gestión</option>
+                                        <option value="finanzas">Finanzas</option>
+                                    </select>
+                                </label>
+                                <label class="block font-semibold">
+                                    Estado
+                                    <select v-model="bi13Ux2R2Status" aria-label="Filtrar necesidades por estado"
+                                        class="mt-1 w-full rounded-lg border bg-background px-3 py-2 text-sm">
+                                        <option value="all">Todos</option>
+                                        <option value="pending">Por evaluar</option>
+                                        <option value="clarification">Requiere aclaración</option>
+                                        <option value="included">Incluida</option>
+                                        <option value="excluded">Excluida</option>
+                                        <option value="linked">Con relaciones</option>
+                                        <option value="unlinked">Sin relaciones</option>
+                                    </select>
+                                </label>
+                                <button type="button" class="self-end rounded-lg border px-3 py-2 font-semibold hover:bg-muted"
+                                    @click="bi13Ux2R2Clear">Limpiar filtros</button>
+                            </div>
+                            <p class="mt-2 text-muted-foreground" role="status">
+                                Mostrando {{ bi13Ux2R2MatchCount() }} necesidades. Los filtros solo ocultan tarjetas;
+                                no modifican las evaluaciones ni los vínculos sin guardar.
+                            </p>
+                        </details>
+</nav>
                     <!-- BI08_P1_T1 · Evaluación de necesidades -->
                     <section id="bi-ux2-needs"
                         v-if="
@@ -11289,6 +11380,7 @@ function commercialSnapshotText(value: unknown): string {
                             <article
                                 v-for="(improvement, index) in implementation_request.business_needs.improvements"
                                 :key="improvement.key"
+                                v-show="bi13Ux2R2Matches(improvement)"
                                 class="rounded-xl border p-4"
                             >
                                 <p class="text-xs font-semibold text-muted-foreground">
@@ -11696,6 +11788,7 @@ function commercialSnapshotText(value: unknown): string {
                                 <details
                                     v-for="improvement in implementation_request.business_needs.improvements"
                                     :key="improvement.key"
+                                    v-show="bi13Ux2R2Matches(improvement)"
                                     class="rounded-xl border p-4"
                                 >
                                     <summary class="cursor-pointer text-sm font-semibold">
