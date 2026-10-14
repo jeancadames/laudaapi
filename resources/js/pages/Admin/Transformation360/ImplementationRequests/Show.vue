@@ -7158,6 +7158,123 @@ function generateImplementationDefinition(reprepare = false): void {
 }
 
 
+// BI13_UX2_T1 · Códigos visuales estables; no forman parte de los datos guardados.
+const dataBiUx2NeedCodes: Record<string, string> = {
+    operaciones_inventarios: 'OP-01',
+    operaciones_calidad: 'OP-02',
+    operaciones_recursos: 'OP-03',
+    operaciones_proyectos: 'OP-04',
+    operaciones_procesos: 'OP-05',
+    gestion_clientes: 'GE-01',
+    gestion_desempeno: 'GE-02',
+    gestion_indicadores: 'GE-03',
+    gestion_planificacion: 'GE-04',
+    gestion_riesgos: 'GE-05',
+    finanzas_ingresos: 'FI-01',
+    finanzas_presupuestos: 'FI-02',
+    finanzas_cobros: 'FI-03',
+    finanzas_rentabilidad: 'FI-04',
+    finanzas_proyecciones: 'FI-05',
+};
+
+function dataBiUx2NeedCode(key: string): string {
+    return dataBiUx2NeedCodes[key] ?? key;
+}
+
+// BI13_UX2_T2 · Buscador visual compartido para evaluación y vinculaciones.
+const dataBiUx2Search = ref('');
+const dataBiUx2Group = ref('all');
+const dataBiUx2Status = ref('all');
+
+function dataBiUx2NormalizeSearch(value: string): string {
+    return value.normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .toLocaleLowerCase().trim();
+}
+
+function dataBiUx2HasRelation(key: string): boolean {
+    const link = dataBiNeedLink(key);
+    return Boolean(
+        (Array.isArray(link?.source_keys) && link.source_keys.length > 0)
+        || (Array.isArray(link?.deliverable_refs) && link.deliverable_refs.length > 0)
+    );
+}
+
+function dataBiUx2FilteredNeeds(): AdminBusinessNeeds['improvements'] {
+    const needs = props.implementation_request.business_needs?.improvements ?? [];
+    const query = dataBiUx2NormalizeSearch(dataBiUx2Search.value);
+
+    return needs.filter((need) => {
+        if (dataBiUx2Group.value !== 'all'
+            && need.group !== dataBiUx2Group.value) return false;
+
+        const status = dataBiNeedDecisionStatus(need.key);
+        const filter = dataBiUx2Status.value;
+        const linked = dataBiUx2HasRelation(need.key);
+        if (filter === 'linked' && !linked) return false;
+        if (filter === 'unlinked' && (linked || status === 'excluded')) return false;
+        if (filter !== 'all' && filter !== 'linked' && filter !== 'unlinked'
+            && filter !== status) return false;
+
+        if (!query) return true;
+        return dataBiUx2NormalizeSearch([
+            dataBiUx2NeedCode(need.key),
+            need.label,
+            need.group_label,
+            need.key,
+        ].join(' ')).includes(query);
+    });
+}
+
+function dataBiUx2ClearFilters(): void {
+    dataBiUx2Search.value = '';
+    dataBiUx2Group.value = 'all';
+    dataBiUx2Status.value = 'all';
+}
+
+// BI13_UX2_T3 · Resumen de relaciones existentes: solo presentación.
+function dataBiUx2LinkedSourceLabels(needKey: string): string[] {
+    const keys: unknown = dataBiNeedLink(needKey)?.source_keys;
+    if (!Array.isArray(keys)) return [];
+    const sources: Array<Record<string, any>> = dataBiExpectedPlan().sources;
+    return keys.map((key: unknown) => {
+        const source = sources.find((item) => String(item.key) === String(key));
+        return source
+            ? String(source.name || 'Requisito sin descripción')
+            : 'Requisito vinculado no disponible en el plan';
+    });
+}
+
+function dataBiUx2LinkedDeliverableLabels(needKey: string): string[] {
+    const refs: unknown = dataBiNeedLink(needKey)?.deliverable_refs;
+    if (!Array.isArray(refs)) return [];
+    return refs.map((ref: unknown) => {
+        const index = dataBiDeliverableOptions.findIndex(
+            (option) => String(option.ref) === String(ref),
+        );
+        return index >= 0
+            ? `E-${String(index + 1).padStart(2, '0')} · ${dataBiDeliverableOptions[index].label}`
+            : 'Entregable vinculado no disponible en el catálogo';
+    });
+}
+
+function dataBiUx2LinkStatusLabel(needKey: string): string {
+    const decision = dataBiNeedDecisionStatus(needKey);
+    if (decision === 'excluded') return 'Excluida';
+    const prefix = dataBiUx2HasRelation(needKey) ? 'Vinculada' : 'Sin vinculación';
+    if (decision === 'clarification') return `${prefix} · Requiere aclaración`;
+    if (decision === 'pending') return `${prefix} · Pendiente de evaluación`;
+    return prefix;
+}
+
+const dataBiUx2Sections = [
+    { number: '01', id: 'bi13-ux2-needs', label: 'Necesidades' },
+    { number: '02', id: 'bi13-ux2-proposals', label: 'Propuestas' },
+    { number: '03', id: 'bi13-ux2-requirements', label: 'Requisitos' },
+    { number: '04', id: 'bi13-ux2-links', label: 'Vinculaciones' },
+    { number: '05', id: 'bi13-ux2-review', label: 'Guardar revisión' },
+] as const;
+
 const humanReviewForm = useForm({
     implementation_scope: {} as Record<string, any>,
     deliverables: [] as Array<Record<string, any>>,
@@ -8206,6 +8323,11 @@ watch(
     () => props.definition_review,
     () => {
         syncHumanReviewForm();
+        // BI13_UX2_T4 · Valores guardados/hidratados como linea base,
+        // solo al sincronizar props de la revision desde el servidor.
+        if (props.capability.key === DATA_BI_CAPABILITY) {
+            humanReviewForm.defaults();
+        }
         dataBiProposalBaselineSignature = dataBiProposalSignature();
     },
     {
@@ -11208,8 +11330,122 @@ function commercialSnapshotText(value: unknown): string {
                         </p>
                     </div>
 
+                    <!-- BI13_UX2_T1 · Navegación accesible sin desmontar formularios -->
+                    <nav
+                        v-if="props.capability.key === DATA_BI_CAPABILITY
+                            && implementation_request.business_needs?.improvements?.length"
+                        aria-label="Navegación de definición funcional BI"
+                        class="sticky top-2 z-20 rounded-2xl border bg-background/95 p-3 shadow-sm backdrop-blur"
+                    >
+                        <!-- BI13_UX2_T4 · Una sola accion de guardado, siempre accesible -->
+                        <div class="mb-2 flex flex-wrap items-center justify-between gap-3">
+                            <p class="text-xs font-bold text-muted-foreground">
+                                Navegación rápida · Definición funcional
+                            </p>
+                            <div class="flex flex-wrap items-center gap-2">
+                                <span
+                                    role="status"
+                                    aria-live="polite"
+                                    class="text-xs"
+                                    :class="humanReviewForm.isDirty
+                                        ? 'font-semibold text-amber-700 dark:text-amber-400'
+                                        : 'text-muted-foreground'"
+                                >
+                                    {{ humanReviewForm.isDirty
+                                        ? 'Cambios pendientes de guardar'
+                                        : (humanReviewForm.wasSuccessful ? 'Revisión guardada' : 'Sin cambios pendientes') }}
+                                </span>
+                                <button
+                                    v-if="props.actions.can_review_definition && props.actions.definition_review_endpoint"
+                                    type="button"
+                                    class="rounded-lg bg-slate-950 px-3 py-2 text-xs font-semibold text-white hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-white dark:text-slate-950 dark:hover:bg-slate-200"
+                                    :disabled="humanReviewForm.processing || !humanReviewForm.isDirty"
+                                    @click="saveImplementationDefinitionHumanReview"
+                                >
+                                    {{ humanReviewForm.processing ? 'Guardando...' : 'Guardar revisión' }}
+                                </button>
+                                <a v-if="Object.keys(humanReviewForm.errors).length"
+                                    href="#bi13-ux2-review"
+                                    class="text-xs font-semibold text-destructive underline">
+                                    Revisar errores de validación
+                                </a>
+                            </div>
+                        </div>
+                        <div class="flex flex-wrap gap-2">
+                            <a
+                                v-for="section in dataBiUx2Sections"
+                                :key="section.id"
+                                :href="`#${section.id}`"
+                                class="rounded-xl border px-3 py-2 text-xs font-semibold hover:bg-muted focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+                            >
+                                {{ section.number }} · {{ section.label }}
+                            </a>
+                        </div>
+                        <!-- BI13_UX2_T2 · Localización sin mutar el formulario -->
+                        <div class="mt-3 grid gap-2 md:grid-cols-[minmax(13rem,2fr)_1fr_1fr_auto]">
+                            <label class="block text-xs font-semibold">
+                                Buscar necesidad
+                                <input
+                                    v-model="dataBiUx2Search"
+                                    type="search"
+                                    placeholder="GE-01, clientes, inventarios..."
+                                    class="mt-1 w-full rounded-lg border bg-background px-3 py-2 text-sm"
+                                    aria-label="Buscar necesidad por código o nombre"
+                                />
+                            </label>
+                            <label class="block text-xs font-semibold">
+                                Área
+                                <select v-model="dataBiUx2Group"
+                                    class="mt-1 w-full rounded-lg border bg-background px-3 py-2 text-sm">
+                                    <option value="all">Todas</option>
+                                    <option value="operaciones">Operaciones</option>
+                                    <option value="gestion">Gestión</option>
+                                    <option value="finanzas">Finanzas</option>
+                                </select>
+                            </label>
+                            <label class="block text-xs font-semibold">
+                                Estado
+                                <select v-model="dataBiUx2Status"
+                                    class="mt-1 w-full rounded-lg border bg-background px-3 py-2 text-sm">
+                                    <option value="all">Todos</option>
+                                    <option value="pending">Por evaluar</option>
+                                    <option value="clarification">Requiere aclaración</option>
+                                    <option value="included">Incluida</option>
+                                    <option value="excluded">Excluida</option>
+                                    <option value="linked">Vinculadas</option>
+                                    <option value="unlinked">Sin vinculación</option>
+                                </select>
+                            </label>
+                            <button type="button"
+                                class="self-end rounded-lg border px-3 py-2 text-xs font-semibold hover:bg-muted"
+                                @click="dataBiUx2ClearFilters">
+                                Limpiar filtros
+                            </button>
+                        </div>
+                        <div class="mt-2 flex flex-wrap items-center justify-between gap-2 text-xs text-muted-foreground">
+                            <span role="status">
+                                Mostrando {{ dataBiUx2FilteredNeeds().length }} de
+                                {{ implementation_request.business_needs?.improvements?.length ?? 0 }} necesidades
+                            </span>
+                            <details class="relative">
+                                <summary class="cursor-pointer font-semibold">Ir a una necesidad filtrada</summary>
+                                <div class="mt-2 max-h-40 space-y-2 overflow-y-auto rounded-lg border bg-background p-2">
+                                    <p v-if="!dataBiUx2FilteredNeeds().length">Sin coincidencias.</p>
+                                    <div v-for="need in dataBiUx2FilteredNeeds()" :key="need.key"
+                                        class="flex flex-wrap items-center gap-2">
+                                        <span class="font-semibold">{{ dataBiUx2NeedCode(need.key) }} · {{ need.label }}</span>
+                                        <a :href="`#bi13-ux2-eval-${need.key}`" class="underline">Evaluar</a>
+                                        <a :href="`#bi13-ux2-link-${need.key}`" class="underline">Vincular</a>
+                                    </div>
+                                </div>
+                            </details>
+                        </div>
+                    </nav>
+
                     <!-- BI08_P1_T1 · Evaluación de necesidades -->
                     <section
+                        id="bi13-ux2-needs"
+                        style="scroll-margin-top: 12rem"
                         v-if="
                             props.capability.key === DATA_BI_CAPABILITY
                             && implementation_request.business_needs
@@ -11240,8 +11476,10 @@ function commercialSnapshotText(value: unknown): string {
 
                         <div class="mt-5 grid gap-4 lg:grid-cols-2">
                             <article
-                                v-for="(improvement, index) in implementation_request.business_needs.improvements"
+                                v-for="(improvement, index) in dataBiUx2FilteredNeeds()"
                                 :key="improvement.key"
+                                :id="`bi13-ux2-eval-${improvement.key}`"
+                                style="scroll-margin-top: 12rem"
                                 class="rounded-xl border p-4"
                             >
                                 <p class="text-xs font-semibold text-muted-foreground">
@@ -11249,7 +11487,7 @@ function commercialSnapshotText(value: unknown): string {
                                 </p>
 
                                 <p class="mt-1 text-sm font-semibold">
-                                    {{ improvement.label }}
+                                    {{ dataBiUx2NeedCode(improvement.key) }} · {{ improvement.label }}
                                 </p>
 
                                 <label
@@ -11435,6 +11673,7 @@ function commercialSnapshotText(value: unknown): string {
 
                         <!-- BI13_T2 · Sugerencias sin persistencia automática -->
                         <div
+                            id="bi13-ux2-proposals"
                             v-if="dataBiProposalEndpoint()"
                             class="mt-5 rounded-xl border border-dashed p-4"
                         >
@@ -11478,7 +11717,7 @@ function commercialSnapshotText(value: unknown): string {
                                         @change="dataBiToggleFunctionalProposal(suggestion.need_key, $event)"
                                     />
                                     <span class="space-y-1">
-                                        <span class="block font-semibold">{{ suggestion.need_label }}</span>
+                                        <span class="block font-semibold">{{ dataBiUx2NeedCode(suggestion.need_key) }} · {{ suggestion.need_label }}</span>
                                         <span class="block text-xs">
                                             {{ suggestion.source?.name ?? 'Reutilizar requisito de información existente' }}
                                         </span>
@@ -11516,7 +11755,7 @@ function commercialSnapshotText(value: unknown): string {
                         </div>
 
                         <div class="mt-5 flex flex-wrap items-center justify-between gap-3">
-                            <p class="text-sm font-semibold">
+                            <p id="bi13-ux2-requirements" class="scroll-mt-28 text-sm font-semibold">
                                 Información necesaria
                             </p>
 
@@ -11547,7 +11786,7 @@ function commercialSnapshotText(value: unknown): string {
                             >
                                 <div class="flex items-center justify-between gap-3">
                                     <p class="text-sm font-semibold">
-                                        Requisito {{ index + 1 }}
+                                        R-{{ String(index + 1).padStart(2, '0') }} · Requisito {{ index + 1 }}
                                     </p>
 
                                     <button
@@ -11624,7 +11863,7 @@ function commercialSnapshotText(value: unknown): string {
                         </div>
 
                         <div class="mt-6 border-t pt-5">
-                            <p class="text-sm font-semibold">
+                            <p id="bi13-ux2-links" class="scroll-mt-28 text-sm font-semibold">
                                 Vinculación con necesidades y entregables
                             </p>
 
@@ -11646,20 +11885,25 @@ function commercialSnapshotText(value: unknown): string {
 
                             <div class="mt-4 space-y-3">
                                 <details
-                                    v-for="improvement in implementation_request.business_needs.improvements"
+                                    v-for="improvement in dataBiUx2FilteredNeeds()"
                                     :key="improvement.key"
+                                    :id="`bi13-ux2-link-${improvement.key}`"
+                                    style="scroll-margin-top: 12rem"
                                     class="rounded-xl border p-4"
                                 >
-                                    <summary class="cursor-pointer text-sm font-semibold">
-                                        {{ improvement.label }}
-
-                                        <span class="ml-2 text-xs font-normal text-muted-foreground">
-                                            {{
-                                                dataBiNeedDecisionStatus(improvement.key)
-                                                === 'excluded'
-                                                    ? 'Excluida'
-                                                    : 'Vinculación pendiente o editable'
-                                            }}
+                                    <!-- BI13_UX2_T3 · Estado y contadores visibles sin desplegar -->
+                                    <summary class="cursor-pointer text-sm">
+                                        <span class="flex flex-wrap items-center gap-2">
+                                            <span class="font-semibold">
+                                                {{ dataBiUx2NeedCode(improvement.key) }} · {{ improvement.label }}
+                                            </span>
+                                            <span class="rounded-full border px-2 py-0.5 text-xs text-muted-foreground">
+                                                {{ dataBiUx2LinkStatusLabel(improvement.key) }}
+                                            </span>
+                                            <span class="text-xs text-muted-foreground">
+                                                {{ dataBiUx2LinkedSourceLabels(improvement.key).length }} requisitos ·
+                                                {{ dataBiUx2LinkedDeliverableLabels(improvement.key).length }} entregables
+                                            </span>
                                         </span>
                                     </summary>
 
@@ -11672,10 +11916,38 @@ function commercialSnapshotText(value: unknown): string {
                                         fuentes ni entregables.
                                     </p>
 
-                                    <div
-                                        v-else
-                                        class="mt-4 grid gap-5 lg:grid-cols-2"
-                                    >
+                                    <div v-else class="mt-3 space-y-3">
+                                        <!-- Resumen visible al abrir; sin editar ni perder datos -->
+                                        <div class="grid gap-3 rounded-lg bg-muted/30 p-3 lg:grid-cols-2">
+                                            <div>
+                                                <p class="text-xs font-semibold">Información vinculada</p>
+                                                <p v-if="!dataBiUx2LinkedSourceLabels(improvement.key).length"
+                                                    class="mt-2 text-xs text-muted-foreground">Sin requisitos relacionados.</p>
+                                                <ul v-else class="mt-2 list-disc space-y-1 pl-4 text-xs">
+                                                    <li v-for="(label, index) in dataBiUx2LinkedSourceLabels(improvement.key)"
+                                                        :key="`source-${index}`">{{ label }}</li>
+                                                </ul>
+                                            </div>
+                                            <div>
+                                                <p class="text-xs font-semibold">Entregables vinculados</p>
+                                                <p v-if="!dataBiUx2LinkedDeliverableLabels(improvement.key).length"
+                                                    class="mt-2 text-xs text-muted-foreground">Sin entregables relacionados.</p>
+                                                <ul v-else class="mt-2 list-disc space-y-1 pl-4 text-xs">
+                                                    <li v-for="(label, index) in dataBiUx2LinkedDeliverableLabels(improvement.key)"
+                                                        :key="`deliverable-${index}`">{{ label }}</li>
+                                                </ul>
+                                            </div>
+                                        </div>
+                                        <p v-if="dataBiNeedLink(improvement.key)?.notes"
+                                            class="text-xs text-muted-foreground">
+                                            Aclaración: {{ dataBiNeedLink(improvement.key)?.notes }}
+                                        </p>
+                                        <!-- El editor mantiene los mismos inputs y eventos originales -->
+                                        <details class="rounded-lg border bg-background p-3">
+                                            <summary class="cursor-pointer text-xs font-semibold">
+                                                Editar vinculaciones y aclaración
+                                            </summary>
+                                            <div class="mt-4 grid gap-5 lg:grid-cols-2">
                                         <div>
                                             <p class="text-xs font-semibold">
                                                 Información requerida relacionada
@@ -11728,7 +12000,7 @@ function commercialSnapshotText(value: unknown): string {
                                             </p>
 
                                             <label
-                                                v-for="deliverable in dataBiDeliverableOptions"
+                                                v-for="(deliverable, deliverableIndex) in dataBiDeliverableOptions"
                                                 :key="deliverable.ref"
                                                 class="mt-3 flex items-start gap-2 text-xs"
                                             >
@@ -11752,7 +12024,7 @@ function commercialSnapshotText(value: unknown): string {
                                                 />
 
                                                 <span>
-                                                    {{ deliverable.label }}
+                                                    E-{{ String(deliverableIndex + 1).padStart(2, '0') }} · {{ deliverable.label }}
                                                 </span>
                                             </label>
                                         </div>
@@ -11772,6 +12044,8 @@ function commercialSnapshotText(value: unknown): string {
                                                 @input="dataBiUpdateNeedLinkNotes(improvement.key, $event)"
                                             ></textarea>
                                         </div>
+                                            </div>
+                                        </details>
                                     </div>
                                 </details>
                             </div>
@@ -21169,7 +21443,7 @@ function commercialSnapshotText(value: unknown): string {
                     </ul>
                 </div>
 
-                <div class="mt-6 flex justify-end">
+                <div id="bi13-ux2-review" class="mt-6 flex justify-end scroll-mt-28">
                     <button
                         type="button"
                         class="inline-flex items-center justify-center rounded-xl bg-slate-950 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-white dark:text-slate-950 dark:hover:bg-slate-200"
