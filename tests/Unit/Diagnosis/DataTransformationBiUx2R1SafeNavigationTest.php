@@ -15,12 +15,12 @@ class DataTransformationBiUx2R1SafeNavigationTest extends TestCase
         return $source;
     }
 
-    public function test_navigation_uses_existing_save_handler_and_anchors(): void
+    public function test_navigation_uses_existing_save_handler_and_workspace_sections(): void
     {
         $source = $this->vueSourceText();
         self::assertStringContainsString('BI13_UX2_R1_SAFE_NAV', $source);
         foreach (['needs', 'proposals', 'requirements', 'links', 'review'] as $section) {
-            self::assertStringContainsString('href="#bi-ux2-' . $section . '"', $source);
+            self::assertStringContainsString("@click=\"bi13Ux2R5Select('{$section}')\"", $source);
             self::assertSame(1, substr_count($source, 'id="bi-ux2-' . $section . '"'));
         }
         self::assertSame(2, substr_count($source, '@click="saveImplementationDefinitionHumanReview"'));

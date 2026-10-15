@@ -60,6 +60,21 @@ const businessNeedsGroupLabels: Record<string, string> = {
     finanzas: 'Finanzas',
 };
 
+// BI13_UX2_R5_T1 · Modo enfocado o continuo sin desmontar formularios
+type Bi13Ux2R5Section = 'needs' | 'proposals' | 'requirements' | 'links' | 'review';
+const bi13Ux2R5Mode = ref<'focus' | 'all'>('focus');
+const bi13Ux2R5Section = ref<Bi13Ux2R5Section>('needs');
+function bi13Ux2R5Select(section: Bi13Ux2R5Section): void {
+    bi13Ux2R5Section.value = section;
+    bi13Ux2R5Mode.value = 'focus';
+}
+function bi13Ux2R5Visible(section: Bi13Ux2R5Section): boolean {
+    // Este SFC también sirve a otras capacidades. No ocultarlas.
+    if (props.capability.key !== DATA_BI_CAPABILITY
+        || !props.implementation_request.business_needs?.improvements?.length) return true;
+    return bi13Ux2R5Mode.value === 'all' || bi13Ux2R5Section.value === section;
+}
+
 // BI13_UX2_R1_SAFE_NAV · Códigos visuales; nunca identificadores persistidos
 const bi13Ux2VisualNeedCodes: Record<string, string> = {
     'operaciones_inventarios': 'OP-01',
@@ -11350,12 +11365,17 @@ function commercialSnapshotText(value: unknown): string {
                         class="sticky top-2 z-20 rounded-xl border bg-background/95 px-3 py-2 shadow-sm backdrop-blur"
                     >
                         <div class="flex items-center gap-2">
+<div class="flex shrink-0 items-center gap-1 rounded-lg border p-0.5" role="group" aria-label="Modo de visualización">
+  <button type="button" @click="bi13Ux2R5Mode = 'focus'" :aria-pressed="bi13Ux2R5Mode === 'focus'" class="rounded-md px-2 py-1.5 text-xs font-semibold" :class="bi13Ux2R5Mode === 'focus' ? 'bg-muted' : ''">Por secciones</button>
+  <button type="button" @click="bi13Ux2R5Mode = 'all'" :aria-pressed="bi13Ux2R5Mode === 'all'" class="rounded-md px-2 py-1.5 text-xs font-semibold" :class="bi13Ux2R5Mode === 'all' ? 'bg-muted' : ''">Vista continua</button>
+</div>
+<button v-if="Object.keys(humanReviewForm.errors).length" type="button" @click="bi13Ux2R5Select('review')" class="rounded-lg border border-destructive px-2 py-1 text-xs font-semibold text-destructive">Revisar errores</button>
                             <div class="flex min-w-0 flex-1 items-center gap-1 overflow-x-auto whitespace-nowrap">
-                                <a href="#bi-ux2-needs" class="rounded-lg px-3 py-2 text-xs font-semibold hover:bg-muted focus-visible:outline">01 · Necesidades</a>
-                                <a href="#bi-ux2-proposals" class="rounded-lg px-3 py-2 text-xs font-semibold hover:bg-muted focus-visible:outline">02 · Propuestas</a>
-                                <a href="#bi-ux2-requirements" class="rounded-lg px-3 py-2 text-xs font-semibold hover:bg-muted focus-visible:outline">03 · Requisitos</a>
-                                <a href="#bi-ux2-links" class="rounded-lg px-3 py-2 text-xs font-semibold hover:bg-muted focus-visible:outline">04 · Vinculaciones</a>
-                                <a href="#bi-ux2-review" class="rounded-lg px-3 py-2 text-xs font-semibold hover:bg-muted focus-visible:outline">05 · Revisión</a>
+                                <button type="button" @click="bi13Ux2R5Select('needs')" :aria-current="bi13Ux2R5Mode === 'focus' && bi13Ux2R5Section === 'needs' ? 'step' : undefined" class="rounded-lg px-3 py-2 text-xs font-semibold hover:bg-muted focus-visible:outline" :class="bi13Ux2R5Mode === 'focus' && bi13Ux2R5Section === 'needs' ? 'bg-muted ring-1 ring-border' : ''">01 · Necesidades</button>
+                                <button type="button" @click="bi13Ux2R5Select('proposals')" :aria-current="bi13Ux2R5Mode === 'focus' && bi13Ux2R5Section === 'proposals' ? 'step' : undefined" class="rounded-lg px-3 py-2 text-xs font-semibold hover:bg-muted focus-visible:outline" :class="bi13Ux2R5Mode === 'focus' && bi13Ux2R5Section === 'proposals' ? 'bg-muted ring-1 ring-border' : ''">02 · Propuestas</button>
+                                <button type="button" @click="bi13Ux2R5Select('requirements')" :aria-current="bi13Ux2R5Mode === 'focus' && bi13Ux2R5Section === 'requirements' ? 'step' : undefined" class="rounded-lg px-3 py-2 text-xs font-semibold hover:bg-muted focus-visible:outline" :class="bi13Ux2R5Mode === 'focus' && bi13Ux2R5Section === 'requirements' ? 'bg-muted ring-1 ring-border' : ''">03 · Requisitos</button>
+                                <button type="button" @click="bi13Ux2R5Select('links')" :aria-current="bi13Ux2R5Mode === 'focus' && bi13Ux2R5Section === 'links' ? 'step' : undefined" class="rounded-lg px-3 py-2 text-xs font-semibold hover:bg-muted focus-visible:outline" :class="bi13Ux2R5Mode === 'focus' && bi13Ux2R5Section === 'links' ? 'bg-muted ring-1 ring-border' : ''">04 · Vinculaciones</button>
+                                <button type="button" @click="bi13Ux2R5Select('review')" :aria-current="bi13Ux2R5Mode === 'focus' && bi13Ux2R5Section === 'review' ? 'step' : undefined" class="rounded-lg px-3 py-2 text-xs font-semibold hover:bg-muted focus-visible:outline" :class="bi13Ux2R5Mode === 'focus' && bi13Ux2R5Section === 'review' ? 'bg-muted ring-1 ring-border' : ''">05 · Revisión</button>
                             </div>
                             <button
                                 type="button"
@@ -11415,7 +11435,7 @@ function commercialSnapshotText(value: unknown): string {
                         </details>
 </nav>
                     <!-- BI08_P1_T1 · Evaluación de necesidades -->
-                    <section id="bi-ux2-needs"
+                    <section v-show="bi13Ux2R5Visible('needs')" id="bi-ux2-needs"
                         v-if="
                             props.capability.key === DATA_BI_CAPABILITY
                             && implementation_request.business_needs
@@ -11551,7 +11571,7 @@ function commercialSnapshotText(value: unknown): string {
 
 
                     <!-- BI12_T2_UI · Planificación funcional -->
-                    <section
+                    <section v-show="bi13Ux2R5Visible('proposals') || bi13Ux2R5Visible('requirements') || bi13Ux2R5Visible('links')"
                         v-if="
                             props.capability.key === DATA_BI_CAPABILITY
                             && implementation_request.business_needs
@@ -11658,7 +11678,7 @@ function commercialSnapshotText(value: unknown): string {
                         </div>
 
                         <!-- BI13_T2 · Sugerencias sin persistencia automática -->
-                        <div
+                        <div v-show="bi13Ux2R5Visible('proposals')"
                             id="bi-ux2-proposals"
                             v-if="dataBiProposalEndpoint()"
                             class="mt-5 scroll-mt-24 rounded-xl border border-dashed p-4"
@@ -11740,7 +11760,8 @@ function commercialSnapshotText(value: unknown): string {
                             </div>
                         </div>
 
-                        <div class="mt-5 flex flex-wrap items-center justify-between gap-3">
+                        <div class="contents" v-show="bi13Ux2R5Visible('requirements')"><!-- R5_REQUIREMENTS -->
+<div class="mt-5 flex flex-wrap items-center justify-between gap-3">
                             <p id="bi-ux2-requirements" class="scroll-mt-24 text-sm font-semibold">
                                 03 · Información necesaria
                             </p>
@@ -11853,8 +11874,10 @@ function commercialSnapshotText(value: unknown): string {
                                 </details>
                             </article>
                         </div>
+</div>
 
-                        <div class="mt-6 border-t pt-5">
+                        <div class="contents" v-show="bi13Ux2R5Visible('links')"><!-- R5_LINKS -->
+<div class="mt-6 border-t pt-5">
                             <p id="bi-ux2-links" class="scroll-mt-24 text-sm font-semibold">
                                 04 · Vinculación con necesidades y entregables
                             </p>
@@ -12073,9 +12096,11 @@ function commercialSnapshotText(value: unknown): string {
                             No activan cargas, conexiones,
                             staging ni procesamiento.
                         </p>
+</div>
                     </section>
 
-                    <section
+                    <div class="contents" v-show="bi13Ux2R5Visible('review')"><!-- R5_REVIEW_SECTIONS -->
+<section
                         class="rounded-2xl border bg-background p-5"
                     >
                         <div
@@ -12394,10 +12419,12 @@ function commercialSnapshotText(value: unknown): string {
                             Profiling y Análisis diagnóstico.
                         </p>
                     </section>
+</div>
                 </div>
 
 
-                <div
+                <div class="contents" v-show="bi13Ux2R5Visible('review')"><!-- R5_REVIEW_FOOTER -->
+<div
                     v-if="
                         props.capability.key
                             === DATA_BI_CAPABILITY
@@ -21461,6 +21488,7 @@ function commercialSnapshotText(value: unknown): string {
                         Guardar revisión humana
                     </button>
                 </div>
+</div>
             </div>
         </section>
 
