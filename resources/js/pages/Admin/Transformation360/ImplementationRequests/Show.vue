@@ -7905,6 +7905,74 @@ function dataBiNeedDecisionChanged(
     }
 }
 
+// BI13_UX2_R3_COMPACT_LINKS · Presentación reactiva, sin escrituras.
+const bi13Ux2R3ShowAll = ref(false);
+
+function bi13Ux2R3SourceKeys(needKey: string): string[] {
+    const keys: unknown = dataBiNeedLink(needKey)?.source_keys;
+    return Array.isArray(keys) ? keys.map(String) : [];
+}
+
+function bi13Ux2R3DeliverableRefs(needKey: string): string[] {
+    const refs: unknown = dataBiNeedLink(needKey)?.deliverable_refs;
+    return Array.isArray(refs) ? refs.map(String) : [];
+}
+
+function bi13Ux2R3HasRelation(needKey: string): boolean {
+    return bi13Ux2R3SourceKeys(needKey).length > 0
+        || bi13Ux2R3DeliverableRefs(needKey).length > 0;
+}
+
+function bi13Ux2R3Status(needKey: string): string {
+    const decision = dataBiNeedDecisionStatus(needKey);
+    if (decision === 'excluded') return 'Excluida';
+    const relation = bi13Ux2R3HasRelation(needKey)
+        ? 'Vinculada' : 'Sin vinculación';
+    const review = decision === 'clarification' ? 'Requiere aclaración'
+        : decision === 'included' ? 'Incluida en evaluación'
+        : 'Pendiente de evaluación';
+    return `${relation} · ${review}`;
+}
+
+function bi13Ux2R3LinkedSourceNames(needKey: string): string[] {
+    const sources: Array<Record<string, any>> = dataBiExpectedPlan().sources;
+    return bi13Ux2R3SourceKeys(needKey).map((key) => {
+        const source = sources.find((item) => String(item.key) === key);
+        return source ? String(source.name || 'Requisito sin descripción')
+            : 'Requisito referenciado pendiente de revisión';
+    });
+}
+
+function bi13Ux2R3LinkedDeliverableNames(needKey: string): string[] {
+    const options = dataBiDeliverableOptions.value;
+    return bi13Ux2R3DeliverableRefs(needKey).map((ref) => {
+        const index = options.findIndex((item) => String(item.ref) === ref);
+        return index >= 0
+            ? `E-${String(index + 1).padStart(2, '0')} · ${options[index].label}`
+            : 'Entregable referenciado pendiente de revisión';
+    });
+}
+
+function bi13Ux2R3FiltersActive(): boolean {
+    return bi13Ux2R2Search.value.trim() !== ''
+        || bi13Ux2R2Group.value !== 'all'
+        || bi13Ux2R2Status.value !== 'all';
+}
+
+function bi13Ux2R3Visible(
+    need: AdminBusinessNeeds['improvements'][number],
+): boolean {
+    if (!bi13Ux2R2Matches(need)) return false;
+    // Los filtros expresos de R2 prevalecen; nunca ocultar coincidencias.
+    if (bi13Ux2R3FiltersActive() || bi13Ux2R3ShowAll.value) return true;
+    return bi13Ux2R3HasRelation(need.key);
+}
+
+function bi13Ux2R3VisibleCount(): number {
+    return (props.implementation_request.business_needs?.improvements ?? [])
+        .filter(bi13Ux2R3Visible).length;
+}
+
 function dataBiNeedLink(
     key: string,
 ): Record<string, any> | undefined {
@@ -11784,23 +11852,43 @@ function commercialSnapshotText(value: unknown): string {
                                 {{ dataBiDeliverableHashError }}
                             </p>
 
+                            <!-- BI13_UX2_R3_COMPACT_LINKS · Filtro propio de presentación -->
+                            <div class="mt-3 flex flex-wrap items-center justify-between gap-2">
+                                <p class="text-xs text-muted-foreground" role="status">
+                                    {{ bi13Ux2R3VisibleCount() }} visibles ·
+                                    {{ dataBiFunctionalCoverageMetrics().linkedNeeds }} vinculadas de
+                                    {{ implementation_request.business_needs.improvements.length }} necesidades
+                                </p>
+                                <button v-if="!bi13Ux2R3FiltersActive()"
+                                    type="button"
+                                    class="rounded-lg border px-3 py-2 text-xs font-semibold hover:bg-muted"
+                                    @click="bi13Ux2R3ShowAll = !bi13Ux2R3ShowAll"
+                                >
+                                    {{ bi13Ux2R3ShowAll ? 'Ver solo vinculadas' : 'Mostrar todas las necesidades' }}
+                                </button>
+                                <span v-else class="text-xs text-muted-foreground">
+                                    Mostrando coincidencias de los filtros superiores
+                                </span>
+                            </div>
                             <div class="mt-4 space-y-3">
                                 <details
                                     v-for="improvement in implementation_request.business_needs.improvements"
                                     :key="improvement.key"
-                                    v-show="bi13Ux2R2Matches(improvement)"
+                                    v-show="bi13Ux2R3Visible(improvement)"
                                     class="rounded-xl border p-4"
                                 >
-                                    <summary class="cursor-pointer text-sm font-semibold">
-                                        {{ bi13Ux2VisualNeedCode(improvement.key) }} · {{ improvement.label }}
-
-                                        <span class="ml-2 text-xs font-normal text-muted-foreground">
-                                            {{
-                                                dataBiNeedDecisionStatus(improvement.key)
-                                                === 'excluded'
-                                                    ? 'Excluida'
-                                                    : 'Vinculación pendiente o editable'
-                                            }}
+                                    <summary class="cursor-pointer text-sm">
+                                        <span class="flex flex-wrap items-center gap-2">
+                                            <span class="font-semibold">
+                                                {{ bi13Ux2VisualNeedCode(improvement.key) }} · {{ improvement.label }}
+                                            </span>
+                                            <span class="rounded-full border px-2 py-0.5 text-xs text-muted-foreground">
+                                                {{ bi13Ux2R3Status(improvement.key) }}
+                                            </span>
+                                            <span class="text-xs text-muted-foreground">
+                                                {{ bi13Ux2R3SourceKeys(improvement.key).length }} requisitos ·
+                                                {{ bi13Ux2R3DeliverableRefs(improvement.key).length }} entregables
+                                            </span>
                                         </span>
                                     </summary>
 
@@ -11813,10 +11901,32 @@ function commercialSnapshotText(value: unknown): string {
                                         fuentes ni entregables.
                                     </p>
 
-                                    <div
-                                        v-else
-                                        class="mt-4 grid gap-5 lg:grid-cols-2"
-                                    >
+                                    <div v-else class="mt-3 space-y-3">
+                                        <div class="grid gap-3 rounded-lg bg-muted/30 p-3 lg:grid-cols-2">
+                                            <div>
+                                                <p class="text-xs font-semibold">Información vinculada</p>
+                                                <p v-if="!bi13Ux2R3LinkedSourceNames(improvement.key).length"
+                                                    class="mt-2 text-xs text-muted-foreground">Sin requisitos relacionados</p>
+                                                <ul v-else class="mt-2 list-disc space-y-1 pl-4 text-xs">
+                                                    <li v-for="(label, i) in bi13Ux2R3LinkedSourceNames(improvement.key)"
+                                                        :key="`linked-source-${i}`">{{ label }}</li>
+                                                </ul>
+                                            </div>
+                                            <div>
+                                                <p class="text-xs font-semibold">Entregables vinculados</p>
+                                                <p v-if="!bi13Ux2R3LinkedDeliverableNames(improvement.key).length"
+                                                    class="mt-2 text-xs text-muted-foreground">Sin entregables relacionados</p>
+                                                <ul v-else class="mt-2 list-disc space-y-1 pl-4 text-xs">
+                                                    <li v-for="(label, i) in bi13Ux2R3LinkedDeliverableNames(improvement.key)"
+                                                        :key="`linked-deliverable-${i}`">{{ label }}</li>
+                                                </ul>
+                                            </div>
+                                        </div>
+                                        <details class="rounded-lg border p-3">
+                                            <summary class="cursor-pointer text-xs font-semibold">
+                                                Editar vinculaciones y aclaración
+                                            </summary>
+                                            <div class="mt-4 grid gap-5 lg:grid-cols-2">
                                         <div>
                                             <p class="text-xs font-semibold">
                                                 Información requerida relacionada
@@ -11913,6 +12023,8 @@ function commercialSnapshotText(value: unknown): string {
                                                 @input="dataBiUpdateNeedLinkNotes(improvement.key, $event)"
                                             ></textarea>
                                         </div>
+                                            </div>
+                                        </details>
                                     </div>
                                 </details>
                             </div>

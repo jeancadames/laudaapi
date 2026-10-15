@@ -34,7 +34,11 @@ final class DataTransformationBiUx2R2SearchFilterTest extends TestCase
     public function test_both_editable_lists_keep_original_indices_and_dom(): void
     {
         $source = $this->vueSource();
-        self::assertSame(2, substr_count($source, 'v-show="bi13Ux2R2Matches(improvement)"'));
+        // R3 conserva v-show y los índices originales. El listado de
+        // evaluación usa R2; el de vínculos compone R2 con la vista compacta.
+        self::assertSame(1, substr_count($source, 'v-show="bi13Ux2R2Matches(improvement)"'));
+        self::assertSame(1, substr_count($source, 'v-show="bi13Ux2R3Visible(improvement)"'));
+        self::assertStringContainsString('if (!bi13Ux2R2Matches(need)) return false;', $source);
         self::assertStringContainsString(
             'v-for="(improvement, index) in implementation_request.business_needs.improvements"',
             $source
