@@ -11444,12 +11444,29 @@ function commercialSnapshotText(value: unknown): string {
                             </span>
                         </div>
 
-                        <div class="mt-5 grid gap-4 lg:grid-cols-2">
+                        <!-- BI13_UX2_R4_COMPACT_WORKSPACE · Accesos de grupo R2 -->
+                        <div class="mt-3 flex flex-wrap items-center gap-2" aria-label="Accesos rápidos por área">
+                            <button v-for="group in [
+                                { key: 'all', label: 'Todas' },
+                                { key: 'operaciones', label: 'Operaciones' },
+                                { key: 'gestion', label: 'Gestión' },
+                                { key: 'finanzas', label: 'Finanzas' },
+                            ]" :key="group.key" type="button"
+                                class="rounded-lg border px-3 py-1.5 text-xs font-semibold hover:bg-muted focus-visible:outline focus-visible:outline-2"
+                                :class="bi13Ux2R2Group === group.key ? 'bg-muted ring-1 ring-foreground/20' : ''"
+                                :aria-pressed="bi13Ux2R2Group === group.key"
+                                @click="bi13Ux2R2Group = group.key"
+                            >{{ group.label }}</button>
+                            <span class="ml-auto text-xs text-muted-foreground" role="status">
+                                {{ bi13Ux2R2MatchCount() }} de {{ implementation_request.business_needs.improvements.length }} visibles
+                            </span>
+                        </div>
+                        <div class="mt-3 grid gap-3 lg:grid-cols-2">
                             <article
                                 v-for="(improvement, index) in implementation_request.business_needs.improvements"
                                 :key="improvement.key"
                                 v-show="bi13Ux2R2Matches(improvement)"
-                                class="rounded-xl border p-4"
+                                class="rounded-xl border p-3 sm:p-4"
                             >
                                 <p class="text-xs font-semibold text-muted-foreground">
                                     {{ improvement.group_label }}
@@ -11460,7 +11477,7 @@ function commercialSnapshotText(value: unknown): string {
                                 </p>
 
                                 <label
-                                    class="mt-4 block text-xs font-semibold"
+                                    class="mt-3 block text-xs font-semibold"
                                     :for="`need-decision-${index}`"
                                 >
                                     Evaluación de LAUDA
@@ -11767,8 +11784,13 @@ function commercialSnapshotText(value: unknown): string {
                                         Quitar
                                     </button>
                                 </div>
-
-                                <label class="mt-4 block text-xs font-semibold">
+                                <!-- BI13_UX2_R4_COMPACT_WORKSPACE · Editor de requisito plegable -->
+                                <details class="mt-3 rounded-lg border border-dashed p-3">
+                                    <summary class="cursor-pointer text-xs font-semibold">
+                                        {{ source.name || 'Requisito pendiente de describir' }} · Editar información
+                                    </summary>
+                                    <div class="pt-1">
+                                <label class="mt-3 block text-xs font-semibold">
                                     Información requerida
                                 </label>
 
@@ -11827,7 +11849,8 @@ function commercialSnapshotText(value: unknown): string {
                                     class="mt-2 w-full rounded-xl border bg-background px-3 py-2 text-sm"
                                     :disabled="!dataBiPlanEditable()"
                                     @input="dataBiPlanChanged"
-                                ></textarea>
+                                ></textarea>                                    </div>
+                                </details>
                             </article>
                         </div>
 
@@ -11870,12 +11893,12 @@ function commercialSnapshotText(value: unknown): string {
                                     Mostrando coincidencias de los filtros superiores
                                 </span>
                             </div>
-                            <div class="mt-4 space-y-3">
+                            <div class="mt-3 space-y-2">
                                 <details
                                     v-for="improvement in implementation_request.business_needs.improvements"
                                     :key="improvement.key"
                                     v-show="bi13Ux2R3Visible(improvement)"
-                                    class="rounded-xl border p-4"
+                                    class="rounded-xl border p-3 sm:p-4"
                                 >
                                     <summary class="cursor-pointer text-sm">
                                         <span class="flex flex-wrap items-center gap-2">
@@ -11886,8 +11909,10 @@ function commercialSnapshotText(value: unknown): string {
                                                 {{ bi13Ux2R3Status(improvement.key) }}
                                             </span>
                                             <span class="text-xs text-muted-foreground">
-                                                {{ bi13Ux2R3SourceKeys(improvement.key).length }} requisitos ·
-                                                {{ bi13Ux2R3DeliverableRefs(improvement.key).length }} entregables
+                                                {{ bi13Ux2R3SourceKeys(improvement.key).length }}
+                                                {{ bi13Ux2R3SourceKeys(improvement.key).length === 1 ? 'requisito' : 'requisitos' }} ·
+                                                {{ bi13Ux2R3DeliverableRefs(improvement.key).length }}
+                                                {{ bi13Ux2R3DeliverableRefs(improvement.key).length === 1 ? 'entregable' : 'entregables' }}
                                             </span>
                                         </span>
                                     </summary>
