@@ -11361,21 +11361,21 @@ function commercialSnapshotText(value: unknown): string {
                     <nav
                         v-if="props.capability.key === DATA_BI_CAPABILITY
                             && implementation_request.business_needs?.improvements?.length"
-                        aria-label="Accesos rápidos de la definición funcional"
+                        aria-label="Accesos rápidos de la definición funcional" data-bi13-ux2-r5-t2-nav="1"
                         class="sticky top-2 z-20 rounded-xl border bg-background/95 px-3 py-2 shadow-sm backdrop-blur"
                     >
                         <div class="flex items-center gap-2">
 <div class="flex shrink-0 items-center gap-1 rounded-lg border p-0.5" role="group" aria-label="Modo de visualización">
-  <button type="button" @click="bi13Ux2R5Mode = 'focus'" :aria-pressed="bi13Ux2R5Mode === 'focus'" class="rounded-md px-2 py-1.5 text-xs font-semibold" :class="bi13Ux2R5Mode === 'focus' ? 'bg-muted' : ''">Por secciones</button>
-  <button type="button" @click="bi13Ux2R5Mode = 'all'" :aria-pressed="bi13Ux2R5Mode === 'all'" class="rounded-md px-2 py-1.5 text-xs font-semibold" :class="bi13Ux2R5Mode === 'all' ? 'bg-muted' : ''">Vista continua</button>
+  <button type="button" @click="bi13Ux2R5Mode = 'focus'" :aria-pressed="bi13Ux2R5Mode === 'focus'" class="cursor-pointer rounded-md px-2 py-1.5 text-xs font-semibold transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring" :class="bi13Ux2R5Mode === 'focus' ? 'bg-primary text-primary-foreground shadow-sm hover:bg-primary/90' : 'text-muted-foreground hover:bg-muted hover:text-foreground'">Por secciones</button>
+  <button type="button" @click="bi13Ux2R5Mode = 'all'" :aria-pressed="bi13Ux2R5Mode === 'all'" class="cursor-pointer rounded-md px-2 py-1.5 text-xs font-semibold transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring" :class="bi13Ux2R5Mode === 'all' ? 'bg-primary text-primary-foreground shadow-sm hover:bg-primary/90' : 'text-muted-foreground hover:bg-muted hover:text-foreground'">Vista continua</button>
 </div>
 <button v-if="Object.keys(humanReviewForm.errors).length" type="button" @click="bi13Ux2R5Select('review')" class="rounded-lg border border-destructive px-2 py-1 text-xs font-semibold text-destructive">Revisar errores</button>
                             <div class="flex min-w-0 flex-1 items-center gap-1 overflow-x-auto whitespace-nowrap">
-                                <button type="button" @click="bi13Ux2R5Select('needs')" :aria-current="bi13Ux2R5Mode === 'focus' && bi13Ux2R5Section === 'needs' ? 'step' : undefined" class="rounded-lg px-3 py-2 text-xs font-semibold hover:bg-muted focus-visible:outline" :class="bi13Ux2R5Mode === 'focus' && bi13Ux2R5Section === 'needs' ? 'bg-muted ring-1 ring-border' : ''">01 · Necesidades</button>
-                                <button type="button" @click="bi13Ux2R5Select('proposals')" :aria-current="bi13Ux2R5Mode === 'focus' && bi13Ux2R5Section === 'proposals' ? 'step' : undefined" class="rounded-lg px-3 py-2 text-xs font-semibold hover:bg-muted focus-visible:outline" :class="bi13Ux2R5Mode === 'focus' && bi13Ux2R5Section === 'proposals' ? 'bg-muted ring-1 ring-border' : ''">02 · Propuestas</button>
-                                <button type="button" @click="bi13Ux2R5Select('requirements')" :aria-current="bi13Ux2R5Mode === 'focus' && bi13Ux2R5Section === 'requirements' ? 'step' : undefined" class="rounded-lg px-3 py-2 text-xs font-semibold hover:bg-muted focus-visible:outline" :class="bi13Ux2R5Mode === 'focus' && bi13Ux2R5Section === 'requirements' ? 'bg-muted ring-1 ring-border' : ''">03 · Requisitos</button>
-                                <button type="button" @click="bi13Ux2R5Select('links')" :aria-current="bi13Ux2R5Mode === 'focus' && bi13Ux2R5Section === 'links' ? 'step' : undefined" class="rounded-lg px-3 py-2 text-xs font-semibold hover:bg-muted focus-visible:outline" :class="bi13Ux2R5Mode === 'focus' && bi13Ux2R5Section === 'links' ? 'bg-muted ring-1 ring-border' : ''">04 · Vinculaciones</button>
-                                <button type="button" @click="bi13Ux2R5Select('review')" :aria-current="bi13Ux2R5Mode === 'focus' && bi13Ux2R5Section === 'review' ? 'step' : undefined" class="rounded-lg px-3 py-2 text-xs font-semibold hover:bg-muted focus-visible:outline" :class="bi13Ux2R5Mode === 'focus' && bi13Ux2R5Section === 'review' ? 'bg-muted ring-1 ring-border' : ''">05 · Revisión</button>
+                                <button type="button" @click="bi13Ux2R5Select('needs')" :aria-pressed="bi13Ux2R5Mode === 'focus' && bi13Ux2R5Section === 'needs'" :aria-current="bi13Ux2R5Mode === 'focus' && bi13Ux2R5Section === 'needs' ? 'step' : undefined" class="cursor-pointer rounded-lg px-3 py-2 text-xs font-semibold transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring" :class="bi13Ux2R5Mode === 'focus' && bi13Ux2R5Section === 'needs' ? 'bg-primary text-primary-foreground shadow-sm ring-1 ring-primary hover:bg-primary/90' : 'text-muted-foreground hover:bg-muted hover:text-foreground'">01 · Necesidades</button>
+                                <button type="button" @click="bi13Ux2R5Select('proposals')" :aria-pressed="bi13Ux2R5Mode === 'focus' && bi13Ux2R5Section === 'proposals'" :aria-current="bi13Ux2R5Mode === 'focus' && bi13Ux2R5Section === 'proposals' ? 'step' : undefined" class="cursor-pointer rounded-lg px-3 py-2 text-xs font-semibold transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring" :class="bi13Ux2R5Mode === 'focus' && bi13Ux2R5Section === 'proposals' ? 'bg-primary text-primary-foreground shadow-sm ring-1 ring-primary hover:bg-primary/90' : 'text-muted-foreground hover:bg-muted hover:text-foreground'">02 · Propuestas</button>
+                                <button type="button" @click="bi13Ux2R5Select('requirements')" :aria-pressed="bi13Ux2R5Mode === 'focus' && bi13Ux2R5Section === 'requirements'" :aria-current="bi13Ux2R5Mode === 'focus' && bi13Ux2R5Section === 'requirements' ? 'step' : undefined" class="cursor-pointer rounded-lg px-3 py-2 text-xs font-semibold transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring" :class="bi13Ux2R5Mode === 'focus' && bi13Ux2R5Section === 'requirements' ? 'bg-primary text-primary-foreground shadow-sm ring-1 ring-primary hover:bg-primary/90' : 'text-muted-foreground hover:bg-muted hover:text-foreground'">03 · Requisitos</button>
+                                <button type="button" @click="bi13Ux2R5Select('links')" :aria-pressed="bi13Ux2R5Mode === 'focus' && bi13Ux2R5Section === 'links'" :aria-current="bi13Ux2R5Mode === 'focus' && bi13Ux2R5Section === 'links' ? 'step' : undefined" class="cursor-pointer rounded-lg px-3 py-2 text-xs font-semibold transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring" :class="bi13Ux2R5Mode === 'focus' && bi13Ux2R5Section === 'links' ? 'bg-primary text-primary-foreground shadow-sm ring-1 ring-primary hover:bg-primary/90' : 'text-muted-foreground hover:bg-muted hover:text-foreground'">04 · Vinculaciones</button>
+                                <button type="button" @click="bi13Ux2R5Select('review')" :aria-pressed="bi13Ux2R5Mode === 'focus' && bi13Ux2R5Section === 'review'" :aria-current="bi13Ux2R5Mode === 'focus' && bi13Ux2R5Section === 'review' ? 'step' : undefined" class="cursor-pointer rounded-lg px-3 py-2 text-xs font-semibold transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring" :class="bi13Ux2R5Mode === 'focus' && bi13Ux2R5Section === 'review' ? 'bg-primary text-primary-foreground shadow-sm ring-1 ring-primary hover:bg-primary/90' : 'text-muted-foreground hover:bg-muted hover:text-foreground'">05 · Revisión</button>
                             </div>
                             <button
                                 type="button"
@@ -12103,6 +12103,11 @@ function commercialSnapshotText(value: unknown): string {
 <section
                         class="rounded-2xl border bg-background p-5"
                     >
+<!-- BI13_UX2_R5_T2 · scope · contenido original intacto -->
+<details class="group" data-bi13-ux2-r5-t2="scope" :open="props.capability.key !== DATA_BI_CAPABILITY ? true : undefined">
+  <summary v-if="props.capability.key === DATA_BI_CAPABILITY" class="flex cursor-pointer list-none items-center justify-between gap-3 rounded-lg border bg-muted/40 px-4 py-3 text-sm font-semibold transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring [&::-webkit-details-marker]:hidden"><span>Alcance funcional</span><span class="flex items-center gap-2 text-xs font-medium text-muted-foreground"><span>Mostrar / ocultar</span><span aria-hidden="true" class="inline-block transition-transform duration-150 group-open:rotate-90">▸</span></span></summary>
+  <div class="mt-3">
+
                         <div
                             class="flex flex-wrap items-start justify-between gap-3"
                         >
@@ -12232,11 +12237,18 @@ function commercialSnapshotText(value: unknown): string {
                                 </li>
                             </ul>
                         </div>
+                      </div>
+                    </details>
                     </section>
 
                     <section
                         class="rounded-2xl border bg-background p-5"
                     >
+<!-- BI13_UX2_R5_T2 · deliverables · contenido original intacto -->
+<details class="group" data-bi13-ux2-r5-t2="deliverables" :open="props.capability.key !== DATA_BI_CAPABILITY ? true : undefined">
+  <summary v-if="props.capability.key === DATA_BI_CAPABILITY" class="flex cursor-pointer list-none items-center justify-between gap-3 rounded-lg border bg-muted/40 px-4 py-3 text-sm font-semibold transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring [&::-webkit-details-marker]:hidden"><span>Entregables</span><span class="flex items-center gap-2 text-xs font-medium text-muted-foreground"><span>Mostrar / ocultar</span><span aria-hidden="true" class="inline-block transition-transform duration-150 group-open:rotate-90">▸</span></span></summary>
+  <div class="mt-3">
+
                         <p class="text-sm font-black">
                             Entregables
                         </p>
@@ -12270,11 +12282,18 @@ function commercialSnapshotText(value: unknown): string {
                                 </p>
                             </article>
                         </div>
+                      </div>
+                    </details>
                     </section>
 
                     <section
                         class="rounded-2xl border bg-background p-5"
                     >
+<!-- BI13_UX2_R5_T2 · dependencies · contenido original intacto -->
+<details class="group" data-bi13-ux2-r5-t2="dependencies" :open="props.capability.key !== DATA_BI_CAPABILITY ? true : undefined">
+  <summary v-if="props.capability.key === DATA_BI_CAPABILITY" class="flex cursor-pointer list-none items-center justify-between gap-3 rounded-lg border bg-muted/40 px-4 py-3 text-sm font-semibold transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring [&::-webkit-details-marker]:hidden"><span>Dependencias</span><span class="flex items-center gap-2 text-xs font-medium text-muted-foreground"><span>Mostrar / ocultar</span><span aria-hidden="true" class="inline-block transition-transform duration-150 group-open:rotate-90">▸</span></span></summary>
+  <div class="mt-3">
+
                         <p class="text-sm font-black">
                             Dependencias
                         </p>
@@ -12314,6 +12333,8 @@ function commercialSnapshotText(value: unknown): string {
                         >
                             No hay dependencias funcionales registradas.
                         </p>
+                      </div>
+                    </details>
                     </section>
 
                     <section
@@ -12323,6 +12344,11 @@ function commercialSnapshotText(value: unknown): string {
                         "
                         class="rounded-2xl border border-violet-200 bg-violet-50/40 p-5 dark:border-violet-900/70 dark:bg-violet-950/10"
                     >
+<!-- BI13_UX2_R5_T2 · responsibilities · contenido original intacto -->
+<details class="group" data-bi13-ux2-r5-t2="responsibilities" :open="props.capability.key !== DATA_BI_CAPABILITY ? true : undefined">
+  <summary v-if="props.capability.key === DATA_BI_CAPABILITY" class="flex cursor-pointer list-none items-center justify-between gap-3 rounded-lg border bg-muted/40 px-4 py-3 text-sm font-semibold transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring [&::-webkit-details-marker]:hidden"><span>Modelo general de responsabilidades</span><span class="flex items-center gap-2 text-xs font-medium text-muted-foreground"><span>Mostrar / ocultar</span><span aria-hidden="true" class="inline-block transition-transform duration-150 group-open:rotate-90">▸</span></span></summary>
+  <div class="mt-3">
+
                         <p class="text-sm font-black">
                             Modelo general de responsabilidades
                         </p>
@@ -12398,6 +12424,8 @@ function commercialSnapshotText(value: unknown): string {
                                 </ul>
                             </article>
                         </div>
+                      </div>
+                    </details>
                     </section>
 
                     <section
@@ -12407,6 +12435,11 @@ function commercialSnapshotText(value: unknown): string {
                         "
                         class="rounded-2xl border border-sky-200 bg-sky-50/40 p-5 dark:border-sky-900/70 dark:bg-sky-950/10"
                     >
+<!-- BI13_UX2_R5_T2 · sources · contenido original intacto -->
+<details class="group" data-bi13-ux2-r5-t2="sources" :open="props.capability.key !== DATA_BI_CAPABILITY ? true : undefined">
+  <summary v-if="props.capability.key === DATA_BI_CAPABILITY" class="flex cursor-pointer list-none items-center justify-between gap-3 rounded-lg border bg-muted/40 px-4 py-3 text-sm font-semibold transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring [&::-webkit-details-marker]:hidden"><span>Fuentes de datos</span><span class="flex items-center gap-2 text-xs font-medium text-muted-foreground"><span>Mostrar / ocultar</span><span aria-hidden="true" class="inline-block transition-transform duration-150 group-open:rotate-90">▸</span></span></summary>
+  <div class="mt-3">
+
                         <p class="text-sm font-black">
                             Fuentes de datos
                         </p>
@@ -12418,6 +12451,8 @@ function commercialSnapshotText(value: unknown): string {
                             Información, Estructura observada, Archivo recibido,
                             Profiling y Análisis diagnóstico.
                         </p>
+                      </div>
+                    </details>
                     </section>
 </div>
                 </div>
