@@ -121,8 +121,21 @@ function bi14T2FocusNeed(needKey: string, section: 'needs' | 'links'): void {
     bi13Ux2R2Search.value = bi13Ux2VisualNeedCode(needKey);
     bi13Ux2R5Select(section);
     requestAnimationFrame(() => {
-        document.getElementById(section === 'needs' ? 'bi-ux2-needs' : 'bi-ux2-links')
-            ?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        // BI14_T3_FOCUSED_ACTIONS: primero la necesidad visible, no el encabezado.
+        const attribute = section === 'needs'
+            ? 'data-bi14-evaluation-need' : 'data-bi14-link-need';
+        const matching = typeof document.querySelectorAll === 'function'
+            ? Array.from(document.querySelectorAll<HTMLElement>(`[${attribute}]`))
+                .find((element) => element.getAttribute(attribute) === needKey)
+            : undefined;
+        // Abrir el detalle solo modifica el estado visual local; no crea relaciones.
+        if (section === 'links' && matching?.tagName?.toLowerCase() === 'details') {
+            (matching as HTMLDetailsElement).open = true;
+        }
+        const target = matching ?? document.getElementById(
+            section === 'needs' ? 'bi-ux2-needs' : 'bi-ux2-links',
+        );
+        target?.scrollIntoView({ behavior: 'smooth', block: matching ? 'center' : 'start' });
     });
 }
 
@@ -11574,6 +11587,7 @@ function commercialSnapshotText(value: unknown): string {
                                 v-for="(improvement, index) in implementation_request.business_needs.improvements"
                                 :key="improvement.key"
                                 v-show="bi13Ux2R2Matches(improvement)"
+                                :data-bi14-evaluation-need="improvement.key"
                                 class="rounded-xl border p-3 sm:p-4"
                             >
                                 <p class="text-xs font-semibold text-muted-foreground">
@@ -11689,8 +11703,9 @@ function commercialSnapshotText(value: unknown): string {
                             </span>
                         </div>
 
+                        <!-- BI14_T3_FOCUSED_ACTIONS · Solo Requisitos/Vista continua; cinco categorias plegables -->
                         <!-- BI14_T2_ACTIONABLE_PENDING · Controles de navegacion separados de cobertura BI13 -->
-                        <details class="mt-5 rounded-xl border p-4 text-xs">
+                        <details v-show="bi13Ux2R5Visible('requirements')" class="mt-5 rounded-xl border p-4 text-xs">
                             <summary class="cursor-pointer font-semibold">
                                 Pendientes accionables · Ver acciones de evaluacion y vinculacion
                             </summary>
@@ -11699,8 +11714,8 @@ function commercialSnapshotText(value: unknown): string {
                                 Una vinculacion con ambas relaciones no equivale a aprobacion humana ni verifica fuentes.
                             </p>
                             <div class="mt-3 grid gap-4 lg:grid-cols-2">
-                                <div v-if="dataBiFunctionalCoverageMetrics().pendingDecisions">
-                                    <p class="font-semibold">Por evaluar ({{ dataBiFunctionalCoverageMetrics().pendingDecisions }})</p>
+                                <details v-if="dataBiFunctionalCoverageMetrics().pendingDecisions" class="rounded-lg border p-2">
+                                    <summary class="cursor-pointer font-semibold focus-visible:outline focus-visible:outline-2">Por evaluar ({{ dataBiFunctionalCoverageMetrics().pendingDecisions }})</summary>
                                     <ul class="mt-2 space-y-2">
                                         <li v-for="row in dataBiFunctionalCoverageMetrics().coverageRows.filter((item) => item.decisionStatus === 'pending')"
                                             :key="row.key" class="flex flex-wrap items-center justify-between gap-2">
@@ -11709,9 +11724,9 @@ function commercialSnapshotText(value: unknown): string {
                                                 @click="bi14T2FocusNeed(row.key, 'needs')">Evaluar</button>
                                         </li>
                                     </ul>
-                                </div>
-                                <div v-if="dataBiFunctionalCoverageMetrics().clarificationNeeds">
-                                    <p class="font-semibold">Requieren aclaracion ({{ dataBiFunctionalCoverageMetrics().clarificationNeeds }})</p>
+                                </details>
+                                <details v-if="dataBiFunctionalCoverageMetrics().clarificationNeeds" class="rounded-lg border p-2">
+                                    <summary class="cursor-pointer font-semibold focus-visible:outline focus-visible:outline-2">Requieren aclaracion ({{ dataBiFunctionalCoverageMetrics().clarificationNeeds }})</summary>
                                     <ul class="mt-2 space-y-2">
                                         <li v-for="row in dataBiFunctionalCoverageMetrics().coverageRows.filter((item) => item.decisionStatus === 'clarification')"
                                             :key="row.key" class="flex flex-wrap items-center justify-between gap-2">
@@ -11720,9 +11735,9 @@ function commercialSnapshotText(value: unknown): string {
                                                 @click="bi14T2FocusNeed(row.key, 'needs')">Aclarar</button>
                                         </li>
                                     </ul>
-                                </div>
-                                <div v-if="dataBiFunctionalCoverageMetrics().unlinkedNeeds">
-                                    <p class="font-semibold">Sin vinculacion ({{ dataBiFunctionalCoverageMetrics().unlinkedNeeds }})</p>
+                                </details>
+                                <details v-if="dataBiFunctionalCoverageMetrics().unlinkedNeeds" class="rounded-lg border p-2">
+                                    <summary class="cursor-pointer font-semibold focus-visible:outline focus-visible:outline-2">Sin vinculacion ({{ dataBiFunctionalCoverageMetrics().unlinkedNeeds }})</summary>
                                     <ul class="mt-2 space-y-2">
                                         <li v-for="row in dataBiFunctionalCoverageMetrics().coverageRows.filter((item) => item.coverage === 'unlinked')"
                                             :key="row.key" class="flex flex-wrap items-center justify-between gap-2">
@@ -11731,9 +11746,9 @@ function commercialSnapshotText(value: unknown): string {
                                                 @click="bi14T2FocusNeed(row.key, 'links')">Vincular</button>
                                         </li>
                                     </ul>
-                                </div>
-                                <div v-if="dataBiFunctionalCoverageMetrics().partiallyLinkedNeeds">
-                                    <p class="font-semibold">Relaciones parciales ({{ dataBiFunctionalCoverageMetrics().partiallyLinkedNeeds }})</p>
+                                </details>
+                                <details v-if="dataBiFunctionalCoverageMetrics().partiallyLinkedNeeds" class="rounded-lg border p-2">
+                                    <summary class="cursor-pointer font-semibold focus-visible:outline focus-visible:outline-2">Relaciones parciales ({{ dataBiFunctionalCoverageMetrics().partiallyLinkedNeeds }})</summary>
                                     <ul class="mt-2 space-y-2">
                                         <li v-for="row in dataBiFunctionalCoverageMetrics().coverageRows.filter((item) => item.coverage === 'partial')"
                                             :key="row.key" class="flex flex-wrap items-center justify-between gap-2">
@@ -11742,9 +11757,9 @@ function commercialSnapshotText(value: unknown): string {
                                                 @click="bi14T2FocusNeed(row.key, 'links')">Completar relacion</button>
                                         </li>
                                     </ul>
-                                </div>
-                                <div v-if="dataBiFunctionalCoverageMetrics().fullyLinkedNeeds">
-                                    <p class="font-semibold">Con ambas relaciones ({{ dataBiFunctionalCoverageMetrics().fullyLinkedNeeds }})</p>
+                                </details>
+                                <details v-if="dataBiFunctionalCoverageMetrics().fullyLinkedNeeds" class="rounded-lg border p-2">
+                                    <summary class="cursor-pointer font-semibold focus-visible:outline focus-visible:outline-2">Con ambas relaciones ({{ dataBiFunctionalCoverageMetrics().fullyLinkedNeeds }})</summary>
                                     <ul class="mt-2 space-y-2">
                                         <li v-for="row in dataBiFunctionalCoverageMetrics().coverageRows.filter((item) => item.coverage === 'complete')"
                                             :key="row.key" class="flex flex-wrap items-center justify-between gap-2">
@@ -11753,7 +11768,7 @@ function commercialSnapshotText(value: unknown): string {
                                                 @click="bi14T2FocusNeed(row.key, 'links')">Ver relaciones</button>
                                         </li>
                                     </ul>
-                                </div>
+                                </details>
                             </div>
                         </details>
 
@@ -12123,6 +12138,7 @@ function commercialSnapshotText(value: unknown): string {
                                     v-for="improvement in implementation_request.business_needs.improvements"
                                     :key="improvement.key"
                                     v-show="bi13Ux2R3Visible(improvement)"
+                                    :data-bi14-link-need="improvement.key"
                                     class="rounded-xl border p-3 sm:p-4"
                                 >
                                     <summary class="cursor-pointer text-sm">
