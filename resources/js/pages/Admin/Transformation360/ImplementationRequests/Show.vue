@@ -112,6 +112,20 @@ function bi13Ux2R2Clear(): void {
     bi13Ux2R2Status.value = 'all';
 }
 
+// BI14_T2_ACTIONABLE_PENDING · Solo navegacion/filtro local; sin autoguardado.
+function bi14T2FocusNeed(needKey: string, section: 'needs' | 'links'): void {
+    const needs = props.implementation_request.business_needs?.improvements ?? [];
+    if (!needs.some((need) => need.key === needKey)) return;
+    bi13Ux2R2Clear();
+    // Se filtra por el codigo visual, no por el indice del formulario.
+    bi13Ux2R2Search.value = bi13Ux2VisualNeedCode(needKey);
+    bi13Ux2R5Select(section);
+    requestAnimationFrame(() => {
+        document.getElementById(section === 'needs' ? 'bi-ux2-needs' : 'bi-ux2-links')
+            ?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    });
+}
+
 function bi13Ux2R2Matches(
     need: AdminBusinessNeeds['improvements'][number],
 ): boolean {
@@ -11674,6 +11688,74 @@ function commercialSnapshotText(value: unknown): string {
                                 {{ dataBiExpectedPlan().sources.length === 1 ? 'requisito' : 'requisitos' }}
                             </span>
                         </div>
+
+                        <!-- BI14_T2_ACTIONABLE_PENDING · Controles de navegacion separados de cobertura BI13 -->
+                        <details class="mt-5 rounded-xl border p-4 text-xs">
+                            <summary class="cursor-pointer font-semibold">
+                                Pendientes accionables · Ver acciones de evaluacion y vinculacion
+                            </summary>
+                            <p class="mt-2 text-muted-foreground">
+                                Estos accesos solo navegan y filtran; no crean relaciones ni guardan decisiones.
+                                Una vinculacion con ambas relaciones no equivale a aprobacion humana ni verifica fuentes.
+                            </p>
+                            <div class="mt-3 grid gap-4 lg:grid-cols-2">
+                                <div v-if="dataBiFunctionalCoverageMetrics().pendingDecisions">
+                                    <p class="font-semibold">Por evaluar ({{ dataBiFunctionalCoverageMetrics().pendingDecisions }})</p>
+                                    <ul class="mt-2 space-y-2">
+                                        <li v-for="row in dataBiFunctionalCoverageMetrics().coverageRows.filter((item) => item.decisionStatus === 'pending')"
+                                            :key="row.key" class="flex flex-wrap items-center justify-between gap-2">
+                                            <span>{{ bi13Ux2VisualNeedCode(row.key) }} · {{ row.label }}</span>
+                                            <button type="button" class="cursor-pointer rounded-lg border px-2 py-1 font-semibold hover:bg-muted focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2"
+                                                @click="bi14T2FocusNeed(row.key, 'needs')">Evaluar</button>
+                                        </li>
+                                    </ul>
+                                </div>
+                                <div v-if="dataBiFunctionalCoverageMetrics().clarificationNeeds">
+                                    <p class="font-semibold">Requieren aclaracion ({{ dataBiFunctionalCoverageMetrics().clarificationNeeds }})</p>
+                                    <ul class="mt-2 space-y-2">
+                                        <li v-for="row in dataBiFunctionalCoverageMetrics().coverageRows.filter((item) => item.decisionStatus === 'clarification')"
+                                            :key="row.key" class="flex flex-wrap items-center justify-between gap-2">
+                                            <span>{{ bi13Ux2VisualNeedCode(row.key) }} · {{ row.label }}</span>
+                                            <button type="button" class="cursor-pointer rounded-lg border px-2 py-1 font-semibold hover:bg-muted focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2"
+                                                @click="bi14T2FocusNeed(row.key, 'needs')">Aclarar</button>
+                                        </li>
+                                    </ul>
+                                </div>
+                                <div v-if="dataBiFunctionalCoverageMetrics().unlinkedNeeds">
+                                    <p class="font-semibold">Sin vinculacion ({{ dataBiFunctionalCoverageMetrics().unlinkedNeeds }})</p>
+                                    <ul class="mt-2 space-y-2">
+                                        <li v-for="row in dataBiFunctionalCoverageMetrics().coverageRows.filter((item) => item.coverage === 'unlinked')"
+                                            :key="row.key" class="flex flex-wrap items-center justify-between gap-2">
+                                            <span>{{ bi13Ux2VisualNeedCode(row.key) }} · {{ row.label }}</span>
+                                            <button type="button" class="cursor-pointer rounded-lg border px-2 py-1 font-semibold hover:bg-muted focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2"
+                                                @click="bi14T2FocusNeed(row.key, 'links')">Vincular</button>
+                                        </li>
+                                    </ul>
+                                </div>
+                                <div v-if="dataBiFunctionalCoverageMetrics().partiallyLinkedNeeds">
+                                    <p class="font-semibold">Relaciones parciales ({{ dataBiFunctionalCoverageMetrics().partiallyLinkedNeeds }})</p>
+                                    <ul class="mt-2 space-y-2">
+                                        <li v-for="row in dataBiFunctionalCoverageMetrics().coverageRows.filter((item) => item.coverage === 'partial')"
+                                            :key="row.key" class="flex flex-wrap items-center justify-between gap-2">
+                                            <span>{{ bi13Ux2VisualNeedCode(row.key) }} · {{ row.label }}</span>
+                                            <button type="button" class="cursor-pointer rounded-lg border px-2 py-1 font-semibold hover:bg-muted focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2"
+                                                @click="bi14T2FocusNeed(row.key, 'links')">Completar relacion</button>
+                                        </li>
+                                    </ul>
+                                </div>
+                                <div v-if="dataBiFunctionalCoverageMetrics().fullyLinkedNeeds">
+                                    <p class="font-semibold">Con ambas relaciones ({{ dataBiFunctionalCoverageMetrics().fullyLinkedNeeds }})</p>
+                                    <ul class="mt-2 space-y-2">
+                                        <li v-for="row in dataBiFunctionalCoverageMetrics().coverageRows.filter((item) => item.coverage === 'complete')"
+                                            :key="row.key" class="flex flex-wrap items-center justify-between gap-2">
+                                            <span>{{ bi13Ux2VisualNeedCode(row.key) }} · {{ row.label }}</span>
+                                            <button type="button" class="cursor-pointer rounded-lg border px-2 py-1 font-semibold hover:bg-muted focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2"
+                                                @click="bi14T2FocusNeed(row.key, 'links')">Ver relaciones</button>
+                                        </li>
+                                    </ul>
+                                </div>
+                            </div>
+                        </details>
 
                         <!-- BI13_T3_COVERAGE · Actualización reactiva del formulario -->
                         <div class="mt-5 rounded-xl border p-4">
