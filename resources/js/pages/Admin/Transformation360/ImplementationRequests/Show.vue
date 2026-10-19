@@ -76,6 +76,10 @@ function bi13Ux2R5Visible(section: Bi13Ux2R5Section): boolean {
 }
 
 // BI13_UX2_R1_SAFE_NAV · Códigos visuales; nunca identificadores persistidos
+// BI13_UX2_R5_T3 · Estado visual local, sin autoguardado
+const bi13Ux2R5T3HistoryExpanded = ref(false);
+const bi13Ux2R5T3ContextExpanded = ref(false);
+
 const bi13Ux2VisualNeedCodes: Record<string, string> = {
     'operaciones_inventarios': 'OP-01',
     'operaciones_calidad': 'OP-02',
@@ -10903,6 +10907,12 @@ function commercialSnapshotText(value: unknown): string {
                 <h3 class="text-base font-bold text-slate-950 dark:text-white">
                     Necesidades y objetivos de la empresa
                 </h3>
+                <!-- BI13_UX2_R5_T3 · Objetivos compactos · solo BI -->
+                <div v-if="props.capability.key === DATA_BI_CAPABILITY" class="mt-3 flex flex-wrap items-center justify-between gap-2">
+                  <span v-if="implementation_request.business_needs" class="text-xs text-muted-foreground">{{ implementation_request.business_needs.improvements?.length ?? 0 }} necesidades solicitadas</span>
+                  <button type="button" data-bi13-ux2-r5-t3="context-toggle" aria-controls="bi13-ux2-r5-t3-company-needs-body" :aria-expanded="bi13Ux2R5T3ContextExpanded" @click="bi13Ux2R5T3ContextExpanded = !bi13Ux2R5T3ContextExpanded" class="cursor-pointer rounded-lg border px-3 py-2 text-xs font-semibold transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">{{ bi13Ux2R5T3ContextExpanded ? 'Ocultar detalles' : 'Mostrar detalles' }}</button>
+                </div>
+                <div id="bi13-ux2-r5-t3-company-needs-body" v-show="props.capability.key !== DATA_BI_CAPABILITY || bi13Ux2R5T3ContextExpanded">
 
                 <template v-if="implementation_request.business_needs">
                     <div class="mt-5">
@@ -10980,6 +10990,7 @@ function commercialSnapshotText(value: unknown): string {
                         {{ implementation_request.tenant_note }}
                     </p>
                 </template>
+                </div>
             </div>
 
             <section
@@ -10990,11 +11001,16 @@ function commercialSnapshotText(value: unknown): string {
                 >
                     Historial
                 </h2>
+                <!-- BI13_UX2_R5_T3 · Historial compacto · solo BI -->
+                <div v-if="props.capability.key === DATA_BI_CAPABILITY" class="mt-3 flex flex-wrap items-center justify-between gap-2">
+                  <span class="text-xs text-muted-foreground">{{ events.length }} {{ events.length === 1 ? 'evento registrado' : 'eventos registrados' }}</span>
+                  <button type="button" data-bi13-ux2-r5-t3="history-toggle" aria-controls="bi13-ux2-r5-t3-history-events" :aria-expanded="bi13Ux2R5T3HistoryExpanded" @click="bi13Ux2R5T3HistoryExpanded = !bi13Ux2R5T3HistoryExpanded" class="cursor-pointer rounded-lg border px-3 py-2 text-xs font-semibold transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">{{ bi13Ux2R5T3HistoryExpanded ? 'Ocultar historial' : 'Mostrar historial' }}</button>
+                </div>
 
                 <div
                     v-if="events.length"
                     class="mt-6 space-y-5"
-                >
+                 id="bi13-ux2-r5-t3-history-events" v-show="props.capability.key !== DATA_BI_CAPABILITY || bi13Ux2R5T3HistoryExpanded">
                     <div
                         v-for="event in events"
                         :key="event.id"
@@ -12105,7 +12121,7 @@ function commercialSnapshotText(value: unknown): string {
                     >
 <!-- BI13_UX2_R5_T2 · scope · contenido original intacto -->
 <details class="group" data-bi13-ux2-r5-t2="scope" :open="props.capability.key !== DATA_BI_CAPABILITY ? true : undefined">
-  <summary v-if="props.capability.key === DATA_BI_CAPABILITY" class="flex cursor-pointer list-none items-center justify-between gap-3 rounded-lg border bg-muted/40 px-4 py-3 text-sm font-semibold transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring [&::-webkit-details-marker]:hidden"><span>Alcance funcional</span><span class="flex items-center gap-2 text-xs font-medium text-muted-foreground"><span>Mostrar / ocultar</span><span aria-hidden="true" class="inline-block transition-transform duration-150 group-open:rotate-90">▸</span></span></summary>
+  <summary v-if="props.capability.key === DATA_BI_CAPABILITY" class="flex cursor-pointer list-none items-center justify-between gap-3 rounded-lg border bg-muted/40 px-4 py-3 text-sm font-semibold transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring [&::-webkit-details-marker]:hidden"><span>Alcance funcional</span><span class="flex items-center gap-2 text-xs font-medium text-muted-foreground"><span class="group-open:hidden">Mostrar detalles</span><span class="hidden group-open:inline">Ocultar detalles</span><span aria-hidden="true" class="inline-block transition-transform duration-150 group-open:rotate-90">▸</span></span></summary>
   <div class="mt-3">
 
                         <div
@@ -12246,7 +12262,7 @@ function commercialSnapshotText(value: unknown): string {
                     >
 <!-- BI13_UX2_R5_T2 · deliverables · contenido original intacto -->
 <details class="group" data-bi13-ux2-r5-t2="deliverables" :open="props.capability.key !== DATA_BI_CAPABILITY ? true : undefined">
-  <summary v-if="props.capability.key === DATA_BI_CAPABILITY" class="flex cursor-pointer list-none items-center justify-between gap-3 rounded-lg border bg-muted/40 px-4 py-3 text-sm font-semibold transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring [&::-webkit-details-marker]:hidden"><span>Entregables</span><span class="flex items-center gap-2 text-xs font-medium text-muted-foreground"><span>Mostrar / ocultar</span><span aria-hidden="true" class="inline-block transition-transform duration-150 group-open:rotate-90">▸</span></span></summary>
+  <summary v-if="props.capability.key === DATA_BI_CAPABILITY" class="flex cursor-pointer list-none items-center justify-between gap-3 rounded-lg border bg-muted/40 px-4 py-3 text-sm font-semibold transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring [&::-webkit-details-marker]:hidden"><span>Entregables</span><span class="flex items-center gap-2 text-xs font-medium text-muted-foreground"><span class="group-open:hidden">Mostrar detalles</span><span class="hidden group-open:inline">Ocultar detalles</span><span aria-hidden="true" class="inline-block transition-transform duration-150 group-open:rotate-90">▸</span></span></summary>
   <div class="mt-3">
 
                         <p class="text-sm font-black">
@@ -12291,7 +12307,7 @@ function commercialSnapshotText(value: unknown): string {
                     >
 <!-- BI13_UX2_R5_T2 · dependencies · contenido original intacto -->
 <details class="group" data-bi13-ux2-r5-t2="dependencies" :open="props.capability.key !== DATA_BI_CAPABILITY ? true : undefined">
-  <summary v-if="props.capability.key === DATA_BI_CAPABILITY" class="flex cursor-pointer list-none items-center justify-between gap-3 rounded-lg border bg-muted/40 px-4 py-3 text-sm font-semibold transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring [&::-webkit-details-marker]:hidden"><span>Dependencias</span><span class="flex items-center gap-2 text-xs font-medium text-muted-foreground"><span>Mostrar / ocultar</span><span aria-hidden="true" class="inline-block transition-transform duration-150 group-open:rotate-90">▸</span></span></summary>
+  <summary v-if="props.capability.key === DATA_BI_CAPABILITY" class="flex cursor-pointer list-none items-center justify-between gap-3 rounded-lg border bg-muted/40 px-4 py-3 text-sm font-semibold transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring [&::-webkit-details-marker]:hidden"><span>Dependencias</span><span class="flex items-center gap-2 text-xs font-medium text-muted-foreground"><span class="group-open:hidden">Mostrar detalles</span><span class="hidden group-open:inline">Ocultar detalles</span><span aria-hidden="true" class="inline-block transition-transform duration-150 group-open:rotate-90">▸</span></span></summary>
   <div class="mt-3">
 
                         <p class="text-sm font-black">
@@ -12346,7 +12362,7 @@ function commercialSnapshotText(value: unknown): string {
                     >
 <!-- BI13_UX2_R5_T2 · responsibilities · contenido original intacto -->
 <details class="group" data-bi13-ux2-r5-t2="responsibilities" :open="props.capability.key !== DATA_BI_CAPABILITY ? true : undefined">
-  <summary v-if="props.capability.key === DATA_BI_CAPABILITY" class="flex cursor-pointer list-none items-center justify-between gap-3 rounded-lg border bg-muted/40 px-4 py-3 text-sm font-semibold transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring [&::-webkit-details-marker]:hidden"><span>Modelo general de responsabilidades</span><span class="flex items-center gap-2 text-xs font-medium text-muted-foreground"><span>Mostrar / ocultar</span><span aria-hidden="true" class="inline-block transition-transform duration-150 group-open:rotate-90">▸</span></span></summary>
+  <summary v-if="props.capability.key === DATA_BI_CAPABILITY" class="flex cursor-pointer list-none items-center justify-between gap-3 rounded-lg border bg-muted/40 px-4 py-3 text-sm font-semibold transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring [&::-webkit-details-marker]:hidden"><span>Modelo general de responsabilidades</span><span class="flex items-center gap-2 text-xs font-medium text-muted-foreground"><span class="group-open:hidden">Mostrar detalles</span><span class="hidden group-open:inline">Ocultar detalles</span><span aria-hidden="true" class="inline-block transition-transform duration-150 group-open:rotate-90">▸</span></span></summary>
   <div class="mt-3">
 
                         <p class="text-sm font-black">
@@ -12437,7 +12453,7 @@ function commercialSnapshotText(value: unknown): string {
                     >
 <!-- BI13_UX2_R5_T2 · sources · contenido original intacto -->
 <details class="group" data-bi13-ux2-r5-t2="sources" :open="props.capability.key !== DATA_BI_CAPABILITY ? true : undefined">
-  <summary v-if="props.capability.key === DATA_BI_CAPABILITY" class="flex cursor-pointer list-none items-center justify-between gap-3 rounded-lg border bg-muted/40 px-4 py-3 text-sm font-semibold transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring [&::-webkit-details-marker]:hidden"><span>Fuentes de datos</span><span class="flex items-center gap-2 text-xs font-medium text-muted-foreground"><span>Mostrar / ocultar</span><span aria-hidden="true" class="inline-block transition-transform duration-150 group-open:rotate-90">▸</span></span></summary>
+  <summary v-if="props.capability.key === DATA_BI_CAPABILITY" class="flex cursor-pointer list-none items-center justify-between gap-3 rounded-lg border bg-muted/40 px-4 py-3 text-sm font-semibold transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring [&::-webkit-details-marker]:hidden"><span>Fuentes de datos</span><span class="flex items-center gap-2 text-xs font-medium text-muted-foreground"><span class="group-open:hidden">Mostrar detalles</span><span class="hidden group-open:inline">Ocultar detalles</span><span aria-hidden="true" class="inline-block transition-transform duration-150 group-open:rotate-90">▸</span></span></summary>
   <div class="mt-3">
 
                         <p class="text-sm font-black">
