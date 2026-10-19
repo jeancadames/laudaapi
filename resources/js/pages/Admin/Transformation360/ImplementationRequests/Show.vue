@@ -7519,12 +7519,32 @@ function dataBiExpectedPlan(): Record<string, any> {
 }
 
 // BI13_T3_COVERAGE · Indicadores informativos; sin persistencia ni gates.
+// BI14_T1_COVERAGE_MATRIX · Clasificación exclusivamente informativa; no es aprobación.
+type DataBiRelationCoverage = 'complete' | 'partial' | 'unlinked';
+type DataBiFunctionalCoverageRow = {
+    key: string;
+    label: string;
+    decisionStatus: string;
+    coverage: DataBiRelationCoverage | 'excluded';
+    hasRequirement: boolean;
+    hasDeliverable: boolean;
+};
+
+function bi14ClassifyLinks(hasRequirement: boolean, hasDeliverable: boolean): DataBiRelationCoverage {
+    if (hasRequirement && hasDeliverable) return 'complete';
+    if (hasRequirement || hasDeliverable) return 'partial';
+    return 'unlinked';
+}
+
 type DataBiFunctionalCoverageMetrics = {
     totalNeeds: number;
     activeNeeds: number;
     excludedNeeds: number;
     linkedNeeds: number;
+    fullyLinkedNeeds: number;
+    partiallyLinkedNeeds: number;
     unlinkedNeeds: number;
+    coverageRows: DataBiFunctionalCoverageRow[];
     pendingDecisions: number;
     clarificationNeeds: number;
     unlinkedRequirementCount: number;
@@ -7573,6 +7593,7 @@ function dataBiFunctionalCoverageMetrics(): DataBiFunctionalCoverageMetrics {
     );
     const usedRequirementKeys = new Set<string>();
     const linkedNeedKeys = new Set<string>();
+    const relationByNeed = new Map<string, { hasRequirement: boolean; hasDeliverable: boolean }>();
     const relatedDeliverables = new Set<string>();
     for (const link of links) {
         const needKey = String(link.need_key ?? '');
@@ -7591,9 +7612,43 @@ function dataBiFunctionalCoverageMetrics(): DataBiFunctionalCoverageMetrics {
         }
         const realRefs = refs.map(String).filter(Boolean);
         for (const ref of realRefs) relatedDeliverables.add(ref);
+        const previous = relationByNeed.get(needKey);
+        relationByNeed.set(needKey, {
+            hasRequirement: (previous?.hasRequirement ?? false) || hasValidRequirement,
+            hasDeliverable: (previous?.hasDeliverable ?? false) || realRefs.length > 0,
+        });
         if (hasValidRequirement || realRefs.length > 0) {
             linkedNeedKeys.add(needKey);
         }
+    }
+
+    // Una relación completa exige AMBOS tipos de referencia funcional.
+    // No implica fuente verificada ni decisión humana aprobada.
+    let fullyLinkedNeeds = 0;
+    let partiallyLinkedNeeds = 0;
+    const coverageRows: DataBiFunctionalCoverageRow[] = [];
+    for (const need of improvements) {
+        const key = String(need.key ?? '').trim();
+        if (!key) continue;
+        const decisionStatus = dataBiNeedDecisionStatus(key);
+        const relation = relationByNeed.get(key);
+        const coverage: DataBiFunctionalCoverageRow['coverage'] =
+            decisionStatus === 'excluded'
+                ? 'excluded'
+                : bi14ClassifyLinks(
+                    relation?.hasRequirement ?? false,
+                    relation?.hasDeliverable ?? false,
+                );
+        if (coverage === 'complete') fullyLinkedNeeds++;
+        if (coverage === 'partial') partiallyLinkedNeeds++;
+        coverageRows.push({
+            key,
+            label: String(need.label ?? key),
+            decisionStatus,
+            coverage,
+            hasRequirement: decisionStatus !== 'excluded' && (relation?.hasRequirement ?? false),
+            hasDeliverable: decisionStatus !== 'excluded' && (relation?.hasDeliverable ?? false),
+        });
     }
 
     const unlinkedNeedLabels = improvements
@@ -7619,7 +7674,10 @@ function dataBiFunctionalCoverageMetrics(): DataBiFunctionalCoverageMetrics {
         activeNeeds: activeKeys.size,
         excludedNeeds,
         linkedNeeds: linkedNeedKeys.size,
+        fullyLinkedNeeds,
+        partiallyLinkedNeeds,
         unlinkedNeeds: unlinkedNeedLabels.length,
+        coverageRows,
         pendingDecisions,
         clarificationNeeds: clarificationNeedLabels.length,
         unlinkedRequirementCount: unlinkedRequirementNames.length,
@@ -11625,16 +11683,25 @@ function commercialSnapshotText(value: unknown): string {
                                     <p class="mt-1 text-xs text-muted-foreground">
                                         Indicadores del formulario actual. Vincular no significa
                                         aprobar la necesidad ni verificar una fuente.
+                                        Vinculación completa solo significa que hay requisito y entregable relacionados.
                                     </p>
                                 </div>
                                 <span class="rounded-full border px-3 py-1 text-xs font-semibold">
                                     {{ dataBiFunctionalCoverageMetrics().linkedNeeds }} / {{ dataBiFunctionalCoverageMetrics().activeNeeds }} vinculadas
                                 </span>
                             </div>
-                            <div class="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-3 xl:grid-cols-6">
+                            <div class="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-4 xl:grid-cols-4">
                                 <div class="rounded-lg border p-3">
                                     <p class="text-xl font-bold tabular-nums">{{ dataBiFunctionalCoverageMetrics().linkedNeeds }}</p>
                                     <p class="text-xs text-muted-foreground">Necesidades vinculadas</p>
+                                </div>
+                                <div class="rounded-lg border p-3">
+                                    <p class="text-xl font-bold tabular-nums">{{ dataBiFunctionalCoverageMetrics().fullyLinkedNeeds }}</p>
+                                    <p class="text-xs text-muted-foreground">Con ambas relaciones</p>
+                                </div>
+                                <div class="rounded-lg border p-3">
+                                    <p class="text-xl font-bold tabular-nums">{{ dataBiFunctionalCoverageMetrics().partiallyLinkedNeeds }}</p>
+                                    <p class="text-xs text-muted-foreground">Relación parcial</p>
                                 </div>
                                 <div class="rounded-lg border p-3">
                                     <p class="text-xl font-bold tabular-nums">{{ dataBiFunctionalCoverageMetrics().unlinkedNeeds }}</p>
@@ -11693,6 +11760,43 @@ function commercialSnapshotText(value: unknown): string {
                             </details>
                         </div>
 
+                            <!-- BI14_T1_COVERAGE_MATRIX · Solo lectura, derivada del formulario actual -->
+                            <details class="mt-3 rounded-lg border p-3 text-xs">
+                                <summary class="cursor-pointer font-semibold">Ver matriz de cobertura por necesidad</summary>
+                                <p class="mt-2 text-muted-foreground">
+                                    Completa: requisito y entregable relacionados. Parcial: solo uno.
+                                    La cobertura es informativa; no cambia la evaluación humana ni verifica fuentes.
+                                </p>
+                                <div class="mt-3 overflow-x-auto">
+                                    <table class="min-w-full text-left text-xs">
+                                        <thead class="border-b text-muted-foreground">
+                                            <tr>
+                                                <th scope="col" class="px-2 py-2 font-semibold">Necesidad</th>
+                                                <th scope="col" class="px-2 py-2 font-semibold">Requisito</th>
+                                                <th scope="col" class="px-2 py-2 font-semibold">Entregable</th>
+                                                <th scope="col" class="px-2 py-2 font-semibold">Cobertura</th>
+                                                <th scope="col" class="px-2 py-2 font-semibold">Decisión LAUDA</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            <tr v-for="row in dataBiFunctionalCoverageMetrics().coverageRows"
+                                                :key="row.key" class="border-b last:border-b-0">
+                                                <td class="px-2 py-2 font-medium">
+                                                    {{ bi13Ux2VisualNeedCode(row.key) }} · {{ row.label }}
+                                                </td>
+                                                <td class="px-2 py-2">{{ row.coverage === 'excluded' ? '—' : (row.hasRequirement ? 'Sí' : 'No') }}</td>
+                                                <td class="px-2 py-2">{{ row.coverage === 'excluded' ? '—' : (row.hasDeliverable ? 'Sí' : 'No') }}</td>
+                                                <td class="px-2 py-2 font-semibold">
+                                                    {{ row.coverage === 'complete' ? 'Completa' : row.coverage === 'partial' ? 'Parcial' : row.coverage === 'excluded' ? 'Fuera de alcance' : 'Sin vinculación' }}
+                                                </td>
+                                                <td class="px-2 py-2">
+                                                    {{ row.decisionStatus === 'included' ? 'Incluida' : row.decisionStatus === 'clarification' ? 'Requiere aclaración' : row.decisionStatus === 'excluded' ? 'Excluida' : 'Pendiente' }}
+                                                </td>
+                                            </tr>
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </details>
                         <!-- BI13_T2 · Sugerencias sin persistencia automática -->
                         <div v-show="bi13Ux2R5Visible('proposals')"
                             id="bi-ux2-proposals"
