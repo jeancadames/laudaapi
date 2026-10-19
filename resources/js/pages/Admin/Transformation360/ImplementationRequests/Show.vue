@@ -68,6 +68,17 @@ function bi13Ux2R5Select(section: Bi13Ux2R5Section): void {
     bi13Ux2R5Section.value = section;
     bi13Ux2R5Mode.value = 'focus';
 }
+
+// BI15_T1_NAVIGATION · Solo visibilidad, nunca escritura del formulario.
+function bi15T1OpenSection(section: 'needs' | 'requirements'): void {
+    bi13Ux2R5Select(section);
+    requestAnimationFrame(() => {
+        document.getElementById(`bi-ux2-${section}`)?.scrollIntoView({
+            behavior: 'smooth',
+            block: 'start',
+        });
+    });
+}
 function bi13Ux2R5Visible(section: Bi13Ux2R5Section): boolean {
     // Este SFC también sirve a otras capacidades. No ocultarlas.
     if (props.capability.key !== DATA_BI_CAPABILITY
@@ -21634,6 +21645,66 @@ function commercialSnapshotText(value: unknown): string {
                     </section>
 
                 </div>
+
+                <!-- BI15_T1_PRESENTATION_PREPARATION · Solo lectura. No es un gate de presentación. -->
+                <section
+                    v-if="props.capability.key === DATA_BI_CAPABILITY"
+                    aria-label="Preparación para revisión de la empresa"
+                    class="mt-6 rounded-xl border bg-background p-4"
+                >
+                    <div class="flex flex-wrap items-center justify-between gap-2">
+                        <p class="text-sm font-bold">Preparación para revisión de la empresa</p>
+                        <span class="rounded-full border px-2 py-1 text-xs font-semibold">Seguimiento informativo</span>
+                    </div>
+                    <p class="mt-2 text-xs leading-5 text-muted-foreground">
+                        Resumen del formulario actual. No es una autorización de presentación, ni sustituye
+                        las verificaciones del servidor o las decisiones humanas.
+                    </p>
+                    <div class="mt-4 grid gap-3 md:grid-cols-3">
+                        <div class="rounded-lg border p-3">
+                            <p class="text-xs font-semibold">Evaluación de necesidades</p>
+                            <p class="mt-1 text-sm">
+                                {{ dataBiFunctionalCoverageMetrics().pendingDecisions }} por evaluar ·
+                                {{ dataBiFunctionalCoverageMetrics().clarificationNeeds }} por aclarar
+                            </p>
+                            <p class="mt-1 text-xs text-muted-foreground">
+                                {{ dataBiAssessmentCanConfirm() ? 'Sin decisiones pendientes en este formulario' : 'Alcance pendiente de evaluación humana' }}
+                            </p>
+                        </div>
+                        <div class="rounded-lg border p-3">
+                            <p class="text-xs font-semibold">Confirmaciones humanas BI</p>
+                            <p class="mt-1 text-sm">
+                                {{ [
+                                    humanReviewForm.readiness.scope_confirmed,
+                                    humanReviewForm.readiness.deliverables_confirmed,
+                                    humanReviewForm.readiness.dependencies_confirmed,
+                                    humanReviewForm.readiness.responsibilities_confirmed,
+                                ].filter(Boolean).length }} de 4 marcadas
+                            </p>
+                            <p class="mt-1 text-xs text-muted-foreground">Estado local del formulario; guardar no presenta la definición.</p>
+                        </div>
+                        <div class="rounded-lg border p-3">
+                            <p class="text-xs font-semibold">Cobertura informativa</p>
+                            <p class="mt-1 text-sm">
+                                {{ dataBiFunctionalCoverageMetrics().fullyLinkedNeeds }} con ambas relaciones ·
+                                {{ dataBiFunctionalCoverageMetrics().partiallyLinkedNeeds }} parciales ·
+                                {{ dataBiFunctionalCoverageMetrics().unlinkedNeeds }} sin relación
+                            </p>
+                            <p class="mt-1 text-xs text-muted-foreground">Los vínculos no son aprobación ni verificación de fuentes.</p>
+                        </div>
+                    </div>
+                    <div class="mt-3 flex flex-wrap gap-2">
+                        <button type="button" class="cursor-pointer rounded-lg border px-3 py-2 text-xs font-semibold hover:bg-muted focus-visible:outline focus-visible:outline-2"
+                            @click="bi15T1OpenSection('needs')">Ir a evaluaciones</button>
+                        <button type="button" class="cursor-pointer rounded-lg border px-3 py-2 text-xs font-semibold hover:bg-muted focus-visible:outline focus-visible:outline-2"
+                            @click="bi15T1OpenSection('requirements')">Ir a requisitos</button>
+                    </div>
+                    <p class="mt-3 text-xs text-muted-foreground">
+                        El contrato general contempla seis confirmaciones y el formulario BI muestra cuatro.
+                        Este panel no determina si el servidor aceptará presentar la definición.
+                    </p>
+                </section>
+                <!-- BI15_T1_PANEL_END -->
 
                 <div class="mt-6">
                     <p class="text-sm font-bold">
