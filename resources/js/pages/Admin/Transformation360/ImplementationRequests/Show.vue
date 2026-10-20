@@ -21704,6 +21704,95 @@ function commercialSnapshotText(value: unknown): string {
                         Este panel no determina si el servidor aceptará presentar la definición.
                     </p>
                 </section>
+
+                <!-- BI15_T2_EXPLAINABLE_BLOCKERS · Orientación local, jamás gate del servidor. -->
+                <section
+                    v-if="props.capability.key === DATA_BI_CAPABILITY"
+                    v-show="bi13Ux2R5Visible('review')"
+                    aria-label="Bloqueos y comprobaciones para revisión empresarial"
+                    class="mt-4 rounded-xl border bg-background p-4"
+                >
+                    <div class="flex flex-wrap items-start justify-between gap-2">
+                        <div>
+                            <p class="text-sm font-bold">Qué falta para presentar la definición</p>
+                            <p class="mt-1 text-xs leading-5 text-muted-foreground">
+                                Diagnóstico orientativo del formulario abierto. No verifica la versión guardada ni sustituye
+                                los controles del servidor al presentar a la empresa.
+                            </p>
+                        </div>
+                        <span class="rounded-full border px-2 py-1 text-xs font-semibold">Sin acciones automáticas</span>
+                    </div>
+
+                    <div class="mt-4 grid gap-3 md:grid-cols-2">
+                        <div class="rounded-lg border p-3">
+                            <p class="text-xs font-semibold">Bloqueo funcional · Evaluación del alcance</p>
+                            <template v-if="!dataBiAssessmentCanConfirm()">
+                                <p class="mt-2 text-sm font-semibold">
+                                    {{ dataBiFunctionalCoverageMetrics().pendingDecisions }} por evaluar ·
+                                    {{ dataBiFunctionalCoverageMetrics().clarificationNeeds }} por aclarar
+                                </p>
+                                <p class="mt-1 text-xs leading-5 text-muted-foreground">
+                                    Para confirmar el alcance, cada necesidad debe terminar incluida o excluida;
+                                    las exclusiones requieren justificación. Esta regla se revalida al presentar.
+                                </p>
+                            </template>
+                            <p v-else class="mt-2 text-xs leading-5 text-muted-foreground">
+                                Sin decisiones pendientes detectadas en este formulario. Aún debe guardarse y pasar la validación del servidor.
+                            </p>
+                        </div>
+                        <div class="rounded-lg border p-3">
+                            <p class="text-xs font-semibold">Confirmaciones humanas visibles · Formulario BI</p>
+                            <ul class="mt-2 space-y-1 text-xs">
+                                <li>Alcance: {{ humanReviewForm.readiness.scope_confirmed ? 'Marcado localmente' : 'Pendiente' }}</li>
+                                <li>Entregables: {{ humanReviewForm.readiness.deliverables_confirmed ? 'Marcado localmente' : 'Pendiente' }}</li>
+                                <li>Dependencias: {{ humanReviewForm.readiness.dependencies_confirmed ? 'Marcado localmente' : 'Pendiente' }}</li>
+                                <li>Responsabilidades: {{ humanReviewForm.readiness.responsibilities_confirmed ? 'Marcado localmente' : 'Pendiente' }}</li>
+                            </ul>
+                            <p class="mt-2 text-xs leading-5 text-muted-foreground">
+                                Marcar una casilla no guarda, aprueba ni presenta la definición.
+                            </p>
+                        </div>
+                    </div>
+
+                    <div class="mt-3 rounded-lg border p-3">
+                        <p class="text-xs font-semibold">Comprobaciones adicionales del contrato general</p>
+                        <p class="mt-1 text-xs leading-5 text-muted-foreground">
+                            El servidor también exige las validaciones de insumos y accesos, además de comprobar
+                            revisión humana guardada, estructura funcional, versión exacta y estado permitido.
+                            Este panel no determina si esas verificaciones ya fueron satisfechas.
+                        </p>
+                    </div>
+                    <div class="mt-3 rounded-lg border p-3">
+                        <p class="text-xs font-semibold">Seguimiento informativo · No es un bloqueo automático</p>
+                        <p class="mt-1 text-xs leading-5 text-muted-foreground">
+                            {{ dataBiFunctionalCoverageMetrics().unlinkedNeeds }} necesidades sin vinculación y
+                            {{ dataBiFunctionalCoverageMetrics().partiallyLinkedNeeds }} con relación parcial.
+                            Estas cifras orientan el trabajo de cobertura, pero no equivalen por sí solas a un rechazo
+                            de presentación ni acreditan fuentes técnicas verificadas.
+                        </p>
+                    </div>
+                    <div class="mt-3 flex flex-wrap gap-2">
+                        <button
+                            type="button"
+                            class="rounded-lg border px-3 py-2 text-xs font-semibold hover:bg-muted"
+                            @click="bi13Ux2R5Select('needs')"
+                        >
+                            Resolver evaluaciones
+                        </button>
+                        <button
+                            type="button"
+                            class="rounded-lg border px-3 py-2 text-xs font-semibold hover:bg-muted"
+                            @click="bi13Ux2R5Select('requirements')"
+                        >
+                            Consultar requisitos y cobertura
+                        </button>
+                    </div>
+                    <p class="mt-3 text-xs leading-5 text-muted-foreground">
+                        Fuentes previstas no son fuentes entregadas o verificadas. Guardar la revisión conserva la etapa
+                        funcional; presentar a la empresa sigue siendo una acción separada con validación del backend.
+                    </p>
+                </section>
+
                 <!-- BI15_T1_PANEL_END -->
 
                 <div class="mt-6">
