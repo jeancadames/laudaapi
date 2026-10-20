@@ -21,7 +21,7 @@ it('shows preparation as informational and preserves backend transitions', funct
         'humanReviewForm.readiness.scope_confirmed',
         "bi15T1OpenSection('needs')",
         "bi15T1OpenSection('requirements')",
-        'no determina si el servidor aceptará presentar',
+        'En Datos BI, presentar requiere cuatro confirmaciones humanas guardadas',
     ] as $contract) {
         Assert::assertStringContainsString($contract, $panel);
     }

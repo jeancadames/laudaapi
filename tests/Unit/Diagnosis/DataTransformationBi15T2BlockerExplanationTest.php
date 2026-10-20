@@ -30,7 +30,7 @@ final class DataTransformationBi15T2BlockerExplanationTest extends TestCase
             'humanReviewForm.readiness.deliverables_confirmed',
             'humanReviewForm.readiness.dependencies_confirmed',
             'humanReviewForm.readiness.responsibilities_confirmed',
-            'validaciones de insumos y accesos',
+            'Insumos y accesos se verifican',
             'unlinkedNeeds',
             "bi13Ux2R5Select('needs')",
             "bi13Ux2R5Select('requirements')",

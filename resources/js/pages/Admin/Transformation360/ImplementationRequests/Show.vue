@@ -21700,8 +21700,7 @@ function commercialSnapshotText(value: unknown): string {
                             @click="bi15T1OpenSection('requirements')">Ir a requisitos</button>
                     </div>
                     <p class="mt-3 text-xs text-muted-foreground">
-                        El contrato general contempla seis confirmaciones y el formulario BI muestra cuatro.
-                        Este panel no determina si el servidor aceptará presentar la definición.
+                        En Datos BI, presentar requiere cuatro confirmaciones humanas guardadas: alcance, entregables, dependencias y responsabilidades. La entrega y validación técnica de insumos y accesos corresponde a una etapa posterior. El servidor comprueba también el alcance, la versión guardada y las demás condiciones de presentación.
                     </p>
                 </section>
 
@@ -21755,11 +21754,9 @@ function commercialSnapshotText(value: unknown): string {
                     </div>
 
                     <div class="mt-3 rounded-lg border p-3">
-                        <p class="text-xs font-semibold">Comprobaciones adicionales del contrato general</p>
+                        <p class="text-xs font-semibold">Condiciones adicionales de presentación</p>
                         <p class="mt-1 text-xs leading-5 text-muted-foreground">
-                            El servidor también exige las validaciones de insumos y accesos, además de comprobar
-                            revisión humana guardada, estructura funcional, versión exacta y estado permitido.
-                            Este panel no determina si esas verificaciones ya fueron satisfechas.
+                            Para presentar una definición de Datos BI, el servidor verifica las cuatro confirmaciones humanas guardadas, el alcance evaluado, la estructura funcional, la versión exacta y los estados permitidos. Insumos y accesos se verifican en una etapa técnica posterior, no como requisito previo de presentación.
                         </p>
                     </div>
                     <div class="mt-3 rounded-lg border p-3">
