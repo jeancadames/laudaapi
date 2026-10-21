@@ -57,6 +57,13 @@ final class DataTransformationBiSourceSubmissionService
                 $session,
                 $actor
             ): array {
+                // BI17_POST_CLOSURE_REQUEST_LOCK
+                app(
+                    DataTransformationBiPostClosureMutationGuard::class
+                )->lockRequestAndAssertOpen(
+                    $implementationRequest
+                );
+
                 $lockedSession =
                     DataTransformationBiIntakeSession::query()
                         ->whereKey(

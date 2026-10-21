@@ -127,6 +127,13 @@ final class DataTransformationBiSourceAssetStructureService
                 $text,
                 $lineCount
             ): DataTransformationBiSourceAsset {
+                // BI17_POST_CLOSURE_REQUEST_LOCK
+                app(
+                    DataTransformationBiPostClosureMutationGuard::class
+                )->lockRequestAndAssertOpen(
+                    $implementationRequest
+                );
+
                 $this->lockEditableSession(
                     $implementationRequest,
                     $session

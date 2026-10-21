@@ -97,6 +97,7 @@ type UsableDatasetStatus = {
 
 
 type SourceWorkspace = {
+    functionally_closed: boolean;
     access: {
         visible: boolean;
         can_manage: boolean;
@@ -1588,6 +1589,10 @@ const canSubmitSourceWorkspace =
 
 const sourceWorkspaceStatusLabel =
     computed(() => {
+        if (props.source_workspace.functionally_closed) {
+            return 'Entrega técnica cerrada · Solo consulta';
+        }
+
         const status =
             props.source_workspace
                 .session
@@ -3863,6 +3868,20 @@ function tenantCommercialTerms(
                         v-if="source_workspace.access.can_manage"
                         class="rounded-[2rem] border border-cyan-200/70 bg-white p-6 shadow-sm sm:p-8 dark:border-cyan-950 dark:bg-slate-950"
                     >
+                        <!-- BI17_T1_FIX3_CLOSED_DELIVERY -->
+                        <div
+                            v-if="source_workspace.functionally_closed"
+                            role="status"
+                            class="mb-5 rounded-2xl border border-slate-200 bg-slate-50 p-5 dark:border-slate-800 dark:bg-slate-900"
+                        >
+                            <p class="text-sm font-black text-slate-950 dark:text-white">
+                                Entrega técnica cerrada · Solo consulta
+                            </p>
+                            <p class="mt-2 text-sm leading-6 text-slate-600 dark:text-slate-300">
+                                La información utilizada para el cierre funcional está protegida.
+                                Puedes consultar las fuentes y el historial, pero no realizar cambios.
+                            </p>
+                        </div>
                         <!-- D2G_R9_TENANT_DELIVERY_COMPACTION -->
                         <details
                             :open="published_evaluation ? undefined : true"
@@ -4021,7 +4040,7 @@ function tenantCommercialTerms(
 
                         <!-- No session yet -->
                         <div
-                            v-if="!source_workspace.session"
+                            v-if="!source_workspace.session && !source_workspace.functionally_closed"
                             class="mt-6 rounded-2xl border border-dashed border-cyan-300 bg-cyan-50/40 p-6 dark:border-cyan-900 dark:bg-cyan-950/10"
                         >
                             <h3
@@ -4059,7 +4078,7 @@ function tenantCommercialTerms(
                             </button>
                         </div>
 
-                        <template v-else>
+                        <template v-else-if="source_workspace.session">
                             <div
                                 class="mt-6 flex flex-wrap items-center gap-2 text-xs"
                             >

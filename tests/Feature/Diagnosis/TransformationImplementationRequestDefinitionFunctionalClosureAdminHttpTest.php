@@ -3589,6 +3589,33 @@ final class TransformationImplementationRequestDefinitionFunctionalClosureAdminH
             );
 
         /*
+         * BI17-T1-FIX3: closed-state projection is read-only while the
+         * submitted evidence remains available to the tenant.
+         */
+        $closedWorkspaceState =
+            app(\App\Services\Diagnosis\DataTransformationBiIntakeV2StateService::class)
+                ->forRequest($implementationRequest->fresh());
+
+        $this->assertTrue($closedWorkspaceState['functionally_closed']);
+        $this->assertNotEmpty($closedWorkspaceState['source_assets']);
+
+        foreach ($closedWorkspaceState['actions'] as $permission) {
+            $this->assertFalse($permission);
+        }
+
+        $this->actingAs($tenant)
+            ->get($tenantShowUrl)
+            ->assertOk()
+            ->assertInertia(
+                fn (Assert $page) => $page
+                    ->component('App/DataTransformationBi')
+                    ->where('source_workspace.functionally_closed', true)
+                    ->where('source_workspace.actions.can_start_or_resume', false)
+                    ->where('source_workspace.actions.can_manage_sources', false)
+                    ->where('source_workspace.actions.can_submit_for_evaluation', false)
+            );
+
+        /*
          * ==========================================================
          * REPEAT FINALIZATION IS BLOCKED
          * ==========================================================
@@ -3790,6 +3817,132 @@ final class TransformationImplementationRequestDefinitionFunctionalClosureAdminH
 
         $this->assertNull(
             $implementationRequest->ready_for_commercial_at
+        );
+
+
+        /*
+         * BI17_POST_CLOSURE_REGRESSION
+         * Historical readiness must survive rejected mutations.
+         */
+        $bi17Session =
+            \App\Models\DataTransformationBiIntakeSession::query()
+                ->where(
+                    'transformation_implementation_request_id',
+                    $implementationRequest->id
+                )
+                ->orderByDesc('id')
+                ->firstOrFail();
+
+        $bi17Asset =
+            \App\Models\DataTransformationBiSourceAsset::query()
+                ->where(
+                    'data_transformation_bi_intake_session_id',
+                    $bi17Session->id
+                )
+                ->whereNull('archived_at')
+                ->firstOrFail();
+
+        $this->assertContains(
+            (string) $bi17Session->status,
+            ['draft', 'ready'],
+            'BI17_PRECONDITION_SESSION_NOT_EDITABLE'
+        );
+
+        $this->assertSame(
+            \App\Models\TransformationImplementationDefinition::STATUS_READY,
+            $v2->fresh()->status
+        );
+
+        $bi17Readiness = app(
+            \App\Services\Diagnosis\DataTransformationBiSourceReadinessService::class
+        );
+
+        $this->assertTrue(
+            (bool) $bi17Readiness
+                ->forRequest($implementationRequest)['inputs_validated']
+        );
+
+        $bi17ArchiveBlocked = false;
+
+        try {
+            app(
+                \App\Services\Diagnosis\DataTransformationBiSourceAssetService::class
+            )->archive(
+                $implementationRequest->fresh(),
+                $bi17Session,
+                $bi17Asset,
+                $tenant
+            );
+        } catch (
+            \Illuminate\Validation\ValidationException $exception
+        ) {
+            $bi17ArchiveBlocked =
+                array_key_exists(
+                    'source_workspace',
+                    $exception->errors()
+                );
+        }
+
+        $this->assertTrue(
+            $bi17ArchiveBlocked,
+            'BI17_POST_CLOSURE_ARCHIVE_ALLOWED'
+        );
+
+        $this->assertNull(
+            $bi17Asset->fresh()->archived_at
+        );
+
+        $this->assertTrue(
+            (bool) $bi17Readiness
+                ->forRequest($implementationRequest)['inputs_validated']
+        );
+
+        $bi17ReuseBlocked = false;
+
+        try {
+            app(
+                \App\Services\Diagnosis\DataTransformationBiIntakeV2SessionService::class
+            )->startOrReuse(
+                $implementationRequest->fresh(),
+                $tenant
+            );
+        } catch (
+            \Illuminate\Validation\ValidationException $exception
+        ) {
+            $bi17ReuseBlocked =
+                array_key_exists(
+                    'source_workspace',
+                    $exception->errors()
+                );
+        }
+
+        $this->assertTrue(
+            $bi17ReuseBlocked,
+            'BI17_POST_CLOSURE_SESSION_REUSE_ALLOWED'
+        );
+
+        $this->assertSame(
+            1,
+            \Illuminate\Support\Facades\DB::table(
+                'transformation_implementation_request_events'
+            )
+                ->where(
+                    'transformation_implementation_request_id',
+                    $implementationRequest->id
+                )
+                ->where(
+                    'event_type',
+                    'definition_functionally_finalized_by_lauda'
+                )
+                ->count()
+        );
+
+        // Authorization for read access must remain intact.
+        app(
+            \App\Services\Diagnosis\DataTransformationBiIntakeActorAuthorizationService::class
+        )->assertCanManage(
+            $implementationRequest->fresh(),
+            $tenant
         );
 
 }

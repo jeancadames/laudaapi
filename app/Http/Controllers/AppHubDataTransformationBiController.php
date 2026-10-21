@@ -289,6 +289,12 @@ $dataPreparation =
          * configuration here.
          */
         $sourceWorkspace = [
+            'functionally_closed' =>
+                (bool) (
+                    $sourceWorkspaceState['functionally_closed']
+                    ?? false
+                ),
+
             'access' =>
                 $sourceWorkspaceAccess,
             'session' =>

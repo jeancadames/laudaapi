@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import ImplementationCandidatesPanel from './ImplementationCandidatesPanel.vue';
 import {
     onBeforeUnmount as onBeforeUnmountDynamicProfile,
     watch as watchDynamicProfile,
@@ -22724,5 +22725,6 @@ function commercialSnapshotText(value: unknown): string {
             </div>
         </section>
 
+    <ImplementationCandidatesPanel v-if="props.capability.key === DATA_BI_CAPABILITY" />
 </AppLayout>
 </template>

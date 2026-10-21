@@ -67,6 +67,13 @@ final class DataTransformationBiSourceAssetService
                 $payload,
                 $actor
             ): DataTransformationBiSourceAsset {
+                // BI17_POST_CLOSURE_REQUEST_LOCK
+                app(
+                    DataTransformationBiPostClosureMutationGuard::class
+                )->lockRequestAndAssertOpen(
+                    $implementationRequest
+                );
+
                 $this->lockEditableSession(
                     $implementationRequest,
                     $session
@@ -187,6 +194,13 @@ final class DataTransformationBiSourceAssetService
                 $payload,
                 $actor
             ): DataTransformationBiSourceAsset {
+                // BI17_POST_CLOSURE_REQUEST_LOCK
+                app(
+                    DataTransformationBiPostClosureMutationGuard::class
+                )->lockRequestAndAssertOpen(
+                    $implementationRequest
+                );
+
                 $this->lockEditableSession(
                     $implementationRequest,
                     $session
@@ -288,6 +302,13 @@ final class DataTransformationBiSourceAssetService
                 $normalizedIds,
                 $actor
             ): void {
+                // BI17_POST_CLOSURE_REQUEST_LOCK
+                app(
+                    DataTransformationBiPostClosureMutationGuard::class
+                )->lockRequestAndAssertOpen(
+                    $implementationRequest
+                );
+
                 $this->lockEditableSession(
                     $implementationRequest,
                     $session
@@ -401,6 +422,13 @@ final class DataTransformationBiSourceAssetService
                 $asset,
                 $actor
             ): DataTransformationBiSourceAsset {
+                // BI17_POST_CLOSURE_REQUEST_LOCK
+                app(
+                    DataTransformationBiPostClosureMutationGuard::class
+                )->lockRequestAndAssertOpen(
+                    $implementationRequest
+                );
+
                 $this->lockEditableSession(
                     $implementationRequest,
                     $session

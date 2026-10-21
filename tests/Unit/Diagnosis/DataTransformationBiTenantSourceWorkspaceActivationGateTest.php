@@ -193,12 +193,12 @@ final class DataTransformationBiTenantSourceWorkspaceActivationGateTest
             $vue
         );
 
-        self::assertGreaterThanOrEqual(
-            2,
-            substr_count(
-                $vue,
-                'v-if="source_workspace.access.can_manage"'
-            )
+        // El workspace operativo utiliza un único guard
+        // sobre su contenedor principal. No se exige duplicarlo.
+        self::assertMatchesRegularExpression(
+            '/<!-- T1_TENANT_SOURCE_WORKSPACE -->\s*'
+            .'<section\s+v-if="source_workspace\.access\.can_manage"/',
+            $vue
         );
 
         self::assertStringNotContainsString(

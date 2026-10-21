@@ -41,6 +41,13 @@ final class DataTransformationBiIntakeV2SessionService
                 $implementationRequest,
                 $actor
             ): array {
+                // BI17_POST_CLOSURE_REQUEST_LOCK
+                app(
+                    DataTransformationBiPostClosureMutationGuard::class
+                )->lockRequestAndAssertOpen(
+                    $implementationRequest
+                );
+
                 /*
                  * Stable lock order begins with the implementation request.
                  * This serializes creation of open intake sessions for the

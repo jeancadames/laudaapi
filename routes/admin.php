@@ -633,6 +633,19 @@ Route::middleware(['auth', 'verified', 'role:admin'])
                   'transformation360.implementation_requests.standard_intake_v2.evaluation.implementation_challenges.delete'
               );
 
+        /* H1-C · selección explícita Admin LAUDA, fuera del flujo comercial. */
+        \Illuminate\Support\Facades\Route::get(
+            '/transformation-360/implementation-requests/{implementationRequest}/data-bi-candidates',
+            [\App\Http\Controllers\Admin\AdminDataBiImplementationCandidateController::class, 'index']
+        )->name('transformation360.implementation_requests.data_bi_candidates.index');
+
+        \Illuminate\Support\Facades\Route::post(
+            '/transformation-360/implementation-requests/{implementationRequest}/data-bi-candidates/{challengeId}/select',
+            [\App\Http\Controllers\Admin\AdminDataBiImplementationCandidateController::class, 'store']
+        )->whereNumber('challengeId')
+          ->name('transformation360.implementation_requests.data_bi_candidates.select');
+
+
           \Illuminate\Support\Facades\Route::post(
               '/transformation-360/implementation-requests/{implementationRequest}/standard-intake-v2/sessions/{sessionId}/evaluation/ready-for-review',
               [

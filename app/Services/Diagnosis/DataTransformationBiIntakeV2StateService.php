@@ -100,6 +100,22 @@ final class DataTransformationBiIntakeV2StateService
                 $session
             );
 
+        /*
+         * BI17-T1-FIX3: read-only event lookup. The mutation guard
+         * remains responsible for serialization inside write transactions.
+         */
+        $functionallyClosed =
+            \App\Models\TransformationImplementationRequestEvent::query()
+                ->where(
+                    'transformation_implementation_request_id',
+                    $requestId
+                )
+                ->where(
+                    'event_type',
+                    'definition_functionally_finalized_by_lauda'
+                )
+                ->exists();
+
         return [
             'version' =>
                 2,
@@ -119,9 +135,13 @@ final class DataTransformationBiIntakeV2StateService
             'usable_dataset' =>
                 $usableDataset,
 
+            'functionally_closed' =>
+                $functionallyClosed,
+
             'actions' =>
                 $this->actions(
-                    $sessionPayload
+                    $sessionPayload,
+                    $functionallyClosed
                 ),
         ];
     }
@@ -623,8 +643,21 @@ final class DataTransformationBiIntakeV2StateService
     }
 
     private function actions(
-        ?array $session
+        ?array $session,
+        bool $functionallyClosed = false
     ): array {
+        if ($functionallyClosed) {
+            return [
+                'can_start_or_resume' => false,
+                'can_start_new_session' => false,
+                'can_edit_domains' => false,
+                'can_manage_sources' => false,
+                'can_submit_for_evaluation' => false,
+                'can_resolve' => false,
+                'can_materialize' => false,
+            ];
+        }
+
         if ($session === null) {
             return [
                 'can_start_or_resume' =>

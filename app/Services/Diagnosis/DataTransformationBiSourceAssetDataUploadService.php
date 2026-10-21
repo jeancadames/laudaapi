@@ -310,6 +310,13 @@ final class DataTransformationBiSourceAssetDataUploadService
                         $disk,
                         &$oldArtifactPath
                     ): array {
+                // BI17_POST_CLOSURE_REQUEST_LOCK
+                app(
+                    DataTransformationBiPostClosureMutationGuard::class
+                )->lockRequestAndAssertOpen(
+                    $implementationRequest
+                );
+
                         /*
                          * File inspection/storage already happened outside
                          * the DB transaction. Revalidate the current session
