@@ -2851,14 +2851,14 @@ function tenantCommercialTerms(
                                     v-if="capability.recommended_in_plan"
                                     class="text-sm font-bold leading-6 text-emerald-700 dark:text-emerald-300"
                                 >
-                                    Evaluación y propuesta comercial requeridas.
+                                    Diagnóstico básico sin costo. La implementación profesional se ofrece por separado.
                                 </p>
 
                                 <p
                                     v-else
                                     class="text-sm leading-6 text-slate-500 dark:text-slate-400"
                                 >
-                                    Evaluación y propuesta comercial requeridas.
+                                    Diagnóstico básico sin costo. La implementación profesional se ofrece por separado.
                                 </p>
                             </div>
                         </div>
@@ -7700,23 +7700,21 @@ function tenantCommercialTerms(
                                 {{
                                     implementation_request.status ===
                                     'cancelled'
-                                        ? 'Volver a solicitar evaluación para implementación'
-                                        : 'Solicitar evaluación para implementación'
+                                        ? 'Volver a solicitar diagnóstico básico de datos'
+                                        : 'Solicitar diagnóstico básico de datos'
                                 }}
                             </h2>
 
                             <p
                                 class="mt-3 text-sm leading-6 text-slate-600 dark:text-slate-300"
                             >
-                                Cuando decidas avanzar, solicita a LAUDA la evaluación y
-                                delimitación del alcance. Esta solicitud inicia la revisión
-                                funcional y no constituye contratación del servicio.
+                                Cuéntanos qué necesitas conocer o mejorar. LAUDA revisará tu solicitud y definirá contigo el alcance del diagnóstico básico sin costo. La implementación de las mejoras se ofrecerá por separado.
                             </p>
 
                             <form class="mt-5 space-y-5" @submit.prevent="requestImplementation">
                                 <div>
-                                    <h3 class="text-base font-bold text-slate-950 dark:text-white">¿Qué deseas mejorar con BI?</h3>
-                                    <p class="mt-1 text-sm text-slate-600 dark:text-slate-300">Selecciona las mejoras que se ajustan a tu empresa. Puedes combinar Operaciones, Gestión y Finanzas.</p>
+                                    <h3 class="text-base font-bold text-slate-950 dark:text-white">¿Qué necesitas conocer o mejorar sobre tus datos?</h3>
+                                    <p class="mt-1 text-sm text-slate-600 dark:text-slate-300">Selecciona las áreas que te interesa evaluar. Puedes combinar Operaciones, Gestión y Finanzas.</p>
                                 </div>
                                 <!-- UX01_T13_CHECKBOX_CLARITY_V1 -->
                                 <div class="grid gap-4 md:grid-cols-2 2xl:grid-cols-3">
@@ -7802,9 +7800,9 @@ function tenantCommercialTerms(
                                     <textarea id="bi-request-extra" v-model="requestNeedsForm.additional_info" maxlength="1000" rows="2" class="mt-2 w-full rounded-xl border bg-white p-3 text-sm text-slate-950 dark:border-slate-700 dark:bg-slate-950 dark:text-white" placeholder="Cualquier otra necesidad que quieras comentar..."></textarea>
                                     <p v-if="requestNeedsForm.errors.additional_info" class="mt-1 text-sm text-red-600" role="alert">{{ requestNeedsForm.errors.additional_info }}</p>
                                 </div>
-                                <p class="text-xs leading-5 text-slate-500 dark:text-slate-400">La solicitud inicia una revisión funcional. No constituye contratación, no genera cargos ni inicia ejecución.</p>
+                                <p class="text-xs leading-5 text-slate-500 dark:text-slate-400">Esta solicitud inicia la revisión para un diagnóstico básico gratuito. No genera cargos, no constituye contratación ni inicia una implementación.</p>
                                 <button type="submit" :disabled="requestSubmitting || requestNeedsForm.processing || !canSendBusinessNeeds" class="inline-flex w-full items-center justify-center rounded-xl bg-slate-950 px-4 py-3 text-sm font-bold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60 dark:bg-white dark:text-slate-950">
-                                    {{ requestSubmitting ? 'Enviando solicitud...' : 'Enviar solicitud a LAUDA' }}
+                                    {{ requestSubmitting ? 'Enviando solicitud...' : 'Enviar solicitud de diagnóstico' }}
                                 </button>
                             </form>
 
@@ -7835,22 +7833,19 @@ function tenantCommercialTerms(
                         <p
                             class="text-[10px] font-black tracking-widest text-slate-400 uppercase"
                         >
-                            Alcance de esta vista
+                            Sobre esta etapa
                         </p>
 
                         <p
                             class="mt-3 text-sm leading-6 text-slate-600 dark:text-slate-300"
                         >
-                            Aquí puedes consultar el contexto del Diagnóstico 360,
-                            la prioridad, la fase de referencia y el alcance
-                            potencial del servicio.
+                            Aquí puedes consultar el contexto de tu Diagnóstico 360 y solicitar una evaluación básica de tus datos. El resultado del Diagnóstico 360 no representa todavía la calidad real de tus fuentes.
                         </p>
 
                         <p
                             class="mt-4 border-t border-slate-200/70 pt-4 text-xs leading-5 text-slate-500 dark:border-slate-800 dark:text-slate-400"
                         >
-                            Esta etapa no inicia ejecución, contratación,
-                            facturación, pagos ni suscripciones.
+                            El diagnóstico básico es sin costo. Si posteriormente decides implementar las mejoras recomendadas, LAUDA podrá presentar una propuesta comercial independiente.
                         </p>
                     </section>
                 </aside>
