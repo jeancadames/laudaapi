@@ -851,6 +851,71 @@ const requestNeedsForm = useForm({
     additional_info: '',
 });
 const requestSelectionError = ref('');
+
+// BI_UAT02_ASSISTED_NEEDS_V1 · Orientación opcional; nunca sustituye al diagnóstico real.
+const openBusinessNeedsGroup = ref<string | null>(null);
+const showNeedsAssistant = ref(false);
+const orientationDifficulty = ref('');
+const orientationArea = ref('');
+const orientationGoal = ref('');
+const recommendedNeeds = ref<string[]>([]);
+// Una necesidad desmarcada por el usuario no vuelve a marcarse al aplicar
+// recomendaciones otra vez, salvo que el propio usuario vuelva a marcarla.
+const excludedNeeds = ref<string[]>([]);
+
+function toggleBusinessNeedsGroup(key: string): void {
+    openBusinessNeedsGroup.value =
+        openBusinessNeedsGroup.value === key ? null : key;
+}
+
+function applyBusinessNeedsRecommendations(): void {
+    if (!orientationDifficulty.value || !orientationArea.value || !orientationGoal.value) {
+        return;
+    }
+
+    const proposed = new Set<string>();
+    const add = (...keys: string[]) => keys.forEach(key => proposed.add(key));
+
+    switch (orientationDifficulty.value) {
+        case 'manual': add('operaciones_procesos', 'gestion_indicadores'); break;
+        case 'inconsistencias': add('gestion_indicadores'); break;
+        case 'dispersa': add('gestion_indicadores'); break;
+        case 'visibilidad': add('gestion_indicadores', 'gestion_desempeno'); break;
+    }
+    switch (orientationArea.value) {
+        case 'operaciones': add('operaciones_recursos', 'operaciones_procesos'); break;
+        case 'gestion': add('gestion_desempeno', 'gestion_indicadores'); break;
+        case 'finanzas': add('finanzas_ingresos', 'finanzas_cobros'); break;
+        case 'varias': add('operaciones_procesos', 'gestion_indicadores', 'finanzas_ingresos'); break;
+    }
+    switch (orientationGoal.value) {
+        case 'confiabilidad': add('gestion_indicadores'); break;
+        case 'desempeno': add('gestion_desempeno', 'gestion_indicadores'); break;
+        case 'planificacion': add('gestion_planificacion', 'finanzas_presupuestos'); break;
+        case 'rentabilidad': add('finanzas_rentabilidad', 'finanzas_ingresos'); break;
+    }
+
+    // Validar contra las claves oficiales enviadas por el servidor; nunca crear claves nuevas.
+    const valid = new Set(
+        props.request_business_groups.flatMap(group =>
+            group.improvements.map(improvement => improvement.key),
+        ),
+    );
+    const suggestions = [...proposed].filter(key => valid.has(key));
+    const toAdd = suggestions.filter(key => !excludedNeeds.value.includes(key));
+    recommendedNeeds.value = suggestions;
+    requestNeedsForm.selected_improvements = [
+        ...new Set([...requestNeedsForm.selected_improvements, ...toAdd]),
+    ];
+    requestSelectionError.value = '';
+
+    // Abrir solo la primera sección con sugerencias, sin perder ninguna selección.
+    const firstGroup = props.request_business_groups.find(group =>
+        group.improvements.some(item => toAdd.includes(item.key)),
+    );
+    if (firstGroup) openBusinessNeedsGroup.value = firstGroup.key;
+}
+
 const canSendBusinessNeeds = computed(() =>
     requestNeedsForm.selected_improvements.length > 0
     && requestNeedsForm.need.trim().length >= 20
@@ -862,6 +927,11 @@ function toggleBusinessImprovement(code: string): void {
         ? old.filter(item => item !== code)
         : [...old, code];
     requestSelectionError.value = '';
+    if (requestNeedsForm.selected_improvements.includes(code)) {
+        excludedNeeds.value = excludedNeeds.value.filter(key => key !== code);
+    } else if (recommendedNeeds.value.includes(code) && !excludedNeeds.value.includes(code)) {
+        excludedNeeds.value = [...excludedNeeds.value, code];
+    }
 }
 const requestImplementation = () => {
     const endpoint = props.implementation_request.request_endpoint;
@@ -7716,74 +7786,141 @@ function tenantCommercialTerms(
                                     <h3 class="text-base font-bold text-slate-950 dark:text-white">¿Qué necesitas conocer o mejorar sobre tus datos?</h3>
                                     <p class="mt-1 text-sm text-slate-600 dark:text-slate-300">Selecciona las áreas que te interesa evaluar. Puedes combinar Operaciones, Gestión y Finanzas.</p>
                                 </div>
-                                <!-- UX01_T13_CHECKBOX_CLARITY_V1 -->
-                                <div class="grid gap-4 md:grid-cols-2 2xl:grid-cols-3">
-                                    <fieldset
+                                <!-- BI_UAT02_NEEDS_UI_V1 -->
+                                <div class="rounded-2xl border border-blue-200/70 bg-blue-50/50 p-4 dark:border-blue-900 dark:bg-blue-950/20">
+                                    <button
+                                        type="button"
+                                        class="flex w-full items-center justify-between gap-3 text-left"
+                                        :aria-expanded="showNeedsAssistant"
+                                        @click="showNeedsAssistant = !showNeedsAssistant"
+                                    >
+                                        <span>
+                                            <span class="block text-sm font-bold text-slate-950 dark:text-white">Ayúdame a elegir</span>
+                                            <span class="mt-1 block text-xs leading-5 text-slate-600 dark:text-slate-300">Responde tres preguntas sencillas y te sugeriremos qué aspectos conviene evaluar.</span>
+                                        </span>
+                                        <span aria-hidden="true" class="text-lg text-blue-700 dark:text-blue-300">{{ showNeedsAssistant ? '−' : '+' }}</span>
+                                    </button>
+                                    <div v-if="showNeedsAssistant" class="mt-4 space-y-4 border-t border-blue-200/70 pt-4 dark:border-blue-900">
+                                        <label class="block space-y-1 text-sm font-medium text-slate-800 dark:text-slate-200">
+                                            <span>¿Qué dificultad tienes con la información de tu empresa?</span>
+                                            <select v-model="orientationDifficulty" class="w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-900 dark:border-slate-700 dark:bg-slate-950 dark:text-white">
+                                                <option value="">Selecciona una respuesta</option>
+                                                <option value="manual">Preparamos informes manualmente</option>
+                                                <option value="inconsistencias">Encontramos cifras diferentes o errores</option>
+                                                <option value="dispersa">La información está en varios lugares</option>
+                                                <option value="visibilidad">Nos cuesta entender los resultados</option>
+                                            </select>
+                                        </label>
+                                        <label class="block space-y-1 text-sm font-medium text-slate-800 dark:text-slate-200">
+                                            <span>¿Qué área deseas comprender mejor?</span>
+                                            <select v-model="orientationArea" class="w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-900 dark:border-slate-700 dark:bg-slate-950 dark:text-white">
+                                                <option value="">Selecciona una respuesta</option>
+                                                <option value="operaciones">Operaciones y productividad</option>
+                                                <option value="gestion">Clientes y gestión del negocio</option>
+                                                <option value="finanzas">Ingresos, gastos y finanzas</option>
+                                                <option value="varias">Varias áreas</option>
+                                            </select>
+                                        </label>
+                                        <label class="block space-y-1 text-sm font-medium text-slate-800 dark:text-slate-200">
+                                            <span>¿Qué te gustaría lograr primero?</span>
+                                            <select v-model="orientationGoal" class="w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-900 dark:border-slate-700 dark:bg-slate-950 dark:text-white">
+                                                <option value="">Selecciona una respuesta</option>
+                                                <option value="confiabilidad">Tener información más confiable</option>
+                                                <option value="desempeno">Conocer mejor nuestro desempeño</option>
+                                                <option value="planificacion">Planificar y anticiparnos</option>
+                                                <option value="rentabilidad">Comprender la rentabilidad</option>
+                                            </select>
+                                        </label>
+                                        <button
+                                            type="button"
+                                            :disabled="!orientationDifficulty || !orientationArea || !orientationGoal"
+                                            class="inline-flex w-full items-center justify-center rounded-xl bg-blue-700 px-4 py-3 text-sm font-bold text-white transition hover:bg-blue-800 disabled:cursor-not-allowed disabled:opacity-50"
+                                            @click="applyBusinessNeedsRecommendations"
+                                        >
+                                            Marcar necesidades recomendadas
+                                        </button>
+                                        <p class="text-xs leading-5 text-slate-600 dark:text-slate-300">Las sugerencias son orientativas. Puedes cambiar cualquiera de ellas antes de enviar tu solicitud; no son hallazgos confirmados sobre tus datos.</p>
+                                    </div>
+                                </div>
+                                <div class="space-y-3">
+                                    <section
                                         v-for="group in props.request_business_groups"
                                         :key="group.key"
-                                        class="min-w-0 rounded-2xl border border-slate-200 bg-slate-50/60 p-4 sm:p-5 dark:border-slate-700 dark:bg-slate-900/30"
+                                        class="overflow-hidden rounded-2xl border border-slate-200 bg-slate-50/60 dark:border-slate-700 dark:bg-slate-900/30"
                                     >
-                                        <legend class="sr-only">{{ group.title }}</legend>
-
-                                        <div class="flex items-start justify-between gap-3">
-                                            <p class="text-base font-bold text-slate-950 dark:text-white">
-                                                {{ group.title }}
-                                            </p>
-                                            <span class="shrink-0 text-xs font-medium text-slate-500 dark:text-slate-400">
-                                                {{ group.improvements.filter(item => requestNeedsForm.selected_improvements.includes(item.key)).length }} / {{ group.improvements.length }}
+                                        <button
+                                            type="button"
+                                            class="flex w-full items-center justify-between gap-3 p-4 text-left transition hover:bg-slate-100/60 focus-visible:outline-2 focus-visible:outline-offset-[-3px] focus-visible:outline-blue-500 sm:p-5 dark:hover:bg-slate-800/60"
+                                            :aria-expanded="openBusinessNeedsGroup === group.key"
+                                            :aria-controls="'bi-needs-' + group.key"
+                                            @click="toggleBusinessNeedsGroup(group.key)"
+                                        >
+                                            <span class="min-w-0">
+                                                <span class="block text-base font-bold text-slate-950 dark:text-white">{{ group.title }}</span>
+                                                <span class="mt-1 block text-xs leading-5 text-slate-600 dark:text-slate-300">{{ group.purpose }}</span>
                                             </span>
-                                        </div>
-
-                                        <p class="mt-1 text-xs leading-5 text-slate-600 dark:text-slate-400">
-                                            {{ group.purpose }}
-                                        </p>
-
-                                        <div class="mt-4 space-y-2">
+                                            <span class="flex shrink-0 items-center gap-3">
+                                                <span class="rounded-full bg-white px-2.5 py-1 text-xs font-semibold text-slate-700 dark:bg-slate-800 dark:text-slate-200">{{ group.improvements.filter(item => requestNeedsForm.selected_improvements.includes(item.key)).length }} / {{ group.improvements.length }}</span>
+                                                <span aria-hidden="true" class="text-lg text-slate-500">{{ openBusinessNeedsGroup === group.key ? '⌃' : '⌄' }}</span>
+                                            </span>
+                                        </button>
+                                        <div
+                                            v-if="openBusinessNeedsGroup === group.key"
+                                            :id="'bi-needs-' + group.key"
+                                            class="space-y-2 border-t border-slate-200 p-4 sm:p-5 dark:border-slate-700"
+                                        >
                                             <label
-                                                v-for="item in group.improvements"
-                                                :key="item.key"
-                                                class="flex min-h-14 cursor-pointer items-start gap-3 rounded-xl border px-3 py-3 text-sm leading-5 transition-colors focus-within:ring-2 focus-within:ring-blue-500 focus-within:ring-offset-2 dark:focus-within:ring-offset-slate-900"
-                                                :class="requestNeedsForm.selected_improvements.includes(item.key)
-                                                    ? 'border-blue-500 bg-blue-50 dark:border-blue-400 dark:bg-blue-950/40'
-                                                    : 'border-slate-200 bg-white hover:border-slate-400 hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-950 dark:hover:border-slate-500'"
-                                            >
-                                                <input
-                                                    type="checkbox"
-                                                    class="sr-only"
-                                                    :checked="requestNeedsForm.selected_improvements.includes(item.key)"
-                                                    @change="toggleBusinessImprovement(item.key)"
-                                                />
+                                                                                            v-for="item in group.improvements"
+                                                                                            :key="item.key"
+                                                                                            class="flex min-h-14 cursor-pointer items-start gap-3 rounded-xl border px-3 py-3 text-sm leading-5 transition-colors focus-within:ring-2 focus-within:ring-blue-500 focus-within:ring-offset-2 dark:focus-within:ring-offset-slate-900"
+                                                                                            :class="requestNeedsForm.selected_improvements.includes(item.key)
+                                                                                                ? 'border-blue-500 bg-blue-50 dark:border-blue-400 dark:bg-blue-950/40'
+                                                                                                : 'border-slate-200 bg-white hover:border-slate-400 hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-950 dark:hover:border-slate-500'"
+                                                                                        >
+                                                                                            <input
+                                                                                                type="checkbox"
+                                                                                                class="sr-only"
+                                                                                                :checked="requestNeedsForm.selected_improvements.includes(item.key)"
+                                                                                                @change="toggleBusinessImprovement(item.key)"
+                                                                                            />
 
-                                                <span
-                                                    aria-hidden="true"
-                                                    class="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-md border-2 shadow-sm"
-                                                    :class="requestNeedsForm.selected_improvements.includes(item.key)
-                                                        ? 'border-blue-600 bg-blue-600 dark:border-blue-400 dark:bg-blue-500'
-                                                        : 'border-slate-500 bg-white dark:border-slate-400 dark:bg-slate-900'"
+                                                                                            <span
+                                                                                                aria-hidden="true"
+                                                                                                class="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-md border-2 shadow-sm"
+                                                                                                :class="requestNeedsForm.selected_improvements.includes(item.key)
+                                                                                                    ? 'border-blue-600 bg-blue-600 dark:border-blue-400 dark:bg-blue-500'
+                                                                                                    : 'border-slate-500 bg-white dark:border-slate-400 dark:bg-slate-900'"
+                                                                                            >
+                                                                                                <svg
+                                                                                                    v-if="requestNeedsForm.selected_improvements.includes(item.key)"
+                                                                                                    xmlns="http://www.w3.org/2000/svg"
+                                                                                                    width="14"
+                                                                                                    height="14"
+                                                                                                    viewBox="0 0 24 24"
+                                                                                                    fill="none"
+                                                                                                    stroke="white"
+                                                                                                    stroke-width="3"
+                                                                                                    stroke-linecap="round"
+                                                                                                    stroke-linejoin="round"
+                                                                                                >
+                                                                                                    <path d="m5 12 4 4L19 6" />
+                                                                                                </svg>
+                                                                                            </span>
+
+                                                                                            <span class="min-w-0 flex-1 font-medium text-slate-800 dark:text-slate-200">
+                                                                                                {{ item.label }}
+                                                                                            </span>
+                                                                                            <span
+                                                    v-if="recommendedNeeds.includes(item.key) && requestNeedsForm.selected_improvements.includes(item.key)"
+                                                    class="ml-auto shrink-0 rounded-full bg-emerald-50 px-2 py-1 text-[10px] font-semibold text-emerald-700 dark:bg-emerald-950/30 dark:text-emerald-300"
                                                 >
-                                                    <svg
-                                                        v-if="requestNeedsForm.selected_improvements.includes(item.key)"
-                                                        xmlns="http://www.w3.org/2000/svg"
-                                                        width="14"
-                                                        height="14"
-                                                        viewBox="0 0 24 24"
-                                                        fill="none"
-                                                        stroke="white"
-                                                        stroke-width="3"
-                                                        stroke-linecap="round"
-                                                        stroke-linejoin="round"
-                                                    >
-                                                        <path d="m5 12 4 4L19 6" />
-                                                    </svg>
-                                                </span>
-
-                                                <span class="min-w-0 flex-1 font-medium text-slate-800 dark:text-slate-200">
-                                                    {{ item.label }}
+                                                    Sugerida
                                                 </span>
                                             </label>
                                         </div>
-                                    </fieldset>
+                                    </section>
                                 </div>
+                                <p class="text-xs font-semibold text-slate-600 dark:text-slate-300">{{ requestNeedsForm.selected_improvements.length }} de 15 necesidades seleccionadas</p>
                                 <p v-if="requestSelectionError || requestNeedsForm.errors.selected_improvements" class="text-sm text-red-600" role="alert">{{ requestSelectionError || requestNeedsForm.errors.selected_improvements }}</p>
                                 <div>
                                     <label for="bi-request-need" class="block text-sm font-semibold text-slate-950 dark:text-white">¿Qué problema o necesidad deseas resolver? *</label>
