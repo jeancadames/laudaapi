@@ -852,16 +852,21 @@ const requestNeedsForm = useForm({
 });
 const requestSelectionError = ref('');
 
-// BI_UAT02_ASSISTED_NEEDS_V1 · Orientación opcional; nunca sustituye al diagnóstico real.
+// BI_UAT02_ASSISTED_NEEDS_V2 · Reglas explicables basadas en respuestas declaradas.
+// Esta orientación NO diagnostica la calidad real de las fuentes ni reemplaza Admin LAUDA.
 const openBusinessNeedsGroup = ref<string | null>(null);
 const showNeedsAssistant = ref(false);
 const orientationDifficulty = ref('');
 const orientationArea = ref('');
 const orientationGoal = ref('');
+const orientationActivity = ref('');
+const orientationFocus = ref('');
 const recommendedNeeds = ref<string[]>([]);
-// Una necesidad desmarcada por el usuario no vuelve a marcarse al aplicar
-// recomendaciones otra vez, salvo que el propio usuario vuelva a marcarla.
+const recommendationReasons = ref<Record<string, string[]>>({});
 const excludedNeeds = ref<string[]>([]);
+// Solo se retiran automáticamente selecciones previamente añadidas por el asistente.
+const assistantSelectedNeeds = ref<string[]>([]);
+const orientationApplied = ref(false);
 
 function toggleBusinessNeedsGroup(key: string): void {
     openBusinessNeedsGroup.value =
@@ -869,51 +874,174 @@ function toggleBusinessNeedsGroup(key: string): void {
 }
 
 function applyBusinessNeedsRecommendations(): void {
-    if (!orientationDifficulty.value || !orientationArea.value || !orientationGoal.value) {
-        return;
-    }
+    if (![orientationDifficulty.value, orientationArea.value,
+        orientationGoal.value, orientationActivity.value,
+        orientationFocus.value].every(Boolean)) return;
 
-    const proposed = new Set<string>();
-    const add = (...keys: string[]) => keys.forEach(key => proposed.add(key));
+    type Candidate = { score: number; reasons: string[] };
+    const candidates = new Map<string, Candidate>();
+    const offer = (key: string, weight: number, reason: string): void => {
+        const entry = candidates.get(key) ?? { score: 0, reasons: [] };
+        entry.score += weight;
+        if (!entry.reasons.includes(reason)) entry.reasons.push(reason);
+        candidates.set(key, entry);
+    };
 
+    // La dificultad de los datos orienta QUÉ investigar. No equivale a
+    // «calidad, cumplimiento y productividad» (indicador operativo).
     switch (orientationDifficulty.value) {
-        case 'manual': add('operaciones_procesos', 'gestion_indicadores'); break;
-        case 'inconsistencias': add('gestion_indicadores'); break;
-        case 'dispersa': add('gestion_indicadores'); break;
-        case 'visibilidad': add('gestion_indicadores', 'gestion_desempeno'); break;
+        case 'manual':
+            offer('gestion_indicadores', 3, 'Elaboras informes manualmente');
+            offer('gestion_planificacion', 2, 'Necesitas simplificar el seguimiento');
+            break;
+        case 'inconsistencias':
+            offer('gestion_indicadores', 3, 'Reportas diferencias entre cifras');
+            offer('gestion_planificacion', 1, 'Conviene revisar cómo se utilizan los reportes');
+            break;
+        case 'dispersa':
+            offer('gestion_indicadores', 2, 'La información se encuentra en varios lugares');
+            offer('gestion_planificacion', 2, 'Reunir información dificulta el seguimiento');
+            break;
+        case 'visibilidad':
+            offer('gestion_indicadores', 3, 'Necesitas comprender mejor los resultados');
+            offer('gestion_desempeno', 2, 'Deseas mejorar la visibilidad del desempeño');
+            break;
     }
     switch (orientationArea.value) {
-        case 'operaciones': add('operaciones_recursos', 'operaciones_procesos'); break;
-        case 'gestion': add('gestion_desempeno', 'gestion_indicadores'); break;
-        case 'finanzas': add('finanzas_ingresos', 'finanzas_cobros'); break;
-        case 'varias': add('operaciones_procesos', 'gestion_indicadores', 'finanzas_ingresos'); break;
+        case 'operaciones':
+            offer('operaciones_procesos', 3, 'Priorizas las operaciones');
+            offer('operaciones_recursos', 2, 'Priorizas capacidad y tiempos');
+            break;
+        case 'gestion':
+            offer('gestion_desempeno', 3, 'Priorizas la gestión del negocio');
+            offer('gestion_indicadores', 2, 'Necesitas indicadores de gestión');
+            break;
+        case 'finanzas':
+            offer('finanzas_ingresos', 3, 'Priorizas los resultados financieros');
+            offer('finanzas_rentabilidad', 2, 'Te interesa comprender los resultados económicos');
+            break;
+        case 'varias':
+            offer('operaciones_procesos', 1, 'Te interesan varias áreas');
+            offer('gestion_indicadores', 1, 'Te interesan varias áreas');
+            offer('finanzas_ingresos', 1, 'Te interesan varias áreas');
+            break;
     }
     switch (orientationGoal.value) {
-        case 'confiabilidad': add('gestion_indicadores'); break;
-        case 'desempeno': add('gestion_desempeno', 'gestion_indicadores'); break;
-        case 'planificacion': add('gestion_planificacion', 'finanzas_presupuestos'); break;
-        case 'rentabilidad': add('finanzas_rentabilidad', 'finanzas_ingresos'); break;
+        case 'confiabilidad':
+            offer('gestion_indicadores', 2, 'Quieres disponer de indicadores confiables');
+            break;
+        case 'desempeno':
+            offer('gestion_desempeno', 3, 'Quieres conocer mejor el desempeño');
+            offer('gestion_indicadores', 2, 'Quieres medir resultados');
+            break;
+        case 'planificacion':
+            offer('gestion_planificacion', 3, 'Quieres planificar mejor');
+            offer('finanzas_presupuestos', 2, 'Deseas anticipar necesidades');
+            break;
+        case 'rentabilidad':
+            offer('finanzas_rentabilidad', 3, 'Tu objetivo es comprender la rentabilidad');
+            offer('finanzas_ingresos', 2, 'Te interesa relacionar ingresos y gastos');
+            break;
+    }
+    // Las necesidades especializadas solo se sugieren si el usuario las menciona.
+    switch (orientationActivity.value) {
+        case 'servicios':
+            offer('operaciones_procesos', 3, 'Tu empresa presta servicios');
+            offer('gestion_desempeno', 1, 'Gestionas servicios');
+            break;
+        case 'proyectos':
+            offer('operaciones_proyectos', 4, 'Trabajas por proyectos o eventos');
+            offer('operaciones_recursos', 2, 'Necesitas gestionar tiempos o recursos por proyecto');
+            break;
+        case 'inventarios':
+            offer('operaciones_inventarios', 4, 'Manejas productos o abastecimiento');
+            offer('operaciones_recursos', 1, 'Gestionas recursos operativos');
+            break;
+        case 'mixta':
+            offer('operaciones_procesos', 1, 'Realizas distintos tipos de actividades');
+            break;
+    }
+    switch (orientationFocus.value) {
+        case 'clientes':
+            offer('gestion_clientes', 4, 'Quieres entender a tus clientes');
+            offer('gestion_desempeno', 2, 'Quieres relacionar clientes y resultados');
+            break;
+        case 'presupuestos':
+            offer('finanzas_presupuestos', 4, 'Quieres controlar presupuestos');
+            offer('finanzas_ingresos', 1, 'Quieres analizar ingresos o gastos');
+            break;
+        case 'caja':
+            offer('finanzas_cobros', 4, 'Quieres revisar cobros, pagos o liquidez');
+            offer('finanzas_proyecciones', 2, 'Quieres anticipar necesidades financieras');
+            break;
+        case 'rentabilidad':
+            offer('finanzas_rentabilidad', 4, 'Quieres comprender tu rentabilidad');
+            offer('finanzas_ingresos', 2, 'Quieres comprender ingresos y gastos');
+            break;
+        case 'productividad':
+            offer('operaciones_calidad', 4, 'Quieres medir calidad y productividad operativa');
+            offer('operaciones_recursos', 2, 'Quieres medir capacidad y tiempos');
+            break;
+        case 'tendencias':
+            offer('gestion_riesgos', 4, 'Quieres analizar tendencias y riesgos');
+            offer('finanzas_proyecciones', 2, 'Quieres anticipar escenarios');
+            break;
     }
 
-    // Validar contra las claves oficiales enviadas por el servidor; nunca crear claves nuevas.
-    const valid = new Set(
-        props.request_business_groups.flatMap(group =>
-            group.improvements.map(improvement => improvement.key),
-        ),
+    // Utilizar únicamente claves vigentes, devueltas por el catálogo oficial.
+    const officialKeys = props.request_business_groups.flatMap(group =>
+        group.improvements.map(item => item.key),
     );
-    const suggestions = [...proposed].filter(key => valid.has(key));
-    const toAdd = suggestions.filter(key => !excludedNeeds.value.includes(key));
-    recommendedNeeds.value = suggestions;
+    const valid = new Set(officialKeys);
+    // Umbral mínimo de apoyo y límite de 9: no marcar 15 necesidades sin evidencia.
+    const proposed = [...candidates.entries()]
+        .filter(([key, result]) => valid.has(key) && result.score >= 2)
+        .sort((a, b) => b[1].score - a[1].score ||
+            officialKeys.indexOf(a[0]) - officialKeys.indexOf(b[0]))
+        .slice(0, 9);
+    recommendedNeeds.value = proposed.map(([key]) => key);
+    recommendationReasons.value = Object.fromEntries(
+        proposed.map(([key, result]) => [key, result.reasons]),
+    );
+
+    // Recalcular sin acumular sugerencias anteriores. Conservar siempre
+    // selecciones manuales y respetar sugerencias descartadas por el usuario.
+    const manual = requestNeedsForm.selected_improvements.filter(
+        key => !assistantSelectedNeeds.value.includes(key),
+    );
+    assistantSelectedNeeds.value = recommendedNeeds.value.filter(key =>
+        !excludedNeeds.value.includes(key) && !manual.includes(key),
+    );
     requestNeedsForm.selected_improvements = [
-        ...new Set([...requestNeedsForm.selected_improvements, ...toAdd]),
+        ...new Set([...manual, ...assistantSelectedNeeds.value]),
     ];
     requestSelectionError.value = '';
-
-    // Abrir solo la primera sección con sugerencias, sin perder ninguna selección.
+    orientationApplied.value = true;
     const firstGroup = props.request_business_groups.find(group =>
-        group.improvements.some(item => toAdd.includes(item.key)),
+        group.improvements.some(item => recommendedNeeds.value.includes(item.key)),
     );
     if (firstGroup) openBusinessNeedsGroup.value = firstGroup.key;
+}
+
+// Opcional: borrador transparente, editable, nunca sobrescribe información escrita.
+function suggestBusinessNeedsDescription(): void {
+    const difficulty = ({
+        manual: 'preparación manual de informes',
+        inconsistencias: 'diferencias entre cifras reportadas',
+        dispersa: 'información distribuida en varios lugares',
+        visibilidad: 'dificultad para interpretar nuestros resultados',
+    } as Record<string, string>)[orientationDifficulty.value] ?? 'gestión de nuestra información';
+    const titles = props.request_business_groups.flatMap(g => g.improvements)
+        .filter(item => requestNeedsForm.selected_improvements.includes(item.key))
+        .map(item => item.label)
+        .slice(0, 4);
+    const areas = titles.length ? titles.join(', ') : 'las áreas priorizadas';
+    if (!requestNeedsForm.need.trim()) {
+        requestNeedsForm.need = `Deseamos evaluar nuestras necesidades de datos debido a ${difficulty}. Nos interesa revisar ${areas} y comprender qué información tenemos disponible y qué limitaciones presenta.`;
+    }
+    if (!requestNeedsForm.expected_result.trim()) {
+        requestNeedsForm.expected_result = `Obtener un diagnóstico básico de las fuentes autorizadas, con hallazgos respaldados por evidencia y recomendaciones priorizadas para ${areas}, antes de decidir cualquier implementación.`;
+    }
 }
 
 const canSendBusinessNeeds = computed(() =>
@@ -922,6 +1050,8 @@ const canSendBusinessNeeds = computed(() =>
     && requestNeedsForm.expected_result.trim().length >= 10,
 );
 function toggleBusinessImprovement(code: string): void {
+    // Un clic del cliente es siempre una decisión manual.
+    assistantSelectedNeeds.value = assistantSelectedNeeds.value.filter(key => key !== code);
     const old = requestNeedsForm.selected_improvements;
     requestNeedsForm.selected_improvements = old.includes(code)
         ? old.filter(item => item !== code)
@@ -7796,7 +7926,7 @@ function tenantCommercialTerms(
                                     >
                                         <span>
                                             <span class="block text-sm font-bold text-slate-950 dark:text-white">Ayúdame a elegir</span>
-                                            <span class="mt-1 block text-xs leading-5 text-slate-600 dark:text-slate-300">Responde tres preguntas sencillas y te sugeriremos qué aspectos conviene evaluar.</span>
+                                            <span class="mt-1 block text-xs leading-5 text-slate-600 dark:text-slate-300">Responde cinco preguntas sencillas para sugerirte las necesidades más relevantes.</span>
                                         </span>
                                         <span aria-hidden="true" class="text-lg text-blue-700 dark:text-blue-300">{{ showNeedsAssistant ? '−' : '+' }}</span>
                                     </button>
@@ -7831,15 +7961,46 @@ function tenantCommercialTerms(
                                                 <option value="rentabilidad">Comprender la rentabilidad</option>
                                             </select>
                                         </label>
+                                        <label class="block space-y-1 text-sm font-medium text-slate-800 dark:text-slate-200">
+                                            <span>¿Cuál se parece más a la actividad de tu empresa?</span>
+                                            <select v-model="orientationActivity" class="w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-900 dark:border-slate-700 dark:bg-slate-950 dark:text-white">
+                                                <option value="">Selecciona una respuesta</option>
+                                                <option value="servicios">Prestamos servicios</option>
+                                                <option value="proyectos">Trabajamos por proyectos, trabajos o eventos</option>
+                                                <option value="inventarios">Vendemos productos o manejamos inventarios</option>
+                                                <option value="mixta">Combinamos distintas actividades</option>
+                                                <option value="sin_definir">Prefiero definirlo después</option>
+                                            </select>
+                                        </label>
+                                        <label class="block space-y-1 text-sm font-medium text-slate-800 dark:text-slate-200">
+                                            <span>¿Sobre qué tema te gustaría tener respuestas más claras?</span>
+                                            <select v-model="orientationFocus" class="w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-900 dark:border-slate-700 dark:bg-slate-950 dark:text-white">
+                                                <option value="">Selecciona una respuesta</option>
+                                                <option value="clientes">Nuestros clientes</option>
+                                                <option value="presupuestos">Presupuestos y gastos</option>
+                                                <option value="caja">Cobros, pagos y flujo de caja</option>
+                                                <option value="rentabilidad">Rentabilidad de actividades o proyectos</option>
+                                                <option value="productividad">Calidad y productividad del trabajo</option>
+                                                <option value="tendencias">Tendencias, riesgos y proyecciones</option>
+                                                <option value="sin_definir">No tengo una prioridad adicional</option>
+                                            </select>
+                                        </label>
                                         <button
                                             type="button"
-                                            :disabled="!orientationDifficulty || !orientationArea || !orientationGoal"
+                                            :disabled="!orientationDifficulty || !orientationArea || !orientationGoal || !orientationActivity || !orientationFocus"
                                             class="inline-flex w-full items-center justify-center rounded-xl bg-blue-700 px-4 py-3 text-sm font-bold text-white transition hover:bg-blue-800 disabled:cursor-not-allowed disabled:opacity-50"
                                             @click="applyBusinessNeedsRecommendations"
                                         >
-                                            Marcar necesidades recomendadas
+                                            Aplicar recomendaciones
                                         </button>
-                                        <p class="text-xs leading-5 text-slate-600 dark:text-slate-300">Las sugerencias son orientativas. Puedes cambiar cualquiera de ellas antes de enviar tu solicitud; no son hallazgos confirmados sobre tus datos.</p>
+                                        <div v-if="orientationApplied" class="rounded-xl bg-white/80 p-3 text-xs leading-5 text-slate-700 dark:bg-slate-950/40 dark:text-slate-300" aria-live="polite">
+                                            <p class="font-semibold">{{ recommendedNeeds.length }} necesidades recomendadas según tus respuestas</p>
+                                            <p class="mt-1">Puedes revisar el motivo de cada sugerencia al desplegar su sección. Si cambias una respuesta, pulsa de nuevo «Aplicar recomendaciones» para recalcular.</p>
+                                            <button type="button" class="mt-3 font-semibold text-blue-700 underline underline-offset-2 dark:text-blue-300" @click="suggestBusinessNeedsDescription">
+                                                Proponer texto para los campos vacíos
+                                            </button>
+                                        </div>
+                                        <p class="text-xs leading-5 text-slate-600 dark:text-slate-300">Recomendaciones iniciales basadas solo en lo que respondiste, no en una evaluación real de fuentes. Tú decides qué marcar y qué enviar.</p>
                                     </div>
                                 </div>
                                 <div class="space-y-3">
@@ -7915,6 +8076,7 @@ function tenantCommercialTerms(
                                                     class="ml-auto shrink-0 rounded-full bg-emerald-50 px-2 py-1 text-[10px] font-semibold text-emerald-700 dark:bg-emerald-950/30 dark:text-emerald-300"
                                                 >
                                                     Sugerida
+                                                    <span class="mt-1 block max-w-48 text-[10px] font-normal leading-4 text-emerald-800 dark:text-emerald-200">{{ (recommendationReasons[item.key] || []).slice(0, 2).join(' · ') }}</span>
                                                 </span>
                                             </label>
                                         </div>
