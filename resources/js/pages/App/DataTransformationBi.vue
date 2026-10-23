@@ -960,16 +960,25 @@ function toggleOrientationNoIssues(section: BiOrientationSection): void {
 }
 // 60 % gravedad máxima declarada + 40 % cobertura ponderada de situaciones.
 // Fórmula heurística inicial, sin pretensión de validación estadística.
+// BI_UAT02_V32_EQUILIBRIO · Puntaje orientativo redondeado a tramos de 5.
+// 45 % intensidad total + 35 % situación de mayor severidad + 20 % cobertura.
+// Son pesos exploratorios, no una escala científica ni una calificación de datos.
 function orientationScoreFor(section: BiOrientationSection): number | null {
-    const answered = section.options.filter(o => appliedOrientationAnswers.value.includes(o.key));
+    const answered = section.options.filter(option =>
+        appliedOrientationAnswers.value.includes(option.key),
+    );
     if (!answered.length) {
         return appliedOrientationNoIssues.value.includes(section.key) ? 0 : null;
     }
-    const maximumSeverity = Math.max(...answered.map(o => o.severity));
-    const allSeverity = section.options.reduce((sum, o) => sum + o.severity, 0);
-    const reportedSeverity = answered.reduce((sum, o) => sum + o.severity, 0);
-    return Math.round(60 * maximumSeverity / 3 + 40 * reportedSeverity / allSeverity);
+    const totalSeverity = section.options.reduce((sum, option) => sum + option.severity, 0);
+    const declaredSeverity = answered.reduce((sum, option) => sum + option.severity, 0);
+    const highestSeverity = Math.max(...answered.map(option => option.severity));
+    const intensity = declaredSeverity / totalSeverity;
+    const maximum = highestSeverity / 3;
+    const coverage = answered.length / section.options.length;
+    return Math.round((45 * intensity + 35 * maximum + 20 * coverage) / 5) * 5;
 }
+
 function orientationColorFor(section: BiOrientationSection): string {
     const score = orientationScoreFor(section);
     if (score === null) return '#94a3b8';
@@ -980,6 +989,7 @@ function orientationColorFor(section: BiOrientationSection): string {
 function orientationPriorityFor(section: BiOrientationSection): string {
     const score = orientationScoreFor(section);
     return score === null ? 'Sin evaluar'
+        : score === 0 ? 'Sin situaciones reportadas'
         : score >= 65 ? 'Prioridad alta'
         : score >= 35 ? 'Prioridad media'
         : 'Prioridad baja declarada';
@@ -993,28 +1003,53 @@ function applyBusinessNeedsRecommendations(): void {
             if (!orientationAnswers.value.includes(option.key)) continue;
             for (const suggestion of option.suggests) {
                 const entry = candidates.get(suggestion.key) ?? { score: 0, reasons: [] };
-                entry.score += suggestion.weight;
+                // Relevancia de la sugerencia y gravedad declarada, sin afirmar hallazgos.
+                entry.score += suggestion.weight * (1 + option.severity / 3);
                 if (!entry.reasons.includes(option.label)) entry.reasons.push(option.label);
                 candidates.set(suggestion.key, entry);
             }
         }
     }
-    // Solo claves del catálogo oficial de 15 necesidades.
+
     const officialKeys = props.request_business_groups.flatMap(group =>
         group.improvements.map(item => item.key),
     );
     const valid = new Set(officialKeys);
-    const proposed = [...candidates.entries()]
+    const ranked = [...candidates.entries()]
         .filter(([key, candidate]) => valid.has(key) && candidate.score >= 2)
         .sort((a, b) => b[1].score - a[1].score ||
-            officialKeys.indexOf(a[0]) - officialKeys.indexOf(b[0]))
-        .slice(0, 9);
+            officialKeys.indexOf(a[0]) - officialKeys.indexOf(b[0]));
+
+    // Priorización equilibrada: no dejar Gestión o Finanzas sin representar
+    // solo porque sus opciones aparecen después de Operaciones en el catálogo.
+    // Nunca recomendar una necesidad sin una respuesta que la respalde.
+    const groups = props.request_business_groups.map(group => ({
+        key: group.key,
+        declaredWeight: orientationSections.find(section => section.key === group.key)
+            ?.options.filter(option => orientationAnswers.value.includes(option.key))
+            .reduce((sum, option) => sum + option.severity, 0) ?? 0,
+        ranked: ranked.filter(([key]) => group.improvements.some(item => item.key === key)),
+    })).sort((a, b) => b.declaredWeight - a.declaredWeight);
+    const proposed: Array<[string, Candidate]> = [];
+    for (let round = 0; proposed.length < 9; round++) {
+        let added = false;
+        for (const group of groups) {
+            const next = group.ranked[round];
+            if (next && proposed.length < 9) {
+                proposed.push(next);
+                added = true;
+            }
+        }
+        if (!added) break;
+    }
+
     recommendedNeeds.value = proposed.map(([key]) => key);
     recommendationReasons.value = Object.fromEntries(proposed.map(([key, candidate]) =>
         [key, candidate.reasons],
     ));
 
-    // Nunca acumular selecciones automáticas obsoletas ni pisar decisiones manuales.
+    // Quitar solo las recomendaciones automáticas anteriores. Conservar
+    // selecciones manuales y descartes explícitos al recalcular.
     const manual = requestNeedsForm.selected_improvements.filter(key =>
         !assistantSelectedNeeds.value.includes(key),
     );
@@ -1032,14 +1067,14 @@ function applyBusinessNeedsRecommendations(): void {
         group.improvements.some(item => recommendedNeeds.value.includes(item.key)),
     );
     if (firstGroup) openBusinessNeedsGroup.value = firstGroup.key;
+    // Solo los textos no editados se actualizan automáticamente.
     suggestBusinessNeedsDescription();
 }
-// BI_UAT02_AUTO_DESCRIPTIONS_V3
-// Esta propuesta describe NECESIDADES DECLARADAS, no hallazgos técnicos reales.
-// Automático: escribe solo si está vacío o sigue exactamente igual al último borrador.
-// Manual: el cliente puede reemplazar ambos textos por decisión explícita.
+
+// BI_UAT02_AUTO_DESCRIPTIONS_V3 · Redacción coherente con respuestas y casillas.
+// No se afirman defectos técnicos ni se sobreescriben ediciones manuales.
 function suggestBusinessNeedsDescription(replaceEdited = false): void {
-    const summaries: Record<string, string> = {
+    const situationNames: Record<string, string> = {
         op_informes: 'preparación manual de informes',
         op_tiempos: 'seguimiento de tiempos y recursos',
         op_calidad: 'indicadores de calidad y productividad',
@@ -1053,34 +1088,63 @@ function suggestBusinessNeedsDescription(replaceEdited = false): void {
         fin_ingresos: 'revisión de ingresos, costos y gastos',
         fin_cobros: 'seguimiento de cobros, pagos y flujo de caja',
         fin_rentabilidad: 'rentabilidad de actividades o proyectos',
-        fin_presupuestos: 'control de presupuestos y desviaciones',
+        fin_presupuestos: 'control de presupuestos',
         fin_proyecciones: 'proyecciones y riesgos financieros',
     };
+    const needNames: Record<string, string> = {
+        operaciones_procesos: 'procesos y servicios',
+        operaciones_proyectos: 'proyectos y trabajos',
+        operaciones_recursos: 'tiempos y recursos',
+        operaciones_calidad: 'calidad y productividad',
+        operaciones_inventarios: 'inventarios y abastecimiento',
+        gestion_clientes: 'clientes y segmentos',
+        gestion_desempeno: 'desempeño comercial',
+        gestion_indicadores: 'indicadores de gestión',
+        gestion_planificacion: 'metas y planificación',
+        gestion_riesgos: 'tendencias y riesgos',
+        finanzas_ingresos: 'ingresos, costos y gastos',
+        finanzas_presupuestos: 'presupuestos',
+        finanzas_cobros: 'cobros, pagos y caja',
+        finanzas_rentabilidad: 'rentabilidad',
+        finanzas_proyecciones: 'proyecciones financieras',
+    };
 
-    const situations = orientationSections.map(section => {
-        const matching = section.options
-            .filter(option => appliedOrientationAnswers.value.includes(option.key))
-            .sort((a, b) => b.severity - a.severity);
+    const declaredAreas = orientationSections.map(section => {
+        const matching = section.options.filter(option =>
+            appliedOrientationAnswers.value.includes(option.key),
+        ).sort((a, b) => b.severity - a.severity);
         if (!matching.length) return null;
-        const topics = matching.slice(0, 3)
-            .map(option => summaries[option.key] ?? option.label.toLowerCase());
-        const more = matching.length > 3 ? ', entre otras situaciones' : '';
-        return `${section.title.toLowerCase()}: ${topics.join(', ')}${more}`;
+        const examples = matching.slice(0, 3).map(option =>
+            situationNames[option.key] ?? option.label.toLowerCase(),
+        );
+        return `${section.title.toLowerCase()} (${examples.join(', ')})`;
     }).filter((value): value is string => value !== null);
 
-    const problem = situations.length
-        ? `Queremos evaluar cómo utilizamos la información de nuestra empresa. Según nuestras respuestas, nos interesa revisar ${situations.join('; ')}. Necesitamos conocer qué fuentes respaldan estas actividades y qué aspectos deben evaluarse antes de considerar mejoras.`
-        : 'Queremos conocer qué información utiliza nuestra empresa y cómo está organizada. Todavía no hemos identificado dificultades concretas en las áreas respondidas y deseamos saber qué fuentes conviene evaluar inicialmente.';
+    const problem = declaredAreas.length
+        ? `Queremos evaluar la información que utilizamos en ${declaredAreas.join('; ')}. Son necesidades que identificamos a partir de nuestras respuestas. Nos interesa conocer qué fuentes respaldan esas actividades y qué conviene examinar en el diagnóstico básico.`
+        : 'Queremos conocer cómo están organizadas nuestras fuentes de información. No hemos declarado dificultades específicas y deseamos identificar qué aspectos conviene evaluar inicialmente.';
 
-    // Utilizar exclusivamente las necesidades realmente seleccionadas, incluso si
-    // el usuario cambió alguna recomendación antes de rehacer los textos.
-    const chosenTitles = props.request_business_groups.flatMap(group => group.improvements)
-        .filter(item => requestNeedsForm.selected_improvements.includes(item.key))
-        .map(item => item.label);
-    const focus = chosenTitles.length
-        ? chosenTitles.slice(0, 3).join(', ').toLowerCase()
-        : 'las áreas que resulten pertinentes para nuestra empresa';
-    const expected = `Esperamos recibir un diagnóstico básico de las fuentes que autoricemos, con hallazgos sustentados en evidencia y recomendaciones priorizadas sobre ${focus}. Queremos conocer posibles oportunidades de mejora antes de decidir, por separado, una implementación profesional.`;
+    // Los nombres provienen exclusivamente de las casillas oficiales actuales.
+    // Se muestra cada área seleccionada y hasta tres focos por área; las casillas
+    // completas siguen visibles y se envían al Admin LAUDA como antes.
+    const selectedAreas = props.request_business_groups.map(group => ({
+        title: group.title.toLowerCase(),
+        items: group.improvements.filter(item =>
+            requestNeedsForm.selected_improvements.includes(item.key),
+        ).map(item => needNames[item.key] ?? item.label.toLowerCase()),
+    })).filter(area => area.items.length > 0);
+
+    const composeExpected = (perArea: number): string => {
+        if (!selectedAreas.length) {
+            return 'Esperamos recibir un diagnóstico básico de las fuentes autorizadas, con hallazgos sustentados y recomendaciones priorizadas sobre los aspectos que acordemos evaluar. Una posible implementación se decidiría por separado.';
+        }
+        const emphases = selectedAreas.map(area =>
+            `${area.title} (${area.items.slice(0, perArea).join(', ')})`,
+        );
+        return `Esperamos un diagnóstico básico de las fuentes autorizadas, con hallazgos sustentados y recomendaciones priorizadas para ${emphases.join('; ')}. Esto nos ayudará a decidir qué mejoras considerar, sin iniciar una implementación comercial.`;
+    };
+    const detailedExpected = composeExpected(3);
+    const expected = detailedExpected.length <= 500 ? detailedExpected : composeExpected(2);
 
     const canWrite = (current: string, previous: string | null): boolean =>
         replaceEdited || !current.trim() || (previous !== null && current === previous);
@@ -1112,6 +1176,7 @@ function toggleBusinessImprovement(code: string): void {
         ? old.filter(item => item !== code)
         : [...old, code];
     requestSelectionError.value = '';
+    if (orientationApplied.value) suggestBusinessNeedsDescription();
     if (requestNeedsForm.selected_improvements.includes(code)) {
         excludedNeeds.value = excludedNeeds.value.filter(key => key !== code);
     } else if (recommendedNeeds.value.includes(code) && !excludedNeeds.value.includes(code)) {
@@ -8044,7 +8109,7 @@ function tenantCommercialTerms(
                                                     <span class="text-[11px] leading-4 text-slate-600 dark:text-slate-300">{{ orientationPriorityFor(section) }}</span>
                                                 </div>
                                             </div>
-                                            <p class="text-xs leading-5 text-slate-600 dark:text-slate-300">Rojo: prioridad alta · Amarillo: media · Verde: baja declarada · Gris: sin evaluar. Son señales orientativas, no un diagnóstico ni una calificación técnica.</p>
+                                            <p class="text-xs leading-5 text-slate-600 dark:text-slate-300">Rojo: prioridad alta · Amarillo: media · Verde: baja declarada · Gris: sin evaluar. Puntajes aproximados en tramos de 5: orientan la prioridad de revisión, no califican la calidad real de los datos.</p>
                                             <div aria-live="polite" class="border-t border-slate-200 pt-3 dark:border-slate-700">
                                                 <p class="text-xs font-bold text-slate-800 dark:text-slate-100">{{ recommendedNeeds.length }} necesidades recomendadas</p>
                                                 <p class="mt-1 text-xs leading-5 text-slate-600 dark:text-slate-300">Revisa y modifica las casillas en los acordeones de abajo. Si cambias las respuestas, vuelve a generar el resultado.</p>
