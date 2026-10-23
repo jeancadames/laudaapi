@@ -852,162 +852,169 @@ const requestNeedsForm = useForm({
 });
 const requestSelectionError = ref('');
 
-// BI_UAT02_ASSISTED_NEEDS_V2 · Reglas explicables basadas en respuestas declaradas.
-// Esta orientación NO diagnostica la calidad real de las fuentes ni reemplaza Admin LAUDA.
+// BI_UAT02_ASSISTED_NEEDS_V3 · Priorización orientativa, explicable y sin diagnóstico técnico.
+// Los valores representan PRIORIDAD DECLARADA para revisar áreas, nunca calidad real de datos.
+type BiOrientationSuggestion = { key: string; weight: number };
+type BiOrientationOption = {
+    key: string;
+    label: string;
+    severity: 1 | 2 | 3;
+    suggests: BiOrientationSuggestion[];
+};
+type BiOrientationSection = {
+    key: string;
+    title: string;
+    purpose: string;
+    options: BiOrientationOption[];
+};
+const orientationSections: BiOrientationSection[] = [
+    {
+        key: 'operaciones', title: 'Operaciones', purpose: 'Procesos, trabajos y recursos',
+        options: [
+            { key: 'op_informes', label: 'Preparamos informes operativos manualmente', severity: 2,
+              suggests: [{ key: 'operaciones_procesos', weight: 3 }, { key: 'gestion_indicadores', weight: 2 }] },
+            { key: 'op_tiempos', label: 'Nos cuesta seguir los tiempos y recursos de nuestros trabajos', severity: 3,
+              suggests: [{ key: 'operaciones_recursos', weight: 4 }] },
+            { key: 'op_calidad', label: 'No contamos con indicadores claros de calidad y productividad', severity: 3,
+              suggests: [{ key: 'operaciones_calidad', weight: 4 }] },
+            { key: 'op_inventarios', label: 'No tenemos visibilidad clara de inventarios o abastecimiento', severity: 3,
+              suggests: [{ key: 'operaciones_inventarios', weight: 4 }] },
+            { key: 'op_proyectos', label: 'Es difícil controlar proyectos, trabajos o eventos', severity: 2,
+              suggests: [{ key: 'operaciones_proyectos', weight: 4 }] },
+        ],
+    },
+    {
+        key: 'gestion', title: 'Gestión', purpose: 'Clientes, indicadores y decisiones',
+        options: [
+            { key: 'ges_clientes', label: 'Nos cuesta comprender el comportamiento de nuestros clientes', severity: 2,
+              suggests: [{ key: 'gestion_clientes', weight: 4 }] },
+            { key: 'ges_indicadores', label: 'No tenemos indicadores claros para tomar decisiones', severity: 3,
+              suggests: [{ key: 'gestion_indicadores', weight: 4 }] },
+            { key: 'ges_metas', label: 'Es difícil dar seguimiento a metas y actividades', severity: 2,
+              suggests: [{ key: 'gestion_planificacion', weight: 4 }] },
+            { key: 'ges_riesgos', label: 'Nos cuesta anticipar tendencias, riesgos u oportunidades', severity: 3,
+              suggests: [{ key: 'gestion_riesgos', weight: 4 }] },
+            { key: 'ges_desempeno', label: 'Desconocemos qué actividades comerciales o servicios funcionan mejor', severity: 2,
+              suggests: [{ key: 'gestion_desempeno', weight: 4 }] },
+        ],
+    },
+    {
+        key: 'finanzas', title: 'Finanzas', purpose: 'Resultados, presupuestos y liquidez',
+        options: [
+            { key: 'fin_ingresos', label: 'Nos cuesta reunir ingresos, costos, gastos y resultados', severity: 3,
+              suggests: [{ key: 'finanzas_ingresos', weight: 4 }] },
+            { key: 'fin_cobros', label: 'Nos falta claridad sobre cobros, pagos y flujo de caja', severity: 3,
+              suggests: [{ key: 'finanzas_cobros', weight: 4 }] },
+            { key: 'fin_rentabilidad', label: 'No conocemos bien la rentabilidad de actividades o proyectos', severity: 2,
+              suggests: [{ key: 'finanzas_rentabilidad', weight: 4 }] },
+            { key: 'fin_presupuestos', label: 'Es difícil detectar desviaciones de los presupuestos', severity: 2,
+              suggests: [{ key: 'finanzas_presupuestos', weight: 4 }] },
+            { key: 'fin_proyecciones', label: 'Nos cuesta proyectar resultados y riesgos financieros', severity: 3,
+              suggests: [{ key: 'finanzas_proyecciones', weight: 4 }] },
+        ],
+    },
+];
 const openBusinessNeedsGroup = ref<string | null>(null);
 const showNeedsAssistant = ref(false);
-const orientationDifficulty = ref('');
-const orientationArea = ref('');
-const orientationGoal = ref('');
-const orientationActivity = ref('');
-const orientationFocus = ref('');
+const openOrientationSection = ref<string | null>('operaciones');
+const orientationAnswers = ref<string[]>([]);
+const orientationNoIssues = ref<string[]>([]);
+const appliedOrientationAnswers = ref<string[]>([]);
+const appliedOrientationNoIssues = ref<string[]>([]);
+const orientationApplied = ref(false);
 const recommendedNeeds = ref<string[]>([]);
 const recommendationReasons = ref<Record<string, string[]>>({});
 const excludedNeeds = ref<string[]>([]);
-// Solo se retiran automáticamente selecciones previamente añadidas por el asistente.
 const assistantSelectedNeeds = ref<string[]>([]);
-const orientationApplied = ref(false);
 
+const orientationCanApply = computed(() =>
+    orientationAnswers.value.length > 0 || orientationNoIssues.value.length > 0,
+);
+const orientationChangedSinceApply = computed(() => orientationApplied.value && (
+    [...orientationAnswers.value].sort().join('|') !== [...appliedOrientationAnswers.value].sort().join('|') ||
+    [...orientationNoIssues.value].sort().join('|') !== [...appliedOrientationNoIssues.value].sort().join('|')
+));
 function toggleBusinessNeedsGroup(key: string): void {
-    openBusinessNeedsGroup.value =
-        openBusinessNeedsGroup.value === key ? null : key;
+    openBusinessNeedsGroup.value = openBusinessNeedsGroup.value === key ? null : key;
 }
-
+function toggleOrientationSection(key: string): void {
+    openOrientationSection.value = openOrientationSection.value === key ? null : key;
+}
+function toggleOrientationAnswer(section: BiOrientationSection, key: string): void {
+    orientationAnswers.value = orientationAnswers.value.includes(key)
+        ? orientationAnswers.value.filter(item => item !== key)
+        : [...orientationAnswers.value, key];
+    orientationNoIssues.value = orientationNoIssues.value.filter(item => item !== section.key);
+}
+function toggleOrientationNoIssues(section: BiOrientationSection): void {
+    const already = orientationNoIssues.value.includes(section.key);
+    orientationNoIssues.value = already
+        ? orientationNoIssues.value.filter(key => key !== section.key)
+        : [...orientationNoIssues.value, section.key];
+    if (!already) {
+        const keys = new Set(section.options.map(option => option.key));
+        orientationAnswers.value = orientationAnswers.value.filter(key => !keys.has(key));
+    }
+}
+// 60 % gravedad máxima declarada + 40 % cobertura ponderada de situaciones.
+// Fórmula heurística inicial, sin pretensión de validación estadística.
+function orientationScoreFor(section: BiOrientationSection): number | null {
+    const answered = section.options.filter(o => appliedOrientationAnswers.value.includes(o.key));
+    if (!answered.length) {
+        return appliedOrientationNoIssues.value.includes(section.key) ? 0 : null;
+    }
+    const maximumSeverity = Math.max(...answered.map(o => o.severity));
+    const allSeverity = section.options.reduce((sum, o) => sum + o.severity, 0);
+    const reportedSeverity = answered.reduce((sum, o) => sum + o.severity, 0);
+    return Math.round(60 * maximumSeverity / 3 + 40 * reportedSeverity / allSeverity);
+}
+function orientationColorFor(section: BiOrientationSection): string {
+    const score = orientationScoreFor(section);
+    if (score === null) return '#94a3b8';
+    if (score >= 65) return '#dc2626';
+    if (score >= 35) return '#d97706';
+    return '#16a34a';
+}
+function orientationPriorityFor(section: BiOrientationSection): string {
+    const score = orientationScoreFor(section);
+    return score === null ? 'Sin evaluar'
+        : score >= 65 ? 'Prioridad alta'
+        : score >= 35 ? 'Prioridad media'
+        : 'Prioridad baja declarada';
+}
 function applyBusinessNeedsRecommendations(): void {
-    if (![orientationDifficulty.value, orientationArea.value,
-        orientationGoal.value, orientationActivity.value,
-        orientationFocus.value].every(Boolean)) return;
-
+    if (!orientationCanApply.value) return;
     type Candidate = { score: number; reasons: string[] };
     const candidates = new Map<string, Candidate>();
-    const offer = (key: string, weight: number, reason: string): void => {
-        const entry = candidates.get(key) ?? { score: 0, reasons: [] };
-        entry.score += weight;
-        if (!entry.reasons.includes(reason)) entry.reasons.push(reason);
-        candidates.set(key, entry);
-    };
-
-    // La dificultad de los datos orienta QUÉ investigar. No equivale a
-    // «calidad, cumplimiento y productividad» (indicador operativo).
-    switch (orientationDifficulty.value) {
-        case 'manual':
-            offer('gestion_indicadores', 3, 'Elaboras informes manualmente');
-            offer('gestion_planificacion', 2, 'Necesitas simplificar el seguimiento');
-            break;
-        case 'inconsistencias':
-            offer('gestion_indicadores', 3, 'Reportas diferencias entre cifras');
-            offer('gestion_planificacion', 1, 'Conviene revisar cómo se utilizan los reportes');
-            break;
-        case 'dispersa':
-            offer('gestion_indicadores', 2, 'La información se encuentra en varios lugares');
-            offer('gestion_planificacion', 2, 'Reunir información dificulta el seguimiento');
-            break;
-        case 'visibilidad':
-            offer('gestion_indicadores', 3, 'Necesitas comprender mejor los resultados');
-            offer('gestion_desempeno', 2, 'Deseas mejorar la visibilidad del desempeño');
-            break;
+    for (const section of orientationSections) {
+        for (const option of section.options) {
+            if (!orientationAnswers.value.includes(option.key)) continue;
+            for (const suggestion of option.suggests) {
+                const entry = candidates.get(suggestion.key) ?? { score: 0, reasons: [] };
+                entry.score += suggestion.weight;
+                if (!entry.reasons.includes(option.label)) entry.reasons.push(option.label);
+                candidates.set(suggestion.key, entry);
+            }
+        }
     }
-    switch (orientationArea.value) {
-        case 'operaciones':
-            offer('operaciones_procesos', 3, 'Priorizas las operaciones');
-            offer('operaciones_recursos', 2, 'Priorizas capacidad y tiempos');
-            break;
-        case 'gestion':
-            offer('gestion_desempeno', 3, 'Priorizas la gestión del negocio');
-            offer('gestion_indicadores', 2, 'Necesitas indicadores de gestión');
-            break;
-        case 'finanzas':
-            offer('finanzas_ingresos', 3, 'Priorizas los resultados financieros');
-            offer('finanzas_rentabilidad', 2, 'Te interesa comprender los resultados económicos');
-            break;
-        case 'varias':
-            offer('operaciones_procesos', 1, 'Te interesan varias áreas');
-            offer('gestion_indicadores', 1, 'Te interesan varias áreas');
-            offer('finanzas_ingresos', 1, 'Te interesan varias áreas');
-            break;
-    }
-    switch (orientationGoal.value) {
-        case 'confiabilidad':
-            offer('gestion_indicadores', 2, 'Quieres disponer de indicadores confiables');
-            break;
-        case 'desempeno':
-            offer('gestion_desempeno', 3, 'Quieres conocer mejor el desempeño');
-            offer('gestion_indicadores', 2, 'Quieres medir resultados');
-            break;
-        case 'planificacion':
-            offer('gestion_planificacion', 3, 'Quieres planificar mejor');
-            offer('finanzas_presupuestos', 2, 'Deseas anticipar necesidades');
-            break;
-        case 'rentabilidad':
-            offer('finanzas_rentabilidad', 3, 'Tu objetivo es comprender la rentabilidad');
-            offer('finanzas_ingresos', 2, 'Te interesa relacionar ingresos y gastos');
-            break;
-    }
-    // Las necesidades especializadas solo se sugieren si el usuario las menciona.
-    switch (orientationActivity.value) {
-        case 'servicios':
-            offer('operaciones_procesos', 3, 'Tu empresa presta servicios');
-            offer('gestion_desempeno', 1, 'Gestionas servicios');
-            break;
-        case 'proyectos':
-            offer('operaciones_proyectos', 4, 'Trabajas por proyectos o eventos');
-            offer('operaciones_recursos', 2, 'Necesitas gestionar tiempos o recursos por proyecto');
-            break;
-        case 'inventarios':
-            offer('operaciones_inventarios', 4, 'Manejas productos o abastecimiento');
-            offer('operaciones_recursos', 1, 'Gestionas recursos operativos');
-            break;
-        case 'mixta':
-            offer('operaciones_procesos', 1, 'Realizas distintos tipos de actividades');
-            break;
-    }
-    switch (orientationFocus.value) {
-        case 'clientes':
-            offer('gestion_clientes', 4, 'Quieres entender a tus clientes');
-            offer('gestion_desempeno', 2, 'Quieres relacionar clientes y resultados');
-            break;
-        case 'presupuestos':
-            offer('finanzas_presupuestos', 4, 'Quieres controlar presupuestos');
-            offer('finanzas_ingresos', 1, 'Quieres analizar ingresos o gastos');
-            break;
-        case 'caja':
-            offer('finanzas_cobros', 4, 'Quieres revisar cobros, pagos o liquidez');
-            offer('finanzas_proyecciones', 2, 'Quieres anticipar necesidades financieras');
-            break;
-        case 'rentabilidad':
-            offer('finanzas_rentabilidad', 4, 'Quieres comprender tu rentabilidad');
-            offer('finanzas_ingresos', 2, 'Quieres comprender ingresos y gastos');
-            break;
-        case 'productividad':
-            offer('operaciones_calidad', 4, 'Quieres medir calidad y productividad operativa');
-            offer('operaciones_recursos', 2, 'Quieres medir capacidad y tiempos');
-            break;
-        case 'tendencias':
-            offer('gestion_riesgos', 4, 'Quieres analizar tendencias y riesgos');
-            offer('finanzas_proyecciones', 2, 'Quieres anticipar escenarios');
-            break;
-    }
-
-    // Utilizar únicamente claves vigentes, devueltas por el catálogo oficial.
+    // Solo claves del catálogo oficial de 15 necesidades.
     const officialKeys = props.request_business_groups.flatMap(group =>
         group.improvements.map(item => item.key),
     );
     const valid = new Set(officialKeys);
-    // Umbral mínimo de apoyo y límite de 9: no marcar 15 necesidades sin evidencia.
     const proposed = [...candidates.entries()]
-        .filter(([key, result]) => valid.has(key) && result.score >= 2)
+        .filter(([key, candidate]) => valid.has(key) && candidate.score >= 2)
         .sort((a, b) => b[1].score - a[1].score ||
             officialKeys.indexOf(a[0]) - officialKeys.indexOf(b[0]))
         .slice(0, 9);
     recommendedNeeds.value = proposed.map(([key]) => key);
-    recommendationReasons.value = Object.fromEntries(
-        proposed.map(([key, result]) => [key, result.reasons]),
-    );
+    recommendationReasons.value = Object.fromEntries(proposed.map(([key, candidate]) =>
+        [key, candidate.reasons],
+    ));
 
-    // Recalcular sin acumular sugerencias anteriores. Conservar siempre
-    // selecciones manuales y respetar sugerencias descartadas por el usuario.
-    const manual = requestNeedsForm.selected_improvements.filter(
-        key => !assistantSelectedNeeds.value.includes(key),
+    // Nunca acumular selecciones automáticas obsoletas ni pisar decisiones manuales.
+    const manual = requestNeedsForm.selected_improvements.filter(key =>
+        !assistantSelectedNeeds.value.includes(key),
     );
     assistantSelectedNeeds.value = recommendedNeeds.value.filter(key =>
         !excludedNeeds.value.includes(key) && !manual.includes(key),
@@ -1016,31 +1023,29 @@ function applyBusinessNeedsRecommendations(): void {
         ...new Set([...manual, ...assistantSelectedNeeds.value]),
     ];
     requestSelectionError.value = '';
+    appliedOrientationAnswers.value = [...orientationAnswers.value];
+    appliedOrientationNoIssues.value = [...orientationNoIssues.value];
     orientationApplied.value = true;
     const firstGroup = props.request_business_groups.find(group =>
         group.improvements.some(item => recommendedNeeds.value.includes(item.key)),
     );
     if (firstGroup) openBusinessNeedsGroup.value = firstGroup.key;
 }
-
-// Opcional: borrador transparente, editable, nunca sobrescribe información escrita.
+// Borrador opcional y editable; solo completar campos vacíos.
 function suggestBusinessNeedsDescription(): void {
-    const difficulty = ({
-        manual: 'preparación manual de informes',
-        inconsistencias: 'diferencias entre cifras reportadas',
-        dispersa: 'información distribuida en varios lugares',
-        visibilidad: 'dificultad para interpretar nuestros resultados',
-    } as Record<string, string>)[orientationDifficulty.value] ?? 'gestión de nuestra información';
-    const titles = props.request_business_groups.flatMap(g => g.improvements)
+    const selected = orientationSections.flatMap(section =>
+        section.options.filter(o => appliedOrientationAnswers.value.includes(o.key)),
+    ).map(o => o.label.toLowerCase());
+    const topics = selected.slice(0, 3).join('; ');
+    const titles = props.request_business_groups.flatMap(group => group.improvements)
         .filter(item => requestNeedsForm.selected_improvements.includes(item.key))
-        .map(item => item.label)
-        .slice(0, 4);
-    const areas = titles.length ? titles.join(', ') : 'las áreas priorizadas';
+        .map(item => item.label).slice(0, 4);
+    const areas = titles.length ? titles.join(', ') : 'las áreas de nuestra empresa';
     if (!requestNeedsForm.need.trim()) {
-        requestNeedsForm.need = `Deseamos evaluar nuestras necesidades de datos debido a ${difficulty}. Nos interesa revisar ${areas} y comprender qué información tenemos disponible y qué limitaciones presenta.`;
+        requestNeedsForm.need = `Deseamos conocer el estado de nuestros datos para mejorar ${areas}. Las dificultades que hemos identificado son: ${topics || 'necesitamos conocer mejor nuestra información'}. Buscamos entender qué fuentes y limitaciones conviene revisar.`;
     }
     if (!requestNeedsForm.expected_result.trim()) {
-        requestNeedsForm.expected_result = `Obtener un diagnóstico básico de las fuentes autorizadas, con hallazgos respaldados por evidencia y recomendaciones priorizadas para ${areas}, antes de decidir cualquier implementación.`;
+        requestNeedsForm.expected_result = `Recibir un diagnóstico básico de las fuentes autorizadas, con hallazgos sustentados en evidencia y recomendaciones priorizadas para ${areas}, antes de decidir una implementación.`;
     }
 }
 
@@ -1050,8 +1055,12 @@ const canSendBusinessNeeds = computed(() =>
     && requestNeedsForm.expected_result.trim().length >= 10,
 );
 function toggleBusinessImprovement(code: string): void {
-    // Un clic del cliente es siempre una decisión manual.
+    // Respetar selecciones y descartes manuales al recalcular.
+    const wasSelected = requestNeedsForm.selected_improvements.includes(code);
     assistantSelectedNeeds.value = assistantSelectedNeeds.value.filter(key => key !== code);
+    excludedNeeds.value = wasSelected
+        ? [...new Set([...excludedNeeds.value, code])]
+        : excludedNeeds.value.filter(key => key !== code);
     const old = requestNeedsForm.selected_improvements;
     requestNeedsForm.selected_improvements = old.includes(code)
         ? old.filter(item => item !== code)
@@ -7917,92 +7926,91 @@ function tenantCommercialTerms(
                                     <p class="mt-1 text-sm text-slate-600 dark:text-slate-300">Selecciona las áreas que te interesa evaluar. Puedes combinar Operaciones, Gestión y Finanzas.</p>
                                 </div>
                                 <!-- BI_UAT02_NEEDS_UI_V1 -->
+                                <!-- BI_UAT02_ORIENTATION_UI_V3 -->
                                 <div class="rounded-2xl border border-blue-200/70 bg-blue-50/50 p-4 dark:border-blue-900 dark:bg-blue-950/20">
-                                    <button
-                                        type="button"
-                                        class="flex w-full items-center justify-between gap-3 text-left"
-                                        :aria-expanded="showNeedsAssistant"
-                                        @click="showNeedsAssistant = !showNeedsAssistant"
-                                    >
+                                    <button type="button" class="flex w-full items-center justify-between gap-3 text-left"
+                                        :aria-expanded="showNeedsAssistant" @click="showNeedsAssistant = !showNeedsAssistant">
                                         <span>
                                             <span class="block text-sm font-bold text-slate-950 dark:text-white">Ayúdame a elegir</span>
-                                            <span class="mt-1 block text-xs leading-5 text-slate-600 dark:text-slate-300">Responde cinco preguntas sencillas para sugerirte las necesidades más relevantes.</span>
+                                            <span class="mt-1 block text-xs leading-5 text-slate-600 dark:text-slate-300">Responde por áreas y marca todas las situaciones que correspondan a tu empresa.</span>
                                         </span>
                                         <span aria-hidden="true" class="text-lg text-blue-700 dark:text-blue-300">{{ showNeedsAssistant ? '−' : '+' }}</span>
                                     </button>
                                     <div v-if="showNeedsAssistant" class="mt-4 space-y-4 border-t border-blue-200/70 pt-4 dark:border-blue-900">
-                                        <label class="block space-y-1 text-sm font-medium text-slate-800 dark:text-slate-200">
-                                            <span>¿Qué dificultad tienes con la información de tu empresa?</span>
-                                            <select v-model="orientationDifficulty" class="w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-900 dark:border-slate-700 dark:bg-slate-950 dark:text-white">
-                                                <option value="">Selecciona una respuesta</option>
-                                                <option value="manual">Preparamos informes manualmente</option>
-                                                <option value="inconsistencias">Encontramos cifras diferentes o errores</option>
-                                                <option value="dispersa">La información está en varios lugares</option>
-                                                <option value="visibilidad">Nos cuesta entender los resultados</option>
-                                            </select>
-                                        </label>
-                                        <label class="block space-y-1 text-sm font-medium text-slate-800 dark:text-slate-200">
-                                            <span>¿Qué área deseas comprender mejor?</span>
-                                            <select v-model="orientationArea" class="w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-900 dark:border-slate-700 dark:bg-slate-950 dark:text-white">
-                                                <option value="">Selecciona una respuesta</option>
-                                                <option value="operaciones">Operaciones y productividad</option>
-                                                <option value="gestion">Clientes y gestión del negocio</option>
-                                                <option value="finanzas">Ingresos, gastos y finanzas</option>
-                                                <option value="varias">Varias áreas</option>
-                                            </select>
-                                        </label>
-                                        <label class="block space-y-1 text-sm font-medium text-slate-800 dark:text-slate-200">
-                                            <span>¿Qué te gustaría lograr primero?</span>
-                                            <select v-model="orientationGoal" class="w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-900 dark:border-slate-700 dark:bg-slate-950 dark:text-white">
-                                                <option value="">Selecciona una respuesta</option>
-                                                <option value="confiabilidad">Tener información más confiable</option>
-                                                <option value="desempeno">Conocer mejor nuestro desempeño</option>
-                                                <option value="planificacion">Planificar y anticiparnos</option>
-                                                <option value="rentabilidad">Comprender la rentabilidad</option>
-                                            </select>
-                                        </label>
-                                        <label class="block space-y-1 text-sm font-medium text-slate-800 dark:text-slate-200">
-                                            <span>¿Cuál se parece más a la actividad de tu empresa?</span>
-                                            <select v-model="orientationActivity" class="w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-900 dark:border-slate-700 dark:bg-slate-950 dark:text-white">
-                                                <option value="">Selecciona una respuesta</option>
-                                                <option value="servicios">Prestamos servicios</option>
-                                                <option value="proyectos">Trabajamos por proyectos, trabajos o eventos</option>
-                                                <option value="inventarios">Vendemos productos o manejamos inventarios</option>
-                                                <option value="mixta">Combinamos distintas actividades</option>
-                                                <option value="sin_definir">Prefiero definirlo después</option>
-                                            </select>
-                                        </label>
-                                        <label class="block space-y-1 text-sm font-medium text-slate-800 dark:text-slate-200">
-                                            <span>¿Sobre qué tema te gustaría tener respuestas más claras?</span>
-                                            <select v-model="orientationFocus" class="w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-900 dark:border-slate-700 dark:bg-slate-950 dark:text-white">
-                                                <option value="">Selecciona una respuesta</option>
-                                                <option value="clientes">Nuestros clientes</option>
-                                                <option value="presupuestos">Presupuestos y gastos</option>
-                                                <option value="caja">Cobros, pagos y flujo de caja</option>
-                                                <option value="rentabilidad">Rentabilidad de actividades o proyectos</option>
-                                                <option value="productividad">Calidad y productividad del trabajo</option>
-                                                <option value="tendencias">Tendencias, riesgos y proyecciones</option>
-                                                <option value="sin_definir">No tengo una prioridad adicional</option>
-                                            </select>
-                                        </label>
-                                        <button
-                                            type="button"
-                                            :disabled="!orientationDifficulty || !orientationArea || !orientationGoal || !orientationActivity || !orientationFocus"
-                                            class="inline-flex w-full items-center justify-center rounded-xl bg-blue-700 px-4 py-3 text-sm font-bold text-white transition hover:bg-blue-800 disabled:cursor-not-allowed disabled:opacity-50"
-                                            @click="applyBusinessNeedsRecommendations"
-                                        >
-                                            Aplicar recomendaciones
-                                        </button>
-                                        <div v-if="orientationApplied" class="rounded-xl bg-white/80 p-3 text-xs leading-5 text-slate-700 dark:bg-slate-950/40 dark:text-slate-300" aria-live="polite">
-                                            <p class="font-semibold">{{ recommendedNeeds.length }} necesidades recomendadas según tus respuestas</p>
-                                            <p class="mt-1">Puedes revisar el motivo de cada sugerencia al desplegar su sección. Si cambias una respuesta, pulsa de nuevo «Aplicar recomendaciones» para recalcular.</p>
-                                            <button type="button" class="mt-3 font-semibold text-blue-700 underline underline-offset-2 dark:text-blue-300" @click="suggestBusinessNeedsDescription">
-                                                Proponer texto para los campos vacíos
+                                        <p class="text-sm leading-6 text-slate-700 dark:text-slate-200">Selecciona varias respuestas en Operaciones, Gestión y Finanzas. Si ninguna te representa en una sección, indícalo expresamente.</p>
+                                        <section v-for="section in orientationSections" :key="section.key"
+                                            class="overflow-hidden rounded-xl border border-slate-200 bg-white dark:border-slate-700 dark:bg-slate-950">
+                                            <button type="button" class="flex w-full items-center justify-between gap-3 p-3 text-left focus-visible:outline-2 focus-visible:outline-blue-600"
+                                                :aria-expanded="openOrientationSection === section.key"
+                                                :aria-controls="'bi-orientation-' + section.key"
+                                                @click="toggleOrientationSection(section.key)">
+                                                <span class="min-w-0">
+                                                    <span class="block text-sm font-bold text-slate-950 dark:text-white">{{ section.title }}</span>
+                                                    <span class="block text-xs text-slate-500 dark:text-slate-400">{{ section.purpose }}</span>
+                                                </span>
+                                                <span class="flex shrink-0 items-center gap-2 text-xs text-slate-600 dark:text-slate-300">
+                                                    <span>{{ section.options.filter(option => orientationAnswers.includes(option.key)).length }} seleccionadas</span>
+                                                    <span aria-hidden="true">{{ openOrientationSection === section.key ? '⌃' : '⌄' }}</span>
+                                                </span>
                                             </button>
+                                            <div v-if="openOrientationSection === section.key" :id="'bi-orientation-' + section.key"
+                                                class="space-y-3 border-t border-slate-200 p-3 dark:border-slate-700">
+                                                <label v-for="option in section.options" :key="option.key" class="flex cursor-pointer items-start gap-3 text-sm leading-5 text-slate-700 dark:text-slate-200">
+                                                    <input type="checkbox" class="mt-1 h-4 w-4 shrink-0 accent-blue-700"
+                                                        :checked="orientationAnswers.includes(option.key)"
+                                                        @change="toggleOrientationAnswer(section, option.key)" />
+                                                    <span>{{ option.label }}</span>
+                                                </label>
+                                                <div class="border-t border-slate-100 pt-3 dark:border-slate-800">
+                                                    <label class="flex cursor-pointer items-start gap-3 text-sm text-slate-600 dark:text-slate-300">
+                                                        <input type="checkbox" class="mt-0.5 h-4 w-4 shrink-0 accent-blue-700"
+                                                            :checked="orientationNoIssues.includes(section.key)"
+                                                            @change="toggleOrientationNoIssues(section)" />
+                                                        <span>No identifico ninguna de estas situaciones</span>
+                                                    </label>
+                                                </div>
+                                            </div>
+                                        </section>
+                                        <button type="button" :disabled="!orientationCanApply"
+                                            class="inline-flex w-full items-center justify-center rounded-xl bg-blue-700 px-4 py-3 text-sm font-bold text-white transition hover:bg-blue-800 disabled:cursor-not-allowed disabled:opacity-50"
+                                            @click="applyBusinessNeedsRecommendations">
+                                            Generar recomendaciones y puntajes
+                                        </button>
+                                        <p v-if="orientationChangedSinceApply" class="text-xs font-medium text-amber-800 dark:text-amber-300" role="status">
+                                            Cambiaste tus respuestas. Genera nuevamente el resultado para actualizar los puntajes y las sugerencias.
+                                        </p>
+                                        <div v-if="orientationApplied" class="space-y-4 rounded-xl border border-slate-200 bg-white p-3 dark:border-slate-700 dark:bg-slate-950/50">
+                                            <div>
+                                                <p class="text-sm font-bold text-slate-950 dark:text-white">Prioridad orientativa por área</p>
+                                                <p class="mt-1 text-xs text-slate-600 dark:text-slate-300">Según lo que indicaste, no según una evaluación de tus fuentes de datos.</p>
+                                            </div>
+                                            <div class="grid grid-cols-3 gap-2">
+                                                <div v-for="section in orientationSections" :key="section.key" class="flex min-w-0 flex-col items-center gap-1 text-center">
+                                                    <svg viewBox="0 0 120 120" class="h-20 w-20 sm:h-24 sm:w-24" role="img"
+                                                        :aria-label="section.title + ': ' + orientationPriorityFor(section) + (orientationScoreFor(section) === null ? '' : ', ' + orientationScoreFor(section) + ' de 100')">
+                                                        <circle cx="60" cy="60" r="45" fill="none" stroke="currentColor" stroke-opacity="0.12" stroke-width="11" />
+                                                        <circle cx="60" cy="60" r="45" fill="none" :stroke="orientationColorFor(section)" stroke-width="11"
+                                                            stroke-linecap="round" stroke-dasharray="282.743" :stroke-dashoffset="282.743 * (1 - (orientationScoreFor(section) ?? 0) / 100)"
+                                                            transform="rotate(-90 60 60)" />
+                                                        <text x="60" y="67" text-anchor="middle" font-size="24" font-weight="700" fill="currentColor">{{ orientationScoreFor(section) === null ? '—' : orientationScoreFor(section) }}</text>
+                                                    </svg>
+                                                    <span class="text-xs font-bold text-slate-950 dark:text-white">{{ section.title }}</span>
+                                                    <span class="text-[11px] leading-4 text-slate-600 dark:text-slate-300">{{ orientationPriorityFor(section) }}</span>
+                                                </div>
+                                            </div>
+                                            <p class="text-xs leading-5 text-slate-600 dark:text-slate-300">Rojo: prioridad alta · Amarillo: media · Verde: baja declarada · Gris: sin evaluar. Son señales orientativas, no un diagnóstico ni una calificación técnica.</p>
+                                            <div aria-live="polite" class="border-t border-slate-200 pt-3 dark:border-slate-700">
+                                                <p class="text-xs font-bold text-slate-800 dark:text-slate-100">{{ recommendedNeeds.length }} necesidades recomendadas</p>
+                                                <p class="mt-1 text-xs leading-5 text-slate-600 dark:text-slate-300">Revisa y modifica las casillas en los acordeones de abajo. Si cambias las respuestas, vuelve a generar el resultado.</p>
+                                                <button v-if="recommendedNeeds.length > 0" type="button"
+                                                    class="mt-3 text-xs font-semibold text-blue-700 underline underline-offset-2 dark:text-blue-300"
+                                                    @click="suggestBusinessNeedsDescription">Proponer texto para los campos vacíos</button>
+                                            </div>
                                         </div>
-                                        <p class="text-xs leading-5 text-slate-600 dark:text-slate-300">Recomendaciones iniciales basadas solo en lo que respondiste, no en una evaluación real de fuentes. Tú decides qué marcar y qué enviar.</p>
+                                        <p class="text-xs leading-5 text-slate-600 dark:text-slate-300">Puedes seleccionar necesidades directamente sin responder este asistente. Las recomendaciones no generan cargos ni compromisos.</p>
                                     </div>
                                 </div>
+
                                 <div class="space-y-3">
                                     <section
                                         v-for="group in props.request_business_groups"
