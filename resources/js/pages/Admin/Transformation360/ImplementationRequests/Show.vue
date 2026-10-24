@@ -11312,42 +11312,7 @@ function commercialSnapshotText(value: unknown): string {
                         </div>
                     </div>
 
-                    <!-- BI-UAT-05: an explanatory draft; no fiscal or technical findings are asserted. -->
-                    <div
-                        v-if="props.capability.key === 'data_transformation_bi' && props.definition?.content_prepared && humanReviewForm.implementation_scope?.diagnostic_draft"
-                        class="mb-5 rounded-2xl border border-blue-200 bg-blue-50/50 p-5 dark:border-blue-900 dark:bg-blue-950/20"
-                    >
-                        <h3 class="text-base font-bold">Propuesta inicial de diagnóstico gratuito</h3>
-                        <p class="mt-2 text-sm leading-6">Basada en la información enviada por la empresa. Las fuentes y sus condiciones reales están pendientes de confirmación.</p>
-                        <p class="mt-3 text-sm"><strong>Objetivo del diagnóstico:</strong> {{ humanReviewForm.implementation_scope.diagnostic_draft.objective }}</p>
-                        <p class="mt-3 text-sm"><strong>Necesidad expresada:</strong> {{ humanReviewForm.implementation_scope.diagnostic_draft.identified_problem }}</p>
-                        <p class="mt-2 text-sm"><strong>Resultado solicitado:</strong> {{ humanReviewForm.implementation_scope.diagnostic_draft.expected_result }}</p>
-                        <div class="mt-4 grid gap-3 md:grid-cols-3">
-                            <div v-for="(items, area) in humanReviewForm.implementation_scope.diagnostic_draft.needs_by_area" :key="area" class="rounded-xl border bg-white p-3 dark:bg-slate-950">
-                                <p class="font-semibold capitalize">{{ area }}</p>
-                                <ul class="mt-2 list-disc space-y-1 pl-4 text-sm">
-                                    <li v-for="item in items" :key="item.key">{{ item.label }}</li>
-                                </ul>
-                            </div>
-                        </div>
-                        <p class="mt-4 text-sm font-semibold">Evaluaciones propuestas</p>
-                        <ul class="mt-2 list-disc space-y-1 pl-5 text-sm">
-                            <li v-for="(item, i) in humanReviewForm.implementation_scope.diagnostic_draft.proposed_evaluations" :key="i">{{ item }}</li>
-                        </ul>
-                        <p class="mt-4 text-sm font-semibold">Información por confirmar</p>
-                        <ul class="mt-2 list-disc space-y-1 pl-5 text-sm">
-                            <li v-for="item in humanReviewForm.implementation_scope.diagnostic_draft.information_to_confirm" :key="item">{{ item }}</li>
-                        </ul>
-                        <p class="mt-4 text-sm font-semibold">Entregables del diagnóstico gratuito</p>
-                        <ul class="mt-2 list-disc space-y-1 pl-5 text-sm">
-                            <li v-for="(item, i) in humanReviewForm.implementation_scope.diagnostic_draft.proposed_deliverables" :key="i">{{ item }}</li>
-                        </ul>
-                        <p class="mt-4 text-sm font-semibold">Fuera del diagnóstico gratuito</p>
-                        <ul class="mt-2 list-disc space-y-1 pl-5 text-sm">
-                            <li v-for="(item, i) in humanReviewForm.implementation_scope.diagnostic_draft.exclusions" :key="i">{{ item }}</li>
-                        </ul>
-                        <p class="mt-4 text-xs leading-5 text-slate-600 dark:text-slate-300">Este es un borrador orientativo: no es un hallazgo técnico, no publica la definición ni constituye contratación o autorización de implementación.</p>
-                    </div>
+
                     <button
                         v-if="
                             !props.definition &&
@@ -11409,6 +11374,88 @@ function commercialSnapshotText(value: unknown): string {
                         Definición V{{ props.definition.version }} creada
                     </div>
                 </div>
+                    <!-- BI-UAT-07: full-width free diagnostic review, independent of the action buttons. -->
+                    <section
+                        v-if="props.capability.key === 'data_transformation_bi' && props.definition?.content_prepared && humanReviewForm.implementation_scope?.diagnostic_draft"
+                        class="mt-6 w-full min-w-0 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-6 dark:border-slate-800 dark:bg-slate-950"
+                        aria-labelledby="bi-diagnostic-proposal-title"
+                    >
+                        <div class="flex min-w-0 flex-col gap-3 border-b border-slate-200 pb-5 sm:flex-row sm:items-start sm:justify-between dark:border-slate-800">
+                            <div class="min-w-0 flex-1">
+                                <p class="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">Diagnóstico básico · Propuesta para revisión</p>
+                                <h3 id="bi-diagnostic-proposal-title" class="mt-1 text-xl font-bold tracking-tight text-slate-900 dark:text-white">Propuesta inicial de diagnóstico gratuito</h3>
+                                <p class="mt-2 max-w-3xl text-sm leading-6 text-slate-600 dark:text-slate-300">Preparada a partir de las necesidades declaradas por la empresa. No contiene hallazgos técnicos verificados.</p>
+                            </div>
+                            <span class="inline-flex shrink-0 self-start rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs font-semibold text-slate-700 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200">Pendiente de revisión LAUDA</span>
+                        </div>
+
+                        <div class="mt-6 grid min-w-0 gap-5 lg:grid-cols-2">
+                            <div class="min-w-0 rounded-xl bg-slate-50 p-4 dark:bg-slate-900">
+                                <p class="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">Objetivo del diagnóstico</p>
+                                <p class="mt-2 text-sm leading-6 text-slate-800 [overflow-wrap:anywhere] dark:text-slate-200">{{ humanReviewForm.implementation_scope.diagnostic_draft.objective }}</p>
+                            </div>
+                            <div class="min-w-0 space-y-4 rounded-xl bg-slate-50 p-4 dark:bg-slate-900">
+                                <div v-if="humanReviewForm.implementation_scope.diagnostic_draft.identified_problem">
+                                    <p class="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">Necesidad expresada</p>
+                                    <p class="mt-1 text-sm leading-6 text-slate-800 [overflow-wrap:anywhere] dark:text-slate-200">{{ humanReviewForm.implementation_scope.diagnostic_draft.identified_problem }}</p>
+                                </div>
+                                <div v-if="humanReviewForm.implementation_scope.diagnostic_draft.expected_result">
+                                    <p class="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">Resultado solicitado</p>
+                                    <p class="mt-1 text-sm leading-6 text-slate-800 [overflow-wrap:anywhere] dark:text-slate-200">{{ humanReviewForm.implementation_scope.diagnostic_draft.expected_result }}</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div v-if="humanReviewForm.implementation_scope.diagnostic_draft.additional_context" class="mt-4 min-w-0 rounded-xl border border-slate-200 px-4 py-3 dark:border-slate-800">
+                            <p class="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">Contexto aportado</p>
+                            <p class="mt-1 text-sm leading-6 [overflow-wrap:anywhere]">{{ humanReviewForm.implementation_scope.diagnostic_draft.additional_context }}</p>
+                        </div>
+
+                        <div class="mt-7">
+                            <div class="mb-3 flex flex-wrap items-center justify-between gap-2">
+                                <h4 class="font-bold text-slate-900 dark:text-white">Necesidades de la empresa</h4>
+                                <span class="text-xs text-slate-500 dark:text-slate-400">Alcance sugerido · sin evaluación técnica</span>
+                            </div>
+                            <div class="grid min-w-0 gap-3 md:grid-cols-2 xl:grid-cols-3">
+                                <div v-for="(items, area) in humanReviewForm.implementation_scope.diagnostic_draft.needs_by_area" :key="area" class="min-w-0 rounded-xl border border-slate-200 p-4 dark:border-slate-800">
+                                    <p class="font-semibold text-slate-900 dark:text-slate-100">{{ area === 'gestion' ? 'Gestión' : area === 'operaciones' ? 'Operaciones' : 'Finanzas' }}</p>
+                                    <ul class="mt-3 list-disc space-y-2 pl-5 text-sm leading-6 text-slate-700 dark:text-slate-300">
+                                        <li v-for="item in items" :key="item.key" class="[overflow-wrap:anywhere]">{{ item.label }}</li>
+                                    </ul>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="mt-7">
+                            <h4 class="font-bold text-slate-900 dark:text-white">Entregables del diagnóstico gratuito</h4>
+                            <ol class="mt-3 grid min-w-0 list-decimal gap-x-8 gap-y-3 pl-5 text-sm leading-6 md:grid-cols-2">
+                                <li v-for="(item, i) in humanReviewForm.implementation_scope.diagnostic_draft.proposed_deliverables" :key="i" class="min-w-0 pl-1 [overflow-wrap:anywhere]">{{ item }}</li>
+                            </ol>
+                        </div>
+
+                        <div class="mt-7 grid min-w-0 gap-3 lg:grid-cols-2">
+                            <details class="min-w-0 rounded-xl border border-slate-200 p-4 dark:border-slate-800">
+                                <summary class="cursor-pointer font-semibold text-slate-900 dark:text-slate-100">Evaluaciones propuestas ({{ humanReviewForm.implementation_scope.diagnostic_draft.proposed_evaluations.length }})</summary>
+                                <p class="mt-2 text-xs leading-5 text-slate-500">Propuestas por necesidad, sujetas a confirmar fuentes reales.</p>
+                                <ul class="mt-3 list-disc space-y-2 pl-5 text-sm leading-6">
+                                    <li v-for="(item, i) in humanReviewForm.implementation_scope.diagnostic_draft.proposed_evaluations" :key="i" class="[overflow-wrap:anywhere]">{{ item }}</li>
+                                </ul>
+                            </details>
+                            <details class="min-w-0 rounded-xl border border-slate-200 p-4 dark:border-slate-800">
+                                <summary class="cursor-pointer font-semibold text-slate-900 dark:text-slate-100">Fuentes e información por confirmar</summary>
+                                <ul class="mt-3 list-disc space-y-2 pl-5 text-sm leading-6">
+                                    <li v-for="(item, i) in humanReviewForm.implementation_scope.diagnostic_draft.information_to_confirm" :key="i" class="[overflow-wrap:anywhere]">{{ item }}</li>
+                                </ul>
+                            </details>
+                            <details class="min-w-0 rounded-xl border border-slate-200 p-4 dark:border-slate-800 lg:col-span-2">
+                                <summary class="cursor-pointer font-semibold text-slate-900 dark:text-slate-100">Qué queda fuera de este diagnóstico</summary>
+                                <ul class="mt-3 list-disc space-y-2 pl-5 text-sm leading-6">
+                                    <li v-for="(item, i) in humanReviewForm.implementation_scope.diagnostic_draft.exclusions" :key="i" class="[overflow-wrap:anywhere]">{{ item }}</li>
+                                </ul>
+                            </details>
+                        </div>
+                        <p class="mt-6 border-t border-slate-200 pt-4 text-xs leading-5 text-slate-500 dark:border-slate-800 dark:text-slate-400">Documento orientativo para revisión interna. No representa un hallazgo técnico, un envío a la empresa ni una autorización de contratación o implementación.</p>
+                    </section>
+
             </div>
         </section>
 
