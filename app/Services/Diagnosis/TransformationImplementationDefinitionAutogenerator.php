@@ -36,10 +36,14 @@ final class TransformationImplementationDefinitionAutogenerator
                 $source
             )
         ) {
-            return $this->previewRequestScoped(
+            $generated = $this->previewRequestScoped(
                 $definition,
                 $source
             );
+            if (trim((string) $definition->capability_key) === 'data_transformation_bi') {
+                return (new DataBiDiagnosticDraftComposer())->enrich($generated, $source);
+            }
+            return $generated;
         }
 
         $sourcePhases =

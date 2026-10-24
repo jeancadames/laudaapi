@@ -528,6 +528,18 @@ final class TransformationImplementationRequestDefinitionService
         array $catalog
     ): array {
         return [
+            // BI-UAT-05: solo las necesidades declaradas, nunca hallazgos inventados.
+            'diagnostic_business_needs' =>
+                trim((string) $request->capability_key) === 'data_transformation_bi'
+                    ? (
+                        is_array($request->source_snapshot)
+                            ? data_get($request->source_snapshot, 'business_needs')
+                            : data_get(
+                                json_decode((string) $request->source_snapshot, true) ?: [],
+                                'business_needs'
+                            )
+                    )
+                    : null,
             'source_type' =>
                 TransformationImplementationDefinitionRequestScopeContract::SOURCE_TYPE,
 

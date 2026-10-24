@@ -11286,10 +11286,11 @@ function commercialSnapshotText(value: unknown): string {
                         </template>
 
                         <p class="mt-3 text-xs leading-5 text-muted-foreground">
-                            Crear el borrador y preparar su contenido son acciones
+                            <template v-if="props.capability.key === 'data_transformation_bi'">El borrador del diagnóstico se generará automáticamente con los datos de la solicitud, sin enviarse a la empresa ni iniciar contratación o implementación. Admin LAUDA deberá revisarlo.</template>
+                            <template v-else>Crear el borrador y preparar su contenido son acciones
                             separadas. Ninguna envía la Definición a la empresa ni
                             inicia activación, ejecución, contratación, facturación,
-                            pagos o suscripciones.
+                            pagos o suscripciones.</template>
                         </p>
 
                         <div
@@ -11311,6 +11312,42 @@ function commercialSnapshotText(value: unknown): string {
                         </div>
                     </div>
 
+                    <!-- BI-UAT-05: an explanatory draft; no fiscal or technical findings are asserted. -->
+                    <div
+                        v-if="props.capability.key === 'data_transformation_bi' && props.definition?.content_prepared && humanReviewForm.implementation_scope?.diagnostic_draft"
+                        class="mb-5 rounded-2xl border border-blue-200 bg-blue-50/50 p-5 dark:border-blue-900 dark:bg-blue-950/20"
+                    >
+                        <h3 class="text-base font-bold">Propuesta inicial de diagnóstico gratuito</h3>
+                        <p class="mt-2 text-sm leading-6">Basada en la información enviada por la empresa. Las fuentes y sus condiciones reales están pendientes de confirmación.</p>
+                        <p class="mt-3 text-sm"><strong>Objetivo del diagnóstico:</strong> {{ humanReviewForm.implementation_scope.diagnostic_draft.objective }}</p>
+                        <p class="mt-3 text-sm"><strong>Necesidad expresada:</strong> {{ humanReviewForm.implementation_scope.diagnostic_draft.identified_problem }}</p>
+                        <p class="mt-2 text-sm"><strong>Resultado solicitado:</strong> {{ humanReviewForm.implementation_scope.diagnostic_draft.expected_result }}</p>
+                        <div class="mt-4 grid gap-3 md:grid-cols-3">
+                            <div v-for="(items, area) in humanReviewForm.implementation_scope.diagnostic_draft.needs_by_area" :key="area" class="rounded-xl border bg-white p-3 dark:bg-slate-950">
+                                <p class="font-semibold capitalize">{{ area }}</p>
+                                <ul class="mt-2 list-disc space-y-1 pl-4 text-sm">
+                                    <li v-for="item in items" :key="item.key">{{ item.label }}</li>
+                                </ul>
+                            </div>
+                        </div>
+                        <p class="mt-4 text-sm font-semibold">Evaluaciones propuestas</p>
+                        <ul class="mt-2 list-disc space-y-1 pl-5 text-sm">
+                            <li v-for="(item, i) in humanReviewForm.implementation_scope.diagnostic_draft.proposed_evaluations" :key="i">{{ item }}</li>
+                        </ul>
+                        <p class="mt-4 text-sm font-semibold">Información por confirmar</p>
+                        <ul class="mt-2 list-disc space-y-1 pl-5 text-sm">
+                            <li v-for="item in humanReviewForm.implementation_scope.diagnostic_draft.information_to_confirm" :key="item">{{ item }}</li>
+                        </ul>
+                        <p class="mt-4 text-sm font-semibold">Entregables del diagnóstico gratuito</p>
+                        <ul class="mt-2 list-disc space-y-1 pl-5 text-sm">
+                            <li v-for="(item, i) in humanReviewForm.implementation_scope.diagnostic_draft.proposed_deliverables" :key="i">{{ item }}</li>
+                        </ul>
+                        <p class="mt-4 text-sm font-semibold">Fuera del diagnóstico gratuito</p>
+                        <ul class="mt-2 list-disc space-y-1 pl-5 text-sm">
+                            <li v-for="(item, i) in humanReviewForm.implementation_scope.diagnostic_draft.exclusions" :key="i">{{ item }}</li>
+                        </ul>
+                        <p class="mt-4 text-xs leading-5 text-slate-600 dark:text-slate-300">Este es un borrador orientativo: no es un hallazgo técnico, no publica la definición ni constituye contratación o autorización de implementación.</p>
+                    </div>
                     <button
                         v-if="
                             !props.definition &&
@@ -11321,7 +11358,7 @@ function commercialSnapshotText(value: unknown): string {
                         :disabled="!props.actions.definition_create_endpoint"
                         @click="createImplementationDefinition"
                     >
-                        Crear borrador funcional de Definición
+                        {{ props.capability.key === 'data_transformation_bi' ? 'Generar borrador del diagnóstico básico' : 'Crear borrador funcional de Definición' }}
                     </button>
 
                     <button

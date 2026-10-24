@@ -17,6 +17,7 @@ use App\Services\Diagnosis\TransformationImplementationRequestFunctionalProposal
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
 final class AdminTransformationImplementationRequestDefinitionActionController extends Controller
@@ -24,23 +25,43 @@ final class AdminTransformationImplementationRequestDefinitionActionController e
     public function store(
         Request $request,
         TransformationImplementationRequest $implementationRequest,
-        TransformationImplementationRequestDefinitionService $definitions
+        TransformationImplementationRequestDefinitionService $definitions,
+        TransformationImplementationDefinitionAutogenerator $autogenerator
     ): RedirectResponse {
-        $this->authorizeAdmin(
-            $request
-        );
+        $this->authorizeAdmin($request);
 
-        $definition =
-            $definitions
-                ->createOrGetDraftFromRequest(
-                    $implementationRequest,
-                    $request->user()
+        // The request row serializes concurrent retries of the new BI one-click flow.
+        // Other capabilities retain the preexisting create-only behavior.
+        return DB::transaction(function () use (
+            $request, $implementationRequest, $definitions, $autogenerator
+        ): RedirectResponse {
+            $locked = TransformationImplementationRequest::query()
+                ->whereKey($implementationRequest->id)
+                ->lockForUpdate()
+                ->firstOrFail();
+            $previous = TransformationImplementationDefinition::query()
+                ->where('transformation_implementation_request_id', $locked->id)
+                ->exists();
+            $definition = $definitions->createOrGetDraftFromRequest(
+                $locked, $request->user()
+            );
+            if (
+                (string) $definition->capability_key === 'data_transformation_bi'
+                && ! $previous
+                && $definition->status === TransformationImplementationDefinition::STATUS_DRAFT
+                && $definition->isEditable()
+            ) {
+                $autogenerator->generate($definition, $request->user()->id);
+                return back()->with(
+                    'success',
+                    "Borrador del diagnóstico básico V{$definition->version} generado para revisión de LAUDA."
                 );
-
-        return back()->with(
-            'success',
-            "Definición funcional V{$definition->version} creada para {$definition->capability_key}."
-        );
+            }
+            return back()->with(
+                'success',
+                "Definición funcional V{$definition->version} creada o recuperada sin sobrescribir su contenido."
+            );
+        });
     }
 
     /**
