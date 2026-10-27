@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import DataBiInformationRequirementsPreview from './DataBiInformationRequirementsPreview.vue';
 import ImplementationCandidatesPanel from './ImplementationCandidatesPanel.vue';
 import {
     onBeforeUnmount as onBeforeUnmountDynamicProfile,
@@ -10711,6 +10712,8 @@ function commercialSnapshotText(value: unknown): string {
     />
 
     <AppLayout :breadcrumbs="breadcrumbs">
+        <!-- D2F-T2B: vista previa declarativa. No forma parte del wizard de Definition V1. -->
+        <DataBiInformationRequirementsPreview />
         <div
             class="mx-auto w-full max-w-7xl space-y-6 px-4 py-6 sm:px-6 lg:px-8"
         >

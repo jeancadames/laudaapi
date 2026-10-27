@@ -315,6 +315,27 @@ Route::middleware(['auth', 'verified', 'role:admin'])
             'transformation360.implementation_requests.index'
         );
 
+        /* D2F-T2A · Admin LAUDA · preview declarativo (GET de solo lectura). */
+        \Illuminate\Support\Facades\Route::get(
+            '/transformation-360/implementation-requests/{implementationRequest}/information-requirements/preview',
+            [
+                \App\Http\Controllers\Admin\AdminDataBiInformationRequirementsPreviewController::class,
+                'show'
+            ]
+        )->name('transformation360.implementation_requests.information_requirements.preview');
+
+        /* D2F-T2C3 · Borrador declarativo LAUDA (sin envío al Tenant). */
+        \Illuminate\Support\Facades\Route::get(
+            '/transformation-360/implementation-requests/{implementationRequest}/information-requirements/draft',
+            [\App\Http\Controllers\Admin\AdminDataBiInformationRequirementsDraftController::class, 'show']
+        )->whereNumber('implementationRequest')
+            ->name('transformation360.implementation_requests.information_requirements.draft.show');
+        \Illuminate\Support\Facades\Route::post(
+            '/transformation-360/implementation-requests/{implementationRequest}/information-requirements/draft',
+            [\App\Http\Controllers\Admin\AdminDataBiInformationRequirementsDraftController::class, 'save']
+        )->whereNumber('implementationRequest')
+            ->name('transformation360.implementation_requests.information_requirements.draft.save');
+
         \Illuminate\Support\Facades\Route::get(
             '/transformation-360/implementation-requests/{implementationRequest}',
             [
