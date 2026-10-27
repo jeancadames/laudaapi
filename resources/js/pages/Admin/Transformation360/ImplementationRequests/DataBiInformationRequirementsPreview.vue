@@ -40,7 +40,7 @@ type Draft = {
 // La ruta identifica únicamente la solicitud mostrada. El servidor autoriza
 // acceso y filtra por capacidad: la URL nunca otorga permisos por sí misma.
 const requestId = ref<number | null>(null);
-const expanded = ref(false);
+const expanded = ref(true);
 const loading = ref(false);
 const saving = ref(false);
 const savedVersion = ref(0);
@@ -54,6 +54,43 @@ const unmapped = ref<string[]>([]);
 const requirements = ref<Requirement[]>([]);
 const baseline = ref<Requirement[]>([]);
 const loaded = ref(false);
+
+const d2fRequirementDisplayMode =
+    ref<'focused'|'list'>('focused');
+
+const d2fSelectedRequirementKey = ref('');
+
+const d2fSelectedRequirementIndex = computed(
+    () => Math.max(
+        0,
+        requirements.value.findIndex(
+            r => r.key === d2fSelectedRequirementKey.value
+        )
+    )
+);
+
+const d2fVisibleRequirements = computed(
+    () =>
+        d2fRequirementDisplayMode.value === 'list'
+            ? requirements.value
+            : requirements.value.filter(
+                r =>
+                    r.key === (
+                        d2fSelectedRequirementKey.value ||
+                        requirements.value[0]?.key
+                    )
+            )
+);
+
+function d2fMoveRequirement(step: number): void {
+    const r = requirements.value[
+        d2fSelectedRequirementIndex.value + step
+    ];
+
+    if (r) {
+        d2fSelectedRequirementKey.value = r.key;
+    }
+}
 const includedCount = computed(() => requirements.value.filter((item) => item.included).length);
 const isEdited = computed(() => JSON.stringify(requirements.value) !== JSON.stringify(baseline.value));
 
@@ -74,6 +111,9 @@ function normalizeDraft(draft: Draft, saved: SavedReview | null): void {
             included: saved === null ? true : previous !== undefined,
         };
     });
+    if (!requirements.value.some((r) => r.key === d2fSelectedRequirementKey.value)) {
+        d2fSelectedRequirementKey.value = requirements.value[0]?.key ?? '';
+    }
     baseline.value = requirements.value.map((item) => ({ ...item, objective_labels: [...item.objective_labels] }));
     loaded.value = true;
 }
@@ -207,7 +247,94 @@ onMounted(() => {
                 <div v-if="requirements.length === 0" class="rounded-xl border border-dashed p-4 text-sm text-muted-foreground">
                     La solicitud no contiene objetivos reconocidos; no se inventaron requerimientos.
                 </div>
-                <div v-for="requirement in requirements" :key="requirement.key" class="space-y-3 rounded-xl border p-4">
+
+<div
+    v-if="requirements.length"
+    class="space-y-3 rounded-xl border p-3 sm:p-4"
+    aria-label="Navegación de requerimientos"
+>
+    <div class="flex flex-wrap items-center justify-between gap-2">
+        <div>
+            <h3 class="text-sm font-semibold">
+                Revisión de requerimientos
+            </h3>
+
+            <p class="text-xs text-muted-foreground">
+                Cambiar de vista conserva ediciones sin guardar.
+            </p>
+        </div>
+
+        <div class="flex gap-2">
+            <button
+                type="button"
+                class="rounded-lg border px-3 py-2 text-xs"
+                :aria-pressed="d2fRequirementDisplayMode==='focused'"
+                @click="d2fRequirementDisplayMode='focused'"
+            >
+                Uno por uno
+            </button>
+
+            <button
+                type="button"
+                class="rounded-lg border px-3 py-2 text-xs"
+                :aria-pressed="d2fRequirementDisplayMode==='list'"
+                @click="d2fRequirementDisplayMode='list'"
+            >
+                Lista completa
+            </button>
+        </div>
+    </div>
+
+    <div
+        v-if="d2fRequirementDisplayMode==='focused'"
+        class="flex flex-wrap items-end gap-2"
+    >
+        <label class="min-w-0 flex-1 text-sm">
+            <span class="block text-xs">
+                Requerimiento
+                {{ d2fSelectedRequirementIndex+1 }}
+                de {{ requirements.length }}
+            </span>
+
+            <select
+                v-model="d2fSelectedRequirementKey"
+                class="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm"
+            >
+                <option
+                    v-for="r in requirements"
+                    :key="r.key"
+                    :value="r.key"
+                >
+                    {{ r.label }}
+                </option>
+            </select>
+        </label>
+
+        <button
+            type="button"
+            class="rounded-lg border px-3 py-2 text-sm disabled:opacity-40"
+            :disabled="d2fSelectedRequirementIndex===0"
+            @click="d2fMoveRequirement(-1)"
+        >
+            Anterior
+        </button>
+
+        <button
+            type="button"
+            class="rounded-lg border px-3 py-2 text-sm disabled:opacity-40"
+            :disabled="d2fSelectedRequirementIndex>=requirements.length-1"
+            @click="d2fMoveRequirement(1)"
+        >
+            Siguiente
+        </button>
+    </div>
+</div>
+
+<div
+    v-for="requirement in d2fVisibleRequirements"
+    :key="requirement.key"
+    class="space-y-3 rounded-xl border p-4"
+>
                     <label class="flex items-center gap-2 text-sm font-medium">
                         <input v-model="requirement.included" type="checkbox" :disabled="saving" class="h-4 w-4 rounded border-input" />
                         Incluir este requerimiento

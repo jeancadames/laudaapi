@@ -10704,6 +10704,23 @@ function commercialSnapshotText(value: unknown): string {
     return JSON.stringify(value, null, 2);
 }
 
+
+// D2F-UX1: v-show conserva estado local sin guardar.
+import {
+    ref as d2fRef,
+    computed as d2fComputed
+} from 'vue';
+
+const d2fIsBiRequest = d2fComputed(
+    () => props.capability?.key === 'data_transformation_bi'
+);
+
+const d2fWorkspaceMode =
+    d2fRef<'declarative'|'legacy'|'continuous'>(
+        'declarative'
+    );
+
+const d2fLegacyDetailsOpen = d2fRef(false);
 </script>
 
 <template>
@@ -10713,8 +10730,122 @@ function commercialSnapshotText(value: unknown): string {
 
     <AppLayout :breadcrumbs="breadcrumbs">
         <!-- D2F-T2B: vista previa declarativa. No forma parte del wizard de Definition V1. -->
-        <DataBiInformationRequirementsPreview />
-        <div
+
+<!-- D2F-UX1: navegación enfocada; definición anterior siempre montada -->
+<section
+    v-if="d2fIsBiRequest"
+    class="mb-4 rounded-xl border border-border bg-card p-4"
+    aria-label="Navegación diagnóstico BI"
+>
+    <div class="flex flex-wrap justify-between gap-3">
+        <div>
+            <p class="text-xs uppercase text-muted-foreground">
+                LAUDA 360 · Transformación de Datos para BI
+            </p>
+
+            <h2 class="text-lg font-semibold">
+                Diagnóstico preliminar declarativo
+            </h2>
+
+            <p class="text-sm text-muted-foreground">
+                Primero confirmamos información y fuentes declaradas
+                por el Tenant. Sin inspección de registros ni costos.
+            </p>
+        </div>
+
+        <span class="text-xs text-muted-foreground">
+            Sin envío al Tenant
+        </span>
+    </div>
+
+    <div
+        class="mt-3 flex flex-wrap gap-2"
+        role="group"
+        aria-label="Vistas del diagnóstico"
+    >
+        <button
+            type="button"
+            class="rounded-lg border px-3 py-2 text-sm"
+            :class="d2fWorkspaceMode==='declarative'
+                ? 'bg-primary text-primary-foreground'
+                : 'hover:bg-muted'"
+            :aria-pressed="d2fWorkspaceMode==='declarative'"
+            @click="d2fWorkspaceMode='declarative'"
+        >
+            Diagnóstico declarativo
+        </button>
+
+        <button
+            type="button"
+            class="rounded-lg border px-3 py-2 text-sm"
+            :class="d2fWorkspaceMode==='legacy'
+                ? 'bg-primary text-primary-foreground'
+                : 'hover:bg-muted'"
+            :aria-pressed="d2fWorkspaceMode==='legacy'"
+            @click="d2fWorkspaceMode='legacy'"
+        >
+            Definición anterior
+        </button>
+
+        <button
+            type="button"
+            class="rounded-lg border px-3 py-2 text-sm"
+            :class="d2fWorkspaceMode==='continuous'
+                ? 'bg-primary text-primary-foreground'
+                : 'hover:bg-muted'"
+            :aria-pressed="d2fWorkspaceMode==='continuous'"
+            @click="d2fWorkspaceMode='continuous'"
+        >
+            Vista continua compacta
+        </button>
+    </div>
+
+    <p
+        v-if="d2fWorkspaceMode==='legacy'"
+        class="mt-2 text-xs text-muted-foreground"
+    >
+        Historial funcional anterior:
+        no determina el nuevo diagnóstico declarativo.
+    </p>
+</section>
+
+<div v-show="!d2fIsBiRequest || d2fWorkspaceMode!=='legacy'">
+<DataBiInformationRequirementsPreview />
+</div>
+
+<section
+    v-if="d2fIsBiRequest && d2fWorkspaceMode==='continuous'"
+    class="mb-4 rounded-xl border border-border bg-card p-4"
+>
+    <div class="flex flex-wrap items-center justify-between gap-3">
+        <div>
+            <h3 class="font-semibold">
+                Definición funcional anterior
+            </h3>
+
+            <p class="text-xs text-muted-foreground">
+                Conservada como referencia,
+                separada del diagnóstico gratuito.
+            </p>
+        </div>
+
+        <button
+            type="button"
+            class="rounded-lg border px-3 py-2 text-sm"
+            :aria-expanded="d2fLegacyDetailsOpen"
+            @click="d2fLegacyDetailsOpen=!d2fLegacyDetailsOpen"
+        >
+            {{
+                d2fLegacyDetailsOpen
+                    ? 'Plegar historial'
+                    : 'Mostrar historial completo'
+            }}
+        </button>
+    </div>
+</section>
+
+        <div v-show="!d2fIsBiRequest || d2fWorkspaceMode==='legacy' || (d2fWorkspaceMode==='continuous' && d2fLegacyDetailsOpen)">
+<div
             class="mx-auto w-full max-w-7xl space-y-6 px-4 py-6 sm:px-6 lg:px-8"
         >
             <Link
@@ -22813,5 +22944,6 @@ function commercialSnapshotText(value: unknown): string {
         </section>
 
     <ImplementationCandidatesPanel v-if="props.capability.key === DATA_BI_CAPABILITY" />
+</div>
 </AppLayout>
 </template>
