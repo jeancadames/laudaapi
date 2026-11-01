@@ -62,6 +62,74 @@ final class AdminDataBiInformationRequirementsDraftController extends Controller
             $reason = 'No hay requerimientos generados a partir de los objetivos del Tenant.';
         }
 
+        // T3E1_R2_SEND_READMODEL
+        // Solo la última versión persistida y elegible.
+        // PROD permanece bloqueado hasta habilitar la entrega.
+
+        $latestInformation = $tableReady
+            ? \App\Models\DataBiInformationRequest::query()
+                ->where(
+                    'transformation_implementation_request_id',
+                    (int) $implementationRequest->getKey()
+                )
+                ->where(
+                    'company_id',
+                    (int) $implementationRequest->company_id
+                )
+                ->orderByDesc('version')
+                ->first()
+            : null;
+
+        $latestStatus = $latestInformation !== null
+            ? (string) $latestInformation->status
+            : null;
+
+        if ($latestStatus === 'sent') {
+            $canSave = false;
+            $reason = 'Esta versión ya fue enviada y es inmutable. Las aclaraciones requieren una nueva revisión.';
+        }
+
+        // T3E3: misma regla para la interfaz y el servidor.
+        $sendReady =
+            \App\Services\Diagnosis\DataBiInformationPublicationGate::enabled()
+            && \App\Services\Diagnosis\DataBiInformationPublicationGate::hasActiveRecipient(
+                (int) $implementationRequest->company_id
+            );
+
+        $canSend = false;
+
+        if (
+            $sendReady
+            && $canSave
+            && !$hasLegacy
+            && $latestInformation !== null
+            && $latestStatus === 'draft'
+            && (int) $latestInformation->version === $version
+            && \App\Services\Diagnosis\DataBiInformationRequestSendService::eligible(
+                (string) $implementationRequest->capability_key,
+                (string) $implementationRequest->status,
+                $hasLegacy
+            )
+        ) {
+            try {
+                $decision = \App\Services\Diagnosis\DataBiInformationRequestSendPolicy::decide(
+                    [
+                        'version' => (int) $latestInformation->version,
+                        'status' => $latestStatus,
+                        'content_sha256' =>
+                            (string) $latestInformation->content_sha256,
+                        'review_snapshot' =>
+                            $latestInformation->review_snapshot,
+                    ],
+                    (int) $latestInformation->version
+                );
+
+                $canSend = $decision['action'] === 'send';
+            } catch (\InvalidArgumentException $exception) {
+                $canSend = false;
+            }
+        }
+
         return $this->response([
             'request_id' => (int) $implementationRequest->getKey(),
             'draft' => $draft,
@@ -70,7 +138,9 @@ final class AdminDataBiInformationRequirementsDraftController extends Controller
             'persistence_available' => $tableReady,
             'can_save' => $canSave,
             'can_save_reason' => $reason,
-            'can_send' => false,
+            'can_send' => $canSend,
+            'latest_status' => $latestStatus,
+            'latest_sent_at' => $latestInformation?->sent_at?->toISOString(),
         ]);
     }
 

@@ -43,6 +43,9 @@ const requestId = ref<number | null>(null);
 const expanded = ref(true);
 const loading = ref(false);
 const saving = ref(false);
+const sending = ref(false); // D2F-T3E1 R2
+const canSend = ref(false);
+const savedStatus = ref<string | null>(null);
 const savedVersion = ref(0);
 const canSave = ref(false);
 const persistenceAvailable = ref(false);
@@ -146,6 +149,11 @@ async function loadPreview(): Promise<void> {
         savedVersion.value = payload.version;
         persistenceAvailable.value = payload.persistence_available;
         canSave.value = payload.can_save;
+        canSend.value = payload.can_send === true;
+        savedStatus.value =
+            typeof payload.latest_status === 'string'
+                ? payload.latest_status
+                : null;
         saveBlockedReason.value = typeof payload.can_save_reason === 'string' ? payload.can_save_reason : '';
     } catch (caught) {
         error.value = caught instanceof Error ? caught.message : 'No fue posible consultar la propuesta.';
@@ -154,8 +162,87 @@ async function loadPreview(): Promise<void> {
     }
 }
 
+// D2F-T3E1 R2 · Envío confirmado de una versión guardada.
+async function t3e1SendQuestionnaire(): Promise<void> {
+    if (
+        requestId.value === null
+        || !canSend.value
+        || isEdited.value
+        || savedVersion.value < 1
+        || sending.value
+        || saving.value
+        || loading.value
+    ) return;
+
+    if (!window.confirm(
+        `¿Enviar la versión ${savedVersion.value} al Tenant? Quedará inmutable y visible en su panel. No se enviará un correo automático.`
+    )) return;
+
+    sending.value = true;
+    error.value = '';
+    saveNotice.value = '';
+
+    try {
+        const response = await axios.post(
+            `/admin/transformation-360/implementation-requests/${requestId.value}/information-requirements/send`,
+            {
+                expected_version: savedVersion.value,
+            },
+            {
+                headers: {
+                    Accept: 'application/json',
+                    'X-Requested-With': 'XMLHttpRequest',
+                },
+            },
+        );
+
+        if (
+            response.data?.status !== 'sent'
+            || response.data?.version !== savedVersion.value
+        ) {
+            throw new Error(
+                'El servidor no confirmó el envío de la versión seleccionada.'
+            );
+        }
+
+        await loadPreview();
+
+        if (!error.value) {
+            saveNotice.value =
+                `Versión ${response.data.version} enviada. El Tenant autorizado puede consultarla; no se notificó por correo.`;
+        }
+    } catch (caught) {
+        if (axios.isAxiosError(caught)) {
+            const validation =
+                caught.response?.data?.errors;
+
+            const first =
+                validation && typeof validation === 'object'
+                    ? Object.values(validation)
+                        .flat()
+                        .find(v => typeof v === 'string')
+                    : null;
+
+            error.value =
+                typeof first === 'string'
+                    ? first
+                    : String(
+                        caught.response?.data?.message
+                        ?? `Error al enviar (HTTP ${caught.response?.status ?? 'sin respuesta'}).`
+                    );
+        } else {
+            error.value =
+                caught instanceof Error
+                    ? caught.message
+                    : 'Error al enviar.';
+        }
+    } finally {
+        sending.value = false;
+    }
+}
+
 async function saveDraft(): Promise<void> {
-    if (requestId.value === null || !canSave.value || saving.value || loading.value || (!isEdited.value && savedVersion.value > 0)) return;
+    if (requestId.value === null || !canSave.value || sending.value || saving.value || loading.value || (!isEdited.value && savedVersion.value > 0)) return;
     saving.value = true;
     error.value = '';
     saveNotice.value = '';
@@ -357,9 +444,35 @@ onMounted(() => {
                 <div class="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-dashed p-3">
                     <p class="max-w-2xl text-xs text-muted-foreground">
                         {{ isEdited ? 'Hay cambios locales sin guardar.' : (savedVersion === 0 ? 'Borrador inicial aún no guardado.' : `Borrador sincronizado. Versión ${savedVersion}.`) }}
-                        Los cambios solo se guardan al pulsar «Guardar borrador». Guardar NO envía la solicitud al Tenant.
+                        <span v-if="savedStatus === 'sent'">
+                            Versión enviada e inmutable.
+                            Una aclaración requerirá otra revisión.
+                        </span>
+                        <span v-else>
+                            Los cambios solo se guardan al pulsar
+                            «Guardar borrador». Guardar NO envía
+                            la solicitud al Tenant.
+                        </span>
                     </p>
                     <div class="flex flex-wrap gap-2">
+                        <button
+                            v-if="canSend && savedStatus !== 'sent'"
+                            type="button"
+                            class="rounded-lg border border-sky-700 bg-sky-700 px-3 py-2 text-sm font-medium text-white disabled:opacity-50"
+                            :disabled="loading || saving || sending || isEdited || savedVersion < 1"
+                            @click="t3e1SendQuestionnaire"
+                        >
+                            {{ sending ? 'Enviando…' : 'Publicar para el Tenant' }}
+                        </button>
+
+                        <span
+                            v-if="savedStatus === 'sent'"
+                            class="rounded-lg border border-sky-500 px-3 py-2 text-sm font-medium"
+                            role="status"
+                        >
+                            Versión enviada · Solo lectura
+                        </span>
+
                         <button type="button" class="rounded-lg border border-primary bg-primary px-3 py-2 text-sm font-medium text-primary-foreground disabled:opacity-50" :disabled="loading || saving || !canSave || (!isEdited && savedVersion > 0)" @click="saveDraft">{{ saving ? 'Guardando…' : 'Guardar borrador' }}</button>
                         <button type="button" class="rounded-lg border px-3 py-2 text-sm hover:bg-muted" :disabled="loading || saving || !isEdited" @click="resetLocal">Restaurar borrador</button>
                         <button type="button" class="rounded-lg border px-3 py-2 text-sm hover:bg-muted" :disabled="loading || saving" @click="reload">Actualizar desde LAUDA</button>

@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import DataBiInformationRequirementsPanel from './DataBiInformationRequirementsPanel.vue';
 import AppLayout from '@/layouts/AppLayout.vue';
 import { Head, Link, router, useForm } from '@inertiajs/vue3';
 import {
@@ -3096,6 +3097,12 @@ function tenantCommercialTerms(
                     Volver a Transformación 360
                 </Link>
             </div>
+
+            <!-- D2F-T3D5 · Cuestionario declarativo del Tenant -->
+            <DataBiInformationRequirementsPanel
+                v-if="props.implementation_request.id"
+                :implementation-request-id="props.implementation_request.id"
+            />
 
             <!-- Hero -->
             <section

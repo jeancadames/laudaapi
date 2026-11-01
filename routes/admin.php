@@ -336,6 +336,37 @@ Route::middleware(['auth', 'verified', 'role:admin'])
         )->whereNumber('implementationRequest')
             ->name('transformation360.implementation_requests.information_requirements.draft.save');
 
+        /* D2F-T3C1 · Solo QA MySQL DEV; no entrega al Tenant. */
+        \Illuminate\Support\Facades\Route::post(
+            '/transformation-360/implementation-requests/{implementationRequest}/information-requirements/send',
+            [\App\Http\Controllers\Admin\AdminDataBiInformationRequirementsSendController::class, 'send']
+        )->whereNumber('implementationRequest')
+            ->name('transformation360.implementation_requests.information_requirements.send');
+
+        /* D2F-T4F-B3 · Flujo HTTP aditivo; conserva el GET T4F-A sin modificaciones. */
+        Route::prefix('/transformation-360/implementation-requests/{implementationRequest}/declarative-review')
+            ->whereNumber(['implementationRequest', 'clarification'])
+            ->name('transformation360.implementation_requests.declarative_review.')
+            ->middleware([\App\Http\Middleware\DataBiDeclarativeReviewJson::class, \App\Http\Middleware\DataBiDeclarativeReviewAudience::class.':admin'])
+            ->withoutMiddleware(\App\Http\Middleware\HandleInertiaRequests::class)
+            ->controller(\App\Http\Controllers\DataBiDeclarativeReviewController::class)
+            ->group(function (): void {
+                Route::get('/', 'adminShow')->name('show');
+                Route::post('/clarifications', 'requestClarification')->name('clarifications.request');
+                Route::post('/clarifications/{clarification}/resolve', 'resolveClarification')->name('clarifications.resolve');
+                Route::post('/clarifications/{clarification}/cancel', 'cancelClarification')->name('clarifications.cancel');
+                Route::post('/close', 'closeReview')->name('close');
+            });
+
+        /* D2F-T4F-A · Recepción administrativa de entregas declarativas; solo lectura. */
+        Route::get(
+            '/transformation-360/implementation-requests/{implementationRequest}/information-requirements/tenant-declarations',
+            [\App\Http\Controllers\Admin\AdminDataBiTenantDeclarationsController::class, 'show']
+        )->whereNumber('implementationRequest')
+            ->middleware(\App\Http\Middleware\AdminDataBiDeclarationJson::class)
+            ->withoutMiddleware(\App\Http\Middleware\HandleInertiaRequests::class)
+            ->name('transformation360.implementation_requests.information_requirements.tenant_declarations.show');
+
         \Illuminate\Support\Facades\Route::get(
             '/transformation-360/implementation-requests/{implementationRequest}',
             [

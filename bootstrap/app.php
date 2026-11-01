@@ -44,6 +44,28 @@ return Application::configure(basePath: dirname(__DIR__))
     )
 
     ->withMiddleware(function (Middleware $middleware): void {
+        // T4F-B3: errores JSON antes de web; canal autorizado antes de resolver IDs.
+        $middleware->prependToPriorityList(
+            \Illuminate\Cookie\Middleware\EncryptCookies::class,
+            \App\Http\Middleware\DataBiDeclarativeReviewJson::class
+        );
+        $middleware->prependToPriorityList(
+            \Illuminate\Routing\Middleware\SubstituteBindings::class,
+            \App\Http\Middleware\DataBiDeclarativeReviewAudience::class
+        );
+
+        // T4F-A: JSON y no-store también en errores auth/role/binding del GET Admin.
+        $middleware->prependToPriorityList(
+            \Illuminate\Cookie\Middleware\EncryptCookies::class,
+            \App\Http\Middleware\AdminDataBiDeclarationJson::class
+        );
+
+        // T4D: envolver web/CSRF/auth/binding solo cuando la ruta registra este middleware.
+        $middleware->prependToPriorityList(
+            \Illuminate\Cookie\Middleware\EncryptCookies::class,
+            \App\Http\Middleware\DataBiTenantDeclarationJson::class
+        );
+
         $middleware->encryptCookies(except: ['appearance', 'sidebar_state']);
 
         $middleware->alias([
@@ -75,5 +97,13 @@ return Application::configure(basePath: dirname(__DIR__))
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
-        //
+        // B3 únicamente: también sanitizar fallos de BD durante auth/binding, antes del controlador.
+        $exceptions->render(function (\Illuminate\Database\QueryException $error, \Illuminate\Http\Request $request) {
+            if (!in_array(\App\Http\Middleware\DataBiDeclarativeReviewJson::class, $request->route()?->middleware() ?? [], true)) {
+                return null;
+            }
+            [$code, $message, $status] = \App\Http\Responses\DataBiDeclarativeReviewErrors::infrastructure($error);
+
+            return \App\Http\Middleware\DataBiDeclarativeReviewJson::error($code, $message, $status);
+        });
     })->create();

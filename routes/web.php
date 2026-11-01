@@ -195,6 +195,41 @@ Route::middleware(['auth', 'verified'])
     )
     ->name('app.transformation.data_bi.show');
 
+/* D2F-T3D2 · Cuestionario declarativo de solo lectura */
+\Illuminate\Support\Facades\Route::middleware(['auth', 'verified'])
+    ->get(
+        '/app/transformacion-360/datos-bi/requerimientos/{implementationRequest}',
+        \App\Http\Controllers\AppHubDataBiInformationRequirementsController::class
+    )
+    ->whereNumber('implementationRequest')
+    ->name('app.transformation.data_bi.information_requirements.show');
+
+/* D2F-T4F-B3 · Consulta/respuesta de aclaraciones del Tenant. */
+Route::middleware([\App\Http\Middleware\DataBiDeclarativeReviewJson::class, 'auth', 'verified',
+    \App\Http\Middleware\DataBiDeclarativeReviewAudience::class.':tenant'])
+    ->withoutMiddleware(\App\Http\Middleware\HandleInertiaRequests::class)
+    ->prefix('/app/transformacion-360/datos-bi/requerimientos/{implementationRequest}/aclaraciones')
+    ->whereNumber(['implementationRequest', 'clarification'])
+    ->name('app.transformation.data_bi.information_requirements.clarifications.')
+    ->controller(\App\Http\Controllers\DataBiDeclarativeReviewController::class)
+    ->group(function (): void {
+        Route::get('/', 'tenantShow')->name('show');
+        Route::post('/{clarification}/responder', 'answerClarification')->name('answer');
+    });
+
+/* D2F-T4D · Declaraciones del Admin Tenant; sin integración de formulario T4E. */
+Route::middleware([\App\Http\Middleware\DataBiTenantDeclarationJson::class, 'auth', 'verified'])
+    ->withoutMiddleware(\App\Http\Middleware\HandleInertiaRequests::class)
+    ->prefix('/app/transformacion-360/datos-bi/requerimientos/{implementationRequest}/declaracion')
+    ->whereNumber('implementationRequest')
+    ->name('app.transformation.data_bi.information_requirements.declaration.')
+    ->controller(\App\Http\Controllers\AppHubDataBiTenantDeclarationController::class)
+    ->group(function (): void {
+        Route::get('/', 'show')->name('show');
+        Route::post('/borrador', 'saveDraft')->name('save_draft');
+        Route::post('/enviar', 'submit')->name('submit');
+    });
+
 Route::middleware(['auth', 'verified'])
     ->post(
         '/app/transformacion-360/datos-bi/solicitar-implementacion',

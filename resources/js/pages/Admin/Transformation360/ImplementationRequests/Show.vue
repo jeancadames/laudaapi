@@ -18,7 +18,7 @@ import {
     UserRound,
     UserRoundCheck,
 } from 'lucide-vue-next';
-import { nextTick, ref, watch } from 'vue';
+import { defineAsyncComponent, nextTick, ref, watch } from 'vue';
 
 type Person = {
     id?: number;
@@ -10715,8 +10715,12 @@ const d2fIsBiRequest = d2fComputed(
     () => props.capability?.key === 'data_transformation_bi'
 );
 
+const DataBiTenantDeclarationsPanel = defineAsyncComponent(
+    () => import('./DataBiTenantDeclarationsPanel.vue')
+);
+
 const d2fWorkspaceMode =
-    d2fRef<'declarative'|'legacy'|'continuous'>(
+    d2fRef<'declarative'|'responses'|'legacy'|'continuous'>(
         'declarative'
     );
 
@@ -10754,7 +10758,7 @@ const d2fLegacyDetailsOpen = d2fRef(false);
         </div>
 
         <span class="text-xs text-muted-foreground">
-            Sin envío al Tenant
+            {{ d2fWorkspaceMode === 'responses' ? 'Revisión de solo lectura' : 'Sin envío al Tenant' }}
         </span>
     </div>
 
@@ -10773,6 +10777,16 @@ const d2fLegacyDetailsOpen = d2fRef(false);
             @click="d2fWorkspaceMode='declarative'"
         >
             Diagnóstico declarativo
+        </button>
+
+        <button
+            type="button"
+            class="min-h-11 rounded-lg border px-3 py-2 text-sm"
+            :class="d2fWorkspaceMode==='responses' ? 'bg-primary text-primary-foreground' : 'hover:bg-muted'"
+            :aria-pressed="d2fWorkspaceMode==='responses'"
+            @click="d2fWorkspaceMode='responses'"
+        >
+            Respuestas del Tenant
         </button>
 
         <button
@@ -10809,9 +10823,16 @@ const d2fLegacyDetailsOpen = d2fRef(false);
     </p>
 </section>
 
-<div v-show="!d2fIsBiRequest || d2fWorkspaceMode!=='legacy'">
+<div v-show="!d2fIsBiRequest || d2fWorkspaceMode==='declarative' || d2fWorkspaceMode==='continuous'">
 <DataBiInformationRequirementsPreview />
 </div>
+
+<DataBiTenantDeclarationsPanel
+    v-if="d2fIsBiRequest"
+    v-show="d2fWorkspaceMode==='responses'"
+    :implementation-request-id="props.implementation_request.id"
+    :active="d2fWorkspaceMode==='responses'"
+/>
 
 <section
     v-if="d2fIsBiRequest && d2fWorkspaceMode==='continuous'"
