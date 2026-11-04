@@ -182,8 +182,8 @@ class AppHubOnboardingController extends Controller
         if ($this->nativeDiagnosisWorkflow($user->id)) {
             /*
              * Ya existe la solicitud Welcome. Ahora sí hay Company/Subscriber
-             * owner y se puede materializar de forma idempotente la factura
-             * comercial RD$0.00.
+             * owner y se puede preparar de forma idempotente el acceso
+             * gratuito, pendiente de aprobación administrativa.
              */
             $commercial->ensure($user->fresh());
 
@@ -193,7 +193,7 @@ class AppHubOnboardingController extends Controller
                 ->route('app.diagnosis.show')
                 ->with(
                     'success',
-                    'Tu empresa está lista. La solicitud del Diagnóstico 360 quedó registrada con su factura de cortesía RD$0.00 y pendiente de confirmación.'
+                    'Tu empresa está lista. La solicitud gratuita del Diagnóstico 360 quedó registrada y pendiente de aprobación por Admin LAUDA.'
                 );
         }
 

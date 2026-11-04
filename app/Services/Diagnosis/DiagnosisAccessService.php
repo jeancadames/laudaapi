@@ -7,7 +7,6 @@ use App\Models\Company;
 use App\Models\ContactRequest;
 use App\Models\DiagnosisAccessRequest;
 use App\Models\DiagnosisAssessment;
-use App\Models\Invoice;
 use App\Models\User;
 use App\Services\AuditService;
 use Illuminate\Support\Facades\DB;
@@ -122,39 +121,6 @@ class DiagnosisAccessService
                     throw ValidationException::withMessages([
                         'company' => [
                             'La empresa de la solicitud App Hub no pertenece al tenant indicado o no está activa.',
-                        ],
-                    ]);
-                }
-
-                $invoiceId = (int) data_get(
-                    $workflow->meta,
-                    'initial_diagnosis.invoice_id',
-                    0
-                );
-
-                $invoice = $invoiceId > 0
-                    ? Invoice::query()
-                        ->whereKey($invoiceId)
-                        ->where(
-                            'company_id',
-                            $appHubCompany->id
-                        )
-                        ->first()
-                    : null;
-
-                if (
-                    ! $invoice
-                    || $invoice->status !== 'issued'
-                    || round((float) $invoice->total, 2) !== 0.0
-                    || ! (bool) data_get(
-                        $invoice->billing_snapshot,
-                        'complimentary',
-                        false
-                    )
-                ) {
-                    throw ValidationException::withMessages([
-                        'invoice' => [
-                            'La solicitud App Hub requiere su factura de cortesía RD$0.00 antes de confirmar el diagnóstico.',
                         ],
                     ]);
                 }
@@ -276,10 +242,6 @@ class DiagnosisAccessService
                     'user_id' => $workflow->user_id,
                     'diagnosis_assessment_id' =>
                         $workflow->diagnosis_assessment_id,
-                    'invoice_id' => data_get(
-                        $meta,
-                        'initial_diagnosis.invoice_id'
-                    ),
                     'confirmed_by_user_id' => $admin->id,
                 ],
                 ['user_id' => $admin->id]

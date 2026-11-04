@@ -15,6 +15,7 @@ use App\Models\DiagnosisAccessRequest;
 use App\Services\AuditService;
 use App\Services\Diagnosis\DiagnosisAccessService;
 use App\Services\Diagnosis\DiagnosisAssessmentDeletionService;
+use App\Services\Diagnosis\DiagnosisBusinessProfileService;
 use App\Services\Diagnosis\DiagnosisDeliverableValidationService;
 use App\Services\Diagnosis\DiagnosisResultPublisher;
 use App\Services\Diagnosis\DiagnosisTransformationProgressService;
@@ -205,7 +206,8 @@ class AdminDiagnosisAccessRequestController extends Controller
         ContactRequest $contact,
         DiagnosisAccessService $service,
         DiagnosisTransformationProgressService $progressService,
-        DiagnosisDeliverableValidationService $validations
+        DiagnosisDeliverableValidationService $validations,
+        DiagnosisBusinessProfileService $businessProfile
     ): Response {
         if (!$service->isDiagnosisContact($contact)) {
             abort(404);
@@ -275,6 +277,7 @@ class AdminDiagnosisAccessRequestController extends Controller
                 'user' => $workflow->user,
                 'assessment' => $assessment ? [
                     'id' => $assessment->id,
+                    ...$businessProfile->assessmentPayload($assessment),
                     'organization_name' => $assessment->organization_name,
                     'status' => $assessment->status,
                     'is_active' => (bool) $assessment->is_active,
@@ -934,7 +937,7 @@ class AdminDiagnosisAccessRequestController extends Controller
         return back()->with(
             'success',
             $native
-                ? 'Solicitud confirmada. La factura RD$0.00 queda como evidencia de cortesía y el Diagnóstico 360 fue habilitado en App Hub.'
+                ? 'Solicitud aprobada por Admin LAUDA. El Diagnóstico 360 gratuito fue habilitado en App Hub.'
                 : 'Solicitud aprobada e invitación de diagnóstico enviada.'
         );
     }

@@ -19,13 +19,20 @@ class DiagnosisExecutiveSummaryGenerator
      *     modality_label: string|null
      * }
      */
-    public function generate(array $result, array $profile): array
+    public function generate(array $result, array $profile, array $answers = [], array $notes = []): array
     {
         $dimensions = $this->normalizedDimensions(
             $result['dimension_scores'] ?? []
         );
 
-        $gaps = array_slice($dimensions, 0, 3);
+        $interpretation = new DiagnosisInterpretation;
+        foreach ($dimensions as &$dimension) {
+            $dimension['classification'] = $interpretation->classification($dimension['score']);
+            $dimension['evidence'] = $interpretation->dimensionEvidence($dimension['key'], $answers, $notes);
+        }
+        unset($dimension);
+        $gaps = array_values(array_filter($dimensions, fn (array $item): bool => in_array($item['classification'], ['critical', 'gap'], true)));
+        $focus = array_values(array_filter($dimensions, fn (array $item): bool => $item['classification'] !== 'unknown'));
 
         $summary = $this->buildSummary(
             $result,
@@ -35,7 +42,7 @@ class DiagnosisExecutiveSummaryGenerator
 
         $priorities = $this->buildPriorities(
             $profile,
-            $gaps
+            $focus
         );
 
         return [
@@ -65,10 +72,8 @@ class DiagnosisExecutiveSummaryGenerator
             }
 
             $dimensions[] = [
-                'key' => (string) $key,
-                'label' => $this->dimensionLabel(
-                    (string) $key
-                ),
+                'key' => explode('_', (string) $key)[0] === 'processes' ? 'operations' : explode('_', (string) $key)[0],
+                'label' => $this->dimensionLabel((string) $key),
                 'score' => round((float) $value, 1),
             ];
         }
@@ -99,58 +104,46 @@ class DiagnosisExecutiveSummaryGenerator
             $result['urgency_score'] ?? null
         );
 
-        $maturityLevel =
-            trim((string) (
-                $result['maturity_level']
-                ?? 'nivel pendiente'
-            ));
-
-        $urgencyLevel =
-            trim((string) (
-                $result['urgency_level']
-                ?? 'nivel pendiente'
-            ));
-
-        $modality =
-            trim((string) (
-                $result['recommended_modality_label']
-                ?? 'modalidad pendiente de revisión'
-            ));
+        $interpretation = new DiagnosisInterpretation;
+        $maturityLevel = $interpretation->level('maturity', $result['maturity_score'] ?? null);
+        $urgencyLevel = $interpretation->level('urgency', $result['urgency_score'] ?? null);
+        $capacityLevel = $interpretation->level('capacity', $result['capacity_score'] ?? null);
 
         $context = $this->businessContextSentence(
             $profile
         );
 
-        $gapSentence = '';
+        $gapSentence = ' No se identifican brechas de nivel crítico o inicial en las puntuaciones declaradas disponibles.';
 
         if ($gaps !== []) {
             $gapParts = array_map(
                 fn (array $gap): string =>
                     sprintf(
-                        '%s (%s/100)',
+                        '%s (%s/100; %s)',
                         $gap['label'],
-                        $this->number($gap['score'])
+                        $this->number($gap['score']),
+                        $interpretation->classificationLabel($gap['score'])
                     ),
                 $gaps
             );
 
             $gapSentence = sprintf(
-                ' Las brechas de menor puntuación se concentran en %s.',
+                ' Las brechas declaradas de nivel crítico o inicial se concentran en %s.',
                 $this->joinSpanish($gapParts)
             );
         }
 
         return trim(
             sprintf(
-                'El Diagnóstico LAUDA 360 ubica a la empresa en el nivel %s con una madurez digital de %s/100. %s%s La capacidad interna alcanza %s/100 y la urgencia %s/100 (%s). Con estos resultados, la modalidad sugerida es %s. La recomendación debe ser validada por LAUDA antes de convertirse en el resultado oficial.',
+                'El Diagnóstico LAUDA 360 ubica a la empresa en el nivel %s con una madurez digital de %s/100. %s%s La capacidad interna alcanza %s/100 (%s) y la urgencia %s/100 (%s). El Diagnóstico Inicial y el Informe Ampliado son gratuitos. La implementación y sus condiciones comerciales se definen en una fase posterior. La recomendación requiere revisión humana. '.DiagnosisInterpretation::DECLARATION_NOTICE,
                 $maturityLevel,
                 $maturityScore,
                 $context,
                 $gapSentence,
                 $capacityScore,
+                $capacityLevel,
                 $urgencyScore,
-                $urgencyLevel,
-                $modality
+                $urgencyLevel
             )
         );
     }
@@ -169,7 +162,7 @@ class DiagnosisExecutiveSummaryGenerator
                 $gap['key'],
                 $gap['label'],
                 $gap['score']
-            );
+            ) . (new DiagnosisInterpretation)->evidenceText($gap['evidence']);
         }
 
         $businessPriority = $this->businessPriority(
@@ -177,7 +170,7 @@ class DiagnosisExecutiveSummaryGenerator
         );
 
         if ($businessPriority !== null) {
-            $priorities[] = $businessPriority;
+            $priorities[] = 'Evaluar según el perfil declarado, si aplica: '.$businessPriority;
         }
 
         foreach ($gaps as $gap) {
@@ -189,7 +182,7 @@ class DiagnosisExecutiveSummaryGenerator
                 $gap['key'],
                 $gap['label'],
                 $gap['score']
-            );
+            ) . (new DiagnosisInterpretation)->evidenceText($gap['evidence']);
 
             if (! in_array(
                 $candidate,
@@ -202,12 +195,12 @@ class DiagnosisExecutiveSummaryGenerator
 
         if ($priorities === []) {
             $priorities[] =
-                'Definir un plan de transformación con responsables, metas, indicadores y revisión periódica de avances.';
+                'Revisar la información declarada antes de definir prioridades; no hay dimensiones interpretables disponibles.';
         }
 
         return array_values(
             array_slice(
-                array_unique($priorities),
+                array_unique(array_map(fn (string $item): string => Str::limit($item, 497), $priorities)),
                 0,
                 5
             )
@@ -219,12 +212,17 @@ class DiagnosisExecutiveSummaryGenerator
         string $label,
         float $score
     ): string {
+        if ((new DiagnosisInterpretation)->classification($score) === 'strength') {
+            return sprintf('Mantener la fortaleza declarada en %s (%s/100): revisar periódicamente su continuidad y evidencia.', $label, $this->number($score));
+        }
+
         $normalized = Str::lower(
             Str::ascii($key . ' ' . $label)
         );
 
         $prefix = sprintf(
-            'Priorizar %s (%s/100): ',
+            '%s — %s (%s/100): ',
+            (new DiagnosisInterpretation)->classificationLabel($score),
             $label,
             $this->number($score)
         );
@@ -270,7 +268,7 @@ class DiagnosisExecutiveSummaryGenerator
                 ['technology', 'tecnolog', 'integration', 'integracion']
             ) =>
                 $prefix .
-                'reducir silos tecnológicos, definir sistemas maestros e integrar los flujos que hoy dependen de reprocesos manuales.',
+                'evaluar integración y sistemas maestros según las respuestas; revisar si existen silos o reprocesos manuales.',
 
             Str::contains(
                 $normalized,
@@ -452,6 +450,9 @@ class DiagnosisExecutiveSummaryGenerator
             'governance_security_control' =>
                 'Gobierno, seguridad y control',
         ];
+
+        $aliases = ['strategy' => 'strategy_leadership', 'people' => 'people_culture', 'presence' => 'presence_experience', 'commercial' => 'commercial_clients', 'operations' => 'processes_operations', 'technology' => 'technology_integration', 'data' => 'data_intelligence', 'governance' => 'governance_security_control'];
+        $key = $aliases[$key] ?? $key;
 
         if (isset($explicit[$key])) {
             return $explicit[$key];

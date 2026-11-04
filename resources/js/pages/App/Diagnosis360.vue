@@ -7,7 +7,6 @@ import {
     FileText,
     Gift,
     Hourglass,
-    ReceiptText,
     ShieldAlert,
     ShieldCheck,
     Sparkles,
@@ -41,18 +40,6 @@ type State = {
         requested_at: string | null;
         confirmed_at: string | null;
     } | null;
-    invoice: {
-        id: number;
-        number: string;
-        status: string;
-        currency: string;
-        subtotal: string;
-        tax_total: string;
-        total: string;
-        amount_paid: string;
-        issued_on: string | null;
-        url: string;
-    } | null;
     assessment: {
         id: number;
         status: string;
@@ -65,13 +52,12 @@ type State = {
     offer: {
         code: string;
         name: string;
-        invoice_description: string;
-        currency: string;
-        subtotal: number;
-        tax_rate: number;
-        tax_amount: number;
-        total: number;
-        complimentary: boolean;
+        free: boolean;
+        invoice_required: boolean;
+        payment_required: boolean;
+        subscription_required: boolean;
+        modality_required: boolean;
+        contract_required: boolean;
         manual_confirmation_required: boolean;
     };
 };
@@ -86,7 +72,6 @@ const props = defineProps<{
     auto_start: boolean;
     endpoints: {
         request: string;
-        invoices: string;
         company: string;
         home: string;
     };
@@ -203,27 +188,27 @@ onMounted(() => {
                             Evaluación sin costo
                         </p>
                         <p class="mt-1 text-sm leading-6 text-slate-500">
-                            Cada solicitud se registra en DOP 0.00 con una factura de cortesía para mantener la trazabilidad del ciclo.
+                            El Diagnóstico LAUDA 360 es completamente gratuito, desde la evaluación inicial hasta la revisión y validación de sus resultados.
                         </p>
                     </article>
 
                     <article class="rounded-2xl border border-slate-200 bg-white p-5 dark:border-slate-800 dark:bg-slate-950">
-                        <ReceiptText class="h-6 w-6 text-slate-700 dark:text-slate-200" />
+                        <FileText class="h-6 w-6 text-slate-700 dark:text-slate-200" />
                         <p class="mt-3 text-sm font-black text-slate-950 dark:text-white">
-                            Facturación central
+                            Tres entregables gratuitos
                         </p>
                         <p class="mt-1 text-sm leading-6 text-slate-500">
-                            La factura se guarda junto a las demás facturas de tu tenant y no crea un pago ficticio.
+                            Recibe la evaluación inicial, el Informe Ampliado y el Roadmap Detallado como parte del diagnóstico gratuito.
                         </p>
                     </article>
 
                     <article class="rounded-2xl border border-slate-200 bg-white p-5 dark:border-slate-800 dark:bg-slate-950">
                         <ShieldCheck class="h-6 w-6 text-emerald-600" />
                         <p class="mt-3 text-sm font-black text-slate-950 dark:text-white">
-                            Confirmación manual
+                            Aprobación de Admin LAUDA
                         </p>
                         <p class="mt-1 text-sm leading-6 text-slate-500">
-                            LAUDA confirma la solicitud antes de habilitar el cuestionario, manteniendo el flujo comercial manual.
+                            Admin LAUDA revisa y aprueba la solicitud antes de habilitar el cuestionario.
                         </p>
                     </article>
                 </section>
@@ -277,7 +262,7 @@ onMounted(() => {
                                 Solicita tu evaluación
                             </p>
                             <p class="mt-1 max-w-2xl text-sm leading-6 text-slate-500">
-                                Al solicitarla se registrará automáticamente una factura de cortesía por DOP 0.00.
+                                Tu solicitud será revisada por Admin LAUDA antes de habilitar el diagnóstico gratuito.
                             </p>
                         </div>
 
@@ -312,34 +297,9 @@ onMounted(() => {
                                     La nueva evaluación está pendiente de confirmación. Tu evaluación actual continúa activa hasta que LAUDA habilite el nuevo ciclo.
                                 </template>
                                 <template v-else>
-                                    La solicitud fue registrada. No necesitas realizar ningún pago; LAUDA debe confirmar el acceso.
+                                    La solicitud gratuita fue registrada y está pendiente de aprobación por Admin LAUDA.
                                 </template>
                             </p>
-
-                            <div
-                                v-if="props.state.invoice"
-                                class="mt-4 flex flex-col gap-3 rounded-xl border border-amber-200/70 bg-white p-4 sm:flex-row sm:items-center sm:justify-between dark:border-amber-900/50 dark:bg-slate-950"
-                            >
-                                <div>
-                                    <p class="text-xs font-bold uppercase tracking-wide text-slate-500">
-                                        Factura de cortesía
-                                    </p>
-                                    <p class="mt-1 font-black text-slate-950 dark:text-white">
-                                        {{ props.state.invoice.number }} · DOP 0.00
-                                    </p>
-                                    <p class="mt-1 text-xs text-slate-500">
-                                        Diagnóstico LAUDA 360 · Evaluación sin costo
-                                    </p>
-                                </div>
-
-                                <a
-                                    :href="props.state.invoice.url"
-                                    class="inline-flex h-10 items-center justify-center gap-2 rounded-xl border border-slate-200 px-4 text-sm font-bold text-slate-800 transition hover:bg-slate-50 dark:border-slate-800 dark:text-slate-100 dark:hover:bg-slate-900"
-                                >
-                                    Ver factura
-                                    <FileText class="h-4 w-4" />
-                                </a>
-                            </div>
                         </div>
                     </div>
                 </section>
@@ -401,7 +361,13 @@ onMounted(() => {
 
                 <section class="rounded-2xl border border-slate-200 bg-white p-5 dark:border-slate-800 dark:bg-slate-950">
                     <p class="font-black text-slate-950 dark:text-white">
-                        Tu empresa y tu facturación siguen centralizadas
+                        Tu empresa conserva un perfil centralizado
+                    </p>
+
+                    <p class="mt-2 text-sm leading-6 text-slate-500">
+                        La implementación del Ecosistema LAUDA es una etapa posterior e independiente,
+                        con costo según los servicios y la modalidad Guiado, Asistido o Gestionado.
+                        La recomendación del diagnóstico no implica contratación ni autoriza ejecución.
                     </p>
 
                     <div class="mt-4 flex flex-wrap gap-3">
@@ -411,14 +377,6 @@ onMounted(() => {
                         >
                             <Building2 class="h-4 w-4" />
                             Perfil de Empresa
-                        </a>
-
-                        <a
-                            :href="props.endpoints.invoices"
-                            class="inline-flex h-10 items-center gap-2 rounded-xl border border-slate-200 px-4 text-sm font-bold dark:border-slate-800"
-                        >
-                            <ReceiptText class="h-4 w-4" />
-                            Ver todas las facturas
                         </a>
                     </div>
                 </section>

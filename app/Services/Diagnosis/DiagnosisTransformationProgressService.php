@@ -9,6 +9,7 @@ use App\Models\DiagnosisDeliverableValidation;
 use App\Models\DiagnosisDetailedRoadmap;
 use App\Models\DiagnosisExpandedReport;
 use App\Models\TransformationImplementationPlan;
+use Illuminate\Validation\ValidationException;
 
 class DiagnosisTransformationProgressService
 {
@@ -328,6 +329,15 @@ class DiagnosisTransformationProgressService
                 ],
                 true
             );
+
+        if ($publicationReady) {
+            try {
+                (new DiagnosisRoadmapDependencies)->assertValid($existingRoadmap->roadmap ?? []);
+            } catch (ValidationException $error) {
+                $publicationReady = false;
+                $publicationBlockers = array_merge($publicationBlockers, $error->errors()['roadmap'] ?? []);
+            }
+        }
 
         return [
             'generation_ready' =>

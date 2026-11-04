@@ -216,6 +216,15 @@ final class CentralCompanyProfileService
     ): CompanyTaxProfile {
         $normalized = $this->normalize($data);
 
+        $profile = CompanyTaxProfile::query()
+            ->firstOrNew([
+                'company_id' => $company->id,
+            ]);
+
+        // An omitted/empty optional field must not erase a previously declared name.
+        // New profiles keep NULL; a commercial name is never substituted here.
+        $normalized['legal_name'] ??= $profile->legal_name;
+
         $companyName = $normalized['company_name'];
         $country = $normalized['country_code'];
         $currency = $normalized['currency'];
@@ -266,11 +275,6 @@ final class CentralCompanyProfileService
             'meta' => $meta,
             'active' => true,
         ])->save();
-
-        $profile = CompanyTaxProfile::query()
-            ->firstOrNew([
-                'company_id' => $company->id,
-            ]);
 
         $profile->fill([
             'legal_name' => $normalized['legal_name'],

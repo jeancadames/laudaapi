@@ -1,9 +1,8 @@
 <script setup lang="ts">
-import AppLayout from '@/layouts/AppLayout.vue';
-import type { BreadcrumbItem } from '@/types';
-import { computed } from 'vue';
 import { Head, Link } from '@inertiajs/vue3';
 import { ArrowLeft, CheckCircle2, FileText } from 'lucide-vue-next';
+import { computed } from 'vue';
+import DiagnosisDeclaredEvidence from '@/components/diagnosis/DiagnosisDeclaredEvidence.vue';
 
 import DiagnosisDeliverableValidationCard from '@/components/diagnosis/DiagnosisDeliverableValidationCard.vue';
 
@@ -16,6 +15,8 @@ import {
     CardHeader,
     CardTitle,
 } from '@/components/ui/card';
+import AppLayout from '@/layouts/AppLayout.vue';
+import type { BreadcrumbItem } from '@/types';
 
 const props = defineProps<{
     assessment: {
@@ -135,8 +136,16 @@ function formatDate(value: string | null) {
                     <CardHeader>
                         <CardDescription> Madurez </CardDescription>
                         <CardTitle class="text-3xl">
-                            {{ assessment.maturity_score ?? '—' }}/100
+                            {{
+                                sections.maturity_interpretation?.maturity?.score ?? assessment.maturity_score ?? '—'
+                            }}/100
                         </CardTitle>
+                    <CardDescription
+                            v-if="sections.maturity_interpretation?.maturity?.interpretation"
+                            class="leading-6"
+                        >
+                            {{ sections.maturity_interpretation.maturity.interpretation }}
+                        </CardDescription>
                     </CardHeader>
                 </Card>
 
@@ -144,8 +153,16 @@ function formatDate(value: string | null) {
                     <CardHeader>
                         <CardDescription> Capacidad </CardDescription>
                         <CardTitle class="text-3xl">
-                            {{ assessment.capacity_score ?? '—' }}/100
+                            {{
+                                sections.maturity_interpretation?.capacity?.score ?? assessment.capacity_score ?? '—'
+                            }}/100
                         </CardTitle>
+                    <CardDescription
+                            v-if="sections.maturity_interpretation?.capacity?.interpretation"
+                            class="leading-6"
+                        >
+                            {{ sections.maturity_interpretation.capacity.interpretation }}
+                        </CardDescription>
                     </CardHeader>
                 </Card>
 
@@ -153,8 +170,16 @@ function formatDate(value: string | null) {
                     <CardHeader>
                         <CardDescription> Urgencia </CardDescription>
                         <CardTitle class="text-3xl">
-                            {{ assessment.urgency_score ?? '—' }}/100
+                            {{
+                                sections.maturity_interpretation?.urgency?.score ?? assessment.urgency_score ?? '—'
+                            }}/100
                         </CardTitle>
+                    <CardDescription
+                            v-if="sections.maturity_interpretation?.urgency?.interpretation"
+                            class="leading-6"
+                        >
+                            {{ sections.maturity_interpretation.urgency.interpretation }}
+                        </CardDescription>
                     </CardHeader>
                 </Card>
             </div>
@@ -180,6 +205,13 @@ function formatDate(value: string | null) {
                 </CardContent>
             </Card>
 
+            <Card v-if="sections.improvement_opportunities">
+                <CardHeader><CardTitle>{{ sections.improvement_opportunities.title }}</CardTitle></CardHeader>
+                <CardContent class="space-y-3">
+                    <p v-if="!sections.improvement_opportunities.items?.length" class="text-sm text-muted-foreground">Sin brechas iniciales u oportunidades de mejora en los niveles intermedios declarados.</p>
+                    <p v-for="item in sections.improvement_opportunities.items" :key="item.key" class="text-sm">{{ item.label }} · {{ item.score }}/100 · {{ item.classification_label }}</p>
+                </CardContent>
+            </Card>
             <Card>
                 <CardHeader>
                     <CardTitle>Análisis por dimensión</CardTitle>
@@ -200,8 +232,9 @@ function formatDate(value: string | null) {
                             </Badge>
                         </div>
                         <p class="mt-2 text-sm leading-6 text-muted-foreground">
-                            {{ item.interpretation }}
+                            {{ item.classification_label ? `${item.classification_label}. ` : '' }}{{ item.interpretation }}
                         </p>
+                        <DiagnosisDeclaredEvidence :items="item.evidence" />
                     </div>
                 </CardContent>
             </Card>
@@ -209,9 +242,17 @@ function formatDate(value: string | null) {
             <div class="grid gap-6 lg:grid-cols-2">
                 <Card>
                     <CardHeader>
-                        <CardTitle>Brechas críticas</CardTitle>
+                        <CardTitle>
+                            {{ sections.critical_gaps?.title || 'Brechas críticas' }}
+                        </CardTitle>
                     </CardHeader>
                     <CardContent class="space-y-4">
+                        <p
+                            v-if="sections.critical_gaps?.items?.length === 0 && sections.critical_gaps?.empty_message"
+                            class="text-sm text-muted-foreground"
+                        >
+                            {{ sections.critical_gaps.empty_message }}
+                        </p>
                         <div
                             v-for="item in sections.critical_gaps?.items ?? []"
                             :key="item.key"
@@ -237,7 +278,7 @@ function formatDate(value: string | null) {
 
                 <Card>
                     <CardHeader>
-                        <CardTitle> Fortalezas relativas </CardTitle>
+                        <CardTitle>{{ sections.relative_strengths?.title || 'Fortalezas relativas' }}</CardTitle>
                     </CardHeader>
                     <CardContent class="space-y-4">
                         <div
@@ -291,6 +332,12 @@ function formatDate(value: string | null) {
                     <CardTitle>Focos recomendados</CardTitle>
                 </CardHeader>
                 <CardContent>
+                    <p
+                        v-if="sections.recommended_focus?.source_note"
+                        class="mb-3 text-sm text-muted-foreground"
+                    >
+                        {{ sections.recommended_focus.source_note }}
+                    </p>
                     <ol class="space-y-3">
                         <li
                             v-for="(item, index) in sections.recommended_focus

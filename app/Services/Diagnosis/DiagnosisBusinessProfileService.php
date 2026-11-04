@@ -2,6 +2,8 @@
 
 namespace App\Services\Diagnosis;
 
+use App\Models\DiagnosisAssessment;
+use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\Rule;
 
 class DiagnosisBusinessProfileService
@@ -21,6 +23,17 @@ class DiagnosisBusinessProfileService
     public function options(): array
     {
         return config('lauda360_business_profile', []);
+    }
+
+    public function assessmentPayload(DiagnosisAssessment $assessment): array
+    {
+        $profile = $this->extract($assessment->only(self::FIELDS));
+
+        return [
+            ...$profile,
+            'business_profile_completed_at' => $assessment->business_profile_completed_at?->toIso8601String(),
+            'business_profile_complete' => Validator::make($profile, $this->rules($profile))->passes(),
+        ];
     }
 
     public function normalize(array $input): array

@@ -1,13 +1,18 @@
 <script setup lang="ts">
-import { computed, reactive, ref } from 'vue'
-import { ArrowLeft, ArrowRight, CheckCircle2, Save } from 'lucide-vue-next'
+import { ArrowLeft, ArrowRight, CheckCircle2, Save } from 'lucide-vue-next';
+import { computed, ref } from 'vue';
 
-import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { Label } from '@/components/ui/label'
-import { Progress } from '@/components/ui/progress'
-import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
-import { Textarea } from '@/components/ui/textarea'
+import { Button } from '@/components/ui/button';
+import {
+    Card,
+    CardContent,
+    CardDescription,
+    CardHeader,
+    CardTitle,
+} from '@/components/ui/card';
+import { Label } from '@/components/ui/label';
+import { Progress } from '@/components/ui/progress';
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import {
     Stepper,
     StepperDescription,
@@ -16,18 +21,23 @@ import {
     StepperSeparator,
     StepperTitle,
     StepperTrigger,
-} from '@/components/ui/stepper'
+} from '@/components/ui/stepper';
+import { Textarea } from '@/components/ui/textarea';
+import { interpretationBand, type InterpretationBands } from '@/lib/diagnosis-interpretation';
+import {
+    navigateAfterSave,
+    type DiagnosisDraft,
+} from '@/lib/diagnosis-persistence';
 
 import {
     capacityScore,
     internalCapacityQuestions,
     maturityDimensions,
     maturityScore,
-    recommendationRules,
     urgencyQuestions,
     urgencyScore,
     type DiagnosisQuestion,
-} from '@/lib/diagnostico-lauda360-v1'
+} from '@/lib/diagnostico-lauda360-v1';
 
 /**
  * IMPORTANTE
@@ -37,34 +47,24 @@ import {
  */
 
 interface Props {
-    initialAnswers?: Record<string, number>
-    initialNotes?: Record<string, string>
-    initialStep?: number
-    readOnly?: boolean
+    bands: InterpretationBands;
+    readOnly?: boolean;
+    busy?: boolean;
+    save: (draft: DiagnosisDraft) => Promise<boolean>;
+    submit: (draft: DiagnosisDraft) => Promise<boolean>;
 }
 
 const props = withDefaults(defineProps<Props>(), {
-    initialAnswers: () => ({}),
-    initialNotes: () => ({}),
-    initialStep: 1,
     readOnly: false,
-})
-
-const emit = defineEmits<{
-    save: [ payload: { answers: Record<string, number>; notes: Record<string, string>; step: number } ]
-    submit: [ payload: {
-        answers: Record<string, number>
-        notes: Record<string, string>
-        maturityScore: number
-        capacityScore: number
-        urgencyScore: number
-    } ]
-}>()
-
-const answers = reactive<Record<string, number>>({ ...props.initialAnswers })
-const notes = reactive<Record<string, string>>({ ...props.initialNotes })
-const activeStep = ref(Math.max(1, props.initialStep))
-const saving = ref(false)
+    busy: false,
+});
+const answers = defineModel<Record<string, number>>('answers', {
+    required: true,
+});
+const notes = defineModel<Record<string, string>>('notes', { required: true });
+const activeStep = defineModel<number>('step', { required: true });
+const pending = ref(false);
+const saving = computed(() => pending.value || props.busy);
 
 const steps = computed(() => [
     ...maturityDimensions.map((dimension) => ({
@@ -95,101 +95,126 @@ const steps = computed(() => [
         questions: [] as DiagnosisQuestion[],
         kind: 'review' as const,
     },
-])
+]);
 
-const current = computed(() => steps.value[ activeStep.value - 1 ])
-const isReview = computed(() => current.value?.kind === 'review')
-const currentQuestions = computed(() => current.value?.questions ?? [])
+const current = computed(() => steps.value[activeStep.value - 1]);
+const isReview = computed(() => current.value?.kind === 'review');
+const currentQuestions = computed(() => current.value?.questions ?? []);
 
-const totalScoredQuestions = computed(() =>
-    maturityDimensions.reduce((sum, d) => sum + d.questions.length, 0)
-    + internalCapacityQuestions.length
-    + urgencyQuestions.length,
-)
+const totalScoredQuestions = computed(
+    () =>
+        maturityDimensions.reduce((sum, d) => sum + d.questions.length, 0) +
+        internalCapacityQuestions.length +
+        urgencyQuestions.length,
+);
 
-const answeredCount = computed(() =>
-    Object.values(answers).filter((value) => Number.isFinite(value)).length,
-)
+const answeredCount = computed(
+    () =>
+        Object.values(answers.value).filter((value) => Number.isFinite(value))
+            .length,
+);
 
 const progressValue = computed(() => {
-    if (isReview.value) return 100
-    return Math.round((answeredCount.value / totalScoredQuestions.value) * 100)
-})
+    if (isReview.value) return 100;
+    return Math.round((answeredCount.value / totalScoredQuestions.value) * 100);
+});
 
-const currentComplete = computed(() =>
-    isReview.value || currentQuestions.value.every((question) => Number.isFinite(answers[ question.id ])),
-)
+const currentComplete = computed(
+    () =>
+        isReview.value ||
+        currentQuestions.value.every((question) =>
+            Number.isFinite(answers.value[question.id]),
+        ),
+);
 
-const maturity = computed(() => maturityScore(answers))
-const capacity = computed(() => capacityScore(answers))
-const urgency = computed(() => urgencyScore(answers))
+const maturity = computed(() => maturityScore(answers.value));
+const capacity = computed(() => capacityScore(answers.value));
+const urgency = computed(() => urgencyScore(answers.value));
 
-function band<T extends { min: number; max: number }>(value: number, options: T[]): T | undefined {
-    return options.find((option) => value >= option.min && value <= option.max)
-}
-
-const maturityBand = computed(() => band(maturity.value, recommendationRules.maturityLevels))
-const urgencyBand = computed(() => band(urgency.value, recommendationRules.urgencyLevels))
-
-const capacityLabel = computed(() => {
-    if (capacity.value >= 70) return 'Capacidad interna alta'
-    if (capacity.value >= 45) return 'Capacidad interna media'
-    return 'Capacidad interna limitada'
-})
+const maturityBand = computed(() => interpretationBand(maturity.value, props.bands.maturity));
+const urgencyBand = computed(() => interpretationBand(urgency.value, props.bands.urgency));
+const capacityLabel = computed(() => interpretationBand(capacity.value, props.bands.capacity)?.label ?? 'Pendiente de interpretación');
 
 const automaticRecommendation = computed(() => {
     if (urgencyBand.value?.label === 'Crítica') {
         return {
             label: 'Revisión humana prioritaria',
             note: 'La urgencia crítica requiere revisar prioridades, dependencias y capacidad interna antes de definir cómo ejecutar los cambios.',
-        }
+        };
     }
 
     return {
         label: capacityLabel.value,
         note: 'Esta lectura describe capacidad interna y nivel de atención recomendado. No define una modalidad comercial ni implica contratación.',
-    }
-})
+    };
+});
 
-async function persist() {
-    saving.value = true
+async function persist(step = activeStep.value) {
+    return props.save({
+        answers: { ...answers.value },
+        notes: { ...notes.value },
+        step,
+    });
+}
+
+async function navigateTo(step: number | undefined) {
+    if (
+        step === undefined ||
+        saving.value ||
+        step < 1 ||
+        step > steps.value.length ||
+        step === activeStep.value
+    )
+        return;
+    if (props.readOnly) {
+        activeStep.value = step;
+        return;
+    }
+    if (step > activeStep.value && !currentComplete.value) return;
+    pending.value = true;
     try {
-        emit('save', {
-            answers: { ...answers },
-            notes: { ...notes },
-            step: activeStep.value,
-        })
+        await navigateAfterSave(
+            step,
+            () => persist(step),
+            (savedStep) => {
+                activeStep.value = savedStep;
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+            },
+        );
     } finally {
-        saving.value = false
+        pending.value = false;
     }
 }
 
 async function next() {
-    if (!currentComplete.value || activeStep.value >= steps.value.length) return
-    await persist()
-    activeStep.value += 1
-    window.scrollTo({ top: 0, behavior: 'smooth' })
+    await navigateTo(activeStep.value + 1);
 }
-
 async function previous() {
-    if (activeStep.value <= 1) return
-    await persist()
-    activeStep.value -= 1
-    window.scrollTo({ top: 0, behavior: 'smooth' })
+    await navigateTo(activeStep.value - 1);
 }
 
 async function saveAndExit() {
-    await persist()
+    if (saving.value || props.readOnly) return;
+    pending.value = true;
+    try {
+        await persist();
+    } finally {
+        pending.value = false;
+    }
 }
 
-function submitDiagnosis() {
-    emit('submit', {
-        answers: { ...answers },
-        notes: { ...notes },
-        maturityScore: maturity.value,
-        capacityScore: capacity.value,
-        urgencyScore: urgency.value,
-    })
+async function submitDiagnosis() {
+    if (saving.value || props.readOnly) return;
+    pending.value = true;
+    try {
+        await props.submit({
+            answers: { ...answers.value },
+            notes: { ...notes.value },
+            step: activeStep.value,
+        });
+    } finally {
+        pending.value = false;
+    }
 }
 </script>
 
@@ -205,10 +230,10 @@ function submitDiagnosis() {
                     Paso {{ activeStep }} de {{ steps.length }}
                 </p>
 
-                <Stepper v-model="activeStep" orientation="vertical" class="mt-5 flex flex-col gap-1">
+                <Stepper :model-value="activeStep" @update:model-value="navigateTo" orientation="vertical" class="mt-5 flex flex-col gap-1">
                     <StepperItem v-for="(step, index) in steps" :key="step.id" :step="index + 1" class="group relative flex items-start gap-3">
                         <div class="flex flex-col items-center">
-                            <StepperTrigger :disabled="index + 1 > activeStep && !readOnly">
+                            <StepperTrigger :disabled="saving || (index + 1 > activeStep && !readOnly)">
                                 <StepperIndicator class="h-8 w-8 text-xs">
                                     {{ index + 1 }}
                                 </StepperIndicator>
@@ -288,7 +313,7 @@ function submitDiagnosis() {
                                 </div>
                             </div>
 
-                            <RadioGroup :model-value="answers[ question.id ] ? String(answers[ question.id ]) : undefined" class="mt-4 grid gap-2" :disabled="readOnly" @update:model-value="(value) => answers[ question.id ] = Number(value)">
+                            <RadioGroup :model-value="answers[ question.id ] ? String(answers[ question.id ]) : undefined" class="mt-4 grid gap-2" :disabled="readOnly || saving" @update:model-value="(value) => answers[ question.id ] = Number(value)">
                                 <Label v-for="choice in question.choices" :key="choice.score" :for="`${question.id}-${choice.score}`" class="flex cursor-pointer items-start gap-3 rounded-xl border p-3 text-sm font-normal leading-5 transition hover:bg-muted/50" :class="answers[ question.id ] === choice.score && 'border-primary bg-primary/5'">
                                     <RadioGroupItem :id="`${question.id}-${choice.score}`" :value="String(choice.score)" class="mt-0.5" />
                                     <span>
@@ -302,7 +327,7 @@ function submitDiagnosis() {
                                 <Label :for="`${question.id}-note`" class="text-xs font-medium text-muted-foreground">
                                     Nota o evidencia adicional (opcional)
                                 </Label>
-                                <Textarea :id="`${question.id}-note`" v-model="notes[ question.id ]" :disabled="readOnly" rows="2" class="mt-2 resize-none" placeholder="Contexto, evidencia o aclaración para esta respuesta." />
+                                <Textarea :id="`${question.id}-note`" v-model="notes[ question.id ]" :disabled="readOnly || saving" rows="2" class="mt-2 resize-none" placeholder="Contexto, evidencia o aclaración para esta respuesta." />
                             </div>
                         </section>
                     </div>
@@ -346,7 +371,7 @@ function submitDiagnosis() {
 
                     <div class="mt-6 flex flex-col-reverse gap-3 border-t pt-5 sm:flex-row sm:items-center sm:justify-between">
                         <div class="flex gap-2">
-                            <Button variant="outline" :disabled="activeStep === 1" @click="previous">
+                            <Button variant="outline" :disabled="saving || activeStep === 1" @click="previous">
                                 <ArrowLeft class="mr-2 h-4 w-4" />
                                 Anterior
                             </Button>
@@ -356,12 +381,12 @@ function submitDiagnosis() {
                             </Button>
                         </div>
 
-                        <Button v-if="!isReview" :disabled="!currentComplete" @click="next">
+                        <Button v-if="!isReview" :disabled="saving || (!readOnly && !currentComplete)" @click="next">
                             Continuar
                             <ArrowRight class="ml-2 h-4 w-4" />
                         </Button>
 
-                        <Button v-else-if="!readOnly" @click="submitDiagnosis">
+                        <Button v-else-if="!readOnly" :disabled="saving" @click="submitDiagnosis">
                             Enviar diagnóstico
                             <CheckCircle2 class="ml-2 h-4 w-4" />
                         </Button>

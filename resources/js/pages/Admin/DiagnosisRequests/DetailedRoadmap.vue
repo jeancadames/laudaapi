@@ -1,6 +1,5 @@
 <script setup lang="ts">
-import { computed } from 'vue';
-import { Head, Link, router, useForm } from '@inertiajs/vue3';
+import { Head, Link, router, useForm, usePage } from '@inertiajs/vue3';
 import {
     ArrowLeft,
     CheckCircle2,
@@ -8,8 +7,10 @@ import {
     RefreshCcw,
     Send,
 } from 'lucide-vue-next';
+import { computed } from 'vue';
 
-import AppLayout from '@/layouts/AppLayout.vue';
+import DetailedRoadmapTransformationCapabilities from '@/components/diagnosis/DetailedRoadmapTransformationCapabilities.vue';
+import DiagnosisDeclaredEvidence from '@/components/diagnosis/DiagnosisDeclaredEvidence.vue';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
@@ -21,12 +22,15 @@ import {
 } from '@/components/ui/card';
 import { Textarea } from '@/components/ui/textarea';
 
-import DetailedRoadmapTransformationCapabilities from '@/components/diagnosis/DetailedRoadmapTransformationCapabilities.vue';
+import AppLayout from '@/layouts/AppLayout.vue';
 
 interface Initiative {
     id: string;
     dimension_label: string;
     source_score: number | null;
+    classification_label?: string;
+    rationale?: string;
+    evidence?: { question_id: string; answer: number | null; note: string }[];
     priority: string;
     title: string;
     objective: string;
@@ -98,9 +102,14 @@ const props = defineProps<{
     };
 }>();
 
+const page = usePage();
+
 const content = computed(() => props.roadmap?.roadmap ?? {});
 const initiatives = computed(() => content.value.initiatives ?? []);
 const phases = computed(() => content.value.phases ?? []);
+const priorityLabels: Record<string, string> = {
+    critical: 'Crítica', high: 'Alta', medium: 'Media', sustain: 'Sostenimiento',
+};
 
 const reviewForm = useForm({
     review_notes: props.roadmap?.review_notes ?? '',
@@ -375,10 +384,17 @@ function statusLabel(status: Roadmap['status']) {
                     <CardHeader>
                         <CardTitle>Iniciativas priorizadas</CardTitle>
                         <CardDescription>
-                            Responsable, dependencias, impacto, esfuerzo y KPIs.
+                            Responsable, dependencias, impacto, esfuerzo y KPIs. Completar y validar prerrequisitos antes de iniciar una iniciativa, incluso en la misma fase. La prioridad de atención no equivale a severidad de una brecha.
                         </CardDescription>
                     </CardHeader>
                     <CardContent class="space-y-4">
+                        <p
+                            v-if="page.props.errors.roadmap"
+                            role="alert"
+                            class="text-sm text-destructive"
+                        >
+                            {{ page.props.errors.roadmap }}
+                        </p>
                         <div
                             v-for="item in initiatives"
                             :key="item.id"
@@ -388,9 +404,9 @@ function statusLabel(status: Roadmap['status']) {
                                 <Badge variant="outline"
                                     >#{{ item.sequence }}</Badge
                                 >
-                                <Badge variant="secondary">{{
-                                    item.priority
-                                }}</Badge>
+                                <Badge variant="secondary">
+                                    Prioridad de atención: {{ priorityLabels[item.priority] ?? item.priority }}
+                                </Badge>
                                 <Badge variant="outline"
                                     >Fase {{ item.phase }}</Badge
                                 >
@@ -403,6 +419,16 @@ function statusLabel(status: Roadmap['status']) {
                                 {{ item.dimension_label }} · {{ item.horizon }}
                             </p>
                             <p class="mt-3 leading-7">{{ item.objective }}</p>
+                            <p v-if="item.classification_label" class="mt-2 text-sm font-medium">
+                                {{ item.classification_label }}
+                            </p>
+                            <p
+                                v-if="item.rationale"
+                                class="mt-2 text-sm leading-6 text-muted-foreground"
+                            >
+                                {{ item.rationale }}
+                            </p>
+                            <DiagnosisDeclaredEvidence :items="item.evidence" />
 
                             <div class="mt-4 grid gap-4 lg:grid-cols-3">
                                 <div>

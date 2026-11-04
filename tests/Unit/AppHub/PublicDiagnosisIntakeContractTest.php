@@ -108,7 +108,7 @@ final class PublicDiagnosisIntakeContractTest extends TestCase
         );
     }
 
-    public function test_onboarding_prefills_and_materializes_free_invoice(): void
+    public function test_onboarding_prefills_and_requests_free_access_without_invoice(): void
     {
         $source = file_get_contents(
             $this->root(
@@ -121,9 +121,12 @@ final class PublicDiagnosisIntakeContractTest extends TestCase
             'diagnosisProfilePrefill',
             "'1 a 10 personas' => '1-10'",
             '$commercial->ensure($user->fresh())',
-            'RD$0.00',
+            'pendiente de aprobación por Admin LAUDA',
         ] as $needle) {
             $this->assertStringContainsString($needle, $source);
+        }
+        foreach (['Invoice::', 'InvoiceItem::', 'RD$0.00', 'factura de cortesía'] as $forbidden) {
+            $this->assertStringNotContainsString($forbidden, $source);
         }
     }
 

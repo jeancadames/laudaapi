@@ -10,6 +10,8 @@ use App\Http\Requests\Diagnosis\UpdateDiagnosisAssessmentRequest;
 use App\Models\DiagnosisAssessment;
 use App\Models\TransformationImplementationPlan;
 use App\Services\Diagnosis\DiagnosisBusinessProfileService;
+use App\Services\Diagnosis\DiagnosisDraftRevision;
+use App\Services\Diagnosis\DiagnosisInterpretation;
 use App\Services\Diagnosis\DiagnosisExecutiveSummaryGenerator;
 use App\Services\Diagnosis\DiagnosisTransformationProgressService;
 use App\Services\Diagnosis\Lauda360ScoringService;
@@ -24,7 +26,8 @@ class DigitalDiagnosisController extends Controller
     public function show(
         DiagnosisAssessment $assessment,
         DiagnosisBusinessProfileService $businessProfile,
-        DiagnosisTransformationProgressService $progressService
+        DiagnosisTransformationProgressService $progressService,
+        DiagnosisDraftRevision $revision
     ): Response {
         Gate::authorize('view', $assessment);
 
@@ -46,6 +49,8 @@ class DigitalDiagnosisController extends Controller
         return Inertia::render('Diagnosis/Show', [
             'assessment' => [
                 'id' => $assessment->id,
+                'revision' => $revision->forAssessment($assessment),
+                'can_edit' => Gate::allows('update', $assessment),
                 'status' => $assessment->status,
                 'current_step' => $assessment->current_step,
                 'answers' => $assessment->answers ?? [],
@@ -85,6 +90,7 @@ class DigitalDiagnosisController extends Controller
                     $assessment->organization_id ?? $assessment->id,
                 'name' => $assessment->organization_name,
             ],
+            'interpretationBands' => (new DiagnosisInterpretation)->bands(),
             'businessProfileOptions' =>
                 $businessProfile->options(),
             'transformation_progress' =>
@@ -99,6 +105,7 @@ class DigitalDiagnosisController extends Controller
                     $assessment->maturity_level,
                 'capacity_score' =>
                     $assessment->capacity_score,
+                'capacity_level' => (new DiagnosisInterpretation)->level('capacity', $assessment->capacity_score),
                 'urgency_score' =>
                     $assessment->urgency_score,
                 'urgency_level' =>
@@ -149,7 +156,8 @@ class DigitalDiagnosisController extends Controller
     public function update(
         UpdateDiagnosisAssessmentRequest $request,
         DiagnosisAssessment $assessment,
-        DiagnosisBusinessProfileService $businessProfile
+        DiagnosisBusinessProfileService $businessProfile,
+        DiagnosisDraftRevision $revision
     ): RedirectResponse {
         Gate::authorize('update', $assessment);
 
@@ -163,8 +171,16 @@ class DigitalDiagnosisController extends Controller
             function () use (
                 $assessment,
                 $validated,
-                $profile
+                $profile,
+                $revision
             ): void {
+                $assessment = DiagnosisAssessment::query()
+                    ->whereKey($assessment->id)
+                    ->lockForUpdate()
+                    ->firstOrFail();
+                Gate::authorize('update', $assessment);
+                $revision->assertCurrent($assessment, $validated['expected_revision']);
+
                 $assessment->fill([
                     'answers' =>
                         $validated['answers'] ?? [],
@@ -199,7 +215,8 @@ class DigitalDiagnosisController extends Controller
         Lauda360ScoringService $scoring,
         DiagnosisBusinessProfileService $businessProfile,
         DiagnosisExecutiveSummaryGenerator $executiveSummary,
-        DiagnosisAssessmentCompletenessService $completeness
+        DiagnosisAssessmentCompletenessService $completeness,
+        DiagnosisDraftRevision $revision
     ): RedirectResponse {
         Gate::authorize('submit', $assessment);
 
@@ -210,36 +227,32 @@ class DigitalDiagnosisController extends Controller
             $validated
         );
 
-        /*
-         * Validate the exact state that is about to be submitted.
-         * Do not rely on the previously persisted draft because the
-         * current request contains the final answers/profile.
-         */
-        $candidate = clone $assessment;
-
-        $candidate->fill([
-            'answers' => $answers,
-            ...$profile,
-        ]);
-
-        $completeness->assertComplete($candidate);
-
-        $result = $scoring->calculate($answers);
-
-        $suggestion = $executiveSummary->generate(
-            $result,
-            $profile
-        );
-
         DB::transaction(
             function () use (
                 $assessment,
                 $answers,
                 $notes,
                 $profile,
-                $result,
-                $suggestion
+                $validated,
+                $scoring,
+                $executiveSummary,
+                $completeness,
+                $revision
             ): void {
+                $assessment = DiagnosisAssessment::query()
+                    ->whereKey($assessment->id)
+                    ->lockForUpdate()
+                    ->firstOrFail();
+                Gate::authorize('submit', $assessment);
+                $revision->assertCurrent($assessment, $validated['expected_revision']);
+
+                // Validate and score the exact submitted state, against the locked row.
+                $candidate = clone $assessment;
+                $candidate->fill(['answers' => $answers, ...$profile]);
+                $completeness->assertComplete($candidate);
+                $result = $scoring->calculate($answers);
+                $suggestion = $executiveSummary->generate($result, $profile, $answers, $notes);
+
                 $assessment->fill([
                     'answers' => $answers,
                     'notes' => $notes,

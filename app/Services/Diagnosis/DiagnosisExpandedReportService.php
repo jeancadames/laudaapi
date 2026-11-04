@@ -320,7 +320,6 @@ class DiagnosisExpandedReportService
             'business_context.interpretation',
             'maturity_interpretation',
             'dimension_analysis.items',
-            'critical_gaps.items',
             'business_implications.items',
             'recommended_focus.items',
             'execution_capacity.body',
@@ -339,6 +338,13 @@ class DiagnosisExpandedReportService
                     ],
                 ]);
             }
+        }
+
+        // No critical gaps is a valid conclusion; a missing/malformed section is not.
+        if (! is_array(data_get($sections, 'critical_gaps.items'))) {
+            throw ValidationException::withMessages([
+                'report' => ['El informe no está completo: falta critical_gaps.items.'],
+            ]);
         }
 
         $report->forceFill([

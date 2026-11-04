@@ -10,6 +10,7 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Gate;
 use Illuminate\Validation\Rules\Password;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -153,7 +154,8 @@ class DiagnosisInvitationController extends Controller
             ->where('user_id', $user->id)
             ->where('is_active', true)
             ->latest('id')
-            ->first();
+            ->get()
+            ->first(fn (DiagnosisAssessment $candidate): bool => Gate::allows('view', $candidate));
 
         if (! $assessment) {
             $subscriberIds = $user->activeSubscribers()
@@ -169,7 +171,8 @@ class DiagnosisInvitationController extends Controller
                 ->whereIn('organization_id', $companyIds)
                 ->where('is_active', true)
                 ->latest('id')
-                ->first();
+                ->get()
+                ->first(fn (DiagnosisAssessment $candidate): bool => Gate::allows('view', $candidate));
         }
 
         if (!$assessment) {

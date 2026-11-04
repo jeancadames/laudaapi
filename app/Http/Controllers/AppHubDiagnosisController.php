@@ -107,7 +107,6 @@ final class AppHubDiagnosisController extends Controller
                     [],
                     false
                 ),
-                'invoices' => url('/subscriber/invoices'),
                 'company' => url('/subscriber/company'),
                 'home' => route('app.gateway', [], false),
             ],

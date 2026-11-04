@@ -236,7 +236,7 @@ class SubscriberCompanyController extends Controller
 
             $profile = CompanyTaxProfile::create([
                 'company_id' => $company->id,
-                'legal_name' => $company->name,
+                'legal_name' => null,
                 'country_code' => 'DO',
                 'tax_id_type' => 'RNC',
                 'billing_email' => $user->email ?? null,

@@ -1,10 +1,12 @@
 <script setup lang="ts">
-import AppLayout from '@/layouts/AppLayout.vue';
-import type { BreadcrumbItem } from '@/types';
-import { computed } from 'vue';
 import { Head, Link } from '@inertiajs/vue3';
 import { ArrowLeft, CheckCircle2 } from 'lucide-vue-next';
+import { computed } from 'vue';
 
+
+import DetailedRoadmapTransformationCapabilities from '@/components/diagnosis/DetailedRoadmapTransformationCapabilities.vue';
+import DiagnosisDeclaredEvidence from '@/components/diagnosis/DiagnosisDeclaredEvidence.vue';
+import DiagnosisDeliverableValidationCard from '@/components/diagnosis/DiagnosisDeliverableValidationCard.vue';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
@@ -14,14 +16,16 @@ import {
     CardHeader,
     CardTitle,
 } from '@/components/ui/card';
-
-import DetailedRoadmapTransformationCapabilities from '@/components/diagnosis/DetailedRoadmapTransformationCapabilities.vue';
-import DiagnosisDeliverableValidationCard from '@/components/diagnosis/DiagnosisDeliverableValidationCard.vue';
+import AppLayout from '@/layouts/AppLayout.vue';
+import type { BreadcrumbItem } from '@/types';
 
 interface Initiative {
     id: string;
     dimension_label: string;
     source_score: number | null;
+    classification_label?: string;
+    rationale?: string;
+    evidence?: { question_id: string; answer: number | null; note: string }[];
     priority: string;
     title: string;
     objective: string;
@@ -104,6 +108,9 @@ const breadcrumbs: BreadcrumbItem[] = [
 const content = computed(() => props.roadmap.content ?? {});
 const initiatives = computed(() => content.value.initiatives ?? []);
 const phases = computed(() => content.value.phases ?? []);
+const priorityLabels: Record<string, string> = {
+    critical: 'Crítica', high: 'Alta', medium: 'Media', sustain: 'Sostenimiento',
+};
 
 function formatDate(value: string | null) {
     if (!value) return '—';
@@ -189,7 +196,8 @@ function formatDate(value: string | null) {
                     <CardTitle>Iniciativas priorizadas</CardTitle>
                     <CardDescription>
                         Qué hacer, en qué orden, quién debe liderar y cómo
-                        medirlo.
+                        medirlo. Completar y validar prerrequisitos antes de iniciar una iniciativa,
+                        incluso en la misma fase. La prioridad de atención no equivale a severidad de una brecha.
                     </CardDescription>
                 </CardHeader>
                 <CardContent class="space-y-5">
@@ -202,9 +210,9 @@ function formatDate(value: string | null) {
                             <Badge variant="outline"
                                 >#{{ item.sequence }}</Badge
                             >
-                            <Badge variant="secondary">{{
-                                item.priority
-                            }}</Badge>
+                            <Badge variant="secondary">
+                                Prioridad de atención: {{ priorityLabels[item.priority] ?? item.priority }}
+                            </Badge>
                             <Badge variant="outline"
                                 >Fase {{ item.phase }}</Badge
                             >
@@ -217,6 +225,16 @@ function formatDate(value: string | null) {
                             {{ item.dimension_label }} · {{ item.horizon }}
                         </p>
                         <p class="mt-4 leading-7">{{ item.objective }}</p>
+                        <p v-if="item.classification_label" class="mt-2 text-sm font-medium">
+                            {{ item.classification_label }}
+                        </p>
+                        <p
+                            v-if="item.rationale"
+                            class="mt-2 text-sm leading-6 text-muted-foreground"
+                        >
+                            {{ item.rationale }}
+                        </p>
+                        <DiagnosisDeclaredEvidence :items="item.evidence" />
 
                         <div class="mt-5 grid gap-5 lg:grid-cols-3">
                             <div>

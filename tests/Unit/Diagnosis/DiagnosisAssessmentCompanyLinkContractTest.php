@@ -54,7 +54,7 @@ final class DiagnosisAssessmentCompanyLinkContractTest
             'La solicitud App Hub no contiene un contexto de empresa válido.',
             'La empresa de la solicitud App Hub no pertenece al tenant indicado o no está activa.',
             "'company_id',",
-            '$appHubCompany->id',
+            '$appHubCompany?->id',
         ] as $token) {
             $this->assertStringContainsString(
                 $token,
@@ -68,26 +68,18 @@ final class DiagnosisAssessmentCompanyLinkContractTest
         );
     }
 
-    public function test_complimentary_invoice_must_belong_to_validated_company(): void
+    public function test_free_approval_keeps_company_validation_without_any_invoice_requirement(): void
     {
         $source = file_get_contents(
-            $this->root()
-            .'/app/Services/Diagnosis/DiagnosisAccessService.php'
+            $this->root().'/app/Services/Diagnosis/DiagnosisAccessService.php'
         );
-
-        foreach ([
-            'Invoice::query()',
-            '->whereKey($invoiceId)',
-            "'company_id',",
-            '$appHubCompany->id',
-            "$invoice->status !== 'issued'",
-            'round((float) $invoice->total, 2) !== 0.0',
-            "'complimentary'",
-        ] as $token) {
-            $this->assertStringContainsString(
-                $token,
-                $source
-            );
+        foreach (['Invoice::', 'use App\\Models\\Invoice;', 'initial_diagnosis.invoice_id',
+            'billing_snapshot', "'invoice' =>"] as $forbidden) {
+            $this->assertStringNotContainsString($forbidden, $source);
+        }
+        foreach (["->whereKey(\$companyId)", "'subscriber_id',", '$subscriberId',
+            "->where('active', true)", "'organization_id' =>"] as $required) {
+            $this->assertStringContainsString($required, $source);
         }
     }
 

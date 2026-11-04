@@ -35,11 +35,20 @@ class DiagnosisExpandedReportGenerator
             $assessment->dimension_scores ?? []
         );
 
-        $gaps = array_slice($dimensions, 0, 3);
-        $strengths = array_slice(
-            array_reverse($dimensions),
-            0,
-            2
+        $interpretation = new DiagnosisInterpretation;
+        foreach ($dimensions as &$dimension) {
+            $dimension['classification'] = $interpretation->classification($dimension['score']);
+            $dimension['classification_label'] = $interpretation->classificationLabel($dimension['score']);
+            $dimension['evidence'] = $interpretation->dimensionEvidence($dimension['key'], $assessment->answers ?? [], $assessment->notes ?? []);
+        }
+        unset($dimension);
+        $gaps = array_values(array_filter($dimensions, fn (array $item): bool => $item['classification'] === 'critical'));
+        $opportunities = array_values(array_filter($dimensions, fn (array $item): bool => in_array($item['classification'], ['gap', 'opportunity'], true)));
+        $strengths = array_values(array_filter($dimensions, fn (array $item): bool => $item['classification'] === 'strength'));
+        $implications = $this->businessImplications($assessment);
+        $implications['items'] = array_map(
+            fn (string $item): string => 'Criterio general a evaluar según el perfil declarado, si aplica: '.$item,
+            $implications['items']
         );
 
         return [
@@ -58,12 +67,14 @@ class DiagnosisExpandedReportGenerator
                     $this->dimensionAnalysis($dimensions),
                 'critical_gaps' =>
                     $this->criticalGaps($gaps),
+                'improvement_opportunities' => [
+                    'title' => 'Brechas iniciales y oportunidades de mejora',
+                    'items' => $opportunities,
+                ],
                 'relative_strengths' =>
                     $this->relativeStrengths($strengths),
                 'business_implications' =>
-                    $this->businessImplications(
-                        $assessment
-                    ),
+                    $implications,
                 'recommended_focus' =>
                     $this->recommendedFocus($assessment),
                 'execution_capacity' =>
@@ -123,6 +134,12 @@ class DiagnosisExpandedReportGenerator
         DiagnosisAssessment $assessment
     ): array {
         return [
+            'declared_evidence' => (new DiagnosisInterpretation)->evidence(
+                (new Lauda360ScoringService)->allQuestionIds(),
+                $assessment->answers ?? [],
+                $assessment->notes ?? []
+            ),
+            'evidence_notice' => DiagnosisInterpretation::DECLARATION_NOTICE,
             'assessment_id' => $assessment->id,
             'organization_name' =>
                 $assessment->organization_name,
@@ -207,7 +224,7 @@ class DiagnosisExpandedReportGenerator
 
         return [
             'title' => 'Conclusión ejecutiva',
-            'body' => $official,
+            'body' => DiagnosisInterpretation::DECLARATION_NOTICE.' '.$official.' El Diagnóstico Inicial y el Informe Ampliado son gratuitos; la implementación y sus condiciones comerciales corresponden a una fase posterior.',
         ];
     }
 
@@ -284,7 +301,7 @@ class DiagnosisExpandedReportGenerator
                 $assessment
                     ->business_activity_description,
             'interpretation' =>
-                $this->businessContextInterpretation(
+                'Contexto declarado; los aspectos sugeridos requieren confirmar su aplicabilidad. '.$this->businessContextInterpretation(
                     $assessment
                 ),
         ];
@@ -299,8 +316,7 @@ class DiagnosisExpandedReportGenerator
             'maturity' => [
                 'score' =>
                     $assessment->maturity_score,
-                'level' =>
-                    $assessment->maturity_level,
+                'level' => (new DiagnosisInterpretation)->level('maturity', $assessment->maturity_score),
                 'interpretation' =>
                     $this->scoreInterpretation(
                         (float)
@@ -313,18 +329,12 @@ class DiagnosisExpandedReportGenerator
                 'score' =>
                     $assessment->capacity_score,
                 'interpretation' =>
-                    $this->scoreInterpretation(
-                        (float)
-                            ($assessment
-                                ->capacity_score ?? 0),
-                        'capacidad interna para transformar'
-                    ),
+                    sprintf('%s (%s/100). Es un indicador separado de madurez y urgencia; no implica contratación.', (new DiagnosisInterpretation)->level('capacity', $assessment->capacity_score), $this->number($assessment->capacity_score)),
             ],
             'urgency' => [
                 'score' =>
                     $assessment->urgency_score,
-                'level' =>
-                    $assessment->urgency_level,
+                'level' => (new DiagnosisInterpretation)->level('urgency', $assessment->urgency_score),
                 'interpretation' =>
                     $this->urgencyInterpretation(
                         (float)
@@ -376,14 +386,13 @@ class DiagnosisExpandedReportGenerator
         array $gaps
     ): array {
         return [
-            'title' => 'Brechas críticas',
+            'title' => 'Brechas críticas declaradas',
+            'empty_message' => 'No se identifican brechas críticas en las puntuaciones declaradas disponibles.',
             'items' => array_map(
                 fn (array $gap): array => [
                     ...$gap,
                     'impact' =>
-                        $this->gapImpact(
-                            $gap['key']
-                        ),
+                        'Riesgo potencial a contrastar con las respuestas declaradas: '.$this->gapImpact($gap['key']),
                 ],
                 $gaps
             ),
@@ -402,12 +411,12 @@ class DiagnosisExpandedReportGenerator
     ): array {
         return [
             'title' =>
-                'Capacidades relativamente más desarrolladas',
+                'Fortalezas que conviene mantener',
             'items' => array_map(
                 fn (array $item): array => [
                     ...$item,
                     'note' =>
-                        'Esta dimensión presenta una posición relativa superior dentro del diagnóstico actual. Debe preservarse y utilizarse como apoyo para cerrar las brechas prioritarias.',
+                        'Esta dimensión alcanza el nivel avanzado según las respuestas declaradas. Conviene mantenerla y revisar periódicamente su continuidad.',
                 ],
                 $strengths
             ),
@@ -446,7 +455,7 @@ class DiagnosisExpandedReportGenerator
         }
 
         return [
-            'title' => 'Implicaciones para el modelo de negocio',
+            'title' => 'Aspectos a evaluar según el modelo de negocio declarado',
             'items' => match ($activity) {
                 'goods' => [
                     'El ciclo de catálogo y precios, inventario, pedido, preparación, despacho, facturación y cobranza debe operar con datos consistentes.',
@@ -455,8 +464,8 @@ class DiagnosisExpandedReportGenerator
                 ],
                 'services' => [
                     'El ciclo de captación, cotización, agenda o proyecto, asignación de recursos, ejecución, facturación, cobranza, seguimiento y renovación debe conectarse.',
-                    'La empresa necesita trazabilidad sobre demanda, capacidad, tiempos, rentabilidad y calidad de servicio.',
-                    'La digitalización debe reducir dependencia de conocimiento informal, mensajería aislada y seguimiento manual.',
+                    'Evaluar, si aplica al contexto declarado, trazabilidad sobre demanda, capacidad, tiempos, rentabilidad y calidad de servicio.',
+                    'Contrastar con las respuestas si existe dependencia de conocimiento informal, mensajería aislada o seguimiento manual antes de recomendar cambios.',
                 ],
                 'mixed' => [
                     'La empresa debe evitar dos operaciones digitales separadas para bienes y servicios cuando forman parte de una misma experiencia comercial.',
@@ -485,15 +494,16 @@ class DiagnosisExpandedReportGenerator
 
         if ($priorities === []) {
             $priorities = [
-                'Convertir las principales brechas del diagnóstico en una agenda priorizada de transformación.',
-                'Definir responsables, indicadores y criterios de éxito antes de seleccionar o ampliar herramientas.',
-                'Asegurar adopción y disciplina operativa antes de automatizar procesos inestables.',
+                'Revisar las dimensiones y su sustento declarado: abordar brechas si existen y mantener las fortalezas identificadas.',
+                'Evaluar mejoras aplicables al contexto declarado, con responsables, indicadores y criterios de éxito.',
+                'Validar técnicamente los hallazgos antes de definir iniciativas de implementación.',
             ];
         }
 
         return [
             'title' =>
                 'Focos recomendados para profundización',
+            'source_note' => 'Prioridades de revisión humana o sugerencias metodológicas; el sustento por dimensión se muestra en las respuestas declaradas. No se atribuye automáticamente cada prioridad editada a una pregunta.',
             'items' => array_slice(
                 $priorities,
                 0,
@@ -576,7 +586,7 @@ class DiagnosisExpandedReportGenerator
         };
 
         return sprintf(
-            'Con %s/100, la dimensión se encuentra en nivel %s. El análisis ampliado debe revisar %s y su impacto directo sobre el modelo operativo de la empresa.',
+            'Según las respuestas declaradas, con %s/100 la dimensión se encuentra en nivel %s. Se propone evaluar, si aplica, %s y su impacto directo sobre el modelo operativo de la empresa.',
             $this->number($score),
             mb_strtolower($this->band($score)),
             $theme
@@ -622,27 +632,12 @@ class DiagnosisExpandedReportGenerator
     private function urgencyInterpretation(
         float $score
     ): string {
-        return match (true) {
-            $score >= 80 =>
-                'La urgencia es muy alta. Conviene reducir exposición y estabilizar los puntos críticos antes de ampliar iniciativas no esenciales.',
-            $score >= 60 =>
-                'La urgencia es alta. Las acciones deben concentrarse en brechas con impacto inmediato sobre continuidad, cliente, ingresos o control.',
-            $score >= 40 =>
-                'La urgencia es moderada. Existe espacio para secuenciar cambios, pero conviene evitar que las brechas actuales se consoliden.',
-            default =>
-                'La urgencia es relativamente baja. Esto permite priorizar con mayor disciplina, siempre que no existan riesgos críticos específicos.',
-        };
+        return sprintf('La urgencia es %s (%s/100), según los tramos oficiales. Describe presión declarada para actuar, independientemente de madurez y capacidad.', mb_strtolower((new DiagnosisInterpretation)->level('urgency', $score)), $this->number($score));
     }
 
     private function band(float $score): string
     {
-        return match (true) {
-            $score <= 20 => 'Crítico',
-            $score <= 40 => 'Inicial',
-            $score <= 60 => 'En desarrollo',
-            $score <= 80 => 'Consolidado',
-            default => 'Avanzado',
-        };
+        return (new DiagnosisInterpretation)->level('maturity', $score);
     }
 
     private function profileLabel(

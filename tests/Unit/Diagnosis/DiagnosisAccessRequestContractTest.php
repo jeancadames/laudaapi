@@ -16,6 +16,7 @@ class DiagnosisAccessRequestContractTest extends TestCase
             'approved',
             'invited',
             'active',
+            'inactive',
             'rejected',
         ], DiagnosisAccessRequest::STATUSES);
     }

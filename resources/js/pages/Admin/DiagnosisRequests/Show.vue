@@ -1,27 +1,26 @@
 <script setup lang="ts">
-import TransformationProgressChecklist from '@/components/diagnosis/TransformationProgressChecklist.vue';
-import TransformationQuickActions from '@/components/diagnosis/TransformationQuickActions.vue';
-import { computed, ref } from 'vue';
 import { Head, Link, router, useForm } from '@inertiajs/vue3';
 import {
     ArrowLeft,
     CheckCircle2,
     ChevronDown,
-    Clock3,
     Mail,
     ShieldAlert,
 } from 'lucide-vue-next';
+import { computed, ref } from 'vue';
+import TransformationProgressChecklist from '@/components/diagnosis/TransformationProgressChecklist.vue';
+import TransformationQuickActions from '@/components/diagnosis/TransformationQuickActions.vue';
 
-import AppLayout from '@/layouts/AppLayout.vue';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import type { BreadcrumbItem } from '@/types';
+import AppLayout from '@/layouts/AppLayout.vue';
 import {
     internalCapacityQuestions,
     maturityDimensions,
     urgencyQuestions,
 } from '@/lib/diagnostico-lauda360-v1';
+import type { BreadcrumbItem } from '@/types';
 
 type Assessment = {
     id: number;
@@ -37,6 +36,7 @@ type Assessment = {
     logistics_operation_other: string | null;
     business_activity_description: string | null;
     business_profile_completed_at: string | null;
+    business_profile_complete: boolean;
     status: string;
     current_step: number;
     answers: Record<string, number>;
@@ -206,6 +206,7 @@ const publishForm = useForm({
 });
 
 const reviewSubmitting = ref(false);
+const publicationError = ref('');
 
 
 const canPublish = computed(() =>
@@ -527,6 +528,7 @@ function reviewPayload() {
 
 function submitReview(endpoint: 'save-review' | 'publish-result') {
     publishForm.clearErrors();
+    publicationError.value = '';
     reviewSubmitting.value = true;
 
     router.post(
@@ -536,6 +538,7 @@ function submitReview(endpoint: 'save-review' | 'publish-result') {
             preserveScroll: true,
             preserveState: true,
             onError: (errors) => {
+                publicationError.value = errors.assessment ?? '';
                 publishForm.setError(errors);
             },
             onFinish: () => {
@@ -1292,14 +1295,13 @@ function publish() {
                         </Card>
 
                         <Card
-                            v-if="
-                                assessment &&
-                                (assessment.business_profile_completed_at ||
-                                    assessment.business_activity_type)
-                            "
+                            v-if="assessment"
                         >
                             <CardHeader>
                                 <CardTitle> Perfil comercial </CardTitle>
+                                <Badge :variant="assessment.business_profile_complete ? 'default' : 'secondary'">
+                                    {{ assessment.business_profile_complete ? 'Completo' : 'Incompleto' }}
+                                </Badge>
                                 <p
                                     class="text-xs leading-5 text-muted-foreground"
                                 >
@@ -1475,6 +1477,16 @@ function publish() {
                                 class="space-y-4"
                                 id="informe-diagnostico"
                             >
+                                <p
+                                    v-if="publicationError"
+                                    role="alert"
+                                    class="text-sm leading-6 text-destructive"
+                                >
+                                    {{ publicationError }}
+                                </p>
+                                <p v-if="assessment.published_at" class="text-sm leading-6 text-muted-foreground">
+                                    Si ya existe un Informe Ampliado o Roadmap publicado, los cambios requieren un nuevo ciclo de diagnóstico. La republicación no sustituye los entregables históricos ni crea otra evaluación automáticamente.
+                                </p>
                                 <div
                                     v-if="documentCycleClosed"
                                     class="rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-900"
@@ -1483,7 +1495,7 @@ function publish() {
                                         Ciclo documental validado por el tenant
                                     </p>
                                     <p class="mt-1 leading-5">
-                                        Informe Ampliado, Roadmap Detallado y Plan de Implementación están validados. La republicación del Diagnóstico queda bloqueada; para cambios, crea una nueva versión del entregable correspondiente.
+                                        Informe Ampliado, Roadmap Detallado y Plan de Implementación están validados. La republicación del Diagnóstico queda bloqueada. Los cambios en sus conclusiones requieren un nuevo ciclo de diagnóstico, conservando el historial.
                                     </p>
                                 </div>
                                 <div>

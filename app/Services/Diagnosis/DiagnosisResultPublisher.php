@@ -4,8 +4,11 @@ namespace App\Services\Diagnosis;
 
 use App\Models\DiagnosisAccessRequest;
 use App\Models\DiagnosisAssessment;
+use App\Models\DiagnosisDetailedRoadmap;
+use App\Models\DiagnosisExpandedReport;
 use App\Models\User;
 use App\Services\AuditService;
+use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
@@ -66,6 +69,10 @@ class DiagnosisResultPublisher
         User $reviewer,
         array $data
     ): DiagnosisAssessment {
+        if (! $reviewer->isAdmin()) {
+            throw new AuthorizationException('Solo Admin LAUDA puede publicar resultados.');
+        }
+
         return DB::transaction(function () use (
             $assessment,
             $reviewer,
@@ -75,6 +82,13 @@ class DiagnosisResultPublisher
                 ->whereKey($assessment->getKey())
                 ->lockForUpdate()
                 ->firstOrFail();
+
+            $conclusionsChanged = $locked->review_summary !== trim((string) $data['review_summary'])
+                || array_values($locked->review_priorities ?? []) !== array_values($data['review_priorities']);
+
+            if ($conclusionsChanged) {
+                $this->assertNoPublishedDependencies($locked);
+            }
 
             $this->validations->assertAssessmentOpenForPublication(
                 $locked
@@ -200,5 +214,41 @@ class DiagnosisResultPublisher
 
             return $locked->fresh(['user', 'reviewedBy']);
         });
+    }
+
+    private function assertNoPublishedDependencies(DiagnosisAssessment $assessment): void
+    {
+        // Current locking reads, including drafts: a concurrent publication
+        // cannot flip a candidate's status until this transaction finishes.
+        // Creation already serializes on the assessment locked by publish().
+        $reports = DiagnosisExpandedReport::query()
+            ->where('diagnosis_assessment_id', $assessment->id)
+            ->orderBy('id')
+            ->lockForUpdate()
+            ->get(['id', 'status', 'published_at']);
+
+        $roadmaps = DiagnosisDetailedRoadmap::query()
+            ->where(function ($query) use ($assessment, $reports): void {
+                $query->where('diagnosis_assessment_id', $assessment->id);
+                if ($reports->isNotEmpty()) {
+                    $query->orWhereIn('source_expanded_report_id', $reports->modelKeys());
+                }
+            })
+            ->orderBy('id')
+            ->lockForUpdate()
+            ->get(['id', 'status', 'published_at']);
+
+        // Either publication marker protects history, including inconsistent
+        // legacy states. Tenant validation alone is not a publication marker.
+        $protected = fn ($deliverable): bool => $deliverable->status === 'published'
+            || $deliverable->published_at !== null;
+
+        if ($reports->contains($protected) || $roadmaps->contains($protected)) {
+            throw ValidationException::withMessages([
+                'assessment' => [
+                    'No se puede republicar el Diagnóstico Inicial con cambios porque existe un Informe Ampliado o Roadmap dependiente publicado o con registro de publicación. El ciclo histórico se conserva. Tramita los cambios mediante un nuevo ciclo de diagnóstico; no se creará automáticamente.',
+                ],
+            ]);
+        }
     }
 }

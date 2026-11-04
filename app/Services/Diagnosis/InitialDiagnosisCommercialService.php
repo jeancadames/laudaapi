@@ -7,14 +7,13 @@ use App\Models\CompanyTaxProfile;
 use App\Models\ContactRequest;
 use App\Models\DiagnosisAccessRequest;
 use App\Models\DiagnosisAssessment;
-use App\Models\Invoice;
-use App\Models\InvoiceItem;
 use App\Models\Subscriber;
 use App\Models\User;
 use App\Services\AuditService;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
+/** Historical class/SOURCE retained for existing consumers; this flow only manages free access. */
 final class InitialDiagnosisCommercialService
 {
     public const SOURCE = 'lauda360_initial_diagnosis';
@@ -22,39 +21,21 @@ final class InitialDiagnosisCommercialService
 
     public function offer(): array
     {
-        $offer = config('lauda360_commercial.initial_diagnosis', []);
-
-        $currency = strtoupper(trim((string) ($offer['currency'] ?? 'DOP')));
-        $subtotal = round((float) ($offer['subtotal'] ?? 0), 2);
-        $taxRate = round((float) ($offer['tax_rate'] ?? 0), 3);
-        $taxAmount = round($subtotal * ($taxRate / 100), 2);
-        $total = round($subtotal + $taxAmount, 2);
-
-        if ($subtotal !== 0.0 || $taxAmount !== 0.0 || $total !== 0.0) {
-            throw ValidationException::withMessages([
-                'diagnosis' => ['El Diagnóstico Inicial debe permanecer en DOP 0.00.'],
-            ]);
-        }
-
         return [
-            'code' => (string) ($offer['code'] ?? 'lauda360_initial_diagnosis'),
-            'name' => (string) ($offer['name'] ?? 'Diagnóstico Inicial LAUDA 360'),
-            'invoice_description' => (string) (
-                $offer['invoice_description']
-                ?? 'Diagnóstico Inicial LAUDA 360 · Evaluación inicial sin costo (cortesía LAUDAAPI)'
-            ),
-            'currency' => $currency,
-            'subtotal' => $subtotal,
-            'tax_rate' => $taxRate,
-            'tax_amount' => $taxAmount,
-            'total' => $total,
-            'complimentary' => true,
+            'code' => self::SOURCE,
+            'name' => 'Diagnóstico Inicial LAUDA 360',
+            'free' => true,
+            'invoice_required' => false,
+            'payment_required' => false,
+            'subscription_required' => false,
+            'modality_required' => false,
+            'contract_required' => false,
             'manual_confirmation_required' => true,
         ];
     }
 
     /** @return array{0: Subscriber, 1: Company, 2: string} */
-    public function billingContext(User $user): array
+    public function tenantContext(User $user): array
     {
         $subscriber = $user->activeSubscribers()
             ->wherePivotIn('role', ['owner', 'admin'])
@@ -116,7 +97,7 @@ final class InitialDiagnosisCommercialService
         User $user,
         bool $allowReassessment
     ): DiagnosisAccessRequest {
-        [$subscriber, $company] = $this->billingContext($user);
+        [$subscriber, $company] = $this->tenantContext($user);
         $offer = $this->offer();
 
         return DB::transaction(function () use (
@@ -303,135 +284,7 @@ final class InitialDiagnosisCommercialService
         }
 
         $meta = is_array($workflow->meta) ? $workflow->meta : [];
-        $invoiceId = (int) data_get($meta, 'initial_diagnosis.invoice_id', 0);
-
-        $invoice = $invoiceId > 0
-            ? Invoice::query()
-                ->whereKey($invoiceId)
-                ->where('company_id', $company->id)
-                ->first()
-            : null;
-
-        if (! $invoice) {
-            $invoice = Invoice::query()
-                ->where('company_id', $company->id)
-                ->where('billing_snapshot->source', self::SOURCE)
-                ->where(
-                    'billing_snapshot->diagnosis_access_request_id',
-                    $workflow->id
-                )
-                ->first();
-        }
-
-        if (! $invoice) {
-            $invoice = Invoice::query()->create([
-                'company_id' => $company->id,
-                'subscription_id' => null,
-                'number' => sprintf('L360-DI-%06d', $workflow->id),
-                'status' => 'issued',
-                'issued_on' => now()->toDateString(),
-                'due_on' => null,
-                'period_start' => null,
-                'period_end' => null,
-                'currency' => $offer['currency'],
-                'subtotal' => 0,
-                'discount_total' => 0,
-                'tax_total' => 0,
-                'total' => 0,
-                'amount_paid' => 0,
-                'billing_snapshot' => [
-                    'source' => self::SOURCE,
-                    'one_time' => true,
-                    'complimentary' => true,
-                    'manual_confirmation_required' => true,
-                    'diagnosis_access_request_id' => $workflow->id,
-                    'reassessment' => (bool) data_get(
-                        $workflow->meta,
-                        'reassessment',
-                        false
-                    ),
-                    'supersedes_assessment_id' => data_get(
-                        $workflow->meta,
-                        'supersedes_assessment_id'
-                    ),
-                    'offer' => [
-                        'code' => $offer['code'],
-                        'name' => $offer['name'],
-                    ],
-                    'customer' => [
-                        'user_id' => $user->id,
-                        'name' => $user->name,
-                        'email' => $user->email,
-                        'subscriber_id' => $subscriber->id,
-                        'company_id' => $company->id,
-                        'company_name' => $company->name,
-                    ],
-                    'commercial' => [
-                        'currency' => $offer['currency'],
-                        'subtotal' => '0.00',
-                        'tax_rate' => '0.000',
-                        'tax_amount' => '0.00',
-                        'total' => '0.00',
-                        'complimentary' => true,
-                    ],
-                ],
-                'document_class' => null,
-                'document_type' => null,
-                'fiscal_number' => null,
-                'security_code' => null,
-                'fiscal_meta' => [
-                    'fiscal_document_pending' => true,
-                    'source' => self::SOURCE,
-                    'complimentary' => true,
-                ],
-                'provider' => null,
-                'provider_invoice_id' => null,
-                'hosted_invoice_url' => null,
-                'payment_url' => null,
-            ]);
-
-            InvoiceItem::query()->create([
-                'invoice_id' => $invoice->id,
-                'service_id' => null,
-                'service_plan_id' => null,
-                'description' => $offer['invoice_description'],
-                'quantity' => 1,
-                'unit_price' => 0,
-                'line_subtotal' => 0,
-                'discount_amount' => 0,
-                'tax_rate' => 0,
-                'tax_amount' => 0,
-                'line_total' => 0,
-                'meta' => [
-                    'source' => self::SOURCE,
-                    'complimentary' => true,
-                    'diagnosis_access_request_id' => $workflow->id,
-                    'reassessment' => (bool) data_get(
-                        $workflow->meta,
-                        'reassessment',
-                        false
-                    ),
-                ],
-            ]);
-
-            AuditService::log(
-                'diagnosis_initial_complimentary_invoice_issued',
-                $invoice,
-                [
-                    'diagnosis_access_request_id' => $workflow->id,
-                    'invoice_number' => $invoice->number,
-                    'total' => '0.00',
-                    'currency' => $invoice->currency,
-                    'reassessment' => (bool) data_get(
-                        $workflow->meta,
-                        'reassessment',
-                        false
-                    ),
-                ],
-                ['user_id' => $user->id]
-            );
-        }
-
+        // Preserve any historical invoice references in meta without reading or changing fiscal records.
         $meta['source'] = self::SOURCE;
         $meta['apphub_native'] = true;
         $meta['subscriber_id'] = $subscriber->id;
@@ -441,19 +294,12 @@ final class InitialDiagnosisCommercialService
                 ? $meta['initial_diagnosis']
                 : [],
             [
-                'invoice_id' => $invoice->id,
-                'invoice_number' => $invoice->number,
-                'complimentary' => true,
-                'currency' => $offer['currency'],
-                'subtotal' => '0.00',
-                'tax_amount' => '0.00',
-                'total' => '0.00',
+                ...$offer,
                 'confirmation_status' => data_get(
                     $meta,
                     'initial_diagnosis.confirmation_status',
                     'pending'
                 ),
-                'invoice_issued_at' => $invoice->issued_on?->toDateString(),
             ]
         );
 
@@ -668,24 +514,10 @@ final class InitialDiagnosisCommercialService
                 'reassessment_pending' => false,
                 'working_assessment' => null,
                 'workflow' => null,
-                'invoice' => null,
                 'assessment' => null,
                 'offer' => $offer,
             ];
         }
-
-        $invoiceId = (int) data_get(
-            $workflow?->meta,
-            'initial_diagnosis.invoice_id',
-            0
-        );
-
-        $invoice = $invoiceId > 0
-            ? Invoice::query()
-                ->whereKey($invoiceId)
-                ->where('company_id', $company->id)
-                ->first()
-            : null;
 
         $reassessmentPending =
             $assessment !== null
@@ -738,18 +570,6 @@ final class InitialDiagnosisCommercialService
                     $workflow->meta,
                     'initial_diagnosis.confirmed_at'
                 ),
-            ] : null,
-            'invoice' => $invoice ? [
-                'id' => $invoice->id,
-                'number' => $invoice->number,
-                'status' => $invoice->status,
-                'currency' => $invoice->currency,
-                'subtotal' => (string) $invoice->subtotal,
-                'tax_total' => (string) $invoice->tax_total,
-                'total' => (string) $invoice->total,
-                'amount_paid' => (string) $invoice->amount_paid,
-                'issued_on' => $invoice->issued_on?->toDateString(),
-                'url' => url('/subscriber/invoices/'.$invoice->id),
             ] : null,
             'assessment' => $assessment ? [
                 'id' => $assessment->id,

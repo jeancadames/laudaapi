@@ -225,6 +225,8 @@ class DiagnosisDetailedRoadmapService
             }
         }
 
+        (new DiagnosisRoadmapDependencies)->assertValid($payload);
+
         foreach (data_get($payload, 'initiatives', []) as $index => $initiative) {
             foreach ([
                 'id',

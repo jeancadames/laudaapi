@@ -1,10 +1,6 @@
 <script setup lang="ts">
-import AppLayout from '@/layouts/AppLayout.vue';
-import type { BreadcrumbItem } from '@/types';
-import TransformationProgressChecklist from '@/components/diagnosis/TransformationProgressChecklist.vue';
-import TransformationQuickActions from '@/components/diagnosis/TransformationQuickActions.vue';
-import { computed, reactive, ref } from 'vue';
-import { Head, Link, router } from '@inertiajs/vue3';
+import type { Page } from '@inertiajs/core';
+import { Head, Link, router, useRemember } from '@inertiajs/vue3';
 import {
     ArrowLeft,
     Building2,
@@ -12,15 +8,28 @@ import {
     Clock3,
     ShieldCheck,
 } from 'lucide-vue-next';
+import { computed, onBeforeUnmount, onMounted, reactive, ref } from 'vue';
+import TransformationProgressChecklist from '@/components/diagnosis/TransformationProgressChecklist.vue';
+import TransformationQuickActions from '@/components/diagnosis/TransformationQuickActions.vue';
 
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
-import DigitalDiagnosisWizard from './DigitalDiagnosisWizard.vue';
+import AppLayout from '@/layouts/AppLayout.vue';
+import type { InterpretationBands } from '@/lib/diagnosis-interpretation';
+import {
+    confirmedVisit,
+    draftSnapshot,
+    type DiagnosisDraft,
+} from '@/lib/diagnosis-persistence';
 import { maturityDimensions } from '@/lib/diagnostico-lauda360-v1';
+import type { BreadcrumbItem } from '@/types';
+import DigitalDiagnosisWizard from './DigitalDiagnosisWizard.vue';
 
 interface Assessment {
     id: number;
+    revision: string;
+    can_edit: boolean;
     status: 'draft' | 'in_progress' | 'submitted' | 'reviewed' | string;
     current_step: number;
     answers: Record<string, number>;
@@ -45,6 +54,7 @@ interface Result {
     maturity_score: number | null;
     maturity_level: string | null;
     capacity_score: number | null;
+    capacity_level: string;
     urgency_score: number | null;
     urgency_level: string | null;
     dimension_scores: Record<string, number>;
@@ -85,6 +95,7 @@ const props = defineProps<{
     } | null;
     endpoints: Endpoints;
     businessProfileOptions: BusinessProfileOptions;
+    interpretationBands: InterpretationBands;
     transformation_progress: Record<string, any> | null;
 }>();
 
@@ -99,9 +110,7 @@ const breadcrumbs = computed<BreadcrumbItem[]>(() => [
     },
     {
         title:
-            props.assessment.status === 'reviewed'
-                ? 'Resultado'
-                : 'Evaluación',
+            props.assessment.status === 'reviewed' ? 'Resultado' : 'Evaluación',
         href: `/diagnostico/${props.assessment.id}`,
     },
 ]);
@@ -110,24 +119,44 @@ const saveStatus = ref<'idle' | 'saving' | 'saved' | 'error'>('idle');
 const submitError = ref<string | null>(null);
 
 const profileError = ref<string | null>(null);
-const profileSaving = ref(false);
-const profileSaved = ref(
-    Boolean(props.assessment.business_profile_completed_at),
-);
-
-const businessProfile = reactive({
-    business_activity_type: props.assessment.business_activity_type ?? '',
-    business_sector: props.assessment.business_sector ?? '',
-    business_sector_other: props.assessment.business_sector_other ?? '',
-    customer_market: props.assessment.customer_market ?? '',
-    sales_channels: [...(props.assessment.sales_channels ?? [])],
-    sales_channel_other: props.assessment.sales_channel_other ?? '',
-    logistics_operation_types: [
-        ...(props.assessment.logistics_operation_types ?? []),
-    ],
-    logistics_operation_other: props.assessment.logistics_operation_other ?? '',
-    business_activity_description:
-        props.assessment.business_activity_description ?? '',
+const saveError = ref<string | null>(null);
+const busy = ref(false);
+const action = ref<'profile' | 'save' | 'submit' | null>(null);
+const profileSaving = computed(() => busy.value && action.value === 'profile');
+const rememberKey = `diagnosis-draft:${props.assessment.id}`;
+function freshDraft(assessment: Assessment) {
+    return {
+        answers: { ...(assessment.answers ?? {}) },
+        notes: { ...(assessment.notes ?? {}) },
+        step: Math.min(11, Math.max(1, assessment.current_step ?? 1)),
+        revision: assessment.revision,
+        profileSaved: Boolean(assessment.business_profile_completed_at),
+        savedSnapshot: '',
+        profile: {
+            business_activity_type: assessment.business_activity_type ?? '',
+            business_sector: assessment.business_sector ?? '',
+            business_sector_other: assessment.business_sector_other ?? '',
+            customer_market: assessment.customer_market ?? '',
+            sales_channels: [...(assessment.sales_channels ?? [])],
+            sales_channel_other: assessment.sales_channel_other ?? '',
+            logistics_operation_types: [
+                ...(assessment.logistics_operation_types ?? []),
+            ],
+            logistics_operation_other:
+                assessment.logistics_operation_other ?? '',
+            business_activity_description:
+                assessment.business_activity_description ?? '',
+        },
+    };
+}
+const initialDraft = reactive(freshDraft(props.assessment));
+const draft = useRemember(initialDraft, rememberKey) as typeof initialDraft;
+const businessProfile = draft.profile;
+const profileSaved = computed({
+    get: () => draft.profileSaved,
+    set: (value: boolean) => {
+        draft.profileSaved = value;
+    },
 });
 
 const profileComplete = computed(() => {
@@ -171,67 +200,96 @@ const profileComplete = computed(() => {
     return true;
 });
 
-function businessProfilePayload() {
+function businessProfilePayload(profile = businessProfile) {
+    const clean = (value: string) => value.trim() || null;
+    const list = (values: string[]) => [
+        ...new Set(values.map((value) => value.trim()).filter(Boolean)),
+    ];
     return {
-        business_activity_type: businessProfile.business_activity_type,
-        business_sector: businessProfile.business_sector,
-        business_sector_other: businessProfile.business_sector_other,
-        customer_market: businessProfile.customer_market,
-        sales_channels: businessProfile.sales_channels,
-        sales_channel_other: businessProfile.sales_channel_other,
+        business_activity_type: clean(profile.business_activity_type),
+        business_sector: clean(profile.business_sector),
+        business_sector_other:
+            profile.business_sector === 'other'
+                ? clean(profile.business_sector_other)
+                : null,
+        customer_market: clean(profile.customer_market),
+        sales_channels: list(profile.sales_channels),
+        sales_channel_other: profile.sales_channels.includes('other')
+            ? clean(profile.sales_channel_other)
+            : null,
         logistics_operation_types:
-            businessProfile.business_sector === 'logistics'
-                ? businessProfile.logistics_operation_types
+            profile.business_sector === 'logistics'
+                ? list(profile.logistics_operation_types)
                 : [],
         logistics_operation_other:
-            businessProfile.business_sector === 'logistics'
-                ? businessProfile.logistics_operation_other
-                : '',
-        business_activity_description:
-            businessProfile.business_activity_description,
+            profile.business_sector === 'logistics' &&
+            profile.logistics_operation_types.includes('other')
+                ? clean(profile.logistics_operation_other)
+                : null,
+        business_activity_description: clean(
+            profile.business_activity_description,
+        ),
     };
 }
 
-const isEditable = computed(() =>
-    ['draft', 'in_progress'].includes(props.assessment.status),
+const isEditable = computed(
+    () =>
+        props.assessment.can_edit &&
+        ['draft', 'in_progress'].includes(props.assessment.status),
 );
 
-function saveBusinessProfile() {
-    if (!isEditable.value) return;
+function snapshot(payload: DiagnosisDraft, profile = businessProfilePayload()) {
+    return draftSnapshot({
+        answers: { ...payload.answers },
+        notes: Object.fromEntries(
+            Object.entries(payload.notes).map(([key, value]) => [
+                key,
+                (value ?? '').trim(),
+            ]),
+        ),
+        current_step: Number(payload.step),
+        ...profile,
+    });
+}
+if (!draft.savedSnapshot) draft.savedSnapshot = snapshot(draft);
+const dirty = computed(
+    () => isEditable.value && snapshot(draft) !== draft.savedSnapshot,
+);
+let internalVisit = false;
+let removeBefore: (() => void) | undefined;
+function beforeUnload(event: BeforeUnloadEvent) {
+    if (dirty.value || busy.value) {
+        event.preventDefault();
+        event.returnValue = '';
+    }
+}
+onMounted(() => {
+    window.addEventListener('beforeunload', beforeUnload);
+    removeBefore = router.on('before', (event) => {
+        if (internalVisit) return;
+        if (
+            busy.value ||
+            (dirty.value &&
+                !window.confirm(
+                    'Hay cambios sin guardar. ¿Quieres salir de esta pantalla?',
+                ))
+        )
+            event.preventDefault();
+    });
+});
+onBeforeUnmount(() => {
+    removeBefore?.();
+    window.removeEventListener('beforeunload', beforeUnload);
+});
 
+async function saveBusinessProfile() {
+    if (!isEditable.value || busy.value) return;
     if (!profileComplete.value) {
         profileError.value =
             'Complete los campos obligatorios del perfil comercial.';
         return;
     }
-
-    profileError.value = null;
-    profileSaving.value = true;
-
-    router.patch(
-        props.endpoints.update,
-        {
-            answers: props.assessment.answers ?? {},
-            notes: props.assessment.notes ?? {},
-            current_step: props.assessment.current_step ?? 1,
-            ...businessProfilePayload(),
-        },
-        {
-            preserveScroll: true,
-            preserveState: true,
-            onSuccess: () => {
-                profileSaved.value = true;
-                saveStatus.value = 'saved';
-            },
-            onError: () => {
-                profileError.value =
-                    'No se pudo guardar el perfil comercial. Revise los campos.';
-            },
-            onFinish: () => {
-                profileSaving.value = false;
-            },
-        },
-    );
+    await persistDiagnosis('profile', draft);
 }
 
 const isSubmitted = computed(() => props.assessment.status === 'submitted');
@@ -261,62 +319,144 @@ const saveStatusLabel = computed(() => {
     return null;
 });
 
-function saveDiagnosis(payload: {
-    answers: Record<string, number>;
-    notes: Record<string, string>;
-    step: number;
-}) {
-    if (!isEditable.value) return;
-
+async function persistDiagnosis(
+    mode: 'profile' | 'save' | 'submit',
+    payload: DiagnosisDraft,
+): Promise<boolean> {
+    if (!isEditable.value || busy.value) return false;
+    busy.value = true;
+    action.value = mode;
     saveStatus.value = 'saving';
-
-    router.patch(
-        props.endpoints.update,
-        {
-            answers: payload.answers,
-            notes: payload.notes,
-            current_step: payload.step,
-            ...businessProfilePayload(),
-        },
-        {
-            preserveScroll: true,
-            preserveState: true,
-            onSuccess: () => {
-                saveStatus.value = 'saved';
+    profileError.value = submitError.value = saveError.value = null;
+    const profile = businessProfilePayload();
+    const sent = snapshot(payload, profile);
+    const body = {
+        answers: { ...payload.answers },
+        notes: { ...payload.notes },
+        current_step: payload.step,
+        expected_revision: draft.revision,
+        ...profile,
+    };
+    try {
+        const ok = await confirmedVisit<Page>(
+            (callbacks) => {
+                internalVisit = true;
+                try {
+                    router[mode === 'submit' ? 'post' : 'patch'](
+                        mode === 'submit'
+                            ? props.endpoints.submit
+                            : props.endpoints.update,
+                        body,
+                        {
+                            preserveScroll: true,
+                            preserveState: true,
+                            ...callbacks,
+                        },
+                    );
+                } finally {
+                    internalVisit = false;
+                }
             },
-            onError: () => {
-                saveStatus.value = 'error';
+            (page) => {
+                const remote = page.props.assessment as Assessment | undefined;
+                if (!remote?.revision) return false;
+                const remoteProfile = {
+                    business_activity_type: remote.business_activity_type ?? '',
+                    business_sector: remote.business_sector ?? '',
+                    business_sector_other: remote.business_sector_other ?? '',
+                    customer_market: remote.customer_market ?? '',
+                    sales_channels: remote.sales_channels ?? [],
+                    sales_channel_other: remote.sales_channel_other ?? '',
+                    logistics_operation_types:
+                        remote.logistics_operation_types ?? [],
+                    logistics_operation_other:
+                        remote.logistics_operation_other ?? '',
+                    business_activity_description:
+                        remote.business_activity_description ?? '',
+                };
+                if (
+                    snapshot(
+                        {
+                            answers: remote.answers,
+                            notes: remote.notes,
+                            step: remote.current_step,
+                        },
+                        businessProfilePayload(remoteProfile),
+                    ) !== sent
+                ) {
+                    saveError.value =
+                        'Hay otra versión guardada. Tus respuestas siguen aquí; revísalas antes de cargarla.';
+                    return false;
+                }
+                draft.revision = remote.revision;
+                draft.savedSnapshot = sent;
+                profileSaved.value = Boolean(
+                    remote.business_profile_completed_at,
+                );
+                return true;
             },
-        },
-    );
+            (errors) => {
+                saveError.value =
+                    Object.values(errors)[0] ??
+                    'No se pudo guardar. Tus respuestas se conservan.';
+            },
+        );
+        saveStatus.value = ok ? 'saved' : 'error';
+        if (!ok) {
+            saveError.value ??=
+                'No se confirmó el guardado. Tus respuestas y notas se conservan; vuelve a intentarlo.';
+            if (mode === 'profile') profileError.value = saveError.value;
+            if (mode === 'submit') submitError.value = saveError.value;
+        }
+        return ok;
+    } finally {
+        busy.value = false;
+        action.value = null;
+    }
 }
 
-function submitDiagnosis(payload: {
-    answers: Record<string, number>;
-    notes: Record<string, string>;
-    maturityScore: number;
-    capacityScore: number;
-    urgencyScore: number;
-}) {
-    if (!isEditable.value) return;
+function saveDiagnosis(payload: DiagnosisDraft): Promise<boolean> {
+    return persistDiagnosis('save', payload);
+}
+function submitDiagnosis(payload: DiagnosisDraft): Promise<boolean> {
+    return persistDiagnosis('submit', payload);
+}
 
-    submitError.value = null;
-
-    router.post(
-        props.endpoints.submit,
-        {
-            answers: payload.answers,
-            notes: payload.notes,
-            ...businessProfilePayload(),
-        },
-        {
-            preserveScroll: true,
-            onError: () => {
-                submitError.value =
-                    'No pudimos enviar el diagnóstico. Revise las respuestas e inténtelo nuevamente.';
+function loadSavedDraft() {
+    if (
+        busy.value ||
+        !window.confirm(
+            'Se descartarán los cambios locales y se cargará la versión guardada. ¿Continuar?',
+        )
+    )
+        return;
+    internalVisit = true;
+    busy.value = true;
+    try {
+        router.get(
+            props.endpoints.update,
+            {},
+            {
+                preserveState: false,
+                onBeforeUpdate: (page) => {
+                    const remote = page.props.assessment as
+                        | Assessment
+                        | undefined;
+                    if (remote?.id === props.assessment.id) {
+                        page.rememberedState = {
+                            ...page.rememberedState,
+                            [rememberKey]: freshDraft(remote),
+                        };
+                    }
+                },
+                onFinish: () => {
+                    busy.value = false;
+                },
             },
-        },
-    );
+        );
+    } finally {
+        internalVisit = false;
+    }
 }
 </script>
 
@@ -387,7 +527,7 @@ function submitDiagnosis(payload: {
                             class="h-4 w-4"
                         />
                         <Clock3 v-else class="h-4 w-4" />
-                        <span>{{ saveStatusLabel }}</span>
+                        <span role="status" aria-live="polite">{{ saveStatusLabel }}</span>
                     </div>
                 </div>
             </div>
@@ -430,6 +570,7 @@ function submitDiagnosis(payload: {
                         </p>
                     </div>
 
+                    <fieldset :disabled="busy" class="min-w-0 space-y-5">
                     <div class="grid gap-4 md:grid-cols-2">
                         <label class="space-y-1.5 text-sm font-semibold">
                             <span> Actividad comercial principal * </span>
@@ -624,6 +765,7 @@ function submitDiagnosis(payload: {
                         </span>
                     </label>
 
+                    </fieldset>
                     <p
                         v-if="profileError"
                         class="rounded-lg border border-destructive/30 bg-destructive/5 p-3 text-sm font-semibold text-destructive"
@@ -641,7 +783,7 @@ function submitDiagnosis(payload: {
 
                         <Button
                             type="button"
-                            :disabled="profileSaving || !profileComplete"
+                            :disabled="busy || !profileComplete"
                             @click="saveBusinessProfile"
                         >
                             {{
@@ -742,7 +884,7 @@ function submitDiagnosis(payload: {
                                     {{ result.capacity_score ?? '—' }}
                                 </p>
                                 <p class="mt-1 text-sm text-muted-foreground">
-                                    /100
+                                    /100 · {{ result.capacity_level }}
                                 </p>
                             </CardContent>
                         </Card>
@@ -816,7 +958,7 @@ function submitDiagnosis(payload: {
                                     Capacidad interna
                                 </p>
                                 <p class="mt-3 text-xl font-black">
-                                    {{ result.capacity_score ?? '—' }}/100
+                                    {{ result.capacity_score ?? '—' }}/100 · {{ result.capacity_level }}
                                 </p>
                                 <p
                                     class="mt-3 text-sm leading-6 text-muted-foreground"
@@ -917,14 +1059,21 @@ function submitDiagnosis(payload: {
                     preguntas del Diagnóstico LAUDA 360.
                 </div>
 
+                <div v-if="saveError" role="alert" class="mb-4 space-y-2 text-sm text-destructive">
+                    <p>{{ saveError }}</p>
+                    <Button variant="outline" :disabled="busy" @click="loadSavedDraft">Cargar versión guardada</Button>
+                </div>
+                <p v-else-if="dirty" role="status" class="mb-3 text-sm text-muted-foreground">Cambios sin guardar</p>
                 <DigitalDiagnosisWizard
                     v-if="profileSaved"
-                    :initial-answers="assessment.answers ?? {}"
-                    :initial-notes="assessment.notes ?? {}"
-                    :initial-step="assessment.current_step ?? 1"
-                    :read-only="false"
-                    @save="saveDiagnosis"
-                    @submit="submitDiagnosis"
+                    v-model:answers="draft.answers"
+                    v-model:notes="draft.notes"
+                    v-model:step="draft.step"
+                    :read-only="!isEditable"
+                    :busy="busy"
+                    :bands="interpretationBands"
+                    :save="saveDiagnosis"
+                    :submit="submitDiagnosis"
                 />
             </template>
         </main>

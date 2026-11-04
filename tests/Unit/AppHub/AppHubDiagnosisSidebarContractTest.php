@@ -46,8 +46,8 @@ final class AppHubDiagnosisSidebarContractTest extends TestCase
             $source
         );
 
-        $this->assertStringContainsString(
-            "if (tenantMode.value === 'subscriber.admin') return tenantAdminSections.value;",
+        $this->assertMatchesRegularExpression(
+            "/if\s*\(tenantMode\.value\s*===\s*'subscriber\.admin'\)\s*return\s+tenantAdminSections\.value;/",
             $source
         );
     }
@@ -75,9 +75,14 @@ final class AppHubDiagnosisSidebarContractTest extends TestCase
             'resources/js/components/AppSidebar.vue'
         );
 
-        $this->assertStringContainsString(
-            "items: byHrefs(adminMain, ['/admin/diagnosis-requests'])",
+        $this->assertMatchesRegularExpression(
+            "/items:\s*byHrefs\(\s*adminMain,\s*\[[^\]]*'\/admin\/diagnosis-requests'/s",
             $source
+        );
+
+        $this->assertStringContainsString(
+            "href: '/admin/diagnosis-requests'",
+            $this->read('resources/js/config/navigationByRole.ts')
         );
     }
 }

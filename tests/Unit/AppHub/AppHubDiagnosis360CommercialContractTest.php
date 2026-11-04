@@ -35,37 +35,20 @@ final class AppHubDiagnosis360CommercialContractTest extends TestCase
         );
     }
 
-    public function test_free_invoice_has_no_fake_payment_or_subscription(): void
+    public function test_free_access_never_issues_fiscal_or_commercial_records(): void
     {
         $service = $this->source(
             'app/Services/Diagnosis/InitialDiagnosisCommercialService.php'
         );
 
-        $this->assertStringContainsString(
-            "'status' => 'issued'",
-            $service
-        );
-        $this->assertStringContainsString(
-            "'total' => 0",
-            $service
-        );
-        $this->assertStringContainsString(
-            'InvoiceItem::query()->create',
-            $service
-        );
-
-        $this->assertStringNotContainsString(
-            'Payment::',
-            $service
-        );
-        $this->assertStringNotContainsString(
-            'Subscription::',
-            $service
-        );
-        $this->assertStringNotContainsString(
-            'SubscriptionItem::',
-            $service
-        );
+        foreach (['Invoice::', 'InvoiceItem::', 'Payment::', 'PaymentTransaction::',
+            'Subscription::', 'SubscriptionItem::', 'lauda360_commercial.initial_diagnosis'] as $forbidden) {
+            $this->assertStringNotContainsString($forbidden, $service);
+        }
+        foreach (["'free' => true", "'invoice_required' => false", "'payment_required' => false",
+            "'subscription_required' => false", "'manual_confirmation_required' => true"] as $required) {
+            $this->assertStringContainsString($required, $service);
+        }
     }
 
     public function test_welcome_enters_app_hub(): void
@@ -93,7 +76,7 @@ final class AppHubDiagnosis360CommercialContractTest extends TestCase
             $welcome
         );
         $this->assertStringNotContainsString(
-            "`${APP_URL}/app/diagnostico-360/entrada`",
+            '`${APP_URL}/app/diagnostico-360/entrada`',
             $welcome
         );
     }

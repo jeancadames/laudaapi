@@ -38,13 +38,12 @@ class DiagnosisBusinessProfileUiContractTest extends TestCase
             )
         );
 
-        $this->assertGreaterThanOrEqual(
-            3,
-            substr_count(
-                $source,
-                'businessProfilePayload()'
-            )
-        );
+        // Profile, questionnaire save and final submit now share one request path.
+        $this->assertStringContainsString("persistDiagnosis('profile', draft)", $source);
+        $this->assertStringContainsString("persistDiagnosis('save', payload)", $source);
+        $this->assertStringContainsString("persistDiagnosis('submit', payload)", $source);
+        $this->assertStringContainsString('const profile = businessProfilePayload();', $source);
+        $this->assertStringContainsString('...profile,', $source);
     }
 
     public function test_profile_is_explicitly_non_scoring_context(): void

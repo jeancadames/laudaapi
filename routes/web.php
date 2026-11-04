@@ -81,15 +81,6 @@ require __DIR__ . '/settings.php';
     ->prefix('diagnostico')
     ->name('diagnosis.')
     ->group(function (): void {
-        \Illuminate\Support\Facades\Route::get('/{assessment}', [\App\Http\Controllers\Diagnosis\DigitalDiagnosisController::class, 'show'])
-            ->name('show');
-
-        \Illuminate\Support\Facades\Route::patch('/{assessment}', [\App\Http\Controllers\Diagnosis\DigitalDiagnosisController::class, 'update'])
-            ->name('update');
-
-        \Illuminate\Support\Facades\Route::post('/{assessment}/submit', [\App\Http\Controllers\Diagnosis\DigitalDiagnosisController::class, 'submit'])
-            ->name('submit');
-
         \Illuminate\Support\Facades\Route::get(
             '/{assessment}/informe-ampliado',
             [\App\Http\Controllers\Diagnosis\DiagnosisExpandedReportController::class, 'show']

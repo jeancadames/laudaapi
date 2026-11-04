@@ -11,7 +11,10 @@ class SubmitDiagnosisAssessmentRequest extends FormRequest
 {
     public function authorize(): bool
     {
-        return true;
+        $assessment = $this->route('assessment');
+
+        return $assessment instanceof \App\Models\DiagnosisAssessment
+            && ($this->user()?->can('submit', $assessment) ?? false);
     }
 
     protected function prepareForValidation(): void
@@ -25,6 +28,7 @@ class SubmitDiagnosisAssessmentRequest extends FormRequest
     public function rules(): array
     {
         return [
+            'expected_revision' => ['required', 'string', 'regex:/\A[0-9a-f]{64}\z/'],
             'answers' => ['required', 'array'],
             'answers.*' => ['required', 'integer', 'between:1,5'],
             'notes' => ['nullable', 'array'],

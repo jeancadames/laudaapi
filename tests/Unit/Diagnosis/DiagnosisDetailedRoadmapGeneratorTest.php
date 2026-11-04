@@ -6,9 +6,30 @@ use App\Models\DiagnosisAssessment;
 use App\Models\DiagnosisExpandedReport;
 use App\Services\Diagnosis\DiagnosisDetailedRoadmapGenerator;
 use PHPUnit\Framework\TestCase;
+use Illuminate\Config\Repository;
+use Illuminate\Container\Container;
 
 class DiagnosisDetailedRoadmapGeneratorTest extends TestCase
 {
+    private Container $previous;
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+        $this->previous = Container::getInstance();
+        $container = new Container;
+        $container->instance('config', new Repository([
+            'lauda360_diagnosis' => require dirname(__DIR__, 3).'/config/lauda360_diagnosis.php',
+        ]));
+        Container::setInstance($container);
+    }
+
+    protected function tearDown(): void
+    {
+        Container::setInstance($this->previous);
+        parent::tearDown();
+    }
+
     private function assessment(
         string $activity = 'goods',
         string $sector = 'commerce'

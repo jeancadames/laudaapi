@@ -1,5 +1,4 @@
 <script setup lang="ts">
-import { computed } from 'vue';
 import { Head, Link, router, useForm } from '@inertiajs/vue3';
 import {
     ArrowLeft,
@@ -8,8 +7,9 @@ import {
     RefreshCcw,
     Send,
 } from 'lucide-vue-next';
+import { computed } from 'vue';
+import DiagnosisDeclaredEvidence from '@/components/diagnosis/DiagnosisDeclaredEvidence.vue';
 
-import AppLayout from '@/layouts/AppLayout.vue';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
@@ -20,6 +20,7 @@ import {
     CardTitle,
 } from '@/components/ui/card';
 import { Textarea } from '@/components/ui/textarea';
+import AppLayout from '@/layouts/AppLayout.vue';
 
 interface Report {
     id: number;
@@ -218,9 +219,15 @@ function statusLabel(status: Report['status']) {
                             ><CardDescription>Madurez</CardDescription
                             ><CardTitle class="text-3xl"
                                 >{{
-                                    assessment.maturity_score ?? '—'
+                                    sections.maturity_interpretation?.maturity?.score ?? assessment.maturity_score ?? '—'
                                 }}/100</CardTitle
-                            ></CardHeader
+                            ><CardDescription
+                            v-if="sections.maturity_interpretation?.maturity?.interpretation"
+                            class="leading-6"
+                        >
+                            {{ sections.maturity_interpretation.maturity.interpretation }}
+                        </CardDescription>
+                    </CardHeader
                         ></Card
                     >
                     <Card
@@ -228,9 +235,15 @@ function statusLabel(status: Report['status']) {
                             ><CardDescription>Capacidad</CardDescription
                             ><CardTitle class="text-3xl"
                                 >{{
-                                    assessment.capacity_score ?? '—'
+                                    sections.maturity_interpretation?.capacity?.score ?? assessment.capacity_score ?? '—'
                                 }}/100</CardTitle
-                            ></CardHeader
+                            ><CardDescription
+                            v-if="sections.maturity_interpretation?.capacity?.interpretation"
+                            class="leading-6"
+                        >
+                            {{ sections.maturity_interpretation.capacity.interpretation }}
+                        </CardDescription>
+                    </CardHeader
                         ></Card
                     >
                     <Card
@@ -238,9 +251,15 @@ function statusLabel(status: Report['status']) {
                             ><CardDescription>Urgencia</CardDescription
                             ><CardTitle class="text-3xl"
                                 >{{
-                                    assessment.urgency_score ?? '—'
+                                    sections.maturity_interpretation?.urgency?.score ?? assessment.urgency_score ?? '—'
                                 }}/100</CardTitle
-                            ></CardHeader
+                            ><CardDescription
+                            v-if="sections.maturity_interpretation?.urgency?.interpretation"
+                            class="leading-6"
+                        >
+                            {{ sections.maturity_interpretation.urgency.interpretation }}
+                        </CardDescription>
+                    </CardHeader
                         ></Card
                     >
                 </div>
@@ -279,7 +298,18 @@ function statusLabel(status: Report['status']) {
                         </p></CardContent
                     ></Card
                 >
-                <Card
+                <Card v-if="sections.relative_strengths?.title === 'Fortalezas que conviene mantener'">
+                    <CardHeader><CardTitle>{{ sections.relative_strengths.title }}</CardTitle></CardHeader>
+                    <CardContent class="space-y-3"><p v-for="item in sections.relative_strengths.items" :key="item.key" class="text-sm">{{ item.label }} · {{ item.score }}/100. {{ item.note }}</p></CardContent>
+                </Card>
+                <Card v-if="sections.improvement_opportunities">
+                <CardHeader><CardTitle>{{ sections.improvement_opportunities.title }}</CardTitle></CardHeader>
+                <CardContent class="space-y-3">
+                    <p v-if="!sections.improvement_opportunities.items?.length" class="text-sm text-muted-foreground">Sin brechas iniciales u oportunidades de mejora en los niveles intermedios declarados.</p>
+                    <p v-for="item in sections.improvement_opportunities.items" :key="item.key" class="text-sm">{{ item.label }} · {{ item.score }}/100 · {{ item.classification_label }}</p>
+                </CardContent>
+            </Card>
+            <Card
                     ><CardHeader
                         ><CardTitle
                             >Análisis por dimensión</CardTitle
@@ -303,16 +333,25 @@ function statusLabel(status: Report['status']) {
                             <p
                                 class="mt-2 text-sm leading-6 text-muted-foreground"
                             >
-                                {{ item.interpretation }}
+                                {{ item.classification_label ? `${item.classification_label}. ` : '' }}{{ item.interpretation }}
                             </p>
+                        <DiagnosisDeclaredEvidence :items="item.evidence" />
                         </div></CardContent
                     ></Card
                 >
                 <Card
                     ><CardHeader
-                        ><CardTitle>Brechas críticas</CardTitle></CardHeader
+                        ><CardTitle>
+                            {{ sections.critical_gaps?.title || 'Brechas críticas' }}
+                        </CardTitle></CardHeader
                     ><CardContent class="space-y-3"
-                        ><div
+                        ><p
+                            v-if="sections.critical_gaps?.items?.length === 0 && sections.critical_gaps?.empty_message"
+                            class="text-sm text-muted-foreground"
+                        >
+                            {{ sections.critical_gaps.empty_message }}
+                        </p>
+                        <div
                             v-for="item in sections.critical_gaps?.items ?? []"
                             :key="item.key"
                             class="rounded-2xl border p-4"
@@ -355,7 +394,13 @@ function statusLabel(status: Report['status']) {
                     ><CardHeader
                         ><CardTitle>Focos recomendados</CardTitle></CardHeader
                     ><CardContent
-                        ><ol class="space-y-3">
+                        >
+                    <p
+                        v-if="sections.recommended_focus?.source_note"
+                        class="mb-3 text-sm text-muted-foreground"
+                    >
+                        {{ sections.recommended_focus.source_note }}
+                    </p><ol class="space-y-3">
                             <li
                                 v-for="(item, index) in sections
                                     .recommended_focus?.items ?? []"

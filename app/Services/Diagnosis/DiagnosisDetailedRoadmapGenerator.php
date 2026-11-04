@@ -35,13 +35,13 @@ class DiagnosisDetailedRoadmapGenerator
         $business = $this->businessInitiative($assessment);
 
         if ($business !== null) {
-            $initiatives[] = $business;
+            $initiatives[] = $this->contextualRecommendation($assessment, $business);
         }
 
         $initiatives[] = $this->continuousImprovement($assessment);
         $initiatives = $this->sequence($initiatives);
 
-        return [
+        $generated = [
             'source_snapshot' => [
                 'assessment' => [
                     'id' => $assessment->id,
@@ -54,6 +54,11 @@ class DiagnosisDetailedRoadmapGenerator
                     'dimension_scores' => $assessment->dimension_scores ?? [],
                     'review_summary' => $assessment->review_summary,
                     'review_priorities' => $assessment->review_priorities ?? [],
+                    'declared_evidence' => (new DiagnosisInterpretation)->evidence(
+                        (new Lauda360ScoringService)->allQuestionIds(),
+                        $assessment->answers ?? [],
+                        $assessment->notes ?? []
+                    ),
                     'business_profile' => [
                         'business_activity_type' => $assessment->business_activity_type,
                         'business_sector' => $assessment->business_sector,
@@ -90,6 +95,10 @@ class DiagnosisDetailedRoadmapGenerator
                     'Estabilizar y estandarizar antes de automatizar.',
                     'Asignar responsable e indicador a cada iniciativa.',
                     'Resolver dependencias antes de ampliar alcance.',
+                    'Completar y validar los prerrequisitos antes de iniciar cada iniciativa, incluso dentro de la misma fase.',
+                    'La prioridad de atención es distinta de la clasificación del hallazgo; una fortaleza requiere mantenimiento, no una brecha inventada.',
+                    'Las fases y horizontes son orientativos: Admin LAUDA debe confirmar alcance, responsables, esfuerzo y secuencia.',
+                    DiagnosisInterpretation::DECLARATION_NOTICE,
                     'Medir adopción y resultado, no solo instalación.',
                 ],
                 'horizons' => [
@@ -143,10 +152,14 @@ class DiagnosisDetailedRoadmapGenerator
                 'scope_note' => [
                     'title' => 'Alcance del Roadmap Detallado',
                     'body' =>
-                        'El Roadmap define qué transformar, en qué secuencia, con qué responsables, dependencias, esfuerzo e indicadores. También identifica capacidades de Transformación Detallada como la Guía de Procesos y Procedimientos, Branding e Identidad Digital cuando corresponda y Transformación e Inteligencia de Datos para BI cuando la dimensión de Datos e Inteligencia evidencia esa necesidad. La ejecución técnica, elaboración e implantación de procedimientos, branding, extracción, limpieza, normalización y modelado de datos, parametrización, desarrollo, integración y gestión del cambio se definen y se cotizan por separado, y se planifican en la Etapa de Implementación.',
+                        'Este Roadmap forma parte del diagnóstico gratuito y no autoriza ejecución ni contratación. El Roadmap define qué transformar, en qué secuencia, con qué responsables, dependencias, esfuerzo e indicadores. También identifica capacidades de Transformación Detallada como la Guía de Procesos y Procedimientos, Branding e Identidad Digital cuando corresponda y Transformación e Inteligencia de Datos para BI cuando la dimensión de Datos e Inteligencia evidencia esa necesidad. La ejecución técnica, elaboración e implantación de procedimientos, branding, extracción, limpieza, normalización y modelado de datos, parametrización, desarrollo, integración y gestión del cambio se definen y se cotizan por separado, y se planifican en la Etapa de Implementación.',
                 ],
             ],
         ];
+
+        (new DiagnosisRoadmapDependencies)->assertValid($generated['roadmap']);
+
+        return $generated;
     }
 
     public function generateFromAssessment(
@@ -581,12 +594,33 @@ class DiagnosisDetailedRoadmapGenerator
         ];
 
         $d = $definitions[$key];
+        $interpretation = new DiagnosisInterpretation;
+        $classification = $interpretation->classification($score);
+        $evidence = $interpretation->dimensionEvidence($key, $assessment->answers ?? [], $assessment->notes ?? []);
+
+        if ($classification === 'strength') {
+            $d['title'] = 'Mantener y validar '.$dimension['label'];
+            $d['objective'] = 'Conservar la capacidad avanzada declarada y confirmar su continuidad; no se identifica una brecha crítica en esta dimensión.';
+            $d['actions'] = [
+                'Revisar con Admin LAUDA el sustento y la vigencia de las respuestas declaradas.',
+                'Mantener responsables e indicadores y confirmar la continuidad de las prácticas existentes.',
+                'Evaluar mejoras adicionales solo si se justifican nuevas necesidades.',
+            ];
+            $d['effort'] = 'low';
+        } elseif ($classification === 'opportunity') {
+            $d['title'] = 'Evaluar mejora: '.$d['title'];
+            $d['objective'] = 'Oportunidad a confirmar mediante revisión humana: '.$d['objective'];
+            $d['actions'] = array_map(fn (string $action): string => 'Evaluar pertinencia: '.$action, $d['actions']);
+        }
 
         return [
             'id' => $dimension['code'] . '-01',
             'dimension' => $key,
             'dimension_label' => $dimension['label'],
             'source_score' => $score,
+            'classification' => $classification,
+            'classification_label' => $interpretation->classificationLabel($score),
+            'evidence' => $evidence,
             'priority' => $priority,
             'title' => $d['title'],
             'objective' => $d['objective'],
@@ -602,10 +636,11 @@ class DiagnosisDetailedRoadmapGenerator
             'phase' => $this->phaseFor($key, $priority),
             'horizon' => $this->horizonFor($key, $priority),
             'rationale' => sprintf(
-                '%s obtuvo %s/100 en el diagnóstico.',
+                '%s: %s obtuvo %s/100 según el diagnóstico declarado. La prioridad de atención no equivale a severidad del hallazgo.',
+                $interpretation->classificationLabel($score),
                 $dimension['label'],
                 $this->number($score)
-            ),
+            ).$interpretation->evidenceText($evidence),
         ];
     }
 
@@ -756,12 +791,37 @@ class DiagnosisDetailedRoadmapGenerator
         ];
     }
 
+    private function contextualRecommendation(DiagnosisAssessment $assessment, array $initiative): array
+    {
+        $scores = $assessment->dimension_scores ?? [];
+        $related = array_map(fn (string $key): float => (float) ($scores[$key] ?? 0), ['commercial', 'operations', 'technology']);
+        $score = min($related);
+        $initiative['classification'] = 'recommendation';
+        $initiative['classification_label'] = 'Recomendación contextual por validar';
+        $initiative['priority'] = $this->priority($score);
+        $initiative['impact'] = $this->impact($score, (float) ($assessment->urgency_score ?? 0));
+        $initiative['title'] = 'Evaluar, si aplica: '.$initiative['title'];
+        $initiative['objective'] = 'Propuesta según el perfil declarado; confirmar necesidad y aplicabilidad antes de definir cambios. '.$initiative['objective'];
+        $initiative['actions'] = array_map(fn (string $action): string => 'Revisar vigencia o necesidad: '.$action, $initiative['actions']);
+        if ($initiative['priority'] === 'sustain') {
+            $initiative['effort'] = 'low';
+        }
+        $initiative['rationale'] .= sprintf(
+            ' El sector no demuestra por sí solo una carencia. La prioridad orientativa usa el menor nivel declarado de Comercial, Operaciones y Tecnología (%s/100), con las reglas existentes; Admin LAUDA debe validarla.',
+            $this->number($score)
+        );
+
+        return $initiative;
+    }
+
     private function continuousImprovement(
         DiagnosisAssessment $assessment
     ): array {
         return [
             'id' => 'IMP-01',
             'dimension' => 'continuous_improvement',
+            'classification' => 'recommendation',
+            'classification_label' => 'Recomendación de revisión periódica',
             'dimension_label' => 'Mejora continua',
             'source_score' => null,
             'priority' => 'medium',
@@ -785,7 +845,7 @@ class DiagnosisDetailedRoadmapGenerator
             'phase' => 4,
             'horizon' => '181-365 días',
             'rationale' => sprintf(
-                'La madurez actual es %s/100.',
+                'La madurez declarada es %s/100. Es una recomendación de revisión periódica, no una brecha crítica ni una autorización de ejecución.',
                 $this->number((float) ($assessment->maturity_score ?? 0))
             ),
         ];
@@ -793,21 +853,7 @@ class DiagnosisDetailedRoadmapGenerator
 
     private function sequence(array $initiatives): array
     {
-        usort(
-            $initiatives,
-            fn (array $a, array $b): int =>
-                ((int) $a['phase'] <=> (int) $b['phase'])
-                ?: ($this->priorityWeight((string) $a['priority'])
-                    <=> $this->priorityWeight((string) $b['priority']))
-        );
-
-        foreach ($initiatives as $index => &$initiative) {
-            $initiative['sequence'] = $index + 1;
-        }
-
-        unset($initiative);
-
-        return $initiatives;
+        return (new DiagnosisRoadmapDependencies)->sequence($initiatives);
     }
 
     private function phases(array $initiatives): array
@@ -888,17 +934,6 @@ class DiagnosisDetailedRoadmapGenerator
             2 => '31-90 días',
             3 => '91-180 días',
             default => '181-365 días',
-        };
-    }
-
-    private function priorityWeight(string $priority): int
-    {
-        return match ($priority) {
-            'critical' => 1,
-            'high' => 2,
-            'medium' => 3,
-            'sustain' => 4,
-            default => 5,
         };
     }
 
