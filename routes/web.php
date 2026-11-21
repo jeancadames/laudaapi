@@ -1,5 +1,8 @@
 <?php
 
+require __DIR__.'/business_identity.php';
+require __DIR__.'/business_quotes.php';
+
 use App\Http\Controllers\ActivationController;
 use App\Http\Controllers\AppHubOnboardingController;
 use App\Http\Controllers\ActivationRequestController;

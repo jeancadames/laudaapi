@@ -23,6 +23,13 @@ class SubscriptionTotalsService
                     ->lockForUpdate()
                     ->firstOrFail();
 
+                if (\Illuminate\Support\Facades\Schema::hasTable('business_contracts')) {
+                    $contract = \App\Models\BusinessContract::where('subscription_id', $locked->id)->first();
+                    if ($contract) {
+                        return app(BusinessContractPricing::class)->recalculate($locked, $contract);
+                    }
+                }
+
                 $subtotal = round(
                     (float) DB::table(
                         'subscription_items'

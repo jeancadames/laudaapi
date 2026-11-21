@@ -23,7 +23,7 @@ class SubscriberSubscriptionController extends Controller
                 ->with('error', 'No tienes compañía/suscriptor asignado.');
         }
 
-        $subscription = Subscription::query()
+        $subscription = Subscription::query()->preferBusinessContract()
             ->where('subscriber_id', $company->subscriber_id)
             ->latest('id')
             ->first();
@@ -56,12 +56,15 @@ class SubscriberSubscriptionController extends Controller
                         'icon' => $s->icon,
                         'short_description' => $s->short_description,
                     ] : null,
-                    'status' => $it->status,
+                    'status' => data_get($it->meta, 'source') === 'business_contract'
+                        ? ($it->isActive() ? 'Incluido en Business' : 'Business: revisar cobertura') : $it->status,
                     'quantity' => $it->quantity,
                     'created_at' => optional($it->created_at)->toDateTimeString(),
                 ];
             })->values();
         }
+
+        $businessPeriod = \App\Services\Billing\BusinessContractPeriods::forSubscription($subscription);
 
         return Inertia::render('Subscriber/Subscription/Show', [
             'company' => [
@@ -76,8 +79,8 @@ class SubscriberSubscriptionController extends Controller
                 'billing_cycle' => $subscription->billing_cycle,
                 'currency' => $subscription->currency,
                 'trial_ends_at_human' => $subscription->trial_ends_at?->format('Y-m-d'),
-                'period_start_human' => $subscription->current_period_start?->format('Y-m-d'),
-                'period_end_human' => $subscription->current_period_end?->format('Y-m-d'),
+                'period_start_human' => $businessPeriod['start'] ?? $subscription->current_period_start?->format('Y-m-d'),
+                'period_end_human' => $businessPeriod['end'] ?? $subscription->current_period_end?->format('Y-m-d'),
                 'ends_at_human' => $subscription->ends_at?->format('Y-m-d'),
                 'starts_at_human' => $subscription->starts_at?->format('Y-m-d'),
             ] : null,

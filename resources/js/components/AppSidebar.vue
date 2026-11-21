@@ -96,6 +96,7 @@ function byHrefs(items: NavItem[], hrefs: string[]): NavItem[] {
 
 const adminSections = computed<SidebarSection[]>(() => [
     { items: byHrefs(adminMain, ['/dashboard']) },
+    ...(page.props.businessImplementationEnabled ? [{ title: 'Business', items: byHrefs(adminMain, ['/admin/business-implementations']) }] : []),
     {
         title: 'LAUDA 360',
         items: byHrefs(adminMain, [
@@ -138,6 +139,7 @@ const tenantAdminSections = computed<SidebarSection[]>(() => {
         {
             title: 'Cuenta',
             items: byHrefs(tenantAdminMain, [
+                ...(page.props.businessCommercialEnabled ? ['/app/business/quotes'] : []),
                 '/subscriber/subscription',
                 '/subscriber/invoices',
                 '/subscriber/payments',

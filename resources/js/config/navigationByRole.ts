@@ -4,6 +4,12 @@ export const navigationByRole = {
     admin: {
         main: [
             { title: 'Dashboard', href: '/dashboard', icon: 'LayoutGrid' },
+            { title: 'Implementaciones Business', href: '/admin/business-implementations', icon: 'FileText' },
+            {
+                title: 'Catálogo y tarifas',
+                href: '/admin/business-catalog',
+                icon: 'ReceiptText',
+            },
             {
                 title: 'Diagnósticos 360',
                 href: '/admin/diagnosis-requests',
@@ -59,6 +65,11 @@ export const navigationByRole = {
                 icon: 'Database',
             },
             { title: 'Usuarios', href: '/subscriber/users', icon: 'Users' },
+            {
+                title: 'Cotizaciones',
+                href: '/app/business/quotes',
+                icon: 'FileText',
+            },
             {
                 title: 'Mi suscripción',
                 href: '/subscriber/subscription',

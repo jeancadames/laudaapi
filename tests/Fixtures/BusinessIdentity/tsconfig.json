@@ -1,0 +1,5 @@
+{
+  "extends": "../../../tsconfig.json",
+  "include": ["../../../resources/js/pages/Business/Identity.vue", "../../../resources/js/lib/businessIdentityHandoff.ts"],
+  "compilerOptions": { "noEmit": true }
+}

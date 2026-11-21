@@ -1,0 +1,17 @@
+{
+    "extends": "../../../tsconfig.json",
+    "include": [
+        "../../../resources/js/pages/Admin/BusinessCatalog/*.vue",
+        "../../../resources/js/pages/Business/Quotes/*.vue",
+        "../../../resources/js/pages/Business/Implementation/*.vue",
+        "../../../resources/js/pages/Business/Activation/*.vue",
+        "../../../resources/js/pages/Business/Renewal/*.vue",
+        "../../../resources/js/types/businessRenewal.ts",
+        "../../../resources/js/types/businessActivation.ts",
+        "../../../resources/js/types/businessImplementation.ts",
+        "../../../resources/js/types/businessQuoteAcceptance.ts",
+        "../../../resources/js/types/businessQuoteCheckout.ts",
+        "../../../resources/js/**/*.d.ts"
+    ],
+    "compilerOptions": { "noEmit": true }
+}

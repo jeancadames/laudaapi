@@ -15,6 +15,7 @@ const { formatDate, formatDateTime } = useDateFormatter()
 const { toast } = useToast()
 
 type ActiveService = {
+    business_managed?: boolean
     subscription_item_id?: number
     subscription_itemId?: number
     subscription_item?: { id?: number } | null
@@ -99,6 +100,7 @@ function label(status: any) {
     if (s === 'pending') return 'Solicitado'
     if (s === 'pending_payment') return 'Pendiente de pago'
     if (s === 'cancelled') return 'Cancelado'
+    if (status === 'business_review') return 'Revisar cobertura Business'
     return status || '—'
 }
 
@@ -149,12 +151,14 @@ function pendingDisabledReason(r: RequestedService): string | null {
 // Rules: cancel
 // -------------------------
 function canCancelActive(s: ActiveService) {
+    if (s.business_managed) return false
     if (!isCancelableActiveStatus(s?.status)) return false
     const itemId = getSubscriptionItemId(s)
     return Number.isFinite(itemId) && itemId > 0
 }
 
 function cancelDisabledReason(s: ActiveService): string | null {
+    if (s.business_managed) return 'Incluido en Business. Los cambios requieren revisión del contrato.'
     if (!isCancelableActiveStatus(s?.status)) {
         return `No cancelable en estado: ${s?.status ?? '—'}`
     }

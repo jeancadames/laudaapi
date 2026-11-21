@@ -39,6 +39,7 @@ class SubscriberEntitlements
             ->join('subscription_items', 'subscription_items.service_id', '=', 'services.id')
             ->where('subscription_items.subscription_id', $subscriptionId)
             ->whereIn('subscription_items.status', ServiceEntitlementPolicy::ITEM_STATUSES)
+            ->where(fn ($query) => BusinessContractCoverage::constrain($query))
             ->where('services.active', true)
             ->orderBy('services.sort_order')
             ->get();
@@ -183,6 +184,7 @@ class SubscriberEntitlements
             ->join('subscription_items', 'subscription_items.service_id', '=', 'services.id')
             ->where('subscription_items.subscription_id', $subscriptionId)
             ->whereIn('subscription_items.status', ServiceEntitlementPolicy::ITEM_STATUSES)
+            ->where(fn ($query) => BusinessContractCoverage::constrain($query))
             ->where('services.active', true)
             ->whereIn('services.slug', [
                 'api-facturacion-electronica',
@@ -225,6 +227,7 @@ class SubscriberEntitlements
             ->join('subscription_items', 'subscription_items.service_id', '=', 'services.id')
             ->where('subscription_items.subscription_id', $subscriptionId)
             ->whereIn('subscription_items.status', ServiceEntitlementPolicy::ITEM_STATUSES)
+            ->where(fn ($query) => BusinessContractCoverage::constrain($query))
             ->where('services.active', true)
             ->whereIn('services.slug', [
                 'api-facturacion-electronica',

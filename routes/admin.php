@@ -3,6 +3,8 @@
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 
+require __DIR__.'/admin_business.php';
+
 /** Admin Dashboard Controllers */
 
 use App\Http\Controllers\Admin\AdminDashboardController;

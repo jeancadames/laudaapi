@@ -36,7 +36,7 @@ class SubscriberUsageController extends Controller
                 ->with('error', 'No tienes empresa asignada todavía. Completa tu activación primero.');
         }
 
-        $subscription = Subscription::query()
+        $subscription = Subscription::query()->preferBusinessContract()
             ->where('subscriber_id', $subscriberId)
             ->latest('id')
             ->first();
@@ -167,6 +167,8 @@ class SubscriberUsageController extends Controller
             ];
         })->values();
 
+        $businessPeriod = \App\Services\Billing\BusinessContractPeriods::forSubscription($subscription);
+
         return Inertia::render('Subscriber/Usage/Index', [
             'company' => [
                 'id' => $company->id,
@@ -180,7 +182,7 @@ class SubscriberUsageController extends Controller
                 'billing_cycle' => $subscription->billing_cycle,
                 'currency' => $subscription->currency,
                 'trial_ends_at_human' => $subscription->trial_ends_at?->format('Y-m-d'),
-                'period_end_human' => $subscription->current_period_end?->format('Y-m-d'),
+                'period_end_human' => $businessPeriod['end'] ?? $subscription->current_period_end?->format('Y-m-d'),
             ],
             'filters' => [
                 'from' => $from,

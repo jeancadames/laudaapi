@@ -1,3 +1,4 @@
+import { captureBusinessIdentityHandoff } from '@/lib/businessIdentityHandoff';
 import '../css/app.css';
 
 import { createInertiaApp } from '@inertiajs/vue3';
@@ -6,6 +7,8 @@ import type { DefineComponent } from 'vue';
 import { createApp, Fragment, h } from 'vue';
 import GlobalFlashToasts from './components/GlobalFlashToasts.vue';
 import { initializeTheme } from './composables/useAppearance';
+
+captureBusinessIdentityHandoff();
 
 const appName = import.meta.env.VITE_APP_NAME || 'LaudaAPI';
 

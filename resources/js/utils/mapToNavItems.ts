@@ -4,6 +4,7 @@ import type { Component } from 'vue'
 import {
   // ya tenías
   BookOpen,
+  Boxes,
   Building2,
   CheckCircle,
   ClipboardCheck,
@@ -66,6 +67,7 @@ export const ICONS: Record<string, Component> = {
   LifeBuoy,
   Folder,
   BookOpen,
+  Boxes,
   WalletCards,
 
   // ✅ seeder children

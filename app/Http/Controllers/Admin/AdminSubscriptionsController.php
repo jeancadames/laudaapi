@@ -66,20 +66,22 @@ class AdminSubscriptionsController extends Controller
             ->paginate(12)
             ->withQueryString()
             ->through(function ($sub) {
+                $businessPeriod = \App\Services\Billing\BusinessContractPeriods::forSubscription($sub);
+
                 return [
                     'id' => $sub->id,
                     'status' => $sub->status,
                     'billing_cycle' => $sub->billing_cycle,
                     'currency' => $sub->currency,
 
-                    'subtotal_amount' => (float) $sub->subtotal_amount,
+                    'subtotal_amount' => (float) ($businessPeriod['subtotal'] ?? $sub->subtotal_amount),
                     'discount_amount' => (float) $sub->discount_amount,
-                    'tax_amount' => (float) $sub->tax_amount,
-                    'total_amount' => (float) $sub->total_amount,
+                    'tax_amount' => (float) ($businessPeriod['tax'] ?? $sub->tax_amount),
+                    'total_amount' => (float) ($businessPeriod['total'] ?? $sub->total_amount),
 
                     'trial_ends_at' => optional($sub->trial_ends_at)->toIso8601String(),
-                    'current_period_start' => optional($sub->current_period_start)->toIso8601String(),
-                    'current_period_end' => optional($sub->current_period_end)->toIso8601String(),
+                    'current_period_start' => $businessPeriod['starts_at'] ?? optional($sub->current_period_start)->toIso8601String(),
+                    'current_period_end' => $businessPeriod['ends_at'] ?? optional($sub->current_period_end)->toIso8601String(),
 
                     'provider' => $sub->provider,
                     'provider_subscription_id' => $sub->provider_subscription_id,

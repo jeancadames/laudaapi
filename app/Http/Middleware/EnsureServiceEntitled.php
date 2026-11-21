@@ -144,6 +144,7 @@ class EnsureServiceEntitled
                 'services.active',
                 true
             )
+            ->where(fn ($query) => \App\Services\Entitlements\BusinessContractCoverage::constrain($query))
             ->exists();
 
         abort_unless(

@@ -13,6 +13,8 @@ class StandaloneServiceSettlement extends Model
     public const STATUS_ACTIVATED =
         'activated';
 
+    public const STATUS_SUPERSEDED = 'superseded';
+
     public const STATUS_FAILED =
         'failed';
 

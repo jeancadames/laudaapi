@@ -282,6 +282,10 @@ return DB::transaction(function () use (
                     ->lockForUpdate()
                     ->firstOrFail();
 
+            if ($locked->status === StandaloneServiceSettlement::STATUS_SUPERSEDED) {
+                return $locked;
+            }
+
             if (
                 $locked->status
                 === StandaloneServiceSettlement::STATUS_ACTIVATED
@@ -719,6 +723,10 @@ return DB::transaction(function () use (
                     )
                     ->lockForUpdate()
                     ->firstOrFail();
+
+            if ($locked->status === StandaloneServiceSettlement::STATUS_SUPERSEDED) {
+                return $locked;
+            }
 
             if (
                 $locked->status

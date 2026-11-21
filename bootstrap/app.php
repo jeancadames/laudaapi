@@ -37,6 +37,7 @@ return Application::configure(basePath: dirname(__DIR__))
         commands: __DIR__ . '/../routes/console.php',
         health: '/up',
         then: function () {
+            Route::middleware('api')->group(base_path('routes/business_commercial_api.php'));
             // ✅ DGII WS: sin prefix /api, pero con middleware 'api' (stateless)
             Route::middleware('api')
                 ->group(base_path('routes/dgii_ws.php'));
@@ -44,6 +45,8 @@ return Application::configure(basePath: dirname(__DIR__))
     )
 
     ->withMiddleware(function (Middleware $middleware): void {
+        $middleware->prependToPriorityList(\Illuminate\Cookie\Middleware\EncryptCookies::class, \App\Http\Middleware\BusinessIdentityResponse::class);
+
         // T4F-B3: errores JSON antes de web; canal autorizado antes de resolver IDs.
         $middleware->prependToPriorityList(
             \Illuminate\Cookie\Middleware\EncryptCookies::class,

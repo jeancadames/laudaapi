@@ -134,6 +134,7 @@ class AppGatewayController extends Controller
                     }
 
                     return Inertia::render('App/Hub', [
+                        'business_identity_url' => config('business_identity.enabled') ? route('business.identity.index') : null,
                         'company' => [
                             'id' => $company->id,
                             'name' =>

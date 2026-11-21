@@ -6,6 +6,7 @@ use App\Models\Company;
 use App\Models\Service;
 use App\Models\Subscription;
 use App\Models\User;
+use App\Services\BusinessIdentity\CentralMembership;
 use App\Services\Entitlements\ServiceEntitlementPolicy;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
@@ -14,6 +15,10 @@ class ServiceAccessResolver
 {
     public function userCanAccess(User $user, Company $company, Service $service): bool
     {
+        if (app(CentralMembership::class)->role($user, $company) === null) {
+            return false;
+        }
+
         if (! $service->active) {
             return false;
         }
@@ -30,6 +35,10 @@ class ServiceAccessResolver
 
     public function canAccessAny(User $user, Company $company, array $serviceSlugs): bool
     {
+        if (app(CentralMembership::class)->role($user, $company) === null) {
+            return false;
+        }
+
         $serviceSlugs = collect($serviceSlugs)
             ->map(fn($s) => trim((string) $s))
             ->filter()
@@ -148,6 +157,7 @@ class ServiceAccessResolver
                 'services.slug',
                 $serviceSlugs
             )
+            ->where(fn ($query) => \App\Services\Entitlements\BusinessContractCoverage::constrain($query))
             ->exists();
     }
 }

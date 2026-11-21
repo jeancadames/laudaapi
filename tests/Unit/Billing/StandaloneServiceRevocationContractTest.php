@@ -88,7 +88,7 @@ class StandaloneServiceRevocationContractTest extends TestCase
 
         foreach ([
             '$alreadyEntitled',
-            "'meta' => $itemMeta",
+            "'meta' => \$itemMeta",
             '$item->forceFill(',
             "'entitlement_claims'",
         ] as $required) {

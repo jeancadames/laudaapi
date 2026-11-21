@@ -83,6 +83,8 @@ class CentralEntitlementActivationService
                 ->lockForUpdate()
                 ->firstOrFail();
 
+            \App\Services\Billing\BusinessContractGuard::assertSubscriberAvailable((int) $subscriber->id);
+
             if (! $subscriber->active) {
                 throw ValidationException::withMessages([
                     'subscriber' =>
@@ -230,6 +232,8 @@ class CentralEntitlementActivationService
                 ->whereKey($subscriber->id)
                 ->lockForUpdate()
                 ->firstOrFail();
+
+            \App\Services\Billing\BusinessContractGuard::assertSubscriberAvailable((int) $subscriber->id);
 
             if (! $subscriber->active) {
                 throw ValidationException::withMessages([
@@ -422,6 +426,8 @@ class CentralEntitlementActivationService
                 ->whereKey($subscriber->id)
                 ->lockForUpdate()
                 ->firstOrFail();
+
+            \App\Services\Billing\BusinessContractGuard::assertSubscriberAvailable((int) $subscriber->id);
 
             if (! $subscriber->active) {
                 throw ValidationException::withMessages([

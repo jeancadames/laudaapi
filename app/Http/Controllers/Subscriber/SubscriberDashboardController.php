@@ -92,7 +92,7 @@ class SubscriberDashboardController extends Controller
         // =========================================================
         // Subscription (última por subscriber_id)
         // =========================================================
-        $sub = Subscription::query()
+        $sub = Subscription::query()->preferBusinessContract()
             ->where('subscriber_id', $subscriberId)
             ->latest('id')
             ->first();
@@ -115,14 +115,16 @@ class SubscriberDashboardController extends Controller
                 ?->toArray() ?? $itemsAgg;
         }
 
+        $businessPeriod = \App\Services\Billing\BusinessContractPeriods::forSubscription($sub);
+
         $subscription = [
             'id' => $subId,
             'status' => $sub->status ?? '—',
             'billing_cycle' => $sub->billing_cycle ?? '—',
-            'total_amount' => (float) ($sub->total_amount ?? 0),
+            'total_amount' => (float) ($businessPeriod['total'] ?? $sub->total_amount ?? 0),
 
             'trial_ends_at_human' => $sub?->trial_ends_at ? $sub->trial_ends_at->format('Y-m-d') : null,
-            'period_end_human' => $sub?->current_period_end ? $sub->current_period_end->format('Y-m-d') : null,
+            'period_end_human' => $businessPeriod['end'] ?? $sub?->current_period_end?->format('Y-m-d'),
 
             'items_active_or_trialing' => (int) ($itemsAgg['items_active_or_trialing'] ?? 0),
             'active_services' => (int) ($itemsAgg['active_services'] ?? 0),

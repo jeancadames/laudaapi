@@ -5,6 +5,8 @@ namespace App\Services\Ecosystem;
 use App\Models\Company;
 use App\Models\Service;
 use App\Models\User;
+use App\Services\BusinessIdentity\CentralIdentityService;
+use App\Services\BusinessIdentity\IdentityToken;
 use App\Services\LaudaErp\ServiceAccessResolver;
 use Illuminate\Support\Collection;
 
@@ -137,11 +139,19 @@ final class EcosystemHubService
             && $ready
             && $service
         ) {
+            $business = config('business_identity.enabled') && in_array($service->service_key, IdentityToken::SERVICES, true);
             $launchUrl = route(
-                'erp.services.open',
-                ['service' => $service->id],
+                $business ? 'business.identity.launch' : 'erp.services.open',
+                $business ? ['company' => $company->id, 'service' => $service->slug] : ['service' => $service->slug],
                 false
             );
+            if ($business && ! \Illuminate\Support\Facades\DB::table('business_identity_members as members')
+                ->join('business_identity_links as links', 'links.id', '=', 'members.link_id')
+                ->where('links.service', $service->service_key)->where('links.central_company_id', $company->id)
+                ->where('links.active', true)->where('members.central_user_id', $user->id)
+                ->where('members.active', true)->whereNotNull('members.ready_at')->exists()) {
+                $launchUrl = route('business.identity.index', ['company' => $company->id], false);
+            }
         }
 
         return [
@@ -186,6 +196,16 @@ final class EcosystemHubService
             || (string) $service->launch_mode !== 'external'
         ) {
             return false;
+        }
+
+        if (config('business_identity.enabled') && in_array($service->service_key, IdentityToken::SERVICES, true)) {
+            try {
+                app(CentralIdentityService::class)->peer($service->service_key);
+
+                return true;
+            } catch (\Symfony\Component\HttpKernel\Exception\HttpException) {
+                return false;
+            }
         }
 
         $expectedUrl = rtrim(

@@ -5,11 +5,30 @@ namespace Tests\Unit\Billing;
 use App\Models\Service;
 use App\Models\Subscription;
 use App\Services\Billing\ServicePricingEngine;
+use Illuminate\Filesystem\Filesystem;
 use Illuminate\Validation\ValidationException;
+use Tests\Support\BusinessIdentityApplication;
 use Tests\TestCase;
 
 class ServicePricingEngineContractTest extends TestCase
 {
+    private string $runtime;
+
+    public function createApplication()
+    {
+        $this->runtime = '/tmp/lauda-business-'.bin2hex(random_bytes(8));
+        mkdir($this->runtime, 0700);
+        file_put_contents($this->runtime.'/synthetic-only', 'Isolated pricing regression tests');
+
+        return BusinessIdentityApplication::create(dirname(__DIR__, 3), $this->runtime.'/central');
+    }
+
+    protected function tearDown(): void
+    {
+        parent::tearDown();
+        (new Filesystem)->deleteDirectory($this->runtime);
+    }
+
     private function subscription(
         string $cycle = 'monthly',
         string $currency = 'DOP'

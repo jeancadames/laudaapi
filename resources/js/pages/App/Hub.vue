@@ -119,6 +119,7 @@ const props = defineProps<{
     };
     groups: ActionGroup[];
     tenant_access: TenantAccess;
+    business_identity_url?: string | null;
     transformation360: Transformation360ControlPanel;
 }>();
 
@@ -240,6 +241,7 @@ const stateLabel = (app: Solution) => {
                             </p>
 
                             <div class="mt-4 flex flex-wrap items-center gap-2 text-xs text-slate-500">
+                                <a v-if="business_identity_url" :href="business_identity_url" class="rounded-full border border-slate-200 px-3 py-1.5 font-medium underline underline-offset-4 dark:border-slate-700">Conexiones Business</a>
                                 <span class="rounded-full bg-slate-100 px-3 py-1.5 font-medium dark:bg-slate-900">
                                     {{ props.company.name }}
                                 </span>

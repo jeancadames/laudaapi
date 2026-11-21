@@ -5,6 +5,8 @@ namespace App\Http\Controllers\LaudaErp;
 use App\Http\Controllers\Controller;
 use App\Models\Company;
 use App\Models\Service;
+use App\Services\BusinessIdentity\CentralIdentityService;
+use App\Services\BusinessIdentity\IdentityToken;
 use App\Services\LaudaErp\ServiceAccessResolver;
 use App\Services\LaudaErp\ServiceLaunchTokenFactory;
 use App\Services\Subscribers\SubscriberResolver;
@@ -100,6 +102,11 @@ class ServiceLaunchController extends Controller
 
     private function openExternal(Request $request, $user, Company $company, Service $service): RedirectResponse
     {
+        if (config('business_identity.enabled') && in_array($service->service_key, IdentityToken::SERVICES, true)) {
+            return redirect()->away(app(CentralIdentityService::class)->launch($user, $company, $service))
+                ->withHeaders(['Cache-Control' => 'private, no-store', 'Referrer-Policy' => 'no-referrer']);
+        }
+
         $externalUrl = rtrim((string) ($service->external_url ?? ''), '/');
         $launchPath = trim((string) ($service->launch_path ?? '/launch'));
 

@@ -245,6 +245,8 @@ class StandaloneServiceCheckoutService
             $userId,
             $servicePlan
         ): StandaloneServiceSettlement {
+            Subscriber::whereKey($subscriber->id)->lockForUpdate()->firstOrFail();
+
             $lockedRequest = ActivationRequestService::query()
                 ->whereKey($requestRow->id)
                 ->lockForUpdate()
@@ -294,6 +296,8 @@ class StandaloneServiceCheckoutService
 
                 return $existing;
             }
+
+            BusinessContractGuard::assertSubscriberAvailable((int) $subscriber->id);
 
             $invoiceNumber = sprintf(
                 'LAUDA-SVC-%010d',

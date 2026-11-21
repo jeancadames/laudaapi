@@ -28,6 +28,12 @@ class HandleInertiaRequests extends Middleware
 
     public function share(Request $request): array
     {
+        // Identity uses an explicit company and must not mutate the application's current context.
+        if ($request->routeIs('business.identity.*')) {
+            return [...parent::share($request), 'name' => config('app.name'),
+                'auth' => ['user' => $request->user()?->only(['id', 'name', 'email'])], 'flash' => []];
+        }
+
         [$message, $author] = str(Inspiring::quotes()->random())->explode('-');
 
         $user = $request->user();
@@ -67,6 +73,8 @@ class HandleInertiaRequests extends Middleware
 
         return array_merge(parent::share($request), [
             'name' => config('app.name'),
+            'businessCommercialEnabled' => (bool) config('business_commercial.enabled'),
+            'businessImplementationEnabled' => config('business_commercial.enabled') && config('business_commercial.checkout_enabled') && config('business_commercial.implementation_enabled'),
 
             'quote' => [
                 'message' => trim($message),

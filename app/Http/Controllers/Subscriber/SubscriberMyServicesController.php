@@ -32,7 +32,7 @@ class SubscriberMyServicesController extends Controller
             ->find($company->subscriber_id);
 
         // Última suscripción del subscriber (trialing/active/etc.)
-        $subscription = Subscription::query()
+        $subscription = Subscription::query()->preferBusinessContract()
             ->where('subscriber_id', $company->subscriber_id)
             ->latest('id')
             ->first();
@@ -149,7 +149,8 @@ class SubscriberMyServicesController extends Controller
                 'yearly_price' => $s?->yearly_price ?? null,
 
                 'source' => 'subscription',
-                'status' => (string) $it->status,
+                'business_managed' => data_get($it->meta, 'source') === 'business_contract',
+                'status' => data_get($it->meta, 'source') === 'business_contract' && ! $it->isActive() ? 'business_review' : (string) $it->status,
                 'quantity' => (int) $it->quantity,
                 'created_at' => optional($it->created_at)->toDateTimeString(),
             ];
@@ -214,6 +215,8 @@ class SubscriberMyServicesController extends Controller
             ];
         });
 
+        $businessPeriod = \App\Services\Billing\BusinessContractPeriods::forSubscription($subscription);
+
         return Inertia::render('Subscriber/Services/My', [
             'company' => [
                 'id' => $company->id,
@@ -233,7 +236,7 @@ class SubscriberMyServicesController extends Controller
                 'billing_cycle' => $subscription->billing_cycle,
                 'currency' => $subscription->currency,
                 'trial_ends_at_human' => $subscription->trial_ends_at?->format('Y-m-d'),
-                'period_end_human' => $subscription->current_period_end?->format('Y-m-d'),
+                'period_end_human' => $businessPeriod['end'] ?? $subscription->current_period_end?->format('Y-m-d'),
             ] : null,
 
             'active_services' => $activeMapped->values(),

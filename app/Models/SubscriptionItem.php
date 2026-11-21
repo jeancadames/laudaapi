@@ -29,6 +29,12 @@ class SubscriptionItem extends Model
         'updated_at' => 'datetime',
     ];
 
+    protected static function booted(): void
+    {
+        static::saving(fn (self $item) => \App\Services\Billing\BusinessContractGuard::assertItemMutable($item));
+        static::deleting(fn (self $item) => \App\Services\Billing\BusinessContractGuard::assertItemMutable($item));
+    }
+
     // -------------------------
     // Relations
     // -------------------------
@@ -62,6 +68,7 @@ class SubscriptionItem extends Model
 
     public function isActive(): bool
     {
-        return in_array(strtolower((string) $this->status), ['active', 'trialing'], true);
+        return in_array(strtolower((string) $this->status), ['active', 'trialing'], true)
+            && (! $this->exists || \App\Services\Entitlements\BusinessContractCoverage::itemIsCovered((int) $this->id));
     }
 }

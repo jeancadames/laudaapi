@@ -3,20 +3,25 @@
 import type { Component } from 'vue'
 import {
   BookOpen,
+  Boxes,
   Building2,
   CheckCircle,
   ClipboardCheck,
   Contact,
   CreditCard,
+  Database,
   FileText,
   Folder,
   Gauge,
   KeyRound,
   LayoutGrid,
+  Layers,
   LifeBuoy,
   Logs,
+  Palette,
   PlugZap,
   ReceiptText,
+  Users,
   Webhook,
   WalletCards,
 } from 'lucide-vue-next'
@@ -27,14 +32,18 @@ import LaudaIcon from '@/components/icons/LaudaIcon.vue'
 // ✅ Registry de iconos (Lucide + SVG Vue custom)
 const ICONS = {
   LayoutGrid,
+  Layers,
   Contact,
   ClipboardCheck,
   PlugZap,
   Webhook,
   Building2,
   ReceiptText,
+  Users,
   CreditCard,
+  Database,
   Logs,
+  Palette,
   CheckCircle,
   FileText,
   Gauge,
@@ -43,6 +52,7 @@ const ICONS = {
   WalletCards,
   Folder,
   BookOpen,
+  Boxes,
 
   // ✅ Custom
   LaudaIcon,

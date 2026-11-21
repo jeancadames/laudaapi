@@ -63,7 +63,7 @@ class SubscriberActivationController extends Controller
 
         // Subscription por subscriber
         $subscription = $subscriber
-            ? Subscription::query()->where('subscriber_id', $subscriber->id)->latest('id')->first()
+            ? Subscription::query()->preferBusinessContract()->where('subscriber_id', $subscriber->id)->latest('id')->first()
             : null;
 
         // Trial info (de activation)
@@ -74,6 +74,8 @@ class SubscriberActivationController extends Controller
             $trialActive = $activation->trial_starts_at <= now() && $activation->trial_ends_at >= now();
             $trialDaysLeft = max(0, now()->startOfDay()->diffInDays($activation->trial_ends_at, false));
         }
+
+        $businessPeriod = \App\Services\Billing\BusinessContractPeriods::forSubscription($subscription);
 
         return Inertia::render('Subscriber/Activation', [
             'activation' => [
@@ -128,7 +130,7 @@ class SubscriberActivationController extends Controller
                 'billing_cycle' => $subscription->billing_cycle,
                 'currency' => $subscription->currency,
                 'trial_ends_at_human' => $subscription->trial_ends_at?->format('Y-m-d'),
-                'period_end_human' => $subscription->current_period_end?->format('Y-m-d'),
+                'period_end_human' => $businessPeriod['end'] ?? $subscription->current_period_end?->format('Y-m-d'),
             ] : null,
         ]);
     }
@@ -154,7 +156,7 @@ class SubscriberActivationController extends Controller
             ->value('subscriber_id');
 
         $subscription = $subscriberId > 0
-            ? Subscription::query()
+            ? Subscription::query()->preferBusinessContract()
                 ->where('subscriber_id', $subscriberId)
                 ->latest('id')
                 ->first()

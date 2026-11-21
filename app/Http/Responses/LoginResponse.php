@@ -16,6 +16,12 @@ class LoginResponse implements LoginResponseContract
             return new JsonResponse(['two_factor' => false], 200);
         }
 
+        // Only this fixed, public return page can resume the explicit identity flow.
+        if ($request->session()->get('url.intended') === route('business.identity.index')) {
+            $request->session()->forget('url.intended');
+            return redirect()->route('business.identity.index');
+        }
+
         /*
          * No usar redirect()->intended() aquí.
          *
