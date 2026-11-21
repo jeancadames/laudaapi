@@ -3418,7 +3418,7 @@ function tenantCommercialTerms(
 
         <button
             type="button"
-            class="inline-flex shrink-0 items-center justify-center gap-2 rounded-full border border-blue-200 bg-blue-50 px-4 py-2 text-xs font-black text-blue-700 transition hover:bg-blue-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 dark:border-blue-900 dark:bg-blue-950/30 dark:text-blue-300"
+            class="cursor-pointer inline-flex shrink-0 items-center justify-center gap-2 rounded-full border border-blue-200 bg-blue-50 px-4 py-2 text-xs font-black text-blue-700 transition hover:bg-blue-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 dark:border-blue-900 dark:bg-blue-950/30 dark:text-blue-300"
             :aria-expanded="ux01ScopeExpanded"
             aria-controls="ux01-bi-scope-details"
             @click="ux01ScopeExpanded = !ux01ScopeExpanded"
@@ -5021,7 +5021,7 @@ function tenantCommercialTerms(
                                             v-for="tab in readOnlySourceTabs"
                                             :key="tab.key"
                                             type="button"
-                                            class="rounded-lg border px-3 py-2 text-xs font-black transition"
+                                            class="cursor-pointer rounded-lg border px-3 py-2 text-xs font-black transition"
                                             :class="
                                                 activeSourceTab === tab.key
                                                     ? 'border-cyan-600 bg-cyan-600 text-white'
@@ -7873,7 +7873,7 @@ function tenantCommercialTerms(
 
                                 <button
                                     type="button"
-                                    class="mt-4 rounded-lg bg-blue-700 px-5 py-3 text-sm font-bold text-white disabled:cursor-not-allowed disabled:opacity-50"
+                                    class="cursor-pointer mt-4 rounded-lg bg-blue-700 px-5 py-3 text-sm font-bold text-white disabled:cursor-not-allowed disabled:opacity-50"
                                     :disabled="!commercialAcceptanceConfirmed || commercialAcceptanceBusy"
                                     @click="acceptModernCommercialProposal"
                                 >
@@ -8046,7 +8046,7 @@ function tenantCommercialTerms(
                                 <!-- BI_UAT02_NEEDS_UI_V1 -->
                                 <!-- BI_UAT02_ORIENTATION_UI_V3 -->
                                 <div class="rounded-2xl border border-blue-200/70 bg-blue-50/50 p-4 dark:border-blue-900 dark:bg-blue-950/20">
-                                    <button type="button" class="flex w-full items-center justify-between gap-3 text-left"
+                                    <button type="button" class="cursor-pointer flex w-full items-center justify-between gap-3 text-left"
                                         :aria-expanded="showNeedsAssistant" @click="showNeedsAssistant = !showNeedsAssistant">
                                         <span>
                                             <span class="block text-sm font-bold text-slate-950 dark:text-white">Ayúdame a elegir</span>
@@ -8058,7 +8058,7 @@ function tenantCommercialTerms(
                                         <p class="text-sm leading-6 text-slate-700 dark:text-slate-200">Selecciona varias respuestas en Operaciones, Gestión y Finanzas. Al generar recomendaciones, propondremos también los textos de tu solicitud. Puedes editarlos; nunca reemplazaremos tus cambios sin que lo indiques.</p>
                                         <section v-for="section in orientationSections" :key="section.key"
                                             class="overflow-hidden rounded-xl border border-slate-200 bg-white dark:border-slate-700 dark:bg-slate-950">
-                                            <button type="button" class="flex w-full items-center justify-between gap-3 p-3 text-left focus-visible:outline-2 focus-visible:outline-blue-600"
+                                            <button type="button" class="cursor-pointer flex w-full items-center justify-between gap-3 p-3 text-left focus-visible:outline-2 focus-visible:outline-blue-600"
                                                 :aria-expanded="openOrientationSection === section.key"
                                                 :aria-controls="'bi-orientation-' + section.key"
                                                 @click="toggleOrientationSection(section.key)">
@@ -8090,7 +8090,7 @@ function tenantCommercialTerms(
                                             </div>
                                         </section>
                                         <button type="button" :disabled="!orientationCanApply"
-                                            class="inline-flex w-full items-center justify-center rounded-xl bg-blue-700 px-4 py-3 text-sm font-bold text-white transition hover:bg-blue-800 disabled:cursor-not-allowed disabled:opacity-50"
+                                            class="cursor-pointer inline-flex w-full items-center justify-center rounded-xl bg-blue-700 px-4 py-3 text-sm font-bold text-white transition hover:bg-blue-800 disabled:cursor-not-allowed disabled:opacity-50"
                                             @click="applyBusinessNeedsRecommendations">
                                             Generar recomendaciones y puntajes
                                         </button>
@@ -8121,7 +8121,7 @@ function tenantCommercialTerms(
                                                 <p class="text-xs font-bold text-slate-800 dark:text-slate-100">{{ recommendedNeeds.length }} necesidades recomendadas</p>
                                                 <p class="mt-1 text-xs leading-5 text-slate-600 dark:text-slate-300">Revisa y modifica las casillas en los acordeones de abajo. Si cambias las respuestas, vuelve a generar el resultado.</p>
                                                 <button v-if="recommendedNeeds.length > 0" type="button"
-                                                    class="mt-3 text-xs font-semibold text-blue-700 underline underline-offset-2 dark:text-blue-300"
+                                                    class="cursor-pointer mt-3 text-xs font-semibold text-blue-700 underline underline-offset-2 dark:text-blue-300"
                                                     @click="suggestBusinessNeedsDescription(true)">Reescribir los dos textos (reemplaza mis cambios)</button>
                                             </div>
                                         </div>
@@ -8137,7 +8137,7 @@ function tenantCommercialTerms(
                                     >
                                         <button
                                             type="button"
-                                            class="flex w-full items-center justify-between gap-3 p-4 text-left transition hover:bg-slate-100/60 focus-visible:outline-2 focus-visible:outline-offset-[-3px] focus-visible:outline-blue-500 sm:p-5 dark:hover:bg-slate-800/60"
+                                            class="cursor-pointer flex w-full items-center justify-between gap-3 p-4 text-left transition hover:bg-slate-100/60 focus-visible:outline-2 focus-visible:outline-offset-[-3px] focus-visible:outline-blue-500 sm:p-5 dark:hover:bg-slate-800/60"
                                             :aria-expanded="openBusinessNeedsGroup === group.key"
                                             :aria-controls="'bi-needs-' + group.key"
                                             @click="toggleBusinessNeedsGroup(group.key)"
@@ -8226,7 +8226,7 @@ function tenantCommercialTerms(
                                     <p v-if="requestNeedsForm.errors.additional_info" class="mt-1 text-sm text-red-600" role="alert">{{ requestNeedsForm.errors.additional_info }}</p>
                                 </div>
                                 <p class="text-xs leading-5 text-slate-500 dark:text-slate-400">Esta solicitud inicia la revisión para un diagnóstico básico gratuito. No genera cargos, no constituye contratación ni inicia una implementación.</p>
-                                <button type="submit" :disabled="requestSubmitting || requestNeedsForm.processing || !canSendBusinessNeeds" class="inline-flex w-full items-center justify-center rounded-xl bg-slate-950 px-4 py-3 text-sm font-bold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60 dark:bg-white dark:text-slate-950">
+                                <button type="submit" :disabled="requestSubmitting || requestNeedsForm.processing || !canSendBusinessNeeds" class="cursor-pointer inline-flex w-full items-center justify-center rounded-xl bg-slate-950 px-4 py-3 text-sm font-bold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60 dark:bg-white dark:text-slate-950">
                                     {{ requestSubmitting ? 'Enviando solicitud...' : 'Enviar solicitud de diagnóstico' }}
                                 </button>
                             </form>

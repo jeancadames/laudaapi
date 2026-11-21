@@ -6,13 +6,13 @@ use App\Models\ContactRequest;
 use App\Models\DiagnosisAccessRequest;
 use App\Models\DiagnosisAssessment;
 use App\Models\User;
-use Illuminate\Foundation\Testing\RefreshDatabase;
+use Tests\Support\RefreshAccountDatabase;
 use Inertia\Testing\AssertableInertia as Assert;
 use Tests\TestCase;
 
 class DiagnosisAdminDashboardTest extends TestCase
 {
-    use RefreshDatabase;
+    use RefreshAccountDatabase;
 
     public function test_admin_dashboard_reports_only_lauda360_diagnosis_flow(): void
     {

@@ -7,7 +7,7 @@ use App\Models\DiagnosisExpandedReport;
 use App\Services\Diagnosis\DiagnosisDetailedRoadmapGenerator;
 use App\Services\Diagnosis\TransformationProfessionalCapabilityCatalog;
 use App\Services\Diagnosis\TransformationServiceCapabilityCatalog;
-use PHPUnit\Framework\TestCase;
+use Tests\TestCase;
 
 class DataTransformationBiFoundationContractTest extends TestCase
 {

@@ -166,6 +166,8 @@ final class AppTransformation360SeparateSectionContractTest
             .'Transformation360.vue'
         );
 
+        $source = preg_replace('/\s+/', ' ', $source);
+
         foreach ([
             'Transformación Digital 360',
             'props.transformation360',

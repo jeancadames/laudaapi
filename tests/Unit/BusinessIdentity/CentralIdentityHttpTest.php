@@ -28,6 +28,8 @@ final class CentralIdentityHttpTest extends TestCase
         mkdir($this->runtime, 0700);
         file_put_contents($this->runtime.'/synthetic-only', 'Business identity tests only');
 
+        $this->beforeApplicationDestroyed(BusinessIdentityApplication::restoreEnvironmentCallback());
+
         return BusinessIdentityApplication::create(dirname(__DIR__, 3), $this->runtime.'/central', [
             'enabled' => true, 'issuer' => 'https://hub.example',
             'peers' => ['bys' => ['url' => 'https://bys.example', 'secret' => str_repeat('business-test-', 4)]],

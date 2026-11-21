@@ -46,20 +46,20 @@ final class Transformation360AdminDataBiRequestAwareContractTest
 
         foreach ([
             'implementation_request:',
-            'Empresas con alcance BI identificado en Plan 360',
+            'Empresas con BI en Plan 360',
             'Solicitudes activas',
-            'Servicio profesional opcional',
-            'Sin solicitud BI',
+            'Empresas cuyo Plan 360 incluye esta capacidad.',
+            'Sin solicitud',
             'Ver Diagnóstico 360',
-            'Ver Plan 360 completo',
+            'Ver Plan 360',
             'Ver solicitud BI',
             'Plan 360 V',
             'planStatusLabel',
             'Presentado',
-            'Esperando solicitud de BI',
+            'Esperando solicitud del cliente',
             'row.implementation_request',
             'detail_url',
-            'Definitions listas',
+            'Definiciones listas',
         ] as $required) {
             $this->assertStringContainsString(
                 $required,

@@ -138,14 +138,14 @@ final class DataTransformationBiTenantImplementationRequestHttpContractTest
         $source = $this->page();
 
         foreach ([
-            'Solicitar evaluación para implementación',
+            'Enviar solicitud de diagnóstico',
             'Solicitud recibida',
             'Revisión LAUDA',
             'Definición',
             'Revisión de tu empresa',
             'Definición acordada',
             'implementation_request.request_endpoint',
-            'router.post(',
+            'requestNeedsForm.post(endpoint,',
         ] as $token) {
             $this->assertStringContainsString(
                 $token,
@@ -159,7 +159,7 @@ final class DataTransformationBiTenantImplementationRequestHttpContractTest
         $source = $this->page();
 
         $this->assertStringContainsString(
-            'No constituye contratación, no genera cargos ni inicia ejecución.',
+            'No genera cargos, no constituye contratación ni inicia una implementación.',
             $source
         );
 

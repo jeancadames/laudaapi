@@ -209,17 +209,17 @@ final class DataTransformationBiCanonicalRegistryContractTest
             );
 
         self::assertStringContainsString(
-            'DataTransformationBiCanonicalRegistry',
+            '->publishedRegistry(',
             $source
         );
 
         self::assertStringContainsString(
-            'supportsEntity',
+            '->canonicalRegistrySupportsEntity(',
             $source
         );
 
         self::assertStringContainsString(
-            'supportsField',
+            '->canonicalRegistrySupportsField(',
             $source
         );
 

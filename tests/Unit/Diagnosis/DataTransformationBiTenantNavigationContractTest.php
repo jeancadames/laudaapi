@@ -101,7 +101,7 @@ final class DataTransformationBiTenantNavigationContractTest extends TestCase
         );
 
         $this->assertStringContainsString(
-            'Solo aparecen Planes que incluyen la capacidad de Datos e Inteligencia BI.',
+            'Gestiona solicitudes y supervisa el avance de las empresas con BI en su Plan 360.',
             $normalized
         );
 

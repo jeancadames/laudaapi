@@ -32,6 +32,8 @@ abstract class BusinessCommercialTestCase extends TestCase
         mkdir($this->runtime, 0700);
         file_put_contents($this->runtime.'/synthetic-only', 'Business commercial tests only');
 
+        $this->beforeApplicationDestroyed(BusinessIdentityApplication::restoreEnvironmentCallback());
+
         return BusinessIdentityApplication::create(dirname(__DIR__, 2), $this->runtime.'/central');
     }
 

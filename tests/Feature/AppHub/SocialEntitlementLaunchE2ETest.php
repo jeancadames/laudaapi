@@ -14,6 +14,7 @@ use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
+use Tests\Support\BusinessIdentityApplication;
 use Tests\TestCase;
 
 class SocialEntitlementLaunchE2ETest extends TestCase
@@ -30,6 +31,18 @@ class SocialEntitlementLaunchE2ETest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
+        config(['lauda_sso.secret' => bin2hex(random_bytes(32))]);
+
+        if (app()->environment('testing') && DB::connection()->getDriverName() === 'sqlite'
+            && DB::connection()->getDatabaseName() === ':memory:') {
+            if (! config('app.key')) {
+                config(['app.key' => 'base64:'.base64_encode(random_bytes(32))]);
+            }
+            BusinessIdentityApplication::registerSqliteFunctions();
+            BusinessIdentityApplication::centralSchema();
+            $this->seed(\Database\Seeders\ServiceSeeder::class);
+            (require database_path('migrations/2026_08_27_133500_stage_social_crm_external_services_for_ecosystem_hub.php'))->up();
+        }
 
         $this->social = Service::query()
             ->where('service_key', 'social')
@@ -61,8 +74,8 @@ class SocialEntitlementLaunchE2ETest extends TestCase
                 Str::random(40)
             ),
             'role' => 'subscriber',
-            'email_verified_at' => now(),
         ]);
+        $this->user->markEmailAsVerified();
 
         $this->subscriber =
             Subscriber::query()->create([

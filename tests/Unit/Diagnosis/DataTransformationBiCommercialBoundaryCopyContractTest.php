@@ -26,7 +26,7 @@ final class DataTransformationBiCommercialBoundaryCopyContractTest
             '¿Por qué puede ser relevante?',
             'Alcance potencial del servicio',
             'Fase de referencia',
-            'Solicitar evaluación para implementación',
+            'Enviar solicitud de diagnóstico',
         ] as $required) {
             $this->assertStringContainsString(
                 $required,
@@ -55,9 +55,9 @@ final class DataTransformationBiCommercialBoundaryCopyContractTest
         $source = $this->tenantPage();
 
         foreach ([
-            'no constituye contratación del servicio',
-            'La solicitud inicia una revisión funcional.',
-            'No constituye contratación, no genera cargos ni inicia ejecución.',
+            'La implementación profesional se ofrece por separado.',
+            'Esta solicitud inicia la revisión para un diagnóstico básico gratuito.',
+            'No genera cargos, no constituye contratación ni inicia una implementación.',
         ] as $required) {
             $this->assertStringContainsString(
                 $required,

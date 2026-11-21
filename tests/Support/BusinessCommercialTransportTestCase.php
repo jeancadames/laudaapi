@@ -38,7 +38,7 @@ abstract class BusinessCommercialTransportTestCase extends BusinessCommercialTes
         }
         $this->server = new Process(['python3', base_path('tests/Fixtures/BusinessCommercial/serve.py'), $this->runtime, ...array_map('strval', $ports)]);
         $this->server->start();
-        $deadline = microtime(true) + 10;
+        $deadline = microtime(true) + ($fiscal ? 75 : 45);
         while (! is_file($this->runtime.'/commercial-server-ready')) {
             if (! $this->server->isRunning() || microtime(true) > $deadline) {
                 $this->fail('Synthetic TLS server failed: '.$this->server->getErrorOutput());

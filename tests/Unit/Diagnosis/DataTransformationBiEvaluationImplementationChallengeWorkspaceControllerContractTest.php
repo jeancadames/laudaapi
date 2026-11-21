@@ -187,40 +187,11 @@ final class DataTransformationBiEvaluationImplementationChallengeWorkspaceContro
                 'routes/admin.php'
             );
 
-        $startMarker =
-            '/evaluation/implementation-challenges';
-
-        $endMarker =
-            '/evaluation/ready-for-review';
-
-        $start =
-            strpos(
-                $source,
-                $startMarker
-            );
-
-        self::assertNotFalse(
-            $start
-        );
-
-        $end =
-            strpos(
-                $source,
-                $endMarker,
-                (int) $start
-            );
-
-        self::assertNotFalse(
-            $end
-        );
-
-        $challengeRoutes =
-            substr(
-                $source,
-                (int) $start,
-                (int) $end
-                    - (int) $start
-            );
+        $declarations = explode(';', $source);
+        $challengeRoutes = implode("\n", array_filter(
+            $declarations,
+            static fn (string $declaration): bool => str_contains($declaration, '/evaluation/implementation-challenges')
+        ));
 
         self::assertSame(
             3,

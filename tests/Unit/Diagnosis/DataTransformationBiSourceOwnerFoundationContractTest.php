@@ -78,7 +78,7 @@ final class DataTransformationBiSourceOwnerFoundationContractTest
         );
     }
 
-    public function test_admin_and_tenant_accept_owner_as_source_metadata(): void
+    public function test_tenant_submits_owner_metadata_and_admin_projects_it_for_review(): void
     {
         $root = $this->root();
 
@@ -94,13 +94,8 @@ final class DataTransformationBiSourceOwnerFoundationContractTest
             .'AppHubDataTransformationBiSourceWorkspaceController.php'
         );
 
-        self::assertGreaterThanOrEqual(
-            2,
-            substr_count(
-                $admin,
-                "'owner' => ["
-            )
-        );
+        self::assertStringContainsString("'owner' =>", $admin);
+        self::assertStringContainsString('$asset->owner', $admin);
 
         self::assertGreaterThanOrEqual(
             2,

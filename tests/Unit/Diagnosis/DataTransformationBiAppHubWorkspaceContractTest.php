@@ -221,9 +221,9 @@ final class DataTransformationBiAppHubWorkspaceContractTest
          */
         foreach ([
             'Servicio profesional',
-            'Solicitar evaluación para implementación',
-            'No constituye contratación, no genera cargos ni inicia ejecución.',
-            'La solicitud inicia una revisión funcional.',
+            'Enviar solicitud de diagnóstico',
+            'No genera cargos, no constituye contratación ni inicia una implementación.',
+            'Esta solicitud inicia la revisión para un diagnóstico básico gratuito.',
             'selected_improvements',
             'expected_result',
         ] as $required) {

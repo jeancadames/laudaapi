@@ -86,7 +86,7 @@ class TenantAppHubCompactStoreLayoutContractTest extends TestCase
         $hub = $this->hub();
 
         $store = strpos($hub, 'id="app-store"');
-        $t360 = strpos($hub, 'Servicios, ejecución y estado comercial');
+        $t360 = strpos($hub, 'Plan consultivo y prioridades de transformación');
 
         $this->assertNotFalse($store);
         $this->assertNotFalse($t360);
@@ -105,7 +105,7 @@ class TenantAppHubCompactStoreLayoutContractTest extends TestCase
     {
         $hub = $this->hub();
 
-        $t360 = strpos($hub, 'Servicios, ejecución y estado comercial');
+        $t360 = strpos($hub, 'Plan consultivo y prioridades de transformación');
         $summary = strpos($hub, 'Resumen administrativo');
 
         $this->assertNotFalse($t360);

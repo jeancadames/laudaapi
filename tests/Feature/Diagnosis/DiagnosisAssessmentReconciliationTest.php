@@ -4,9 +4,9 @@ use App\Models\DiagnosisAssessment;
 use App\Models\DiagnosisDeliverableValidation;
 use App\Models\User;
 use App\Services\Diagnosis\DiagnosisAssessmentReconciliationService;
-use Illuminate\Foundation\Testing\DatabaseTransactions;
+use Tests\Support\TransactsDiagnosisDatabase;
 
-uses(DatabaseTransactions::class);
+uses(TransactsDiagnosisDatabase::class);
 
 function reconciliationAssessment(array $overrides = []): DiagnosisAssessment
 {

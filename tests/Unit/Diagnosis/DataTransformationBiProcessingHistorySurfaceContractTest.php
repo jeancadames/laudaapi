@@ -100,18 +100,24 @@ test(
 test(
     'history surfaces do not expose private source or row metadata',
     function () {
-        $sources = [
-            p12SurfaceSource(
+        $components = [
+            'Badge' => p12SurfaceSource(
                 'resources/js/pages/Admin/'
                 .'Transformation360/DataBi.vue'
             ),
-            p12SurfaceSource(
+            'section' => p12SurfaceSource(
                 'resources/js/pages/App/'
                 .'DataTransformationBi.vue'
             ),
         ];
 
-        foreach ($sources as $source) {
+        foreach ($components as $tag => $component) {
+            // The rest of the workspace also renders a separate, redacted source-upload notice.
+            $marker = 'P12_PROCESSING_HISTORY';
+            $matched = preg_match("~<!-- {$marker}(?:_SUMMARY)? -->\s*<{$tag}\b.*?</{$tag}>~s", $component, $section);
+            expect($matched)->toBe(1);
+            $source = $section[0];
+
             foreach ([
                 'source_path',
                 'source_sha256',

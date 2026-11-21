@@ -125,7 +125,7 @@ final class TransformationImplementationRequestDefinitionTenantReviewAdminAction
 
         foreach ([
             'no significa que la empresa haya',
-            'no la marca como ready',
+            'no la marca como lista',
             'no inicia contratación',
             'facturación',
             'activación ni ejecución',

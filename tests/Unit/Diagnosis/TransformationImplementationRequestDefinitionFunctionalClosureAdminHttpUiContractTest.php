@@ -232,9 +232,9 @@ final class TransformationImplementationRequestDefinitionFunctionalClosureAdminH
             'definition_functional_finalize_endpoint: string | null;',
             'const functionalClosureForm = useForm({});',
             'function finalizeFunctionalDefinition(): void',
-            'Finalizar Definition funcional',
-            'Definition funcional finalizada',
-            'versión exacta fijada por el acuerdo del tenant',
+            'Finalizar Definición funcional',
+            'Definición funcional finalizada',
+            'versión exacta fijada por el acuerdo de la empresa',
         ] as $required) {
             $this->assertStringContainsString(
                 $required,

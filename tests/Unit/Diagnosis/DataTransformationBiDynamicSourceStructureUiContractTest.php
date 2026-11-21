@@ -10,12 +10,16 @@ final class DataTransformationBiDynamicSourceStructureUiContractTest
     private string $source;
     private string $workspace;
 
+    private string $tenant;
+
     protected function setUp(): void
     {
         parent::setUp();
 
         $root =
             dirname(__DIR__, 3);
+
+        $this->tenant = file_get_contents($root.'/resources/js/pages/App/DataTransformationBi.vue');
 
         $this->source =
             file_get_contents(
@@ -73,10 +77,9 @@ final class DataTransformationBiDynamicSourceStructureUiContractTest
             [
                 'Información',
                 'Estructura',
-                'Extracción',
-                'Archivo CSV/XLSX',
+                'Archivo recibido',
                 'Análisis',
-                'Mapeo LAUDA',
+                'Mapeo al modelo LAUDA',
             ]
             as $label
         ) {
@@ -97,55 +100,18 @@ final class DataTransformationBiDynamicSourceStructureUiContractTest
         );
     }
 
-    public function test_structure_formats_are_selected_horizontally(): void
+    public function test_tenant_selects_the_format_of_the_source_structure(): void
     {
-        self::assertStringContainsString(
-            'Lista de campos y tipos',
-            $this->workspace
-        );
-
-        self::assertStringContainsString(
-            'CREATE TABLE SQL Server',
-            $this->workspace
-        );
-
-        self::assertStringContainsString(
-            'Otra estructura',
-            $this->workspace
-        );
-
-        self::assertStringContainsString(
-            "'field_type_list'",
-            $this->source
-        );
-
-        self::assertStringContainsString(
-            "'sql_server_ddl'",
-            $this->source
-        );
-
-        self::assertStringContainsString(
-            "'other'",
-            $this->source
-        );
+        foreach (['v-model="structureForm.structure_format"', 'value="field_type_list"', 'value="sql_server_ddl"', 'value="other"'] as $field) {
+            self::assertStringContainsString($field, $this->tenant);
+        }
     }
 
-    public function test_structure_is_saved_per_source_asset(): void
+    public function test_tenant_saves_the_structure_for_the_selected_source(): void
     {
-        self::assertStringContainsString(
-            'saveDynamicSourceStructure(',
-            $this->source
-        );
-
-        self::assertStringContainsString(
-            '/source-assets/${asset.id}/structure',
-            $this->source
-        );
-
-        self::assertStringContainsString(
-            'Guardar estructura',
-            $this->workspace
-        );
+        foreach (['@click="saveSourceStructure"', 'Guardar estructura', '/fuentes/${sourceAsset.id}/estructura', "'PATCH'"] as $token) {
+            self::assertStringContainsString($token, $this->tenant);
+        }
     }
 
     public function test_sql_server_assistant_uses_dynamic_source_asset_endpoint(): void
@@ -232,32 +198,12 @@ final class DataTransformationBiDynamicSourceStructureUiContractTest
         );
     }
 
-    public function test_data_upload_is_now_available_in_source_workspace(): void
+    public function test_tenant_uploads_csv_or_xlsx_to_the_selected_source(): void
     {
-        self::assertStringContainsString(
-            '<!-- FILE -->',
-            $this->workspace
-        );
-
-        self::assertStringContainsString(
-            'Archivo CSV/XLSX',
-            $this->workspace
-        );
-
-        self::assertStringContainsString(
-            'uploadDynamicSourceData(',
-            $this->workspace
-        );
-
-        self::assertStringContainsString(
-            'accept=".csv,.xlsx"',
-            $this->workspace
-        );
-
-        self::assertStringNotContainsString(
-            'La carga se habilitará en el',
-            $this->workspace
-        );
+        foreach (['type="file"', 'accept=".csv,.xlsx"', '@click="uploadSourceData"', '/fuentes/${sourceAsset.id}/archivo'] as $token) {
+            self::assertStringContainsString($token, $this->tenant);
+        }
+        self::assertStringContainsString('Archivo recibido', $this->workspace);
     }
 
     public function test_dynamic_workspace_collects_no_credentials(): void

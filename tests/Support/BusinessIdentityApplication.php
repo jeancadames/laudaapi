@@ -12,6 +12,28 @@ use Illuminate\Support\Facades\Http;
 /** Real kernel/providers/routes; only task-owned databases, sessions, caches and keys. */
 final class BusinessIdentityApplication
 {
+    private const CACHE_FILES = [
+        'APP_CONFIG_CACHE' => 'config.php',
+        'APP_ROUTES_CACHE' => 'routes.php',
+        'APP_EVENTS_CACHE' => 'events.php',
+        'APP_PACKAGES_CACHE' => 'packages.php',
+        'APP_SERVICES_CACHE' => 'services.php',
+    ];
+
+    public static function restoreEnvironmentCallback(): \Closure
+    {
+        $previous = [];
+        foreach (['APP_ENV', ...array_keys(self::CACHE_FILES)] as $key) {
+            $previous[$key] = getenv($key);
+        }
+
+        return static function () use ($previous): void {
+            foreach ($previous as $key => $value) {
+                putenv($value === false ? $key : $key.'='.$value);
+            }
+        };
+    }
+
     public static function create(string $root, string $runtime, array $identity = [], string $url = 'https://hub.example'): Application
     {
         $allowed = array_map(fn ($name) => dirname(__DIR__, 3).'/'.$name, ['laudaapi', 'ecflaudaapi', 'poslaudaapi', 'byslaudaapi', 'cumplimientolaudaapi']);
@@ -40,7 +62,7 @@ final class BusinessIdentityApplication
             }
             $connection = ['driver' => 'sqlite', 'database' => $database, 'prefix' => '', 'foreign_key_constraints' => true];
         }
-        foreach (['APP_CONFIG_CACHE' => 'config.php', 'APP_ROUTES_CACHE' => 'routes.php', 'APP_EVENTS_CACHE' => 'events.php', 'APP_PACKAGES_CACHE' => 'packages.php', 'APP_SERVICES_CACHE' => 'services.php'] as $key => $file) {
+        foreach (self::CACHE_FILES as $key => $file) {
             putenv($key.'='.$runtime.'/bootstrap/cache/'.$file);
         }
         putenv('APP_ENV=testing');
@@ -74,11 +96,16 @@ final class BusinessIdentityApplication
         }
         // SQLite adapter only; this fixture does not certify MySQL ordering/locking.
         if (! $mysql) {
-            DB::connection()->getPdo()->sqliteCreateFunction('FIELD', static fn ($value, ...$values) => ($index = array_search($value, $values, true)) === false ? 0 : $index + 1);
+            self::registerSqliteFunctions();
         }
         Http::preventStrayRequests();
 
         return $app;
+    }
+
+    public static function registerSqliteFunctions(): void
+    {
+        DB::connection()->getPdo()->sqliteCreateFunction('FIELD', static fn ($value, ...$values) => ($index = array_search($value, $values, true)) === false ? 0 : $index + 1);
     }
 
     public static function centralSchema(): void

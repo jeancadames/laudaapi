@@ -53,7 +53,7 @@ final class DataTransformationBiTenantSourceWorkspaceUxPolishContractTest
         );
 
         preg_match_all(
-            '/<button\b.*?>/s',
+            "/<button\\b(?:[^\">']+|\"[^\"]*\"|'[^']*')*>/s",
             $ui,
             $matches
         );

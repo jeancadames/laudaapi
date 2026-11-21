@@ -4,7 +4,7 @@ use App\Models\User;
 use Illuminate\Auth\Notifications\VerifyEmail;
 use Illuminate\Support\Facades\Notification;
 
-uses(\Illuminate\Foundation\Testing\RefreshDatabase::class);
+uses(\Tests\Support\RefreshAccountDatabase::class);
 
 test('sends verification notification', function () {
     Notification::fake();
@@ -25,7 +25,7 @@ test('does not send verification notification if email is verified', function ()
 
     $this->actingAs($user)
         ->post(route('verification.send'))
-        ->assertRedirect(route('dashboard', absolute: false));
+        ->assertRedirect(route('app.gateway', absolute: false));
 
     Notification::assertNothingSent();
 });

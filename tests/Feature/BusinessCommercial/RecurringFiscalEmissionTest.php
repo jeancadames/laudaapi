@@ -207,7 +207,16 @@ final class RecurringFiscalEmissionTest extends PosFiscalHandoffTestCase
         } else {
             $receipt = $this->manual($draft, 'status')['receipt'];
             $this->assertFalse($receipt['retry_allowed']);
-            $this->assertFalse($receipt['recover_allowed']);
+            $this->assertTrue($receipt['recover_allowed']);
+            $recovery = $this->fixture('facil-request', ['draft' => $draft, 'action' => 'recover']);
+            // A retained document can be polled or sent for manual review, never issued again.
+            $this->assertContains($recovery['status'], [202, 409], json_encode($recovery));
+            $retained = $this->manual($draft, 'status')['receipt'];
+            $this->assertSame($receipt['ecf_document_id'], $retained['ecf_document_id']);
+            $this->assertSame($receipt['encf'], $retained['encf']);
+            $this->assertSame(substr_count((string) $boundary, '/recepcion'),
+                substr_count((string) file_get_contents($this->runtime.'/fiscal-boundary.ndjson'), '/recepcion'));
+            $this->documents(1);
         }
     }
 

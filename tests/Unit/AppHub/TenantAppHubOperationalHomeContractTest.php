@@ -52,6 +52,8 @@ class TenantAppHubOperationalHomeContractTest extends TestCase
     {
         $home = $this->read('resources/js/pages/App/Home.vue');
 
+        $home = preg_replace('/\s+/', ' ', $home);
+
         foreach ([
             '!!app.entitled',
             '!!app.launch_url',
@@ -146,7 +148,7 @@ class TenantAppHubOperationalHomeContractTest extends TestCase
             'id="app-store"',
             'Mis Apps',
             'Apps disponibles',
-            'Servicios, ejecución y estado comercial',
+            'Plan consultivo y prioridades de transformación',
             "app.integration !== 'managed'",
             "app.state === 'active_managed'",
             "href=\"/subscriber/company\"",

@@ -4,10 +4,10 @@ use App\Models\ContactRequest;
 use App\Models\DiagnosisAccessRequest;
 use App\Models\DiagnosisAssessment;
 use App\Models\User;
-use Illuminate\Foundation\Testing\DatabaseTransactions;
+use Tests\Support\TransactsDiagnosisDatabase;
 use Illuminate\Support\Facades\Schema;
 
-uses(DatabaseTransactions::class);
+uses(TransactsDiagnosisDatabase::class);
 
 function diagnosisLifecycleAdmin(): User
 {

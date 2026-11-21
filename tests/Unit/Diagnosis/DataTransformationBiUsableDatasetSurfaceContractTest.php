@@ -111,18 +111,24 @@ test(
 test(
     'usable dataset surface does not expose row payload or private source metadata',
     function () {
-        $sources = [
-            p13DatasetSurfaceSource(
+        $components = [
+            'Badge' => p13DatasetSurfaceSource(
                 'resources/js/pages/Admin/'
                 .'Transformation360/DataBi.vue'
             ),
-            p13DatasetSurfaceSource(
+            'section' => p13DatasetSurfaceSource(
                 'resources/js/pages/App/'
                 .'DataTransformationBi.vue'
             ),
         ];
 
-        foreach ($sources as $source) {
+        foreach ($components as $tag => $component) {
+            // The rest of the workspace also renders a separate, redacted source-upload notice.
+            $marker = 'P13_USABLE_DATASET_STATUS';
+            $matched = preg_match("~<!-- {$marker}(?:_SUMMARY)? -->\s*<{$tag}\b.*?</{$tag}>~s", $component, $section);
+            expect($matched)->toBe(1);
+            $source = $section[0];
+
             foreach ([
                 'normalized_payload',
                 'normalization_meta',

@@ -114,11 +114,11 @@ final class TransformationImplementationRequestDefinitionAdminActionContractTest
             );
 
         foreach ([
-            'Crear borrador funcional de Definition',
+            'Crear borrador funcional de Definición',
             'createImplementationDefinition',
             'can_create_definition',
             'definition_create_endpoint',
-            'Definition V',
+            'Definición V',
         ] as $required) {
             $this->assertStringContainsString(
                 $required,
@@ -127,7 +127,7 @@ final class TransformationImplementationRequestDefinitionAdminActionContractTest
         }
     }
 
-    public function test_f5d_does_not_autogenerate_or_send_to_tenant(): void
+    public function test_only_a_new_editable_bi_draft_generates_content_and_creation_never_sends_it_to_the_tenant(): void
     {
         $action =
             $this->project(
@@ -159,14 +159,6 @@ final class TransformationImplementationRequestDefinitionAdminActionContractTest
             $storeStart < $generateStart
         );
 
-        /*
-         * F5D certifica exclusivamente que CREAR
-         * la Definition no autogenera contenido.
-         *
-         * Desde F5E existe deliberadamente otro
-         * método generate(), por lo que no corresponde
-         * inspeccionar todo el controller.
-         */
         $store =
             substr(
                 $action,
@@ -179,9 +171,16 @@ final class TransformationImplementationRequestDefinitionAdminActionContractTest
             $store
         );
 
+        $compact = preg_replace('/\s+/', '', $store);
+        $this->assertSame(1, substr_count($store, '$autogenerator->generate('));
+        $this->assertStringContainsString(
+            "if((string)\$definition->capability_key==='data_transformation_bi'"
+            .'&&!$previous&&$definition->status===TransformationImplementationDefinition::STATUS_DRAFT'
+            .'&&$definition->isEditable()){$autogenerator->generate(',
+            $compact
+        );
+
         foreach ([
-            'TransformationImplementationDefinitionAutogenerator',
-            '$autogenerator->generate(',
             'transitionByLauda(',
             'transitionByTenant(',
             'STATUS_AWAITING_TENANT_REVIEW',

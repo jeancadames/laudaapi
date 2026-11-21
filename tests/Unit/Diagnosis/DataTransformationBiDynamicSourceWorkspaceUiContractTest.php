@@ -56,7 +56,7 @@ final class DataTransformationBiDynamicSourceWorkspaceUiContractTest
         );
 
         self::assertStringContainsString(
-            '+ Agregar fuente',
+            'Entrega de datos del tenant',
             $this->source
         );
 
@@ -158,7 +158,7 @@ final class DataTransformationBiDynamicSourceWorkspaceUiContractTest
         );
 
         self::assertStringContainsString(
-            'Extracción',
+            'Estructura observada',
             $this->source
         );
 

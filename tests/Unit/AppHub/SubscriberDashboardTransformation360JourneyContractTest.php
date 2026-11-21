@@ -60,30 +60,12 @@ final class SubscriberDashboardTransformation360JourneyContractTest
 
     public function test_draft_plan_is_only_reported_as_preparation(): void
     {
-        $source = $this->service();
+        $source = preg_replace('/\s+/', ' ', $this->service());
 
+        $this->assertStringContainsString('&& $plan->presented_at !== null', $source);
+        $this->assertStringContainsString(": (\$plan ? 'En preparación' : 'Pendiente')", $source);
         $this->assertStringContainsString(
-            "'draft' => [",
-            $source
-        );
-
-        $this->assertStringContainsString(
-            "'En preparación'",
-            $source
-        );
-
-        $this->assertStringContainsString(
-            'El borrador administrativo no es visible para el cliente.',
-            $source
-        );
-
-        $this->assertStringContainsString(
-            '$planIsPublic',
-            $source
-        );
-
-        $this->assertStringContainsString(
-            '$planUrl =',
+            "'url' => \$planIsPublic ? route('diagnosis.implementation_plan.show', \$assessment->id, false) : null",
             $source
         );
     }
@@ -107,7 +89,7 @@ final class SubscriberDashboardTransformation360JourneyContractTest
         }
     }
 
-    public function test_optional_deliverables_do_not_block_plan_message(): void
+    public function test_dashboard_distinguishes_free_deliverables_from_paid_execution(): void
     {
         $page = file_get_contents(
             $this->root()
@@ -124,17 +106,16 @@ final class SubscriberDashboardTransformation360JourneyContractTest
         $this->assertIsString($normalized);
 
         $this->assertStringContainsString(
-            'El Informe Ampliado y el Roadmap Detallado son entregables opcionales.',
+            'Informe Ampliado, Roadmap Detallado y Plan de Implementación son entregables gratuitos.',
             $normalized
         );
-
         $this->assertStringContainsString(
-            'El Plan de Implementación puede prepararse directamente desde el resultado oficial del Diagnóstico 360.',
+            'La contratación de apoyo para ejecutar el Plan se gestiona en un proceso separado.',
             $normalized
         );
     }
 
-    public function test_dashboard_shows_five_t360_stages(): void
+    public function test_dashboard_renders_the_four_consultive_stages(): void
     {
         $page = file_get_contents(
             $this->root()
@@ -146,7 +127,9 @@ final class SubscriberDashboardTransformation360JourneyContractTest
             'Transformación Digital 360',
             'transformation360.stages',
             'Borrador privado de LAUDA',
-            'stage.optional',
+            'v-for="(stage, index) in transformation360.stages"',
+            'xl:grid-cols-4',
+            '{{ stage.label }}',
         ] as $token) {
             $this->assertStringContainsString(
                 $token,

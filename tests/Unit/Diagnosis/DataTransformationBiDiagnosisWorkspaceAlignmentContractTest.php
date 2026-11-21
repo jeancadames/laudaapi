@@ -82,17 +82,13 @@ final class DataTransformationBiDiagnosisWorkspaceAlignmentContractTest
 
     public function test_admin_has_diagnostic_workspace(): void
     {
+        $text = preg_replace('/\s+/', ' ', $this->admin);
         foreach ([
             'Evaluación diagnóstica',
-            'Revisión técnica de la entrega',
-            'Esta etapa no ejecuta transformación,',
-            'normalización, mapeo canónico ni',
-            'materialización de datos.',
+            'Evaluación profesional de la entrega completa',
+            'Esta etapa no transforma, normaliza, mapea ni materializa datos.',
         ] as $token) {
-            self::assertStringContainsString(
-                $token,
-                $this->admin
-            );
+            self::assertStringContainsString($token, $text);
         }
     }
 

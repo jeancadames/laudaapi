@@ -176,12 +176,12 @@ final class TransformationImplementationRequestDefinitionHumanReviewAdminActionC
             );
 
         $this->assertStringContainsString(
-            'no marca la Definition',
+            'no marca la definición como lista',
             $ui
         );
 
         $this->assertStringContainsString(
-            'no la envía al tenant',
+            'no la envía a la empresa',
             $ui
         );
 

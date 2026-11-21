@@ -20,6 +20,8 @@ class ServicePricingEngineContractTest extends TestCase
         mkdir($this->runtime, 0700);
         file_put_contents($this->runtime.'/synthetic-only', 'Isolated pricing regression tests');
 
+        $this->beforeApplicationDestroyed(BusinessIdentityApplication::restoreEnvironmentCallback());
+
         return BusinessIdentityApplication::create(dirname(__DIR__, 3), $this->runtime.'/central');
     }
 

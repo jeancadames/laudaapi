@@ -54,13 +54,14 @@ final class DataTransformationBiTenantFullWidthAfterScopeContractTest
         );
     }
 
-    public function test_context_sidebar_stays_in_introductory_right_column(): void
+    public function test_context_sidebar_is_sticky_except_when_the_request_form_is_available(): void
     {
         $ui = $this->ui();
 
         self::assertStringContainsString(
-            'class="space-y-6 xl:col-start-2 xl:row-start-1 xl:sticky xl:top-6"',
-            $ui
+            "implementation_request.can_request ? 'xl:col-auto xl:row-auto xl:static xl:top-auto'"
+            ." : 'xl:col-start-2 xl:row-start-1 xl:sticky xl:top-6'",
+            preg_replace('/\s+/', ' ', $ui)
         );
     }
 

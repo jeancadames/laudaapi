@@ -50,12 +50,13 @@ final class DataTransformationBiDynamicSourcePostSmokeContractTest
 
     public function test_dynamic_sources_have_their_own_permission(): void
     {
-        self::assertSame(
-            2,
-            substr_count(
-                $this->state,
-                "'can_manage_sources' =>"
-            )
+        $compact = preg_replace('/\s+/', '', $this->state);
+        // Both closed intake and missing sessions must deny dynamic source changes.
+        self::assertSame(2, substr_count($compact, "'can_manage_sources'=>false"));
+        self::assertStringContainsString(
+            "'can_manage_sources'=>in_array(\$status,[DataTransformationBiIntakeSession::STATUS_DRAFT,"
+            .'DataTransformationBiIntakeSession::STATUS_READY,],true)',
+            $compact
         );
 
         self::assertStringContainsString(

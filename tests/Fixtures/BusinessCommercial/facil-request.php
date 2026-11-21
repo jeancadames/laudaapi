@@ -3,6 +3,7 @@
 use App\Models\EcfDraft;
 use App\Models\User;
 use App\Support\Facil\InvoiceInput;
+use App\Support\Facil\InvoicePayments;
 use Illuminate\Contracts\Http\Kernel;
 use Illuminate\Cookie\CookieValuePrefix;
 use Illuminate\Http\Request;
@@ -17,6 +18,10 @@ if (($input['action'] ?? '') === 'setup') {
     $payload = InvoiceInput::normalize($input['payload'] ?? ['tipo_ecf' => 'e31', 'fecha_emision' => now()->format('Y-m-d'),
         'tipo_pago' => '1', 'tipo_ingresos' => '01', 'comprador_rnc' => '131880681', 'comprador_nombre' => 'Comprador sintético',
         'items' => [['nombre' => 'Servicio sintético', 'cantidad' => '1', 'precio_unitario' => '100', 'descuento' => '0', 'indicador' => '1', 'indicador_bien_servicio' => '2']]]);
+    if (InvoicePayments::applies($payload)) {
+        // The fixture sells one service for 100.00 plus 18.00 ITBIS, paid in cash.
+        $payload['commercial'] = $input['payload']['commercial'] ?? ['payments' => [['method' => 'cash', 'amount' => '118.00']]];
+    }
     $draft = EcfDraft::create(['id' => (string) Str::uuid(), 'user_id' => 501, 'tipo_ecf' => $payload['tipo_ecf'], 'payload' => $payload,
         'payload_hash' => hash('sha256', json_encode($payload, JSON_THROW_ON_ERROR)), 'version' => 1]);
     echo json_encode(['status' => 200, 'draft' => $draft->id]);

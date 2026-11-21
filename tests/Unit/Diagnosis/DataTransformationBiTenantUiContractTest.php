@@ -26,7 +26,7 @@ final class DataTransformationBiTenantUiContractTest extends TestCase
             '¿Por qué puede ser relevante?',
             'Alcance potencial del servicio',
             'Próximo paso',
-            'Alcance de esta vista',
+            'Sobre esta etapa',
         ] as $token) {
             $this->assertStringContainsString(
                 $token,
@@ -73,7 +73,7 @@ final class DataTransformationBiTenantUiContractTest extends TestCase
         );
 
         $this->assertStringContainsString(
-            'Esta etapa no inicia ejecución, contratación,',
+            'No genera cargos, no constituye contratación ni inicia una implementación.',
             $source
         );
     }
@@ -83,12 +83,12 @@ final class DataTransformationBiTenantUiContractTest extends TestCase
         $source = $this->source();
 
         $this->assertStringContainsString(
-            'Solicitar evaluación para implementación',
+            'Enviar solicitud de diagnóstico',
             $source
         );
 
         $this->assertStringContainsString(
-            'router.post(',
+            'requestNeedsForm.post(endpoint,',
             $source
         );
 
@@ -98,7 +98,7 @@ final class DataTransformationBiTenantUiContractTest extends TestCase
         );
 
         $this->assertStringContainsString(
-            'No constituye contratación, no genera cargos ni inicia ejecución.',
+            'No genera cargos, no constituye contratación ni inicia una implementación.',
             $source
         );
 

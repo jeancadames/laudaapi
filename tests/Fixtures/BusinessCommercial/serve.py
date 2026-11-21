@@ -53,9 +53,9 @@ context = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
 context.load_cert_chain(base / 'tls.pem', base / 'tls.key')
 server.socket = context.wrap_socket(server.socket, server_side=True)
 with open(base / 'commercial-server.log', 'ab') as log:
-    process = subprocess.Popen(['php', '-S', f'127.0.0.1:{target}', str(fixture / 'router.php')],
+    process = subprocess.Popen(['php', '-d', 'opcache.enable_cli=1', '-S', f'127.0.0.1:{target}', str(fixture / 'router.php')],
                                env={**os.environ, 'LAUDA_BUSINESS_RUNTIME': str(base)}, stdout=log, stderr=log)
-    fiscal_process = subprocess.Popen(['php', '-S', f'127.0.0.1:{fiscal_target}', str(fixture / 'ecf-router.php')],
+    fiscal_process = subprocess.Popen(['php', '-d', 'opcache.enable_cli=1', '-S', f'127.0.0.1:{fiscal_target}', str(fixture / 'ecf-router.php')],
         env={**os.environ, 'LAUDA_BUSINESS_RUNTIME': str(base)}, stdout=log, stderr=log) if fiscal_target else None
     def stop(*_):
         threading.Thread(target=server.shutdown, daemon=True).start()
@@ -73,6 +73,15 @@ with open(base / 'commercial-server.log', 'ab') as log:
                         break
                 except OSError:
                     time.sleep(0.01)
+            probe = http.client.HTTPConnection('127.0.0.1', destination, timeout=25)
+            try:
+                probe.request('GET', '/up')
+                response = probe.getresponse()
+                response.read()
+                if response.status != 200:
+                    raise RuntimeError(f'Synthetic PHP health check at {destination} returned {response.status}')
+            finally:
+                probe.close()
         (base / 'commercial-server-ready').write_text('ready')
         server.serve_forever(poll_interval=0.1)
     finally:

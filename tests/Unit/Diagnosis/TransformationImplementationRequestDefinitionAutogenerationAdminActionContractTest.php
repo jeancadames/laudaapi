@@ -113,8 +113,8 @@ final class TransformationImplementationRequestDefinitionAutogenerationAdminActi
             );
 
         foreach ([
-            'Crear borrador funcional de Definition',
-            'Preparar contenido de la Definition',
+            'Crear borrador funcional de Definición',
+            'Preparar contenido de la Definición',
             'generateImplementationDefinition',
             'content_prepared',
             'Contenido preparado para revisión',

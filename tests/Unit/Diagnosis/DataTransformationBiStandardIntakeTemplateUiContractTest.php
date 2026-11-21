@@ -86,7 +86,7 @@ test(
                 'Fuentes de datos'
             )
             ->toContain(
-                '+ Agregar fuente'
+                'Entrega de datos del tenant'
             )
             ->toContain(
                 'Referencia canónica Excel'

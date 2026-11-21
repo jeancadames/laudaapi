@@ -14062,9 +14062,18 @@ const d2fLegacyDetailsOpen = d2fRef(false);
                                 </div>
 
                                 <div class="flex flex-wrap gap-2">
-
-
-
+                                    <a
+                                        :href="`/admin/transformation-360/implementation-requests/${props.implementation_request.id}/standard-intake-template/xlsx`"
+                                        class="rounded-lg border bg-background px-3 py-2 text-xs font-bold hover:underline"
+                                    >
+                                        Referencia canónica Excel
+                                    </a>
+                                    <a
+                                        :href="`/admin/transformation-360/implementation-requests/${props.implementation_request.id}/standard-intake-template/csv`"
+                                        class="rounded-lg border bg-background px-3 py-2 text-xs font-bold hover:underline"
+                                    >
+                                        Referencia canónica CSV
+                                    </a>
                                 </div>
                             </div>
 

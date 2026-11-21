@@ -72,8 +72,12 @@ final class DataTransformationBiTenantPublishedUxCompactionContractTest extends 
 
     public function test_exactly_three_sections_use_published_compaction(): void
     {
+        self::assertStringContainsString('const ux01ScopeExpanded = ref(false)', $this->tenantUi);
+        self::assertStringContainsString(':aria-expanded="ux01ScopeExpanded"', $this->tenantUi);
+        self::assertStringContainsString('v-show="ux01ScopeExpanded"', $this->tenantUi);
+
         self::assertSame(
-            3,
+            2,
             substr_count(
                 $this->tenantUi,
                 ':open="published_evaluation ? undefined : true"'
@@ -81,7 +85,7 @@ final class DataTransformationBiTenantPublishedUxCompactionContractTest extends 
         );
 
         self::assertSame(
-            3,
+            2,
             substr_count(
                 $this->tenantUi,
                 'v-show="published_evaluation"'
