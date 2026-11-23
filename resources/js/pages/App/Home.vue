@@ -1,15 +1,18 @@
 <script setup lang="ts">
-import AppLayout from '@/layouts/AppLayout.vue';
-import type { BreadcrumbItem } from '@/types';
+import { Link } from '@inertiajs/vue3';
 import {
     ArrowUpRight,
     Boxes,
     CheckCircle2,
     LayoutGrid,
+    PackagePlus,
     ShieldCheck,
     Sparkles,
 } from 'lucide-vue-next';
 import { computed } from 'vue';
+import AppLayout from '@/layouts/AppLayout.vue';
+import type { BreadcrumbItem } from '@/types';
+import type { SelfServiceHomeEntry } from '@/types/businessSelfService';
 
 type SolutionState =
     | 'active'
@@ -58,6 +61,8 @@ const props = defineProps<{
     };
     groups: ActionGroup[];
     tenant_access: TenantAccess;
+    // El servidor la envía solo a cuentas que pueden contratar por la empresa.
+    business_self_service?: SelfServiceHomeEntry | null;
 }>();
 
 const breadcrumbs: BreadcrumbItem[] = [{ title: 'Inicio', href: '/app' }];
@@ -211,6 +216,49 @@ const appInitial = (app: Solution) =>
                     </div>
                 </header>
 
+                <section
+                    v-if="props.business_self_service"
+                    aria-labelledby="package-builder-title"
+                    class="rounded-[1.75rem] border border-red-100 bg-white p-5 shadow-sm sm:p-6 dark:border-red-950 dark:bg-slate-950"
+                >
+                    <div
+                        class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between"
+                    >
+                        <div class="flex items-start gap-3">
+                            <div
+                                class="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-red-50 text-red-700 dark:bg-red-950/40 dark:text-red-300"
+                            >
+                                <PackagePlus class="h-5 w-5" />
+                            </div>
+                            <div class="min-w-0">
+                                <h2
+                                    id="package-builder-title"
+                                    class="text-lg font-black text-slate-950 dark:text-white"
+                                >
+                                    Armar mi paquete
+                                </h2>
+                                <p
+                                    class="mt-1 text-sm leading-6 text-slate-500 dark:text-slate-400"
+                                >
+                                    Elige lo que necesita tu negocio y mira
+                                    cuánto pagarás antes de contratar.
+                                </p>
+                            </div>
+                        </div>
+
+                        <div class="flex shrink-0 flex-col gap-2 sm:items-end">
+                            <Link
+                                :href="
+                                    props.business_self_service.configurator_url
+                                "
+                                class="inline-flex h-12 items-center justify-center gap-2 rounded-xl bg-red-600 px-5 text-sm font-bold text-white transition hover:bg-red-700"
+                            >
+                                Armar mi paquete
+                            </Link>
+                        </div>
+                    </div>
+                </section>
+
                 <section class="space-y-4">
                     <div
                         class="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between"
@@ -330,7 +378,11 @@ const appInitial = (app: Solution) =>
                         <p
                             class="mx-auto mt-2 max-w-lg text-sm leading-6 text-slate-500"
                         >
-                            <template v-if="isTenantAdmin">
+                            <template v-if="props.business_self_service">
+                                Arma tu paquete y, cuando esté activo, tus
+                                soluciones aparecerán aquí automáticamente.
+                            </template>
+                            <template v-else-if="isTenantAdmin">
                                 Contrata o activa una solución desde el Control
                                 Panel y aparecerá aquí automáticamente.
                             </template>
@@ -341,7 +393,7 @@ const appInitial = (app: Solution) =>
                         </p>
 
                         <a
-                            v-if="isTenantAdmin"
+                            v-if="isTenantAdmin && !props.business_self_service"
                             href="/app/control"
                             class="mt-5 inline-flex h-10 items-center justify-center gap-2 rounded-xl border border-slate-200 px-4 text-sm font-bold text-slate-800 transition hover:bg-slate-50 dark:border-slate-800 dark:text-slate-100 dark:hover:bg-slate-900"
                         >
