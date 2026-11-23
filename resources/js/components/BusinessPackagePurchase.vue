@@ -5,6 +5,7 @@ import {
     CircleCheck,
     Clock,
     CreditCard,
+    Info,
     LoaderCircle,
     RefreshCw,
 } from 'lucide-vue-next';
@@ -68,6 +69,7 @@ const toneIcon = computed(
             action: CreditCard,
             success: CircleCheck,
             problem: CircleAlert,
+            notice: Info,
         })[view.value?.tone ?? 'progress'],
 );
 const toneClass = computed(
@@ -80,6 +82,7 @@ const toneClass = computed(
                 'border-emerald-300 bg-emerald-50 text-emerald-950 dark:border-emerald-900 dark:bg-emerald-950/40 dark:text-emerald-100',
             problem:
                 'border-destructive/40 bg-red-50 text-red-950 dark:bg-red-950/40 dark:text-red-100',
+            notice: 'border-border bg-muted/40 text-foreground',
         })[view.value?.tone ?? 'progress'],
 );
 
@@ -300,6 +303,7 @@ const startDay = computed(() => {
                     </p>
                     <p class="font-medium">{{ packageNames }}</p>
                     <p class="text-sm text-muted-foreground">
+                        Precio de esta compra:
                         {{ money(purchase.summary.recurring.total_cents) }}
                         {{
                             purchase.summary.selection.cycle === 'yearly'

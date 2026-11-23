@@ -112,6 +112,15 @@ const nextNames = computed(() =>
             .map((row) => row.name),
     ),
 );
+/** Segunda frase del cambio registrado; si el paquete nuevo no está disponible, el motivo va en «Activar». */
+const afterChange = computed(() => {
+    if (!ended.value)
+        return `Desde esa fecha tu paquete tendrá ${nextNames.value}.`;
+    const state = progress.value?.activation.state;
+    if (state === 'done') return `Tu paquete nuevo tiene ${nextNames.value}.`;
+    if (state === 'problem') return '';
+    return `Activa el paquete nuevo para usar ${nextNames.value}.`;
+});
 
 /** Lo que cambia según lo marcado, antes de revisar. */
 const pendingSummary = computed(() => {
@@ -156,7 +165,12 @@ onBeforeUnmount(() => tracker.value?.dispose());
 const progress = computed(() => {
     const current = tracker.value?.purchase.value;
     return current && saved.value
-        ? changeProgress(current, day(saved.value.effective_at), money)
+        ? changeProgress(
+              current,
+              day(saved.value.effective_at),
+              money,
+              plan.names,
+          )
         : null;
 });
 const progressFailed = computed(() => !!tracker.value?.error.value);
@@ -731,11 +745,7 @@ const reloadPage = () => window.location.reload();
                                 moment(saved.effective_at)
                             }}</strong
                             >.
-                            {{
-                                ended
-                                    ? `Activa el paquete nuevo para usar ${nextNames}.`
-                                    : `Desde esa fecha tu paquete tendrá ${nextNames}.`
-                            }}
+                            {{ afterChange }}
                         </template>
                         <template v-else>
                             Tu acceso a {{ currentNames }}

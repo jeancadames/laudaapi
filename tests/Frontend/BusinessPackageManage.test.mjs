@@ -250,6 +250,84 @@ test('pasos después de confirmar: pago confirmado ≠ ya puedes activar', () =>
     assert.equal(purchaseView({ ...purchase({ status: 'paid', action: null }, pending, 0), previous_package_url: null }).title, 'Pago recibido');
 });
 
+test('reemplazo pagado: espera, período terminado y conexión en revisión dicen lo mismo en ambas pantallas', () => {
+    const money = (cents) => `RD$${cents / 100}`;
+    const day = '23 de diciembre de 2026';
+    const purchase = (access, effective = EFFECTIVE) => ({
+        purchase_id: 'n', invoice_number: 'F-2', currency: 'DOP', summary: { ...samples.preview, effective_at: effective },
+        balance_cents: 0, payment: { status: 'paid', action: null }, access, previous_package_url: '/self-service/p1/manage', manage_url: null,
+    });
+    const HOLD = 'Podrás activar el nuevo paquete al terminar el período que ya pagaste.';
+    const ENDED = 'El período contratado para este paquete terminó.';
+    const REVIEW = 'La conexión con esta aplicación requiere revisión de LAUDA.';
+    const both = (access, effective) => {
+        const p = purchase(access, effective);
+        return { view: purchaseView(p), step: changeProgress(p, day, money).activation };
+    };
+
+    // 1. Antes de la fecha: espera con fecha.
+    let { view, step } = both([
+        { product: 'ecf', status: 'pending', message: HOLD, action: null },
+        { product: 'cumplimiento', status: 'pending', message: HOLD, action: null },
+    ]);
+    assert.equal(view.title, 'LAUDA confirmó el pago');
+    assert.match(view.message, /a partir del/);
+    assert.equal(step.state, 'waiting');
+    assert.match(step.text, /a partir del 23 de diciembre de 2026/);
+
+    // 2. Período terminado (reproducción de la revisión de Codex): sin promesa de activación.
+    ({ view, step } = both([
+        { product: 'ecf', status: 'unavailable', message: ENDED, action: null },
+        { product: 'cumplimiento', status: 'unavailable', message: ENDED, action: null },
+    ], '2025-01-01T04:00:00+00:00'));
+    assert.equal(view.title, 'Tus aplicaciones no están disponibles');
+    assert.equal(view.message, ENDED);
+    assert.equal(view.tone, 'notice');
+    assert.equal(view.primary, null);
+    assert.equal(view.waiting, false);
+    assert.doesNotMatch(view.message + view.title, /Podrás activar|confirmó el pago/);
+    assert.deepEqual([step.state, step.text, step.action], ['problem', ENDED, null], 'misma explicación en «Administrar»');
+
+    // 3. Conexión en revisión mientras el resto espera la fecha: se conservan ambos motivos.
+    ({ view, step } = both([
+        { product: 'ecf', status: 'pending', message: HOLD, action: null },
+        { product: 'pos', status: 'unavailable', message: REVIEW, action: null },
+    ]));
+    assert.equal(view.title, 'LAUDA confirmó el pago');
+    assert.ok(view.message.endsWith(`POS: ${REVIEW}`), view.message);
+    assert.ok(step.text.endsWith(REVIEW), step.text);
+
+    // 3b. Conexión en revisión sin pendientes: solo el motivo, sin promesa.
+    ({ view, step } = both([
+        { product: 'ecf', status: 'ready', action: { label: 'Abrir e-CF', url: '/ecf' } },
+        { product: 'pos', status: 'unavailable', message: REVIEW, action: null },
+    ]));
+    assert.equal(view.title, 'POS no está disponible');
+    assert.equal(view.message, REVIEW);
+    assert.deepEqual([step.state, step.text], ['problem', REVIEW]);
+
+    // 4. Acción de conformidad del servidor: «Ya puedes activar».
+    const consent = { label: 'Revisar la implementación', url: '/impl' };
+    ({ view, step } = both([{ product: 'ecf', status: 'consent_required', action: consent }]));
+    assert.equal(view.title, 'Ya puedes activar tu nuevo paquete');
+    assert.deepEqual(view.primary, consent);
+    assert.deepEqual([step.text, step.action], ['Ya puedes activar tu nuevo paquete.', consent]);
+
+    // 5. La compra anterior (sin reemplazo) cuando su período terminó.
+    const old = purchaseView({ ...purchase([
+        { product: 'ecf', status: 'unavailable', message: ENDED, action: null },
+        { product: 'bys', status: 'unavailable', message: ENDED, action: null },
+    ]), previous_package_url: null });
+    assert.deepEqual([old.title, old.message, old.tone], ['Tus aplicaciones no están disponibles', ENDED, 'notice']);
+
+    // Motivos distintos: se remite al detalle de cada aplicación.
+    const mixed = purchaseView({ ...purchase([
+        { product: 'ecf', status: 'unavailable', message: ENDED, action: null },
+        { product: 'bys', status: 'unavailable', message: REVIEW, action: null },
+    ]), previous_package_url: null });
+    assert.equal(mixed.message, 'Revisa el motivo indicado en cada aplicación.');
+});
+
 test('identificador de la compra nueva desde purchase_url', () => {
     assert.equal(purchaseIdFrom('/app/business/self-service?compra=0b9a5a3e-9c0e-4bb5-9d9e-1d4d1d0c0b11'), '0b9a5a3e-9c0e-4bb5-9d9e-1d4d1d0c0b11');
     assert.equal(purchaseIdFrom(null), null);

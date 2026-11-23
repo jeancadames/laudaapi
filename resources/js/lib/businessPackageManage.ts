@@ -1,3 +1,4 @@
+import { paidAccess } from '@/lib/businessPackageAccess';
 import { selfServiceRequest } from '@/lib/businessSelfService';
 import type {
     Cycle,
@@ -189,6 +190,7 @@ export function changeProgress(
     purchase: Purchase,
     startText: string,
     money: (cents: number) => string,
+    names: Partial<Record<Product, string>> = {},
 ): { payment: ChangeStep; activation: ChangeStep } {
     const payment = purchase.payment;
     const pay: ChangeStep = (() => {
@@ -240,44 +242,45 @@ export function changeProgress(
                 action: null,
             },
         };
-    const access = purchase.access;
-    const find = (status: string) =>
-        access.find((row) => row.status === status && row.action);
-    const consent = find('consent_required');
-    const link = find('link_required');
-    const blocked = access.find((row) => row.status === 'unavailable');
-    const activation: ChangeStep =
-        access.length && access.every((row) => row.status === 'ready')
-            ? {
-                  state: 'done',
-                  text: 'Tu nuevo paquete está activo.',
-                  action: null,
-              }
-            : consent
-              ? {
+    // Misma lectura que «Ver mi paquete» (paidAccess): mismo motivo en ambas pantallas.
+    const state = paidAccess(
+        purchase.access.map((row) => ({
+            ...row,
+            name: names[row.product] ?? row.product,
+        })),
+    );
+    const waiting = `Podrás activarlo a partir del ${startText}. Hasta entonces sigues usando tu paquete actual.`;
+    const activation: ChangeStep = (() => {
+        switch (state.kind) {
+            case 'ready':
+                return {
+                    state: 'done',
+                    text: 'Tu nuevo paquete está activo.',
+                    action: null,
+                };
+            case 'consent':
+                return {
                     state: 'todo',
                     text: 'Ya puedes activar tu nuevo paquete.',
-                    action: consent.action,
-                }
-              : link
-                ? {
-                      state: 'todo',
-                      text: 'Falta vincular tu cuenta y empresa en una aplicación nueva.',
-                      action: link.action,
-                  }
-                : blocked
-                  ? {
-                        state: 'problem',
-                        text:
-                            'message' in blocked
-                                ? blocked.message
-                                : 'Una aplicación requiere revisión de LAUDA.',
-                        action: blocked.action,
-                    }
-                  : {
-                        state: 'waiting',
-                        text: `Podrás activarlo a partir del ${startText}. Hasta entonces sigues usando tu paquete actual.`,
-                        action: null,
-                    };
+                    action: state.action,
+                };
+            case 'link':
+                return {
+                    state: 'todo',
+                    text: 'Falta vincular tu cuenta y empresa en una aplicación nueva.',
+                    action: state.action,
+                };
+            case 'waiting':
+                return {
+                    state: 'waiting',
+                    text: state.reason ? `${waiting} ${state.reason}` : waiting,
+                    action: null,
+                };
+            case 'unavailable':
+                return { state: 'problem', text: state.reason, action: null };
+            case 'none':
+                return { state: 'waiting', text: waiting, action: null };
+        }
+    })();
     return { payment: pay, activation };
 }

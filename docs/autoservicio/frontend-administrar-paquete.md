@@ -42,3 +42,12 @@ Frontend de Claude sobre `6eeb380` (rama `claude/administrar-mi-paquete`). Larav
 8. **Sin verificar.**
    - La pantalla de la compra anterior cuando ya venció (todos los accesos `unavailable`).
    - A qué compra apunta `last_purchase_url` de Inicio después de un cambio.
+
+## Revisión de Codex (`revision-codex-administrar-paquete.md`)
+
+- **1. Paquete vencido: hecho.** `paidAccess` (`resources/js/lib/businessPackageAccess.ts`) es la lectura de accesos que usan «Ver mi paquete» y «Administrar». Funciona así:
+  - Si nada queda pendiente y hay accesos `unavailable`, se muestra el motivo de Laravel sin prometer una activación («Tus aplicaciones no están disponibles» y «El período contratado para este paquete terminó.»).
+  - La conexión en revisión conserva su motivo y nombra la aplicación cuando el resto espera la fecha.
+  - «Ya puedes activar» solo aparece con la acción de conformidad del servidor.
+- **2. Precio: hecho.** La tarjeta «Tu paquete» dice «Precio de esta compra». Falta el importe del período vigente, que entregará Codex.
+- **3. Zona contractual: pendiente.** Se usará la zona de la compra cuando Laravel la entregue. Mientras tanto se mantiene `America/Santo_Domingo`.

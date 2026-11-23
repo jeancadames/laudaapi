@@ -1,3 +1,4 @@
+import { paidAccess } from '@/lib/businessPackageAccess';
 import { formatMoney } from '@/lib/businessPackageCopy';
 import { changeDate, replacementStart } from '@/lib/businessPackageManage';
 import type { Access, Product, Purchase } from '@/types/businessSelfService';
@@ -10,7 +11,13 @@ import type { Access, Product, Purchase } from '@/types/businessSelfService';
 
 type Link = { label: string; url: string };
 
-export type PurchaseTone = 'progress' | 'action' | 'success' | 'problem';
+/** `notice`: estado definitivo sin error (por ejemplo, el período terminó). */
+export type PurchaseTone =
+    | 'progress'
+    | 'action'
+    | 'success'
+    | 'problem'
+    | 'notice';
 
 export type AccessRow = {
     product: Product;
@@ -164,60 +171,80 @@ function paidView(access: AccessRow[], startDay: string | null): PurchaseView {
               (status) =>
                   actionable.find((row) => row.status === status)?.action,
           ).find(Boolean) ?? null);
-    const pending = access.filter((row) => row.status === 'pending');
-    const needsStep = access.some((row) =>
-        ['link_required', 'consent_required'].includes(row.status),
-    );
+    const view = (
+        tone: PurchaseTone,
+        title: string,
+        message: string,
+        waiting = false,
+    ): PurchaseView => ({ tone, title, message, primary, waiting, access });
+    const state = paidAccess(access);
 
-    if (access.length && access.every((row) => row.status === 'ready'))
-        return {
-            tone: 'success',
-            title:
+    switch (state.kind) {
+        case 'ready':
+            return view(
+                'success',
                 access.length === 1
                     ? 'Tu aplicación está lista'
                     : 'Tus aplicaciones están listas',
-            message: 'Pago recibido y acceso disponible.',
-            primary,
-            waiting: false,
-            access,
-        };
-    if (startDay && !access.every((row) => row.status === 'ready')) {
-        // «LAUDA confirmó el pago» y «ya puedes activar» son momentos distintos.
-        const consent = access.some((row) => row.status === 'consent_required');
-        if (consent || !needsStep)
-            return {
-                tone: consent ? 'action' : 'success',
-                title: consent
-                    ? 'Ya puedes activar tu nuevo paquete'
-                    : 'LAUDA confirmó el pago',
-                message: consent
-                    ? 'LAUDA confirmó el pago. Revisa la implementación para activar tus aplicaciones.'
-                    : `Podrás activar tu nuevo paquete a partir del ${startDay}. Hasta entonces sigues usando tu paquete actual.`,
-                primary,
-                waiting: false,
-                access,
-            };
+                'Pago recibido y acceso disponible.',
+            );
+        case 'consent':
+            // «LAUDA confirmó el pago» y «ya puedes activar» son momentos distintos.
+            return startDay
+                ? view(
+                      'action',
+                      'Ya puedes activar tu nuevo paquete',
+                      'LAUDA confirmó el pago. Revisa la implementación para activar tus aplicaciones.',
+                  )
+                : view('action', 'Pago recibido: falta un paso', STEP_MESSAGE);
+        case 'link':
+            return view(
+                'action',
+                startDay
+                    ? 'LAUDA confirmó el pago: falta un paso'
+                    : 'Pago recibido: falta un paso',
+                STEP_MESSAGE,
+            );
+        case 'waiting': {
+            const reason = state.reason ? ` ${state.reason}` : '';
+            return startDay
+                ? view(
+                      'success',
+                      'LAUDA confirmó el pago',
+                      `Podrás activar tu nuevo paquete a partir del ${startDay}. Hasta entonces sigues usando tu paquete actual.${reason}`,
+                  )
+                : view(
+                      'progress',
+                      'Pago recibido',
+                      `Estamos activando tus aplicaciones. No necesitas hacer nada más por ahora; aquí verás cuándo puedes abrirlas.${reason}`,
+                      true,
+                  );
+        }
+        case 'unavailable': {
+            // Sin pendientes: se muestra el motivo de Laravel, sin prometer una activación.
+            const blocked = access.filter(
+                (row) => row.status === 'unavailable',
+            );
+            return view(
+                'notice',
+                state.partial
+                    ? blocked.length === 1
+                        ? `${blocked[0].name} no está disponible`
+                        : 'Algunas aplicaciones no están disponibles'
+                    : access.length === 1
+                      ? 'Tu aplicación no está disponible'
+                      : 'Tus aplicaciones no están disponibles',
+                state.reason,
+            );
+        }
+        case 'none':
+            return view(
+                'action',
+                'Pago recibido',
+                'Revisa el estado de cada aplicación.',
+            );
     }
-    if (needsStep)
-        return {
-            tone: 'action',
-            title: startDay
-                ? 'LAUDA confirmó el pago: falta un paso'
-                : 'Pago recibido: falta un paso',
-            message:
-                'Para abrir tus aplicaciones, completa lo que se indica en cada una. No se te cobrará de nuevo.',
-            primary,
-            waiting: false,
-            access,
-        };
-    return {
-        tone: pending.length ? 'progress' : 'action',
-        title: 'Pago recibido',
-        message: pending.length
-            ? 'Estamos activando tus aplicaciones. No necesitas hacer nada más por ahora; aquí verás cuándo puedes abrirlas.'
-            : 'Revisa el estado de cada aplicación.',
-        primary,
-        waiting: pending.length > 0,
-        access,
-    };
 }
+
+const STEP_MESSAGE =
+    'Para abrir tus aplicaciones, completa lo que se indica en cada una. No se te cobrará de nuevo.';
