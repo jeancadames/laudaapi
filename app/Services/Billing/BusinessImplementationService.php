@@ -123,6 +123,12 @@ final class BusinessImplementationService
         $actions = $order ? array_keys(array_filter(self::TRANSITIONS, fn ($states) => isset($states[$order->status]))) : ['request'];
         $actions = array_values(array_filter($actions, fn ($action) => $this->allowed($action, $admin)
             && (! in_array($action, ['start', 'resume', 'deliver', 'complete'], true) || $hold === null)));
+        $guided = ! $admin && $quote->isGuidedPackage() && config('business_commercial.activation_enabled')
+            && (! $order || ($order->status === 'completed' && $order->events()->where('version', 1)->where('action', 'complete')->exists()));
+        if ($guided && ! $order) {
+            $hold ??= app(BusinessContractActivationService::class)->guidedHold($quote, $checkout->id);
+            $actions = $hold === null ? ['complete'] : [];
+        }
         if (! $order && ($this->identityHold($quote) !== null || ! in_array($invoice['status'], ['issued', 'overdue', 'paid'], true))) {
             $actions = [];
         }
@@ -130,6 +136,8 @@ final class BusinessImplementationService
         return [
             'quote' => $this->quotes->details($quote), 'invoice' => $invoice, 'admin' => $admin,
             'activation_url' => config('business_commercial.activation_enabled') ? route($admin ? 'admin.business_activation.show' : 'business.quotes.activation.show', $publicId, false) : null,
+            'guided' => $guided,
+            'purchase_url' => $guided ? route('business.package.build', ['compra' => $publicId], false) : null,
             'payment_hold' => $hold, 'actions' => $actions,
             'action_url' => route($admin ? 'admin.business_implementations.update' : 'business.quotes.implementation.store', $publicId, false),
             'order' => $order ? [
@@ -177,13 +185,20 @@ final class BusinessImplementationService
             }
             abort_unless((int) $data['version'] === ($order?->lock_version ?? 0), 409, 'Otra persona actualizó la implementación. Recarga antes de continuar.');
             $from = $order?->status;
-            if ($action === 'request') {
+            $guided = ! $order && ! $admin && $quote->isGuidedPackage() && config('business_commercial.activation_enabled');
+            abort_if($guided && $action === 'request', 409, 'Completa la vinculación y confirma la implementación guiada.');
+            if ($guided && $action === 'complete') {
+                $hold = $this->identityHold($quote) ?? $this->paymentHold($checkout, $invoice, true)
+                    ?? app(BusinessContractActivationService::class)->guidedHold($quote, $checkout->id);
+                abort_if($hold !== null, 409, $hold ?? '');
+            }
+            if ($action === 'request' || ($guided && $action === 'complete')) {
                 abort_if($this->identityHold($quote) !== null, 409, 'La empresa requiere revisión.');
                 abort_unless(in_array($invoice['status'], ['issued', 'overdue', 'paid'], true), 409, 'La factura no permite solicitar implementación.');
                 $order = BusinessImplementationOrder::create([
                     'service_quote_checkout_id' => $checkout->id, 'created_by' => $actor->id,
                     'snapshot_hash' => $receipt->snapshot_hash, 'scope_snapshot' => $receipt->snapshot,
-                    'status' => 'queued', 'lock_version' => 1,
+                    'status' => $guided ? 'completed' : 'queued', 'lock_version' => 1,
                 ]);
             } else {
                 $to = self::TRANSITIONS[$action][$from ?? ''] ?? null;
@@ -210,6 +225,10 @@ final class BusinessImplementationService
                 'data' => ['event_id' => $event->id, 'invoice_id' => $checkout->invoice_id, 'snapshot_hash' => $receipt->snapshot_hash,
                     'from' => $from, 'to' => $order->status, 'version' => $order->lock_version],
             ]);
+
+            if ($guided && $action === 'complete') {
+                app(BusinessContractActivationService::class)->activateGuided($actor, $quote, $order->lock_version, $data['idempotency_key']);
+            }
 
             return $order;
         }, 3);

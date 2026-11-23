@@ -100,6 +100,22 @@ final class BusinessContractActivationService
         return $solutions;
     }
 
+    public function guidedHold(ServiceCommercialQuote $quote, int $checkoutId): ?string
+    {
+        if (! $quote->isGuidedPackage() || ! config('business_commercial.activation_enabled')
+            || ! Schema::hasTable('business_contracts') || ! Schema::hasTable('business_contract_items')
+            || ! Schema::hasTable('business_identity_links') || ! Schema::hasTable('business_identity_members')) {
+            return 'La activación guiada todavía no está disponible.';
+        }
+        foreach ($this->readiness($quote) as $solution) {
+            if (! $solution['ready']) {
+                return $solution['reason'];
+            }
+        }
+
+        return $this->transitionReason($quote, $checkoutId);
+    }
+
     private function transitionReason(ServiceCommercialQuote $quote, int $checkoutId): ?string
     {
         if (isset($quote->snapshot['transition'])) {
@@ -192,16 +208,33 @@ final class BusinessContractActivationService
 
     public function activate(User $actor, string $publicId, array $data): BusinessContract
     {
-        $quote = $this->quote($actor, $publicId, true);
+        return $this->createContract($actor, $publicId, $data, false);
+    }
+
+    public function activateGuided(User $actor, ServiceCommercialQuote $quote, int $version, string $key): BusinessContract
+    {
+        abort_unless($quote->isGuidedPackage() && $actor->role === 'subscriber', 403);
+
+        return $this->createContract($actor, $quote->public_id, [
+            'snapshot_hash' => BusinessQuoteAcceptanceService::fingerprint($quote), 'implementation_version' => $version,
+            'idempotency_key' => $key, 'technical_evidence' => array_fill_keys(array_keys($quote->snapshot['products']),
+                'Vínculo bilateral y membresía verificados al confirmar la implementación guiada.'),
+        ], true);
+    }
+
+    private function createContract(User $actor, string $publicId, array $data, bool $guided): BusinessContract
+    {
+        $quote = $this->quote($actor, $publicId, ! $guided);
         $notes = $data['technical_evidence'];
         ksort($notes);
         $hash = hash('sha256', json_encode([(int) $actor->id, $data['snapshot_hash'], (int) $data['implementation_version'], $notes], JSON_THROW_ON_ERROR));
 
-        return DB::transaction(function () use ($quote, $actor, $data, $notes, $hash): BusinessContract {
+        return DB::transaction(function () use ($quote, $actor, $data, $notes, $hash, $guided): BusinessContract {
             Company::whereKey($quote->company_id)->lockForUpdate()->firstOrFail();
             Subscriber::whereKey($quote->subscriber_id)->lockForUpdate()->firstOrFail();
             $actor = User::whereKey($actor->id)->lockForUpdate()->firstOrFail();
-            $quote = $this->quote($actor, $quote->public_id, true);
+            $quote = $this->quote($actor, $quote->public_id, ! $guided);
+            abort_if($guided && (! $quote->isGuidedPackage() || $actor->role !== 'subscriber'), 403);
             // Subscriber is the mutex also used by standalone checkout and central activation.
             Subscription::where('subscriber_id', $quote->subscriber_id)->orderBy('id')->lockForUpdate()->get();
             [$receipt, $checkout, $invoice, $order] = $this->implementation->contract($quote, true);

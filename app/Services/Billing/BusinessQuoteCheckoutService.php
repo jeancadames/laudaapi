@@ -38,14 +38,22 @@ final class BusinessQuoteCheckoutService
         $quote = $this->quotes->quote($user, $publicId);
         $receipt = $this->acceptance($quote);
         $checkout = ServiceQuoteCheckout::where('service_quote_acceptance_id', $receipt->id)->first();
+        $invoice = $checkout ? $this->invoiceDetails($checkout, $receipt) : null;
+        $isPackage = isset($receipt->snapshot['self_service']['proposal_ref']);
+        $showImplementation = $checkout && config('business_commercial.implementation_enabled')
+            && (! $isPackage || ($invoice['balance_cents'] === 0
+                && app(BusinessImplementationService::class)->paymentHold($checkout, $invoice) === null));
 
         return [
             'quote' => $this->quotes->details($quote),
+            'purchase_url' => $checkout && $isPackage
+                ? route('business.package.build', ['compra' => $quote->public_id], false) : null,
+            'transfer' => $checkout ? app(BusinessTransferProofs::class)->form($quote, $checkout) : null,
             'amounts' => $this->amounts->fromSnapshot($receipt->snapshot),
-            'invoice' => $checkout ? $this->invoiceDetails($checkout, $receipt) : null,
+            'invoice' => $invoice,
             'unavailable_reason' => $checkout ? null : $this->unavailableReason($receipt),
             'create_url' => route('business.quotes.checkout.store', $publicId, false),
-            'implementation_url' => $checkout && config('business_commercial.implementation_enabled')
+            'implementation_url' => $showImplementation
                 ? route('business.quotes.implementation.show', $publicId, false) : null,
         ];
     }
@@ -199,7 +207,7 @@ final class BusinessQuoteCheckoutService
             409, 'La factura requiere revisión; sus importes o referencias cambiaron.');
         $paid = $this->amounts->cents($invoice->amount_paid);
         $balance = max(0, $amounts['total_cents'] - $paid);
-        $url = $invoice->payment_url;
+        $url = isset($receipt->snapshot['self_service']) ? null : $invoice->payment_url;
         $parts = is_string($url) ? parse_url($url) : false;
         $canPay = in_array($invoice->status, ['issued', 'overdue'], true) && $balance > 0;
         $safeUrl = $parts && ($parts['scheme'] ?? null) === 'https' && ! empty($parts['host'])

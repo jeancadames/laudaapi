@@ -3,6 +3,8 @@
 namespace App\Http\Controllers;
 
 use App\Models\DiagnosisAccessRequest;
+use App\Services\Billing\BusinessPackagePurchases;
+use App\Services\BusinessIdentity\CentralMembership;
 use App\Services\Ecosystem\EcosystemHubService;
 use App\Services\Ecosystem\TransformationControlPanelService;
 use App\Services\Subscribers\CompanyContextResolver;
@@ -115,6 +117,22 @@ class AppGatewayController extends Controller
                     }
 
                     if (! $request->routeIs('app.control')) {
+                        $entry = [];
+                        if (config('business_commercial.enabled') && ($tenantAccess['can_manage_billing'] ?? false)
+                            && in_array(app(CentralMembership::class)->role($user, $company), ['owner', 'admin'], true)) {
+                            $purchases = app(BusinessPackagePurchases::class);
+                            $pending = $purchases->pendingId($company);
+                            $activated = $purchases->lastActivatedId($company);
+                            $entry['business_self_service'] = [
+                                'configurator_url' => route('business.package.build', absolute: false),
+                                'last_purchase_url' => $activated ? route('business.package.build', ['compra' => $activated], false) : null,
+                                'pending_purchase' => $pending ? [
+                                    'id' => $pending, 'message' => 'Puedes retomar tu compra desde aquí.',
+                                    'next_action' => ['type' => 'review', 'label' => 'Ver mi compra',
+                                        'url' => route('business.package.build', ['compra' => $pending], false)],
+                                ] : null,
+                            ];
+                        }
                         return Inertia::render('App/Home', [
                             'company' => [
                                 'id' => $company->id,
@@ -124,6 +142,7 @@ class AppGatewayController extends Controller
                                     ?? 'Mi empresa',
                                 'subscriber_id' => $company->subscriber_id,
                             ],
+                            ...$entry,
                             'groups' => $groups,
                             'tenant_access' => $tenantAccess,
                         ]);

@@ -11,7 +11,7 @@ use Symfony\Component\HttpKernel\Exception\HttpException;
 
 final class IdentityPage
 {
-    public function data(?User $user): array
+    public function data(?User $user, ?int $companyId = null): array
     {
         $enabled = (bool) config('business_identity.enabled') && Schema::hasTable('business_identity_proofs');
         $companies = [];
@@ -21,7 +21,7 @@ final class IdentityPage
         }
         if ($enabled && $user?->hasVerifiedEmail()) {
             $memberships = $user->subscribers()->where('subscribers.active', true)->wherePivot('active', true)->get();
-            foreach (Company::whereIn('subscriber_id', $memberships->modelKeys())->where('active', true)->orderBy('name')->get() as $company) {
+            foreach (Company::whereIn('subscriber_id', $memberships->modelKeys())->when($companyId !== null, fn ($q) => $q->whereKey($companyId))->where('active', true)->orderBy('name')->get() as $company) {
                 $role = $memberships->firstWhere('id', $company->subscriber_id)->pivot->role;
                 $canManage = in_array($role, ['owner', 'admin'], true);
                 $services = [];

@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import BusinessTransferProofForm from '@/components/BusinessTransferProofForm.vue';
 import BusinessTransitionSummary from '@/components/BusinessTransitionSummary.vue';
 import AppLayout from '@/layouts/AppLayout.vue';
 import { Button } from '@/components/ui/button';
@@ -125,9 +126,9 @@ async function createInvoice() {
         <div class="mx-auto w-full max-w-5xl space-y-8 px-5 py-8 sm:px-8">
             <header class="space-y-3">
                 <Link
-                    :href="quote.url"
+                    :href="current.purchase_url ?? quote.url"
                     class="inline-flex min-h-11 items-center text-sm text-muted-foreground underline underline-offset-4"
-                    >Volver a la cotización</Link
+                    >{{ current.purchase_url ? 'Volver a mi compra' : 'Volver a la cotización' }}</Link
                 >
                 <p class="text-sm font-medium break-words">
                     {{ quote.company_name }}
@@ -304,10 +305,14 @@ async function createInvoice() {
                             "
                             class="text-sm leading-6"
                         >
-                            No hay saldo pendiente. La activación de las
-                            soluciones y el inicio de la implementación se
-                            coordinan por separado.
+                            <template v-if="current.transfer">Factura cubierta. Continúa con la implementación de tus aplicaciones.</template>
+                            <template v-else>No hay saldo pendiente. La activación de las soluciones y el inicio de la implementación se coordinan por separado.</template>
                         </p>
+                        <BusinessTransferProofForm
+                            v-else-if="current.transfer"
+                            :transfer="current.transfer"
+                            :purchase-id="quote.public_id"
+                        />
                         <Button
                             v-else-if="invoice.payment_url"
                             as-child

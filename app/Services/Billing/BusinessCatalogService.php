@@ -82,6 +82,7 @@ final class BusinessCatalogService
             $locked = $this->lock($version, $lockVersion);
             $this->rules->require($locked->status === 'draft', 'status', 'Solo se publica un borrador.');
             $payload = $locked->payload;
+            $payload['tax_rate'] ??= 0;
             $this->rules->validate($payload, true);
             $ids = [];
             foreach ($payload['products'] as $code => $product) {
@@ -101,7 +102,7 @@ final class BusinessCatalogService
             $latest = ServiceCatalogVersion::where('service_catalog_id', $locked->service_catalog_id)->whereNotNull('published_at')->max('effective_at');
             $this->rules->require($latest === null || $effective->greaterThan(CarbonImmutable::parse($latest)), 'effective_at', 'La nueva publicación debe ser posterior a las vigencias ya programadas.');
             $before = $locked->toArray();
-            $locked->update(['status' => 'published', 'effective_at' => $effective->utc(),
+            $locked->update(['payload' => $payload, 'status' => 'published', 'effective_at' => $effective->utc(),
                 'published_at' => CarbonImmutable::now('UTC'), 'published_by' => $actor, 'lock_version' => $locked->lock_version + 1]);
             $this->audit($locked, 'business.catalog.published', $before, $locked->toArray(), $actor);
 
@@ -125,6 +126,11 @@ final class BusinessCatalogService
     public function preview(ServiceCatalogVersion $version, array $selection, ?Company $company): array
     {
         $quote = $this->calculator->calculate($version->payload, $selection, CarbonImmutable::now('UTC'), $company?->id);
+        return $this->withCommercialContext($quote, $version, $company);
+    }
+
+    private function withCommercialContext(array $quote, ServiceCatalogVersion $version, ?Company $company): array
+    {
         $quote['catalog_version_id'] = $version->id;
         $quote['catalog_version'] = $version->version;
         $quote['catalog_lock_version'] = $version->lock_version;
@@ -148,9 +154,9 @@ final class BusinessCatalogService
         return $quote;
     }
 
-    public function issue(ServiceCatalogVersion $version, int $lockVersion, Company $company, array $selection, string $key, int $actor, ?array $transition = null): ServiceCommercialQuote
+    public function issue(ServiceCatalogVersion $version, int $lockVersion, Company $company, array $selection, string $key, int $actor, ?array $transition = null, ?array $packagePreview = null): ServiceCommercialQuote
     {
-        return DB::transaction(function () use ($version, $lockVersion, $company, $selection, $key, $actor, $transition) {
+        return DB::transaction(function () use ($version, $lockVersion, $company, $selection, $key, $actor, $transition, $packagePreview) {
             // Uniform lock order: catalogue, company, quote. A repeated issuance
             // returns its original snapshot even after retirement or expiry.
             ServiceCatalog::whereKey($version->service_catalog_id)->lockForUpdate()->firstOrFail();
@@ -160,6 +166,9 @@ final class BusinessCatalogService
             $fingerprint['addons'] ??= [];
             ksort($fingerprint['addons']);
             $hashInput = [$version->id, $lockVersion, $fingerprint];
+            if ($packagePreview !== null) {
+                $hashInput[] = hash('sha256', $packagePreview['proposal_ref']);
+            }
             if ($transition !== null) {
                 $hashInput[] = BusinessTransitionService::hash($transition);
             }
@@ -177,7 +186,8 @@ final class BusinessCatalogService
             $subscriber = Subscriber::whereKey($company->subscriber_id)->lockForUpdate()->first();
             $this->rules->require($subscriber !== null && (bool) $subscriber->active, 'company', 'El Subscriber debe estar activo.');
             $this->rules->require($company->currency === $locked->payload['currency'] && $subscriber->currency === $locked->payload['currency'], 'company', 'La moneda de Company y Subscriber debe coincidir con la cotización; no se convierte automáticamente.');
-            $snapshot = $this->preview($locked, $selection, $company);
+            $snapshot = $packagePreview === null ? $this->preview($locked, $selection, $company)
+                : $this->withCommercialContext(app(BusinessPackagePricing::class)->contractSnapshot($locked, $company, $packagePreview), $locked, $company);
             $services = Service::whereIn('id', array_column($snapshot['products'], 'service_id'))->orderBy('id')->lockForUpdate()->get()->keyBy('id');
             foreach ($snapshot['products'] as $code => $product) {
                 $service = $services->get($product['service_id']);

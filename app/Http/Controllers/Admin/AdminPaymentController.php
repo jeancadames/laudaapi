@@ -4,6 +4,8 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\Payment;
+use App\Services\Billing\BusinessTransferProofs;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 
@@ -98,6 +100,16 @@ class AdminPaymentController extends Controller
         });
 
         return Inertia::render('Admin/Payments/Index', [
+            'transferProofs' => BusinessTransferProofs::available()
+                ? DB::table('business_transfer_proofs as proof')->join('invoices as i', 'i.id', '=', 'proof.invoice_id')
+                    ->join('companies as c', 'c.id', '=', 'i.company_id')->where('proof.status', 'pending')->orderBy('proof.id')
+                    ->simplePaginate(10, ['proof.id', 'proof.reference', 'i.number', 'i.currency', 'c.name as company'], 'proof_page')
+                    ->withQueryString()->through(fn ($proof) => [
+                        'id' => $proof->id, 'reference' => $proof->reference, 'invoice' => $proof->number,
+                        'company' => $proof->company, 'currency' => $proof->currency,
+                        'file_url' => route('admin.business_transfer.file', $proof->id, false),
+                        'review_url' => route('admin.business_transfer.review', $proof->id, false),
+                    ]) : null,
             'payments' => $payments,
             'filters' => [
                 'search' => $search,

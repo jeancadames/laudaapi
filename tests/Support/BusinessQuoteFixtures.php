@@ -60,7 +60,7 @@ final class BusinessQuoteFixtures
         throw new \RuntimeException('Synthetic Business database required; no fallback is allowed.');
     }
 
-    public static function seed(): ServiceCommercialQuote
+    public static function seed(float $taxRate = 0.18): ServiceCommercialQuote
     {
         config()->set('business_commercial.enabled', true);
         $password = Hash::make('business-synthetic-only', ['rounds' => 4]);
@@ -81,7 +81,7 @@ final class BusinessQuoteFixtures
         unset($product);
         $payload['terms'] = 'Condiciones ficticias de QA. La aceptación conserva el precio y el alcance aquí indicados. Facturación y activación se tramitan por separado.';
         $payload['quote_valid_days'] = 15;
-        $payload['tax_rate'] = 0.18;
+        $payload['tax_rate'] = $taxRate;
         $catalog = ServiceCatalog::create(['code' => 'business']);
         $version = ServiceCatalogVersion::create(['service_catalog_id' => $catalog->id, 'version' => 1, 'payload' => $payload, 'status' => 'draft', 'created_by' => 4]);
         $version = app(BusinessCatalogService::class)->publish($version, 1, null, 4);

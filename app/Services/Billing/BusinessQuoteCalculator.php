@@ -14,6 +14,7 @@ final class BusinessQuoteCalculator
 
     public function calculate(array $catalog, array $selection, DateTimeImmutable $at, ?int $companyId = null, bool $recommend = true): array
     {
+        $catalog['tax_rate'] ??= 0;
         $this->rules->validate($catalog);
         $offerCode = $selection['offer'] ?? '';
         $level = $selection['level'] ?? '';
@@ -94,14 +95,11 @@ final class BusinessQuoteCalculator
             $discountSnapshot = ['code' => $discountCode] + $discount;
         }
 
-        $taxSnapshot = null;
-        if ($catalog['tax_rate'] !== null) {
-            $taxSnapshot = [];
-            foreach (['recurring' => $recurrence, 'one_time' => $oneTime] as $kind => $amount) {
-                $taxSnapshot[$kind] = $this->taxes->computeLine([
-                    'quantity' => 1, 'unit_price' => $amount / 100, 'tax_rate' => (float) $catalog['tax_rate'],
-                ], (float) $catalog['tax_rate']);
-            }
+        $taxSnapshot = [];
+        foreach (['recurring' => $recurrence, 'one_time' => $oneTime] as $kind => $amount) {
+            $taxSnapshot[$kind] = $this->taxes->computeLine([
+                'quantity' => 1, 'unit_price' => $amount / 100, 'tax_rate' => (float) $catalog['tax_rate'],
+            ], (float) $catalog['tax_rate']);
         }
         $quote = [
             'schema_version' => 1, 'currency' => $catalog['currency'], 'timezone' => $catalog['timezone'],

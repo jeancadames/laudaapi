@@ -11,7 +11,16 @@ export type CheckoutInvoice = {
     payments: { amount_cents: number; paid_at: string }[];
 };
 
+export type BusinessTransfer = {
+    instructions: string | null;
+    status: 'pending' | 'approved' | 'rejected' | null;
+    reason: string | null;
+    submit_url: string;
+};
+
 export type BusinessQuoteCheckout = {
+    purchase_url: string | null;
+    transfer?: BusinessTransfer | null;
     quote: BusinessQuoteDetail;
     amounts: {
         lines: Record<

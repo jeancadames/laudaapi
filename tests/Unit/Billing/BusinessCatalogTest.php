@@ -274,10 +274,13 @@ final class BusinessCatalogTest extends TestCase
         $this->quote(['discount' => 'agreement'], $catalog, 20);
     }
 
-    public function test_tax_is_pending_until_explicit_and_uses_existing_fiscal_calculator(): void
+    public function test_business_starts_without_tax_and_applies_the_configured_rate(): void
     {
-        $this->assertNull($this->quote()['taxes']);
         $catalog = BusinessCatalogSeeder::initialPayload();
+        $this->assertSame(0, $catalog['tax_rate']);
+        $fiscal = $this->quote(['offer' => 'fiscal'], $catalog);
+        $this->assertSame(0.0, $fiscal['taxes']['recurring']['tax_amount']);
+        $this->assertSame(2000.0, $fiscal['taxes']['recurring']['line_total']);
         $catalog['tax_rate'] = 0.18; // Fixture, not a default or a legal determination.
         $quote = $this->quote(['implementation' => 'assisted'], $catalog);
         $this->assertSame(630.0, $quote['taxes']['recurring']['tax_amount']);

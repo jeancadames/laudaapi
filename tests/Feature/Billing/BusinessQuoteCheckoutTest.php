@@ -10,6 +10,7 @@ use App\Models\ServiceCommercialQuote;
 use App\Models\ServiceQuoteAcceptance;
 use App\Models\ServiceQuoteCheckout;
 use App\Models\User;
+use App\Services\Billing\BusinessCatalogService;
 use App\Services\Billing\BusinessQuoteAcceptanceService;
 use App\Services\Billing\BusinessQuoteCalculator;
 use App\Services\Billing\InvoiceReconciliationService;
@@ -104,7 +105,8 @@ final class BusinessQuoteCheckoutTest extends TestCase
         $this->withoutExceptionHandling();
         $receipt = $this->accept();
         $response = $this->postJson($this->url(), [...$this->payload(), 'total' => 1, 'company_id' => 2, 'tax_rate' => 0])->assertOk();
-        $response->assertJsonPath('checkout.invoice.total_cents', 1121000)->assertJsonPath('checkout.invoice.balance_cents', 1121000);
+        $response->assertJsonPath('checkout.invoice.total_cents', 1121000)->assertJsonPath('checkout.invoice.balance_cents', 1121000)
+            ->assertJsonPath('checkout.purchase_url', null);
         $invoice = Invoice::sole();
         $this->assertSame('9500.00', $invoice->subtotal);
         $this->assertSame('1710.00', $invoice->tax_total);
@@ -124,6 +126,27 @@ final class BusinessQuoteCheckoutTest extends TestCase
         }
         Mail::assertNothingSent();
         Notification::assertNothingSent();
+    }
+
+    public function test_a_draft_without_a_tax_rate_is_published_and_invoiced_at_zero(): void
+    {
+        $catalog = app(BusinessCatalogService::class);
+        $version = ServiceCatalogVersion::sole();
+        $draft = $catalog->revise($version, $version->lock_version, 4)->refresh();
+        $payload = $draft->payload;
+        $payload['tax_rate'] = null;
+        $draft = $catalog->save($draft, $draft->lock_version, $payload, 4);
+
+        CarbonImmutable::setTestNow(CarbonImmutable::now('UTC')->addMinute());
+        $published = $catalog->publish($draft, $draft->lock_version, null, 4);
+        $this->assertSame(0, $published->fresh()->payload['tax_rate']);
+        $this->assertSame(0.18, $this->quote->fresh()->snapshot['tax_rate']);
+
+        $this->quote = BusinessQuoteFixtures::issue($published);
+        $invoice = $this->createInvoice();
+        $this->assertSame('0.00', $invoice->tax_total);
+        $this->assertSame('9500.00', $invoice->total);
+        $this->assertSame($invoice->subtotal, $invoice->total);
     }
 
     public function test_acceptance_and_explicit_confirmation_hash_and_csrf_are_required(): void

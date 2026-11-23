@@ -205,6 +205,7 @@ async function submit() {
                         {{
                             current.order
                                 ? 'El seguimiento conserva las condiciones aceptadas por tu empresa.'
+                                : current.guided ? 'Revisa la configuración de las aplicaciones vinculadas. Tu conformidad activa el paquete contratado.'
                                 : 'Solicita la coordinación del alcance aceptado. El inicio requiere que la factura esté cubierta.'
                         }}
                     </p>
@@ -239,16 +240,16 @@ async function submit() {
                             {{
                                 current.order
                                     ? `Orden #${current.order.id}`
-                                    : 'Por solicitar'
+                                    : current.guided ? 'Autoservicio' : 'Por solicitar'
                             }}
                         </p>
                         <h2 class="text-xl font-semibold">
                             {{
                                 current.order?.status_label ??
-                                'Coordinar implementación'
+                                (current.guided ? 'Implementación guiada' : 'Coordinar implementación')
                             }}
                         </h2>
-                        <p v-if="current.order" class="text-sm">
+                        <p v-if="current.order && !current.guided" class="text-sm">
                             Responsable:
                             {{
                                 current.order.assigned_name ??
@@ -321,7 +322,7 @@ async function submit() {
                                 >{{
                                     action === 'deliver'
                                         ? 'Evidencia de entrega'
-                                        : 'Detalle del cambio'
+                                        : current.guided ? '¿Qué configuración revisaste?' : 'Detalle del cambio'
                                 }}</label
                             >
                             <textarea
@@ -352,7 +353,8 @@ async function submit() {
                                 :disabled="busy || !!pending"
                                 class="mt-1 size-4 shrink-0 accent-primary"
                             />
-                            <span
+                            <span v-if="current.guided">Doy mi conformidad a la implementación y autorizo activar el paquete de {{ quote.company_name }}.</span>
+                            <span v-else
                                 >Confirmo esta acción para
                                 {{ quote.company_name }}.</span
                             >
@@ -400,7 +402,10 @@ async function submit() {
                         @click="router.reload()"
                         >Actualizar estado</Button
                     >
-                    <p class="text-xs leading-5 text-muted-foreground">
+                    <Button v-if="current.purchase_url" as-child variant="outline" class="min-h-11 w-full">
+                        <Link :href="current.purchase_url">{{ current.order?.status === 'completed' ? 'Ver mis aplicaciones' : 'Volver a mi compra' }}</Link>
+                    </Button>
+                    <p v-else class="text-xs leading-5 text-muted-foreground">
                         La activación de las soluciones y la renovación se
                         coordinan por separado.
                     </p>

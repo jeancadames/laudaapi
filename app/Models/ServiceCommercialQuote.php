@@ -15,6 +15,12 @@ class ServiceCommercialQuote extends Model
         'valid_until' => 'immutable_datetime',
     ];
 
+    public function isGuidedPackage(): bool
+    {
+        return isset($this->snapshot['self_service']['proposal_ref'])
+            && data_get($this->snapshot, 'selection.implementation') === 'guided';
+    }
+
     public function acceptance(): HasOne
     {
         return $this->hasOne(ServiceQuoteAcceptance::class);

@@ -14,6 +14,8 @@ export type BusinessImplementation = {
     quote: BusinessQuoteDetail;
     invoice: CheckoutInvoice;
     admin: boolean;
+    guided?: boolean;
+    purchase_url?: string | null;
     payment_hold: string | null;
     actions: ImplementationAction[];
     action_url: string;

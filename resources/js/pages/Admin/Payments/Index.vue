@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { Head, router } from '@inertiajs/vue3'
+import BusinessTransferReview from '@/components/BusinessTransferReview.vue'
+import { Head, Link, router } from '@inertiajs/vue3'
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 
 import AppLayout from '@/layouts/AppLayout.vue'
@@ -45,6 +46,7 @@ type Paginator<T> = {
 type Counts = Record<string, number>
 
 const props = defineProps<{
+    transferProofs?: { data: { id: number; company: string; invoice: string; currency: string; reference: string; file_url: string; review_url: string }[]; prev_page_url: string | null; next_page_url: string | null } | null
     payments: Paginator<PaymentRow>
     filters: { search: string; method: MethodFilter; status: StatusFilter }
     counts: Counts
@@ -197,6 +199,15 @@ function goPayment(id: number) {
                     <Input v-model="search" placeholder="Buscar por referencia, factura # o cliente..." class="w-full sm:w-72" />
                 </div>
             </div>
+
+            <section v-if="transferProofs && (transferProofs.data.length || transferProofs.prev_page_url)" aria-labelledby="transfer-reviews" class="rounded-xl border p-4">
+                <h2 id="transfer-reviews" class="mb-3 text-lg font-semibold">Comprobantes por revisar</h2>
+                <BusinessTransferReview v-for="proof in transferProofs.data" :key="proof.id" :proof="proof" />
+                <nav class="flex gap-5 text-sm underline" aria-label="Páginas de comprobantes">
+                    <Link v-if="transferProofs.prev_page_url" :href="transferProofs.prev_page_url">Anteriores</Link>
+                    <Link v-if="transferProofs.next_page_url" :href="transferProofs.next_page_url">Siguientes</Link>
+                </nav>
+            </section>
 
             <!-- Empty -->
             <div v-if="props.payments.data.length === 0" class="rounded-xl border p-8 text-center">

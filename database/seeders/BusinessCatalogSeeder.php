@@ -68,7 +68,7 @@ class BusinessCatalogSeeder extends Seeder
 
         return [
             'currency' => 'DOP', 'timezone' => 'America/Santo_Domingo',
-            'annual_discount_bps' => 1000, 'quote_valid_days' => null, 'tax_rate' => null,
+            'annual_discount_bps' => 1000, 'quote_valid_days' => null, 'tax_rate' => 0,
             'terms' => '', 'products' => $products, 'offers' => $offers,
             'capacity_policy' => BusinessCatalogRules::INITIAL_CAPACITY_POLICY,
             'capacities' => [
