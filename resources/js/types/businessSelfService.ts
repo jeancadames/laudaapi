@@ -155,5 +155,7 @@ export type PendingPurchaseEntry = {
 /** Entrada de Inicio (prop `business_self_service` de App/Home). */
 export type SelfServiceHomeEntry = {
     configurator_url: string;
+    /** Compra ya activada (`?compra=<uuid>`): «Ver mi paquete». Cede ante `pending_purchase`. */
+    last_purchase_url?: string | null;
     pending_purchase: PendingPurchaseEntry | null;
 };

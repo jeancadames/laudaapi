@@ -113,6 +113,34 @@ const shared = {
     quote: { message: '', author: '' },
 };
 
+/**
+ * Forma de AppGatewayController. `acceso-listo` llega ya activado (solo
+ * `last_purchase_url`); `pago-en-proceso` tiene además un paquete anterior para
+ * comprobar que la compra en curso tiene prioridad.
+ */
+function homeEntry() {
+    const id = backend.configurator().resume_purchase_id;
+    const purchaseLink = `${link('configurador')}&compra=${id}`;
+    const activated = scenario === 'acceso-listo';
+    return {
+        configurator_url: link('configurador'),
+        last_purchase_url:
+            activated || scenario === 'pago-en-proceso' ? purchaseLink : null,
+        pending_purchase:
+            id && !activated
+                ? {
+                      id,
+                      message: 'Puedes retomar tu compra desde aquí.',
+                      next_action: {
+                          type: 'review',
+                          label: 'Ver mi compra',
+                          url: purchaseLink,
+                      },
+                  }
+                : null,
+    };
+}
+
 const pages: Record<
     string,
     { component: string; props: Record<string, unknown> }
@@ -135,24 +163,7 @@ const pages: Record<
             // Laravel solo la envía a dueños y administradores.
             ...(allowed
                 ? {
-                      business_self_service: {
-                          configurator_url: link('configurador'),
-                          // Forma de AppGatewayController: retomar en la página del configurador.
-                          pending_purchase: backend.configurator()
-                              .resume_purchase_id
-                              ? {
-                                    id: backend.configurator()
-                                        .resume_purchase_id,
-                                    message:
-                                        'Puedes retomar tu compra desde aquí.',
-                                    next_action: {
-                                        type: 'review',
-                                        label: 'Ver mi compra',
-                                        url: link('configurador'),
-                                    },
-                                }
-                              : null,
-                      },
+                      business_self_service: homeEntry(),
                   }
                 : {}),
         },

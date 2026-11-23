@@ -484,7 +484,7 @@ test('pago recibido con vínculo pendiente: «Vincular mi empresa» es la acció
     assert.equal(view.title, 'Pago recibido: falta un paso');
     assert.match(view.message, /No se te cobrará de nuevo/);
     assert.deepEqual(view.primary, { label: 'Vincular mi empresa', url: '/business/identity' });
-    assert.deepEqual(view.access.map((row) => row.badge), ['Falta vincular tu empresa', 'Falta vincular tu empresa']);
+    assert.deepEqual(view.access.map((row) => row.badge), ['Falta vincular tu cuenta y empresa', 'Falta vincular tu cuenta y empresa']);
 });
 
 test('acceso disponible: cada aplicación abre con la etiqueta y URL del servidor', () => {

@@ -5,6 +5,7 @@ import {
     Boxes,
     CheckCircle2,
     LayoutGrid,
+    Package,
     PackagePlus,
     ShieldCheck,
     Sparkles,
@@ -67,9 +68,38 @@ const props = defineProps<{
 
 const breadcrumbs: BreadcrumbItem[] = [{ title: 'Inicio', href: '/app' }];
 
-const pendingPurchase = computed(
-    () => props.business_self_service?.pending_purchase ?? null,
-);
+/**
+ * Una sola acción en la tarjeta de autoservicio. Prioridad: retomar la compra en
+ * curso (no se admite otra), ver el paquete ya activado o armar uno nuevo.
+ */
+const packageEntry = computed(() => {
+    const entry = props.business_self_service;
+    const pending = entry?.pending_purchase;
+    if (pending)
+        return {
+            kind: 'pending' as const,
+            title: 'Tienes una compra en curso',
+            message: pending.message,
+            label: pending.next_action?.label ?? 'Ver mi compra',
+            url: pending.next_action?.url ?? entry.configurator_url,
+        };
+    if (entry?.last_purchase_url)
+        return {
+            kind: 'active' as const,
+            title: 'Tu paquete',
+            message: 'Revisa lo que contrataste y abre tus aplicaciones.',
+            label: 'Ver mi paquete',
+            url: entry.last_purchase_url,
+        };
+    return {
+        kind: 'build' as const,
+        title: 'Armar mi paquete',
+        message:
+            'Elige lo que necesita tu negocio y mira cuánto pagarás antes de contratar.',
+        label: 'Armar mi paquete',
+        url: entry?.configurator_url ?? '',
+    };
+});
 /** Rutas del portal navegan con Inertia; cualquier otra URL, con el navegador. */
 const isInternal = (url: string) =>
     url.startsWith('/') && !url.startsWith('//');
@@ -235,58 +265,38 @@ const appInitial = (app: Solution) =>
                             <div
                                 class="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-red-50 text-red-700 dark:bg-red-950/40 dark:text-red-300"
                             >
-                                <PackagePlus class="h-5 w-5" />
+                                <component
+                                    :is="
+                                        packageEntry.kind === 'build'
+                                            ? PackagePlus
+                                            : Package
+                                    "
+                                    class="h-5 w-5"
+                                />
                             </div>
                             <div class="min-w-0">
                                 <h2
                                     id="package-builder-title"
                                     class="text-lg font-black text-slate-950 dark:text-white"
                                 >
-                                    {{
-                                        pendingPurchase
-                                            ? 'Tienes una compra en curso'
-                                            : 'Armar mi paquete'
-                                    }}
+                                    {{ packageEntry.title }}
                                 </h2>
                                 <p
                                     class="mt-1 text-sm leading-6 text-slate-500 dark:text-slate-400"
                                 >
-                                    {{
-                                        pendingPurchase
-                                            ? pendingPurchase.message
-                                            : 'Elige lo que necesita tu negocio y mira cuánto pagarás antes de contratar.'
-                                    }}
+                                    {{ packageEntry.message }}
                                 </p>
                             </div>
                         </div>
 
                         <div class="flex shrink-0 flex-col gap-2 sm:items-end">
-                            <!-- Con una compra en curso, retomarla es lo principal: no se admite otra. -->
                             <component
-                                v-if="pendingPurchase?.next_action"
-                                :is="
-                                    isInternal(pendingPurchase.next_action.url)
-                                        ? Link
-                                        : 'a'
-                                "
-                                :href="pendingPurchase.next_action.url"
+                                :is="isInternal(packageEntry.url) ? Link : 'a'"
+                                :href="packageEntry.url"
                                 class="inline-flex h-12 items-center justify-center gap-2 rounded-xl bg-red-600 px-5 text-sm font-bold text-white transition hover:bg-red-700"
                             >
-                                {{ pendingPurchase.next_action.label }}
+                                {{ packageEntry.label }}
                             </component>
-                            <Link
-                                v-else
-                                :href="
-                                    props.business_self_service.configurator_url
-                                "
-                                class="inline-flex h-12 items-center justify-center gap-2 rounded-xl bg-red-600 px-5 text-sm font-bold text-white transition hover:bg-red-700"
-                            >
-                                {{
-                                    pendingPurchase
-                                        ? 'Ver mi compra'
-                                        : 'Armar mi paquete'
-                                }}
-                            </Link>
                         </div>
                     </div>
                 </section>
@@ -410,7 +420,16 @@ const appInitial = (app: Solution) =>
                         <p
                             class="mx-auto mt-2 max-w-lg text-sm leading-6 text-slate-500"
                         >
-                            <template v-if="props.business_self_service">
+                            <template v-if="packageEntry.kind === 'active'">
+                                Abre tus aplicaciones desde «Ver mi paquete».
+                            </template>
+                            <template
+                                v-else-if="packageEntry.kind === 'pending'"
+                            >
+                                Cuando se active tu compra, tus soluciones
+                                aparecerán aquí automáticamente.
+                            </template>
+                            <template v-else-if="props.business_self_service">
                                 Arma tu paquete y, cuando esté activo, tus
                                 soluciones aparecerán aquí automáticamente.
                             </template>

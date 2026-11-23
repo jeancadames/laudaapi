@@ -233,6 +233,7 @@ export default async ({ page, navigate, capture }) => {
     await mobile();
     await page.getByRole('heading', { name: 'Tienes una compra en curso' }).waitFor();
     assert.equal(await page.getByRole('link', { name: 'Armar mi paquete' }).count(), 0);
+    assert.equal(await page.getByRole('link', { name: 'Ver mi paquete' }).count(), 0, 'la compra en curso tiene prioridad');
     await capture('13-inicio-compra-en-curso');
     await mobile();
     await page.getByRole('link', { name: 'Ver mi compra' }).click();
@@ -262,6 +263,7 @@ export default async ({ page, navigate, capture }) => {
     await mobile();
     await purchaseHeading('Pago recibido: falta un paso');
     assert.equal(await page.getByRole('link', { name: 'Vincular mi empresa' }).count(), 1);
+    assert.match(await appText(), /Falta vincular tu cuenta y empresa/);
     assert.match(await appText(), /Pagado\./);
     await capture('17-falta-vincular');
 
@@ -279,4 +281,15 @@ export default async ({ page, navigate, capture }) => {
     await fresh(at('configurador', 'compra-en-curso', CONTRATAR));
     await mobile();
     await purchaseHeading('Tu compra está lista para pagar');
+
+    // 21. Paquete ya activado: Inicio ofrece «Ver mi paquete» y vuelve a esa compra.
+    await fresh(at('inicio', 'acceso-listo'));
+    await mobile();
+    await page.getByRole('heading', { name: 'Tu paquete' }).waitFor();
+    assert.equal(await page.getByRole('link', { name: 'Armar mi paquete' }).count(), 0);
+    await capture('19-inicio-ver-mi-paquete');
+    await mobile();
+    await page.getByRole('link', { name: 'Ver mi paquete' }).click();
+    await purchaseHeading('Tus aplicaciones están listas');
+    assert.equal(new URL(page.url()).searchParams.get('compra'), (await lastPurchase()).body.purchase_id);
 };

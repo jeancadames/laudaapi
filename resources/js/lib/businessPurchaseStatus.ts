@@ -40,7 +40,7 @@ const FALLBACK_NAMES: Record<Product, string> = {
 
 const BADGE: Record<Access['status'], string> = {
     pending: 'Pendiente',
-    link_required: 'Falta vincular tu empresa',
+    link_required: 'Falta vincular tu cuenta y empresa',
     consent_required: 'Falta tu conformidad',
     ready: 'Lista para usar',
     unavailable: 'No disponible',
