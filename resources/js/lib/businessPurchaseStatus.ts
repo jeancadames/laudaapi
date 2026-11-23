@@ -1,4 +1,5 @@
 import { formatMoney } from '@/lib/businessPackageCopy';
+import { changeDate, replacementStart } from '@/lib/businessPackageManage';
 import type { Access, Product, Purchase } from '@/types/businessSelfService';
 
 /**
@@ -59,16 +60,29 @@ export function purchaseView(
     names: Partial<Record<Product, string>> = {},
 ): PurchaseView {
     const money = (cents: number) => formatMoney(cents, purchase.currency);
-    const access: AccessRow[] = purchase.access.map((item) => ({
-        product: item.product,
-        name:
-            names[item.product] ?? FALLBACK_NAMES[item.product] ?? item.product,
-        status: item.status,
-        badge: BADGE[item.status],
-        message: 'message' in item ? item.message : '',
-        action: item.action,
-    }));
+    // Mismo orden en todas las pantallas, aunque el servidor ordene distinto.
+    const order = Object.keys(FALLBACK_NAMES);
+    const rank = (code: Product) =>
+        order.includes(code) ? order.indexOf(code) : order.length;
+    const access: AccessRow[] = [...purchase.access]
+        .sort((a, b) => rank(a.product) - rank(b.product))
+        .map((item) => ({
+            product: item.product,
+            name:
+                names[item.product] ??
+                FALLBACK_NAMES[item.product] ??
+                item.product,
+            status: item.status,
+            badge: BADGE[item.status],
+            message: 'message' in item ? item.message : '',
+            action: item.action,
+        }));
     const payment = purchase.payment;
+    // Compra de reemplazo: el paquete nuevo empieza cuando termina el actual.
+    const start = replacementStart(purchase);
+    const startDay = start
+        ? changeDate(start, 'America/Santo_Domingo', false)
+        : null;
 
     switch (payment.status) {
         case 'preparing':
@@ -89,10 +103,14 @@ export function purchaseView(
                 tone: 'action',
                 title: partial
                     ? 'Recibimos parte del pago'
-                    : 'Tu compra está lista para pagar',
-                message: partial
-                    ? `Quedan ${money(purchase.balance_cents)} por pagar para continuar con la activación de tus aplicaciones.`
-                    : `Paga ${money(purchase.balance_cents)} para continuar con la activación de tus aplicaciones.`,
+                    : startDay
+                      ? 'Paga la factura de tu nuevo paquete'
+                      : 'Tu compra está lista para pagar',
+                message: startDay
+                    ? `${partial ? `Quedan ${money(purchase.balance_cents)} por pagar` : `Paga ${money(purchase.balance_cents)} por transferencia`} para activar tu nuevo paquete a partir del ${startDay}. Tu paquete actual sigue activo hasta esa fecha.`
+                    : partial
+                      ? `Quedan ${money(purchase.balance_cents)} por pagar para continuar con la activación de tus aplicaciones.`
+                      : `Paga ${money(purchase.balance_cents)} para continuar con la activación de tus aplicaciones.`,
                 primary: payment.action,
                 waiting: false,
                 access,
@@ -130,11 +148,11 @@ export function purchaseView(
                 access,
             };
         case 'paid':
-            return paidView(access);
+            return paidView(access, startDay);
     }
 }
 
-function paidView(access: AccessRow[]): PurchaseView {
+function paidView(access: AccessRow[], startDay: string | null): PurchaseView {
     const actionable = access.filter((row) => row.action);
     const urls = new Set(actionable.map((row) => row.action?.url));
     // Varias aplicaciones listas, cada una con su «Abrir…»: ninguna va primero.
@@ -163,10 +181,29 @@ function paidView(access: AccessRow[]): PurchaseView {
             waiting: false,
             access,
         };
+    if (startDay && !access.every((row) => row.status === 'ready')) {
+        // «LAUDA confirmó el pago» y «ya puedes activar» son momentos distintos.
+        const consent = access.some((row) => row.status === 'consent_required');
+        if (consent || !needsStep)
+            return {
+                tone: consent ? 'action' : 'success',
+                title: consent
+                    ? 'Ya puedes activar tu nuevo paquete'
+                    : 'LAUDA confirmó el pago',
+                message: consent
+                    ? 'LAUDA confirmó el pago. Revisa la implementación para activar tus aplicaciones.'
+                    : `Podrás activar tu nuevo paquete a partir del ${startDay}. Hasta entonces sigues usando tu paquete actual.`,
+                primary,
+                waiting: false,
+                access,
+            };
+    }
     if (needsStep)
         return {
             tone: 'action',
-            title: 'Pago recibido: falta un paso',
+            title: startDay
+                ? 'LAUDA confirmó el pago: falta un paso'
+                : 'Pago recibido: falta un paso',
             message:
                 'Para abrir tus aplicaciones, completa lo que se indica en cada una. No se te cobrará de nuevo.',
             primary,

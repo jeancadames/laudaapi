@@ -12,7 +12,8 @@ import { computed, nextTick, onBeforeUnmount, onMounted, ref } from 'vue';
 import BusinessPackageAmounts from '@/components/BusinessPackageAmounts.vue';
 import { Button } from '@/components/ui/button';
 import { useBusinessPurchase } from '@/composables/useBusinessPurchase';
-import { cycleCopy, formatMoney } from '@/lib/businessPackageCopy';
+import { cycleCopy, formatMoney, joinNames } from '@/lib/businessPackageCopy';
+import { changeDate, replacementStart } from '@/lib/businessPackageManage';
 import type { SelfServiceClient } from '@/lib/businessSelfService';
 import type { Product, Purchase } from '@/types/businessSelfService';
 
@@ -105,6 +106,14 @@ const balanceNote = computed(() => {
     return `Por pagar: ${money(current.balance_cents)}.`;
 });
 const reloadPage = () => window.location.reload();
+
+const packageNames = computed(() =>
+    joinNames(view.value?.access.map((row) => row.name) ?? []),
+);
+const startDay = computed(() => {
+    const start = purchase.value ? replacementStart(purchase.value) : null;
+    return start ? changeDate(start, 'America/Santo_Domingo', false) : null;
+});
 </script>
 
 <template>
@@ -190,13 +199,26 @@ const reloadPage = () => window.location.reload();
                 </h1>
             </header>
 
-            <Button v-if="purchase.manage_url" as-child variant="outline" class="min-h-11">
-                <Link :href="purchase.manage_url">Administrar mi paquete</Link>
-            </Button>
-
-            <Link v-if="purchase.previous_package_url" :href="purchase.previous_package_url" class="inline-flex min-h-11 items-center text-sm underline">
-                Ver el cambio de paquete
-            </Link>
+            <!-- Compra de reemplazo: de dónde viene y cuándo empieza -->
+            <aside
+                v-if="purchase.previous_package_url"
+                aria-label="Cambio de paquete"
+                class="space-y-1 rounded-xl border bg-muted/30 p-4 text-sm leading-6"
+            >
+                <p class="font-semibold">Cambio de paquete</p>
+                <p>
+                    Esta compra reemplaza tu paquete actual<template
+                        v-if="startDay"
+                    >
+                        a partir del {{ startDay }}</template
+                    >.
+                </p>
+                <Link
+                    :href="purchase.previous_package_url"
+                    class="inline-flex min-h-11 items-center font-medium underline underline-offset-4"
+                    >Ver el cambio de paquete</Link
+                >
+            </aside>
 
             <!-- Estado y acción principal -->
             <section
@@ -262,6 +284,46 @@ const reloadPage = () => window.location.reload();
             >
                 {{ staleError.message }} Te mostramos el último estado conocido.
             </p>
+
+            <!-- Tu paquete: empresa, aplicaciones y la entrada a administrarlo -->
+            <section
+                v-if="purchase.manage_url"
+                aria-labelledby="package-title"
+                class="flex flex-col gap-4 rounded-xl border p-4 sm:flex-row sm:items-center sm:justify-between sm:p-5"
+            >
+                <div class="min-w-0 space-y-1">
+                    <h2 id="package-title" class="text-lg font-semibold">
+                        Tu paquete
+                    </h2>
+                    <p class="text-sm break-words text-muted-foreground">
+                        {{ companyName }}
+                    </p>
+                    <p class="font-medium">{{ packageNames }}</p>
+                    <p class="text-sm text-muted-foreground">
+                        {{ money(purchase.summary.recurring.total_cents) }}
+                        {{
+                            purchase.summary.selection.cycle === 'yearly'
+                                ? 'al año'
+                                : 'al mes'
+                        }}
+                    </p>
+                </div>
+                <div class="space-y-2 sm:max-w-56 sm:text-right">
+                    <Button
+                        as-child
+                        variant="outline"
+                        size="lg"
+                        class="h-12 w-full text-base"
+                    >
+                        <Link :href="purchase.manage_url"
+                            >Administrar mi paquete</Link
+                        >
+                    </Button>
+                    <p class="text-xs leading-5 text-muted-foreground">
+                        Agrega o quita aplicaciones, o da de baja el paquete.
+                    </p>
+                </div>
+            </section>
 
             <!-- Acceso por aplicación -->
             <section aria-labelledby="access-title" class="space-y-4">

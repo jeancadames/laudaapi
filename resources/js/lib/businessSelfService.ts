@@ -19,6 +19,10 @@ export type FailureCode =
     | 'session_expired'
     | 'throttled'
     | 'network'
+    /** 409 sin código de dominio: el servidor explica el motivo en `message`. */
+    | 'conflict'
+    /** 422 sin código de dominio (validación de Laravel). */
+    | 'rejected'
     | 'unknown';
 
 const DOMAIN_CODES: readonly Problem['code'][] = [
@@ -57,6 +61,9 @@ const FALLBACK: Record<FailureCode, string> = {
         'Hiciste varios cambios seguidos. Espera un momento y vuelve a intentarlo.',
     network:
         'No pudimos comunicarnos con LAUDA. Revisa tu conexión y vuelve a intentarlo.',
+    conflict:
+        'La situación cambió desde que lo revisaste. Revisa otra vez antes de seguir.',
+    rejected: 'Revisa tu selección y vuelve a intentarlo.',
     unknown: 'No pudimos completar la operación. Vuelve a intentarlo.',
 };
 
@@ -146,6 +153,16 @@ function failure(response: Response, body: unknown): SelfServiceError {
             status,
             problem,
         );
+    const message =
+        body &&
+        typeof body === 'object' &&
+        typeof (body as { message?: unknown }).message === 'string'
+            ? (body as { message: string }).message
+            : '';
+    if (status === 409 || status === 422) {
+        const code = status === 409 ? 'conflict' : 'rejected';
+        return new SelfServiceError(code, message || FALLBACK[code], status);
+    }
     const code: FailureCode =
         status === 403
             ? 'forbidden'
@@ -155,44 +172,56 @@ function failure(response: Response, body: unknown): SelfServiceError {
     return new SelfServiceError(code, FALLBACK[code], status);
 }
 
+/**
+ * Petición JSON con la sesión del navegador. Los fallos llegan como
+ * SelfServiceError; la ausencia de respuesta, como `network`.
+ */
+export async function selfServiceRequest<T>(
+    fetcher: typeof fetch,
+    method: 'GET' | 'POST',
+    url: string,
+    payload?: unknown,
+    signal?: AbortSignal,
+): Promise<T> {
+    let response: Response;
+    try {
+        response = await fetcher(url, {
+            method,
+            credentials: 'same-origin',
+            redirect: 'error',
+            cache: 'no-store',
+            signal,
+            headers: {
+                Accept: 'application/json',
+                'X-Requested-With': 'XMLHttpRequest',
+                ...(method === 'POST'
+                    ? {
+                          'Content-Type': 'application/json',
+                          'X-XSRF-TOKEN': xsrfToken(),
+                      }
+                    : {}),
+            },
+            body: method === 'POST' ? JSON.stringify(payload) : undefined,
+        });
+    } catch (error) {
+        if (isAbort(error)) throw error;
+        throw new SelfServiceError('network', FALLBACK.network);
+    }
+    const body = await response.json().catch(() => null);
+    if (response.ok && body) return body as T;
+    throw failure(response, body);
+}
+
 export function createSelfServiceClient(
     urls: SelfServiceUrls,
     fetcher: typeof fetch = (...args) => fetch(...args),
 ): SelfServiceClient {
-    async function request<T>(
+    const request = <T>(
         method: 'GET' | 'POST',
         url: string,
         payload?: unknown,
         signal?: AbortSignal,
-    ): Promise<T> {
-        let response: Response;
-        try {
-            response = await fetcher(url, {
-                method,
-                credentials: 'same-origin',
-                redirect: 'error',
-                cache: 'no-store',
-                signal,
-                headers: {
-                    Accept: 'application/json',
-                    'X-Requested-With': 'XMLHttpRequest',
-                    ...(method === 'POST'
-                        ? {
-                              'Content-Type': 'application/json',
-                              'X-XSRF-TOKEN': xsrfToken(),
-                          }
-                        : {}),
-                },
-                body: method === 'POST' ? JSON.stringify(payload) : undefined,
-            });
-        } catch (error) {
-            if (isAbort(error)) throw error;
-            throw new SelfServiceError('network', FALLBACK.network);
-        }
-        const body = await response.json().catch(() => null);
-        if (response.ok && body) return body as T;
-        throw failure(response, body);
-    }
+    ) => selfServiceRequest<T>(fetcher, method, url, payload, signal);
 
     return {
         catalog: (signal) =>
