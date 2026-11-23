@@ -156,13 +156,15 @@ final class BusinessPackagePurchases
         $receipt = $this->billing->acceptance($quote);
         $checkout = ServiceQuoteCheckout::where('service_quote_acceptance_id', $receipt->id)->firstOrFail();
         $bill = $this->billing->invoiceDetails($checkout, $receipt);
+        $contract = Schema::hasTable('business_contracts')
+            ? BusinessContract::where('service_quote_checkout_id', $checkout->id)->first() : null;
         $payment = ['status' => 'preparing', 'action' => null];
         if (! in_array($bill['status'], ['issued', 'overdue', 'paid'], true)) {
             $payment = ['status' => 'failed', 'message' => 'Esta factura no está disponible para pago.', 'action' => null];
         } elseif ($bill['balance_cents'] === 0) {
             $hold = app(BusinessImplementationService::class)->paymentHold($checkout, $bill);
             $payment['status'] = $hold === null ? 'paid' : 'processing';
-        } elseif (Schema::hasTable('business_contracts') && BusinessContract::where('service_quote_checkout_id', $checkout->id)->exists()) {
+        } elseif ($contract) {
             $payment['status'] = 'reversed';
         } elseif ($transfer = app(BusinessTransferProofs::class)->form($quote, $checkout)) {
             $action = ['label' => 'Enviar comprobante', 'url' => route('business.quotes.checkout.show', $publicId, false)];
@@ -181,10 +183,16 @@ final class BusinessPackagePurchases
             ? $this->companyPurchases($company)->join('business_contracts as previous', 'previous.service_quote_checkout_id', '=', 'c.id')
                 ->where('previous.id', $summary['replaces_contract_id'])->value('service_commercial_quotes.public_id') : null;
 
+        $manageUrl = $contract && Schema::hasTable('business_package_changes') ? route('business.package.manage', $publicId, false) : null;
+        $scheduled = $manageUrl ? DB::table('business_package_changes')->where('business_contract_id', $contract->id)
+            ->where('effective_at', '>', now())->first(['effective_at', 'products']) : null;
+
         return ['purchase_id' => $publicId, 'invoice_number' => $bill['number'], 'currency' => $summary['currency'],
             'previous_package_url' => $previous ? route('business.package.manage', $previous, false) : null,
-            'manage_url' => Schema::hasTable('business_package_changes') && BusinessContract::where('service_quote_checkout_id', $checkout->id)->exists()
-                ? route('business.package.manage', $publicId, false) : null,
+            'manage_url' => $manageUrl,
+            'current_period' => $contract ? BusinessContractPeriods::packageSummary($contract, $payment['status'] === 'paid') : null,
+            'scheduled_change' => $scheduled ? ['effective_at' => CarbonImmutable::parse($scheduled->effective_at, 'UTC')->toIso8601String(),
+                'products' => json_decode($scheduled->products, true, flags: JSON_THROW_ON_ERROR), 'manage_url' => $manageUrl] : null,
             'summary' => $summary, 'balance_cents' => $bill['balance_cents'], 'payment' => $payment, 'access' => $access];
     }
 

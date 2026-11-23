@@ -111,7 +111,14 @@ export type Access =
           action: Link | null;
       };
 
+export interface PackagePeriod {
+    total_cents: number | null;
+    access_until: string | null;
+}
+
 export interface Purchase {
+    current_period?: PackagePeriod | null;
+    scheduled_change?: { effective_at: string; products: Product[]; manage_url: string } | null;
     manage_url?: string | null;
     previous_package_url?: string | null;
     purchase_id: string;

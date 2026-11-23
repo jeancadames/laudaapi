@@ -250,8 +250,16 @@ const reloadPage = () => window.location.reload();
                     </p>
                     <p class="mt-1 font-semibold">{{ currentNames }}</p>
                     <p class="mt-1 text-sm text-muted-foreground">
-                        Facturación {{ cycle.adverb }}
+                        <template v-if="plan.current.total_cents != null">
+                            Precio del período vigente: {{ money(plan.current.total_cents) }} por {{ period }}.
+                        </template>
+                        <template v-else-if="plan.current.total_cents === null">Sin período de facturación vigente.</template>
+                        <template v-else>Facturación {{ cycle.adverb }}</template>
                     </p>
+                    <p v-if="plan.current.access_until" class="mt-1 text-sm">
+                        Acceso pagado hasta el {{ moment(plan.current.access_until) }}.
+                    </p>
+                    <p v-else-if="plan.current.access_until === null" class="mt-1 text-sm text-muted-foreground">Sin vigencia pagada confirmada.</p>
                 </div>
             </header>
 

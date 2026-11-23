@@ -39,7 +39,7 @@ export type PurchaseView = {
     access: AccessRow[];
 };
 
-const FALLBACK_NAMES: Record<Product, string> = {
+export const productNames: Record<Product, string> = {
     ecf: 'e-CF',
     cumplimiento: 'Cumplimiento',
     pos: 'POS',
@@ -68,7 +68,7 @@ export function purchaseView(
 ): PurchaseView {
     const money = (cents: number) => formatMoney(cents, purchase.currency);
     // Mismo orden en todas las pantallas, aunque el servidor ordene distinto.
-    const order = Object.keys(FALLBACK_NAMES);
+    const order = Object.keys(productNames);
     const rank = (code: Product) =>
         order.includes(code) ? order.indexOf(code) : order.length;
     const access: AccessRow[] = [...purchase.access]
@@ -77,7 +77,7 @@ export function purchaseView(
             product: item.product,
             name:
                 names[item.product] ??
-                FALLBACK_NAMES[item.product] ??
+                productNames[item.product] ??
                 item.product,
             status: item.status,
             badge: BADGE[item.status],

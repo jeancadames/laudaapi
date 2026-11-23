@@ -341,7 +341,8 @@ final class BusinessPackagePreviewTest extends TestCase
         DB::table('business_identity_members')->update(['active' => false]);
         $this->getJson($url)->assertOk()->assertJsonPath('access.0.status', 'link_required');
         Payment::sole()->update(['paid_at' => null]);
-        $this->getJson($url)->assertOk()->assertJsonPath('payment.status', 'reversed')->assertJsonPath('access.0.status', 'pending')
+        $this->getJson($url)->assertOk()->assertJsonPath('payment.status', 'reversed')->assertJsonPath('current_period.access_until', null)
+            ->assertJsonPath('access.0.status', 'pending')
             ->assertJsonPath('access.0.message', 'El pago se revirtió.')->assertJsonPath('access.0.action', null);
         $this->actingAs(User::findOrFail(2));
         $this->get('/app')->assertInertia(fn ($page) => $page->where('business_self_service.last_purchase_url', null));
@@ -429,22 +430,35 @@ final class BusinessPackagePreviewTest extends TestCase
         $owner = User::findOrFail(1);
         $offer = $service->propose($admin, $id, ['confirmed' => true, 'idempotency_key' => (string) Str::uuid(),
             'period_number' => 2, 'expected_revision' => 0, 'valid_until' => $contract->period_ends_at->subDay()->toIso8601String(),
-            'base_cents' => 300000, 'discount_cents' => 0, 'tax_bps' => 0, 'commercial_note' => 'Renovación de prueba de un período.',
+            'base_cents' => 240000, 'discount_cents' => 0, 'tax_bps' => 0, 'commercial_note' => 'Renovación de prueba de un período.',
             ...\App\Services\Billing\BusinessRenewalTerms::POLICIES]);
         $consent = ['offer_id' => $offer->id, 'terms_hash' => $offer->terms_hash, 'confirmed' => true, 'idempotency_key' => (string) Str::uuid()];
         $service->accept($owner, $id, $consent);
         $this->postJson($url.'/preview', ['products' => []])->assertConflict();
         $period = $service->issue($admin, $id, $consent);
+        $detailUrl = self::BASE.'/v1/purchases/'.$id;
+        $this->getJson($detailUrl)->assertOk()->assertJsonPath('current_period.total_cents', 300000)
+            ->assertJsonPath('current_period.access_until', $contract->period_ends_at->toIso8601String())
+            ->assertJsonPath('scheduled_change', null);
         $this->postJson($url.'/preview', ['products' => []])->assertConflict();
         Payment::create(['invoice_id' => $period->invoice_id, 'company_id' => $contract->company_id, 'amount' => $period->total,
             'currency' => 'DOP', 'method' => 'bank_transfer', 'paid_at' => now()]);
+        $this->getJson($detailUrl)->assertOk()->assertJsonPath('current_period.total_cents', 300000)
+            ->assertJsonPath('current_period.access_until', $period->period_ends_at->toIso8601String());
         $review = $this->postJson($url.'/preview', ['products' => []])->assertOk()
             ->assertJsonPath('effective_at', $period->period_ends_at->toIso8601String())->json();
         $this->postJson($url.'/confirm', ['products' => [], 'accepted' => true, 'terms_hash' => $review['terms_hash']])->assertOk();
         CarbonImmutable::setTestNow($period->period_starts_at->addDay());
+        $this->getJson($detailUrl)->assertOk()->assertJsonPath('current_period.total_cents', 240000)
+            ->assertJsonPath('summary.recurring.total_cents', 300000)
+            ->assertJsonPath('scheduled_change', ['effective_at' => $review['effective_at'], 'products' => [], 'manage_url' => $url]);
+        $this->get($url)->assertInertia(fn ($page) => $page->where('plan.current.total_cents', 240000)
+            ->where('plan.current.access_until', $period->period_ends_at->toIso8601String()));
         $item = DB::table('business_contract_items')->value('subscription_item_id');
         $this->assertTrue(\App\Services\Entitlements\BusinessContractCoverage::itemIsCovered($item));
         CarbonImmutable::setTestNow($period->period_ends_at);
+        $this->getJson($detailUrl)->assertOk()->assertJsonPath('current_period.total_cents', null)
+            ->assertJsonPath('current_period.access_until', $review['effective_at'])->assertJsonPath('scheduled_change', null);
         $this->assertFalse(\App\Services\Entitlements\BusinessContractCoverage::itemIsCovered($item));
     }
 
@@ -458,6 +472,11 @@ final class BusinessPackagePreviewTest extends TestCase
         $this->postJson($url.'/confirm', $params)->assertOk()->assertJsonPath('purchase_url', $next);
         $this->assertDatabaseCount('invoices', 2);
         $id = Str::after($next, '?compra=');
+        $this->getJson(self::BASE.'/v1/purchases/'.$oldId)->assertOk()
+            ->assertJsonPath('scheduled_change.products', ['ecf', 'pos'])->assertJsonPath('scheduled_change.effective_at', $review['effective_at'])
+            ->assertJsonPath('scheduled_change.manage_url', $url);
+        $this->getJson(self::BASE.'/v1/purchases/'.$id)->assertOk()->assertJsonPath('scheduled_change', null)
+            ->assertJsonPath('current_period', null);
         $quote = ServiceCommercialQuote::where('public_id', $id)->sole();
         $invoice = Invoice::latest('id')->firstOrFail();
         $this->assertEquals(2500, $invoice->total);

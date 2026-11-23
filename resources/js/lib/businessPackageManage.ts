@@ -2,6 +2,7 @@ import { paidAccess } from '@/lib/businessPackageAccess';
 import { selfServiceRequest } from '@/lib/businessSelfService';
 import type {
     Cycle,
+    PackagePeriod,
     Preview,
     Product,
     Purchase,
@@ -29,7 +30,7 @@ export type RegisteredChange = ChangeReview & {
 };
 
 export type ManagePlan = {
-    current: { products: Product[]; cycle: Cycle };
+    current: { products: Product[]; cycle: Cycle } & Partial<PackagePeriod>;
     available: Product[];
     names: Partial<Record<Product, string>>;
     company: string;

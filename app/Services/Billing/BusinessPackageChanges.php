@@ -54,13 +54,19 @@ final class BusinessPackageChanges
             'terms_hash' => $row->terms_hash];
     }
 
-    /** A paid renewal can extend access even when its start date is still in the future. */
-    private function paidThrough(BusinessContract $contract): CarbonImmutable
+    private function initialPaymentHold(BusinessContract $contract, bool $lock = false): ?string
     {
         $checkout = ServiceQuoteCheckout::findOrFail($contract->service_quote_checkout_id);
         $receipt = ServiceQuoteAcceptance::findOrFail($checkout->service_quote_acceptance_id);
         $bill = app(BusinessQuoteCheckoutService::class)->invoiceDetails($checkout, $receipt);
-        $hold = app(BusinessImplementationService::class)->paymentHold($checkout, $bill, true);
+
+        return app(BusinessImplementationService::class)->paymentHold($checkout, $bill, $lock);
+    }
+
+    /** A paid renewal can extend access even when its start date is still in the future. */
+    private function paidThrough(BusinessContract $contract): CarbonImmutable
+    {
+        $hold = $this->initialPaymentHold($contract, true);
         abort_if($hold !== null, 409, $hold ?? '');
         $end = $contract->period_ends_at;
         if (! Schema::hasTable('business_renewal_periods')) {
@@ -82,7 +88,8 @@ final class BusinessPackageChanges
     {
         $contract = $this->contract($company, $purchase);
         $version = $this->catalogs->current();
-        $current = $contract->snapshot['self_service']['selection'];
+        $current = $contract->snapshot['self_service']['selection']
+            + BusinessContractPeriods::packageSummary($contract, $this->initialPaymentHold($contract) === null);
         $names = [];
         foreach ($contract->snapshot['products'] as $code => $product) {
             $names[$code] = $product['name'] ?? $code;

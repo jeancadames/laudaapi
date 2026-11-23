@@ -7,6 +7,7 @@ use App\Models\BusinessRenewalPeriod;
 use App\Models\Subscription;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\Schema;
+use Symfony\Component\HttpKernel\Exception\HttpExceptionInterface;
 
 /** The activation dates remain immutable; subsequent periods have their own ledger. */
 final class BusinessContractPeriods
@@ -36,6 +37,55 @@ final class BusinessContractPeriods
             'starts_at' => $period['starts_at'], 'ends_at' => $period['ends_at'],
             'subtotal' => $amounts::decimal($line['subtotal_cents']), 'tax' => $amounts::decimal($line['tax_cents']),
             'total' => $amounts::decimal($line['total_cents'])];
+    }
+
+    /** A prepaid future renewal extends paid access, but its price starts on its own billing date. */
+    public static function packageSummary(BusinessContract $contract, bool $initialPaid): array
+    {
+        $now = CarbonImmutable::now();
+        $currentTotal = $contract->activated_at <= $now && $now < $contract->period_ends_at
+            ? $contract->snapshot['self_service']['recurring']['total_cents'] : null;
+        $paidUntil = $initialPaid ? $contract->period_ends_at : null;
+        if (Schema::hasTable('business_renewal_periods')) {
+            [$started, $future] = BusinessRenewalPeriod::where('business_contract_id', $contract->id)->orderByDesc('period_number')
+                ->get()->partition(fn ($period) => $period->period_starts_at <= $now);
+            foreach ($started as $period) {
+                $bill = self::renewalBill($contract, $period);
+                if ($now < $period->period_ends_at) {
+                    $currentTotal = $bill['total_cents'] ?? null;
+                }
+                if (! $initialPaid) {
+                    break;
+                }
+                if ($bill['covered'] ?? false) {
+                    $paidUntil = $period->period_ends_at;
+                    break;
+                }
+            }
+            foreach ($future->reverse() as $period) {
+                if (! $paidUntil || ! $period->period_starts_at->equalTo($paidUntil)
+                    || ! (self::renewalBill($contract, $period)['covered'] ?? false)) {
+                    break;
+                }
+                $paidUntil = $period->period_ends_at;
+            }
+        }
+
+        return ['total_cents' => $currentTotal, 'access_until' => $paidUntil?->toIso8601String()];
+    }
+
+    private static function renewalBill(BusinessContract $contract, BusinessRenewalPeriod $period): ?array
+    {
+        try {
+            return app(BusinessRenewalService::class)->invoiceDetails($contract, $period);
+        } catch (HttpExceptionInterface $error) {
+            if ($error->getStatusCode() !== 409) {
+                throw $error;
+            }
+
+            // Disputed invoice data cannot establish the price or extend confirmed coverage.
+            return null;
+        }
     }
 
     public static function latestStarted(BusinessContract $contract): ?BusinessRenewalPeriod
