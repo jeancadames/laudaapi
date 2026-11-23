@@ -1,9 +1,10 @@
 <script setup lang="ts">
-import BusinessTransitionSummary from '@/components/BusinessTransitionSummary.vue';
-import AppLayout from '@/layouts/AppLayout.vue';
-import { Button } from '@/components/ui/button';
 import { Head, Link, router } from '@inertiajs/vue3';
 import { computed, ref, watch } from 'vue';
+import BusinessTransitionSummary from '@/components/BusinessTransitionSummary.vue';
+import { Button } from '@/components/ui/button';
+import AppLayout from '@/layouts/AppLayout.vue';
+import { timezoneLabel } from '@/lib/timezoneLabel';
 import type { BusinessActivation } from '@/types/businessActivation';
 const props = defineProps<{
     activation: BusinessActivation;
@@ -257,7 +258,8 @@ async function activate() {
                             {{ date(current.contract.activated_at) }}
                         </p>
                         <p class="text-muted-foreground">
-                            Fechas del contrato en {{ quote.timezone }}.
+                            Fechas del contrato en
+                            {{ timezoneLabel(quote.timezone) }}.
                         </p>
                         <p v-if="current.current_period">
                             Período {{ current.current_period.number }} desde

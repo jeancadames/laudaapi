@@ -51,7 +51,7 @@ const props = defineProps<{
 }>();
 
 const breadcrumbs: BreadcrumbItem[] = [
-    { title: 'Control Panel', href: '/app' },
+    { title: 'Panel de control', href: '/app/control' },
     { title: 'Usuarios', href: '/subscriber/users' },
 ];
 
@@ -144,7 +144,7 @@ const resendAccess = (member: Member) => {
                         <div>
                             <div class="mb-3 inline-flex items-center gap-2 rounded-full border border-red-100 bg-red-50 px-3 py-1 text-xs font-semibold text-red-700 dark:border-red-950 dark:bg-red-950/40 dark:text-red-300">
                                 <ShieldCheck class="h-3.5 w-3.5" />
-                                Control Panel
+                                Mi empresa
                             </div>
 
                             <h1 class="text-2xl font-black tracking-tight text-slate-950 sm:text-3xl dark:text-white">
@@ -152,30 +152,30 @@ const resendAccess = (member: Member) => {
                             </h1>
 
                             <p class="mt-2 max-w-3xl text-sm leading-6 text-slate-500 sm:text-base dark:text-slate-400">
-                                Administra quién puede acceder al ecosistema central de
-                                {{ props.subscriber.name }}. Los permisos operativos se
-                                configuran dentro de cada solución.
+                                Decide quién de tu equipo entra a LAUDA en
+                                {{ props.subscriber.name }}. Lo que cada persona puede
+                                hacer dentro de una aplicación se ajusta en esa aplicación.
                             </p>
                         </div>
 
                         <div class="grid grid-cols-3 gap-2">
-                            <div class="rounded-2xl bg-slate-50 px-4 py-3 text-center dark:bg-slate-900">
+                            <div class="min-w-0 rounded-2xl bg-slate-50 px-2 py-3 text-center dark:bg-slate-900">
                                 <p class="text-xl font-black text-slate-950 dark:text-white">
                                     {{ props.summary.total }}
                                 </p>
-                                <p class="text-[11px] text-slate-500">Total</p>
+                                <p class="text-[10px] text-slate-600 sm:text-[11px]">Total</p>
                             </div>
-                            <div class="rounded-2xl bg-slate-50 px-4 py-3 text-center dark:bg-slate-900">
+                            <div class="min-w-0 rounded-2xl bg-slate-50 px-2 py-3 text-center dark:bg-slate-900">
                                 <p class="text-xl font-black text-slate-950 dark:text-white">
                                     {{ props.summary.active }}
                                 </p>
-                                <p class="text-[11px] text-slate-500">Activos</p>
+                                <p class="text-[10px] text-slate-600 sm:text-[11px]">Activos</p>
                             </div>
-                            <div class="rounded-2xl bg-slate-50 px-4 py-3 text-center dark:bg-slate-900">
+                            <div class="min-w-0 rounded-2xl bg-slate-50 px-2 py-3 text-center dark:bg-slate-900">
                                 <p class="text-xl font-black text-slate-950 dark:text-white">
                                     {{ props.summary.admins }}
                                 </p>
-                                <p class="text-[11px] text-slate-500">Admins</p>
+                                <p class="text-[10px] text-slate-600 sm:text-[11px]">Administradores</p>
                             </div>
                         </div>
                     </div>
@@ -195,7 +195,7 @@ const resendAccess = (member: Member) => {
                                     Agregar usuario
                                 </h2>
                                 <p class="text-xs text-slate-500">
-                                    Alta central segura para este tenant.
+                                    Invita a alguien de tu equipo.
                                 </p>
                             </div>
                         </div>
@@ -235,7 +235,7 @@ const resendAccess = (member: Member) => {
 
                             <label class="block">
                                 <span class="text-xs font-semibold text-slate-600 dark:text-slate-300">
-                                    Rol central
+                                    Rol
                                 </span>
                                 <select
                                     v-model="form.role"
@@ -268,9 +268,8 @@ const resendAccess = (member: Member) => {
                         </div>
 
                         <div class="mt-5 rounded-xl bg-slate-50 p-4 text-xs leading-5 text-slate-500 dark:bg-slate-900">
-                            Si el correo es nuevo, LAUDAAPI crea la cuenta con una
-                            contraseña aleatoria desconocida y envía un enlace de
-                            recuperación para que la persona defina su propia contraseña.
+                            Si la persona aún no tiene cuenta, la creamos y le enviamos
+                            un correo para que elija su propia contraseña.
                         </div>
                     </form>
 
@@ -282,11 +281,11 @@ const resendAccess = (member: Member) => {
                                 </div>
                                 <div>
                                     <h2 class="font-bold text-slate-950 dark:text-white">
-                                        Miembros del tenant
+                                        Miembros del equipo
                                     </h2>
                                     <p class="text-xs text-slate-500">
-                                        {{ props.summary.owners }} owner activo
-                                        <template v-if="props.summary.owners !== 1">s</template>
+                                        {{ props.summary.owners }}
+                                        {{ props.summary.owners === 1 ? 'propietario activo' : 'propietarios activos' }}
                                     </p>
                                 </div>
                             </div>

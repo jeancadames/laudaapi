@@ -70,9 +70,8 @@ class TenantAppHubOperationalHomeContractTest extends TestCase
         $home = $this->read('resources/js/pages/App/Home.vue');
 
         foreach ([
-            'Paneles administrativos',
-            'Resumen administrativo:',
-            'Estado del ecosistema',
+            'Tus aplicaciones',
+            'Atajos',
             'href="/app/control"',
             'v-if="isTenantAdmin"',
         ] as $token) {
@@ -83,6 +82,10 @@ class TenantAppHubOperationalHomeContractTest extends TestCase
             'App Store',
             'Facturas pendientes',
             'Cuentas por pagar',
+            // Sin lenguaje interno frente al cliente.
+            'Administrador del tenant',
+            'snapshots',
+            'entitlements',
         ] as $forbidden) {
             $this->assertStringNotContainsString($forbidden, $home);
         }
@@ -122,7 +125,7 @@ class TenantAppHubOperationalHomeContractTest extends TestCase
 
         $control = strpos(
             $navigation,
-            "{ title: 'Control Panel', href: '/app/control', icon: 'Boxes' }"
+            "{ title: 'Panel de control', href: '/app/control', icon: 'Boxes' }"
         );
 
         $this->assertNotFalse($home);
@@ -146,7 +149,7 @@ class TenantAppHubOperationalHomeContractTest extends TestCase
 
         foreach ([
             'id="app-store"',
-            'Mis Apps',
+            'Mis aplicaciones',
             'Apps disponibles',
             'Plan consultivo y prioridades de transformación',
             "app.integration !== 'managed'",

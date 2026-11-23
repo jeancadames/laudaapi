@@ -1,9 +1,10 @@
 <script setup lang="ts">
-import AppLayout from '@/layouts/AppLayout.vue';
-import BusinessAmountInput from '@/components/BusinessAmountInput.vue';
-import { Button } from '@/components/ui/button';
 import { Head, Link, router } from '@inertiajs/vue3';
 import { computed, reactive, ref, watch } from 'vue';
+import BusinessAmountInput from '@/components/BusinessAmountInput.vue';
+import { Button } from '@/components/ui/button';
+import AppLayout from '@/layouts/AppLayout.vue';
+import { timezoneLabel } from '@/lib/timezoneLabel';
 import type { BusinessRenewal } from '@/types/businessRenewal';
 
 const props = defineProps<{ renewal: BusinessRenewal }>();
@@ -270,9 +271,10 @@ function confirmOffer() {
                             {{ date(current.next.period_starts_at) }} →
                             {{ date(current.next.period_ends_at) }}<br /><span
                                 class="text-muted-foreground"
-                                >Zona horaria: {{ current.timezone }}.
-                                Calendario anclado a la activación
-                                original.</span
+                                >Fechas en
+                                {{ timezoneLabel(current.timezone) }}. Cada
+                                período empieza el mismo día en que activaste tu
+                                paquete.</span
                             >
                         </p>
                         <fieldset
@@ -449,8 +451,10 @@ function confirmOffer() {
                                     {{ date(offer.terms.period_ends_at) }}
                                 </dd>
                                 <dd class="mt-1 text-xs text-muted-foreground">
-                                    {{ current.timezone }} · Fin de mes sin
-                                    desbordamiento
+                                    Fechas en
+                                    {{ timezoneLabel(current.timezone) }} · Si
+                                    el día no existe en el mes, se usa el último
+                                    día
                                 </dd>
                             </div>
                             <div>

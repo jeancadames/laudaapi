@@ -1,16 +1,22 @@
 <script setup lang="ts">
-import { Link } from '@inertiajs/vue3';
+import { Link, usePage } from '@inertiajs/vue3';
 import {
     ArrowUpRight,
     Boxes,
-    CheckCircle2,
+    ChevronRight,
+    Clock3,
     LayoutGrid,
     Package,
     PackagePlus,
-    ShieldCheck,
-    Sparkles,
+    PlugZap,
+    ReceiptText,
+    Users,
 } from 'lucide-vue-next';
 import { computed } from 'vue';
+import AppTile from '@/components/portal/AppTile.vue';
+import { portalButton } from '@/components/portal/buttons';
+import PortalPage from '@/components/portal/PortalPage.vue';
+import PortalSection from '@/components/portal/PortalSection.vue';
 import AppLayout from '@/layouts/AppLayout.vue';
 import type { BreadcrumbItem } from '@/types';
 import type { SelfServiceHomeEntry } from '@/types/businessSelfService';
@@ -140,396 +146,281 @@ const managedServices = computed(() =>
         : [],
 );
 
-const operationalCount = computed(
-    () => launchableApps.value.length + managedServices.value.length,
-);
+const page = usePage();
 
-const appInitial = (app: Solution) =>
-    String(app.title ?? app.key ?? '?')
-        .trim()
-        .slice(0, 2)
-        .toUpperCase();
+/** Atajos del administrador: lo que más se busca después de abrir una app. */
+const shortcuts = computed(() =>
+    [
+        {
+            href: '/app/control',
+            title: 'Panel de control',
+            text: 'Tus apps y las que puedes agregar',
+            icon: LayoutGrid,
+        },
+        page.props.businessIdentityEnabled
+            ? {
+                  href: '/business/identity',
+                  title: 'Conexiones Business',
+                  text: 'Conecta tus apps con tu empresa',
+                  icon: PlugZap,
+              }
+            : null,
+        {
+            href: '/subscriber/invoices',
+            title: 'Facturas',
+            text: 'Lo que has pagado y lo pendiente',
+            icon: ReceiptText,
+        },
+        {
+            href: '/subscriber/users',
+            title: 'Usuarios',
+            text: 'Quién entra y a qué',
+            icon: Users,
+        },
+    ].filter((item) => item !== null),
+);
 </script>
 
 <template>
     <AppLayout :breadcrumbs="breadcrumbs">
-        <div class="min-h-full bg-slate-50/60 py-6 dark:bg-slate-950/40">
-            <div
-                class="mx-auto flex w-full max-w-7xl flex-col gap-6 px-4 sm:px-6 lg:px-8"
+        <PortalPage
+            :eyebrow="props.company.name"
+            title="Inicio"
+            :description="
+                isTenantAdmin
+                    ? 'Abre tus aplicaciones y revisa tu paquete desde un solo lugar.'
+                    : 'Abre las aplicaciones que tienes asignadas.'
+            "
+        >
+            <template v-if="isTenantAdmin" #actions>
+                <Link href="/app/control" :class="portalButton.secondary">
+                    <LayoutGrid class="h-4 w-4" aria-hidden="true" />
+                    Panel de control
+                </Link>
+            </template>
+
+            <section
+                v-if="props.business_self_service"
+                aria-labelledby="package-builder-title"
+                class="relative overflow-hidden rounded-2xl border bg-white p-5 sm:p-6 dark:bg-slate-950"
+                :class="
+                    packageEntry.kind === 'pending'
+                        ? 'border-amber-200 dark:border-amber-900/60'
+                        : packageEntry.kind === 'build'
+                          ? 'border-red-200/80 dark:border-red-950'
+                          : 'border-slate-200/80 dark:border-slate-800'
+                "
             >
-                <header
-                    class="overflow-hidden rounded-[2rem] border border-slate-200/70 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-950"
+                <span
+                    class="absolute inset-y-0 left-0 w-1"
+                    :class="
+                        packageEntry.kind === 'pending'
+                            ? 'bg-amber-400'
+                            : packageEntry.kind === 'build'
+                              ? 'bg-red-600'
+                              : 'bg-slate-900 dark:bg-white'
+                    "
+                    aria-hidden="true"
+                />
+                <div
+                    class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between"
                 >
-                    <div
-                        class="grid gap-6 p-6 sm:p-8 lg:grid-cols-[1fr_auto] lg:items-end"
-                    >
-                        <div>
-                            <div
-                                class="mb-3 inline-flex items-center gap-2 rounded-full border border-red-100 bg-red-50 px-3 py-1 text-xs font-semibold text-red-700 dark:border-red-950 dark:bg-red-950/40 dark:text-red-300"
-                            >
-                                <Sparkles class="h-3.5 w-3.5" />
-                                LAUDAAPI · App Hub
-                            </div>
-
-                            <h1
-                                class="text-2xl font-black tracking-tight text-slate-950 sm:text-3xl dark:text-white"
-                            >
-                                Inicio
-                            </h1>
-
-                            <p
-                                class="mt-2 max-w-3xl text-sm leading-6 text-slate-500 sm:text-base dark:text-slate-400"
-                            >
-                                Tu centro operativo para entrar a las soluciones
-                                que usas cada día.
-                            </p>
-
-                            <div
-                                class="mt-4 flex flex-wrap items-center gap-2 text-xs text-slate-500"
-                            >
-                                <span
-                                    class="rounded-full bg-slate-100 px-3 py-1.5 font-medium dark:bg-slate-900"
-                                >
-                                    {{ props.company.name }}
-                                </span>
-
-                                <span
-                                    v-if="isTenantAdmin"
-                                    class="rounded-full bg-emerald-50 px-3 py-1.5 font-medium text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300"
-                                >
-                                    Administrador del tenant
-                                </span>
-
-                                <span
-                                    v-else
-                                    class="rounded-full bg-slate-100 px-3 py-1.5 font-medium dark:bg-slate-900"
-                                >
-                                    Usuario
-                                </span>
-                            </div>
-                        </div>
-
+                    <div class="flex min-w-0 items-start gap-3">
                         <div
-                            class="flex flex-col gap-3 sm:flex-row lg:flex-col"
+                            class="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl"
+                            :class="
+                                packageEntry.kind === 'pending'
+                                    ? 'bg-amber-50 text-amber-700 dark:bg-amber-950/40 dark:text-amber-200'
+                                    : 'bg-red-50 text-red-700 dark:bg-red-950/40 dark:text-red-300'
+                            "
                         >
-                            <div class="grid grid-cols-2 gap-3">
-                                <div
-                                    class="min-w-32 rounded-2xl border border-slate-100 bg-slate-50/70 px-4 py-3 dark:border-slate-800 dark:bg-slate-900/60"
-                                >
-                                    <p
-                                        class="text-2xl font-black text-slate-950 dark:text-white"
-                                    >
-                                        {{ launchableApps.length }}
-                                    </p>
-                                    <p class="text-xs text-slate-500">
-                                        Soluciones
-                                    </p>
-                                </div>
-
-                                <div
-                                    v-if="isTenantAdmin"
-                                    class="min-w-32 rounded-2xl border border-slate-100 bg-slate-50/70 px-4 py-3 dark:border-slate-800 dark:bg-slate-900/60"
-                                >
-                                    <p
-                                        class="text-2xl font-black text-slate-950 dark:text-white"
-                                    >
-                                        {{ operationalCount }}
-                                    </p>
-                                    <p class="text-xs text-slate-500">
-                                        Ecosistema activo
-                                    </p>
-                                </div>
-                            </div>
-
-                            <a
-                                v-if="isTenantAdmin"
-                                href="/app/control"
-                                class="inline-flex h-10 items-center justify-center gap-2 rounded-xl bg-slate-950 px-4 text-sm font-bold text-white transition hover:bg-slate-800 dark:bg-white dark:text-slate-950 dark:hover:bg-slate-200"
-                            >
-                                Control Panel
-                                <ArrowUpRight class="h-4 w-4" />
-                            </a>
-                        </div>
-                    </div>
-                </header>
-
-                <section
-                    v-if="props.business_self_service"
-                    aria-labelledby="package-builder-title"
-                    class="rounded-[1.75rem] border border-red-100 bg-white p-5 shadow-sm sm:p-6 dark:border-red-950 dark:bg-slate-950"
-                >
-                    <div
-                        class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between"
-                    >
-                        <div class="flex items-start gap-3">
-                            <div
-                                class="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-red-50 text-red-700 dark:bg-red-950/40 dark:text-red-300"
-                            >
-                                <component
-                                    :is="
-                                        packageEntry.kind === 'build'
-                                            ? PackagePlus
-                                            : Package
-                                    "
-                                    class="h-5 w-5"
-                                />
-                            </div>
-                            <div class="min-w-0">
-                                <h2
-                                    id="package-builder-title"
-                                    class="text-lg font-black text-slate-950 dark:text-white"
-                                >
-                                    {{ packageEntry.title }}
-                                </h2>
-                                <p
-                                    class="mt-1 text-sm leading-6 text-slate-500 dark:text-slate-400"
-                                >
-                                    {{ packageEntry.message }}
-                                </p>
-                            </div>
-                        </div>
-
-                        <div class="flex shrink-0 flex-col gap-2 sm:items-end">
                             <component
-                                :is="isInternal(packageEntry.url) ? Link : 'a'"
-                                :href="packageEntry.url"
-                                class="inline-flex h-12 items-center justify-center gap-2 rounded-xl bg-red-600 px-5 text-sm font-bold text-white transition hover:bg-red-700"
-                            >
-                                {{ packageEntry.label }}
-                            </component>
+                                :is="
+                                    packageEntry.kind === 'pending'
+                                        ? Clock3
+                                        : packageEntry.kind === 'build'
+                                          ? PackagePlus
+                                          : Package
+                                "
+                                class="h-5 w-5"
+                                aria-hidden="true"
+                            />
                         </div>
-                    </div>
-                </section>
-
-                <section class="space-y-4">
-                    <div
-                        class="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between"
-                    >
-                        <div>
-                            <p
-                                class="text-xs font-bold tracking-wide text-red-600 uppercase"
-                            >
-                                Operación diaria
-                            </p>
+                        <div class="min-w-0">
                             <h2
-                                class="mt-1 text-xl font-black text-slate-950 dark:text-white"
+                                id="package-builder-title"
+                                class="text-lg font-semibold text-slate-950 dark:text-white"
                             >
-                                {{
-                                    isTenantAdmin
-                                        ? 'Paneles administrativos'
-                                        : 'Tus soluciones'
-                                }}
+                                {{ packageEntry.title }}
                             </h2>
-                            <p class="mt-1 text-sm text-slate-500">
-                                <template v-if="isTenantAdmin">
-                                    Accede a cada solución activa desde un solo
-                                    lugar. Los KPIs operativos se incorporarán
-                                    mediante snapshots seguros de cada producto.
-                                </template>
-                                <template v-else>
-                                    Solo aparecen las soluciones que tienes
-                                    asignadas.
-                                </template>
-                            </p>
-                        </div>
-                    </div>
-
-                    <div
-                        v-if="launchableApps.length"
-                        class="grid gap-4 md:grid-cols-2 xl:grid-cols-3"
-                    >
-                        <article
-                            v-for="app in launchableApps"
-                            :key="`home-${app.key}`"
-                            class="group flex min-h-52 flex-col rounded-2xl border border-slate-200/70 bg-white p-5 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md dark:border-slate-800 dark:bg-slate-950"
-                        >
-                            <div class="flex items-start justify-between gap-3">
-                                <div class="flex min-w-0 items-center gap-3">
-                                    <div
-                                        class="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-slate-950 text-xs font-black text-white dark:bg-white dark:text-slate-950"
-                                    >
-                                        {{ appInitial(app) }}
-                                    </div>
-
-                                    <div class="min-w-0">
-                                        <h3
-                                            class="truncate font-black text-slate-950 dark:text-white"
-                                        >
-                                            {{ app.title }}
-                                        </h3>
-                                        <div
-                                            class="mt-1 flex items-center gap-1.5 text-xs font-semibold text-emerald-600"
-                                        >
-                                            <CheckCircle2 class="h-3.5 w-3.5" />
-                                            Activa
-                                        </div>
-                                    </div>
-                                </div>
-
-                                <span
-                                    v-if="isTenantAdmin"
-                                    class="rounded-full bg-slate-100 px-2.5 py-1 text-[11px] font-bold text-slate-600 dark:bg-slate-900 dark:text-slate-300"
-                                >
-                                    Admin
-                                </span>
-                            </div>
-
                             <p
-                                class="mt-4 flex-1 text-sm leading-6 text-slate-500 dark:text-slate-400"
+                                class="mt-0.5 text-sm leading-6 text-slate-600 dark:text-slate-400"
                             >
-                                {{ app.description }}
-                            </p>
-
-                            <div
-                                v-if="isTenantAdmin"
-                                class="mt-4 rounded-xl bg-slate-50 px-3 py-2.5 text-xs text-slate-500 dark:bg-slate-900/70"
-                            >
-                                <span
-                                    class="font-bold text-slate-700 dark:text-slate-200"
-                                >
-                                    Resumen administrativo:
-                                </span>
-                                acceso activo. Métricas de la solución
-                                pendientes de snapshot.
-                            </div>
-
-                            <a
-                                :href="app.launch_url!"
-                                class="mt-4 inline-flex h-10 items-center justify-center gap-2 rounded-xl bg-slate-950 px-4 text-sm font-bold text-white transition hover:bg-slate-800 dark:bg-white dark:text-slate-950 dark:hover:bg-slate-200"
-                            >
-                                Abrir {{ app.title }}
-                                <ArrowUpRight class="h-4 w-4" />
-                            </a>
-                        </article>
-                    </div>
-
-                    <div
-                        v-else
-                        class="rounded-[1.75rem] border border-dashed border-slate-200 bg-white px-6 py-12 text-center dark:border-slate-800 dark:bg-slate-950"
-                    >
-                        <Boxes class="mx-auto h-10 w-10 text-slate-300" />
-                        <h3
-                            class="mt-3 font-black text-slate-950 dark:text-white"
-                        >
-                            {{
-                                isTenantAdmin
-                                    ? 'Todavía no hay soluciones activas'
-                                    : 'No tienes soluciones asignadas'
-                            }}
-                        </h3>
-                        <p
-                            class="mx-auto mt-2 max-w-lg text-sm leading-6 text-slate-500"
-                        >
-                            <template v-if="packageEntry.kind === 'active'">
-                                Abre tus aplicaciones desde «Ver mi paquete».
-                            </template>
-                            <template
-                                v-else-if="packageEntry.kind === 'pending'"
-                            >
-                                Cuando se active tu compra, tus soluciones
-                                aparecerán aquí automáticamente.
-                            </template>
-                            <template v-else-if="props.business_self_service">
-                                Arma tu paquete y, cuando esté activo, tus
-                                soluciones aparecerán aquí automáticamente.
-                            </template>
-                            <template v-else-if="isTenantAdmin">
-                                Contrata o activa una solución desde el Control
-                                Panel y aparecerá aquí automáticamente.
-                            </template>
-                            <template v-else>
-                                Cuando el administrador te asigne una solución,
-                                podrás abrirla desde este Inicio.
-                            </template>
-                        </p>
-
-                        <a
-                            v-if="isTenantAdmin && !props.business_self_service"
-                            href="/app/control"
-                            class="mt-5 inline-flex h-10 items-center justify-center gap-2 rounded-xl border border-slate-200 px-4 text-sm font-bold text-slate-800 transition hover:bg-slate-50 dark:border-slate-800 dark:text-slate-100 dark:hover:bg-slate-900"
-                        >
-                            Ir al Control Panel
-                            <ArrowUpRight class="h-4 w-4" />
-                        </a>
-                    </div>
-                </section>
-
-                <section
-                    v-if="isTenantAdmin && managedServices.length"
-                    class="space-y-4"
-                >
-                    <div>
-                        <p
-                            class="text-xs font-bold tracking-wide text-slate-500 uppercase"
-                        >
-                            Servicios gestionados
-                        </p>
-                        <h2
-                            class="mt-1 text-lg font-black text-slate-950 dark:text-white"
-                        >
-                            Operación acompañada por LAUDAAPI
-                        </h2>
-                    </div>
-
-                    <div class="grid gap-3 md:grid-cols-2">
-                        <article
-                            v-for="service in managedServices"
-                            :key="`managed-${service.key}`"
-                            class="flex items-center gap-3 rounded-2xl border border-slate-200/70 bg-white p-4 dark:border-slate-800 dark:bg-slate-950"
-                        >
-                            <div
-                                class="flex h-10 w-10 items-center justify-center rounded-xl bg-slate-100 dark:bg-slate-900"
-                            >
-                                <ShieldCheck
-                                    class="h-5 w-5 text-slate-600 dark:text-slate-300"
-                                />
-                            </div>
-
-                            <div class="min-w-0">
-                                <p
-                                    class="font-bold text-slate-950 dark:text-white"
-                                >
-                                    {{ service.title }}
-                                </p>
-                                <p class="text-xs text-slate-500">
-                                    Servicio activo gestionado desde LAUDAAPI.
-                                </p>
-                            </div>
-                        </article>
-                    </div>
-                </section>
-
-                <section
-                    v-if="isTenantAdmin"
-                    class="rounded-[1.75rem] border border-slate-200/70 bg-slate-900 p-5 text-white shadow-lg sm:p-6"
-                >
-                    <div
-                        class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between"
-                    >
-                        <div>
-                            <div
-                                class="flex items-center gap-2 text-xs font-bold tracking-wide text-red-300 uppercase"
-                            >
-                                <LayoutGrid class="h-4 w-4" />
-                                Estado del ecosistema
-                            </div>
-                            <p class="mt-2 text-sm leading-6 text-slate-300">
-                                Este Home usa únicamente identidad, entitlements
-                                y estado central. No realiza consultas síncronas
-                                a las bases de datos de las soluciones.
+                                {{ packageEntry.message }}
                             </p>
                         </div>
-
-                        <a
-                            href="/app/control"
-                            class="inline-flex h-10 shrink-0 items-center justify-center gap-2 rounded-xl bg-white px-4 text-sm font-bold text-slate-950 transition hover:bg-slate-100"
-                        >
-                            Administrar ecosistema
-                            <ArrowUpRight class="h-4 w-4" />
-                        </a>
                     </div>
-                </section>
-            </div>
-        </div>
+
+                    <component
+                        :is="isInternal(packageEntry.url) ? Link : 'a'"
+                        :href="packageEntry.url"
+                        class="w-full shrink-0 sm:w-auto"
+                        :class="
+                            packageEntry.kind === 'build'
+                                ? portalButton.primary
+                                : portalButton.dark
+                        "
+                    >
+                        {{ packageEntry.label }}
+                    </component>
+                </div>
+            </section>
+
+            <PortalSection
+                heading-id="home-apps-title"
+                :title="isTenantAdmin ? 'Tus aplicaciones' : 'Tus soluciones'"
+                :count="launchableApps.length || null"
+                :description="
+                    isTenantAdmin
+                        ? 'Las aplicaciones activas de tu empresa.'
+                        : 'Solo aparecen las soluciones que tienes asignadas.'
+                "
+            >
+                <div
+                    v-if="launchableApps.length"
+                    class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3"
+                >
+                    <AppTile
+                        v-for="app in launchableApps"
+                        :key="`home-${app.key}`"
+                        :title="app.title"
+                        :description="app.description"
+                        status="Activa"
+                        tone="active"
+                        solid
+                    >
+                        <a
+                            :href="app.launch_url!"
+                            class="w-full"
+                            :class="portalButton.dark"
+                        >
+                            Abrir {{ app.title }}
+                            <ArrowUpRight class="h-4 w-4" aria-hidden="true" />
+                        </a>
+                    </AppTile>
+                </div>
+
+                <div
+                    v-else
+                    class="rounded-2xl border border-dashed border-slate-300 bg-white px-6 py-10 text-center dark:border-slate-700 dark:bg-slate-950"
+                >
+                    <Boxes
+                        class="mx-auto h-9 w-9 text-slate-300"
+                        aria-hidden="true"
+                    />
+                    <h3
+                        class="mt-3 font-semibold text-slate-950 dark:text-white"
+                    >
+                        {{
+                            isTenantAdmin
+                                ? 'Todavía no hay aplicaciones activas'
+                                : 'No tienes soluciones asignadas'
+                        }}
+                    </h3>
+                    <p
+                        class="mx-auto mt-1 max-w-md text-sm leading-6 text-slate-600 dark:text-slate-400"
+                    >
+                        <template v-if="packageEntry.kind === 'active'">
+                            Abre tus aplicaciones desde «Ver mi paquete».
+                        </template>
+                        <template v-else-if="packageEntry.kind === 'pending'">
+                            Cuando se active tu compra, tus aplicaciones
+                            aparecerán aquí.
+                        </template>
+                        <template v-else-if="props.business_self_service">
+                            Arma tu paquete y, cuando esté activo, tus
+                            aplicaciones aparecerán aquí.
+                        </template>
+                        <template v-else-if="isTenantAdmin">
+                            Agrega una aplicación desde el Panel de control y
+                            aparecerá aquí.
+                        </template>
+                        <template v-else>
+                            Cuando el administrador te asigne una aplicación,
+                            podrás abrirla desde aquí.
+                        </template>
+                    </p>
+
+                    <Link
+                        v-if="isTenantAdmin && !props.business_self_service"
+                        href="/app/control"
+                        class="mt-5"
+                        :class="portalButton.secondary"
+                    >
+                        Ir al Panel de control
+                    </Link>
+                </div>
+            </PortalSection>
+
+            <PortalSection
+                v-if="isTenantAdmin && managedServices.length"
+                heading-id="home-managed-title"
+                title="Servicios que gestionamos por ti"
+                description="Nuestro equipo los opera; no necesitas abrirlos."
+            >
+                <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                    <AppTile
+                        v-for="service in managedServices"
+                        :key="`managed-${service.key}`"
+                        :title="service.title"
+                        :description="service.description"
+                        status="Activo"
+                        tone="active"
+                    />
+                </div>
+            </PortalSection>
+
+            <PortalSection
+                v-if="isTenantAdmin"
+                heading-id="home-shortcuts-title"
+                title="Atajos"
+            >
+                <nav
+                    aria-labelledby="home-shortcuts-title"
+                    class="grid gap-3 sm:grid-cols-2 xl:grid-cols-4"
+                >
+                    <Link
+                        v-for="item in shortcuts"
+                        :key="item.href"
+                        :href="item.href"
+                        class="group flex min-w-0 items-center gap-3 rounded-2xl border border-slate-200/80 bg-white p-4 transition hover:border-slate-300 hover:shadow-sm focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-400 dark:border-slate-800 dark:bg-slate-950"
+                    >
+                        <span
+                            class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-200"
+                        >
+                            <component
+                                :is="item.icon"
+                                class="h-5 w-5"
+                                aria-hidden="true"
+                            />
+                        </span>
+                        <span class="min-w-0 flex-1">
+                            <span
+                                class="block font-semibold text-slate-950 dark:text-white"
+                                >{{ item.title }}</span
+                            >
+                            <span
+                                class="block text-sm text-slate-600 dark:text-slate-400"
+                                >{{ item.text }}</span
+                            >
+                        </span>
+                        <ChevronRight
+                            class="h-4 w-4 shrink-0 text-slate-400 transition group-hover:translate-x-0.5"
+                            aria-hidden="true"
+                        />
+                    </Link>
+                </nav>
+            </PortalSection>
+        </PortalPage>
     </AppLayout>
 </template>

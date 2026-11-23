@@ -601,7 +601,7 @@ function companySizeLabel(value: string): string {
                     </p>
 
                     <p class="text-sm text-slate-500">
-                        Información base que utilizará el App Hub para contextualizar tu empresa.
+                        Nos ayuda a mostrarte precios, horarios y moneda correctos.
                     </p>
                 </div>
             </div>
@@ -1007,7 +1007,7 @@ function companySizeLabel(value: string): string {
                 </p>
 
                 <p class="mt-1 text-sm text-slate-500">
-                    Esta será la identidad empresarial central de tu App Hub.
+                    Estos serán los datos principales de tu empresa en LAUDA.
                 </p>
             </div>
 
@@ -1091,7 +1091,7 @@ function companySizeLabel(value: string): string {
             class="rounded-2xl border border-slate-200 bg-slate-50 p-4 text-sm leading-6 text-slate-600 dark:border-slate-800 dark:bg-slate-900/70 dark:text-slate-300"
         >
             <strong>Datos declarados.</strong>
-            LAUDAAPI no sustituye estos valores automáticamente con información obtenida de DGII o de una solución operativa. Las diferencias podrán revisarse de forma separada.
+            Guardamos lo que escribas tal cual; no lo cambiamos con datos de la DGII ni de tus aplicaciones.
         </div>
 
         <div

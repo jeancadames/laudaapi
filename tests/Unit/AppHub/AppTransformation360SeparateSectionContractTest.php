@@ -75,7 +75,7 @@ final class AppTransformation360SeparateSectionContractTest
         }
 
         $this->assertStringContainsString(
-            'Operación diaria',
+            'Tus aplicaciones',
             $home
         );
 

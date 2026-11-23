@@ -52,7 +52,7 @@ export const navigationByRole = {
     subscriber_admin: {
         main: [
             { title: 'Inicio', href: '/app', icon: 'LayoutGrid' },
-            { title: 'Control Panel', href: '/app/control', icon: 'Boxes' },
+            { title: 'Panel de control', href: '/app/control', icon: 'Boxes' },
             {
                 title: 'Diagnóstico 360',
                 href: '/app/diagnostico-360',

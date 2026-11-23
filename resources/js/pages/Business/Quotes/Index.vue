@@ -1,7 +1,8 @@
 <script setup lang="ts">
-import AppLayout from '@/layouts/AppLayout.vue';
-import { Button } from '@/components/ui/button';
 import { Head, Link, usePage } from '@inertiajs/vue3';
+import { Button } from '@/components/ui/button';
+import AppLayout from '@/layouts/AppLayout.vue';
+import { timezoneLabel } from '@/lib/timezoneLabel';
 import type { BusinessQuoteSummary } from '@/types/businessQuoteAcceptance';
 
 const page = usePage();
@@ -91,7 +92,7 @@ const status = {
                         </p>
                         <p class="text-xs leading-5 text-muted-foreground">
                             Válida hasta {{ validUntil(quote) }} ({{
-                                quote.timezone
+                                timezoneLabel(quote.timezone)
                             }})
                         </p>
                     </div>

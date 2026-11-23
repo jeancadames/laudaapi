@@ -57,21 +57,21 @@ final class SubscriberTenantUserController extends Controller
             'role_options' => [
                 [
                     'value' => 'owner',
-                    'label' => 'Owner',
+                    'label' => 'Propietario',
                     'description' =>
-                        'Control total central del tenant.',
+                        'Control total de la empresa en LAUDA.',
                 ],
                 [
                     'value' => 'admin',
                     'label' => 'Administrador',
                     'description' =>
-                        'Control Panel, App Store, empresa y facturación.',
+                        'Panel de control, aplicaciones, empresa y facturación.',
                 ],
                 [
                     'value' => 'member',
                     'label' => 'Usuario',
                     'description' =>
-                        'Solo Mis Apps y acceso a soluciones autorizadas.',
+                        'Solo abre las aplicaciones que se le asignen.',
                 ],
             ],
             'summary' => [

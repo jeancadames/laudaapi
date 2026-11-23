@@ -1,11 +1,15 @@
 <script setup lang="ts">
-import { Head, router } from '@inertiajs/vue3';
+import { Head, router, usePage } from '@inertiajs/vue3';
+import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
+import AppTile from '@/components/portal/AppTile.vue';
+import { portalButton } from '@/components/portal/buttons';
+import IdentityRevokeConfirm from '@/components/portal/IdentityRevokeConfirm.vue';
+import AppLayout from '@/layouts/AppLayout.vue';
 import {
     identityStorageKey,
     takeBusinessIdentityHandoff,
     type IdentityTransfer,
 } from '@/lib/businessIdentityHandoff';
-import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
 
 type Account = { id: number; name: string; email: string; verified: boolean };
 type Solution = {
@@ -321,9 +325,54 @@ async function confirmRevoke() {
             'DELETE',
         );
         revoke.value = null;
-        notice.value = 'Acceso desde LAUDA revocado en esta aplicación.';
+        notice.value =
+            'Acceso retirado. Puedes volver a conectar la aplicación cuando quieras.';
         router.reload({ only: ['identity'] });
     });
+}
+/**
+ * En LAUDA, con sesión iniciada, la pantalla vive dentro del portal (menú
+ * lateral incluido). Sin sesión, o en una aplicación receptora, conserva su
+ * marco propio.
+ */
+const page = usePage();
+const inPortal = computed(
+    () =>
+        props.identity.side === 'central' &&
+        !!props.identity.account &&
+        // Solo clientes: el servidor comparte entonces los datos del menú lateral.
+        !!(page.props as { auth?: { user?: { tenant_access?: unknown } } }).auth
+            ?.user?.tenant_access,
+);
+const breadcrumbs = [
+    { title: 'Inicio', href: '/app' },
+    { title: 'Conexiones Business', href: '/business/identity' },
+];
+type Tone = 'active' | 'pending' | 'neutral';
+/** Estado de cada aplicación en palabras del cliente. */
+function serviceStatus(service: Solution): { label: string; tone: Tone } {
+    if (!service.configured)
+        return { label: 'Aún no disponible', tone: 'neutral' };
+    if (service.ready) return { label: 'Conectada', tone: 'active' };
+    if (service.pending)
+        return { label: 'Solicitud en curso', tone: 'pending' };
+    if (service.member_active)
+        return { label: 'Falta tu confirmación', tone: 'pending' };
+    if (service.active)
+        return { label: 'Falta conectar tu cuenta', tone: 'pending' };
+    if (service.linked) return { label: 'Acceso retirado', tone: 'neutral' };
+    return { label: 'Sin conectar', tone: 'neutral' };
+}
+function serviceHint(service: Solution): string {
+    if (!service.configured)
+        return 'Estará disponible para conectar muy pronto.';
+    if (!service.can_link)
+        return 'Pide al administrador de tu empresa que la conecte primero.';
+    if (service.ready) return 'Ábrela desde LAUDA sin volver a iniciar sesión.';
+    if (service.pending) return 'Continúa donde la dejaste o empieza de nuevo.';
+    if (service.member_active || service.active)
+        return 'Termina la conexión para poder abrirla desde LAUDA.';
+    return 'Conéctala una vez y ábrela desde LAUDA con tu empresa.';
 }
 let timer: ReturnType<typeof setInterval> | undefined;
 onMounted(() => {
@@ -382,652 +431,664 @@ onBeforeUnmount(() => {
     <Head title="Conexiones Business"
         ><meta name="referrer" content="no-referrer"
     /></Head>
-    <div class="bi-shell min-h-screen bg-background text-foreground">
-        <header class="border-b border-border">
-            <div
-                class="mx-auto flex max-w-5xl items-center justify-between gap-4 px-6 py-5 sm:px-10"
-            >
-                <a
-                    :href="identity.home_url"
-                    class="text-xl font-bold tracking-tight"
-                    aria-label="Volver al inicio"
-                    >LAUDA<span
-                        class="ml-2 text-sm font-normal text-muted-foreground"
-                        >{{
-                            identity.side === 'central'
-                                ? 'Business'
-                                : identity.service_name
-                        }}</span
-                    ></a
-                >
-                <a :href="identity.home_url" class="bi-link text-sm"
-                    >Volver al inicio <span aria-hidden="true">↗︎</span></a
-                >
-            </div>
-        </header>
-        <main
-            class="mx-auto max-w-5xl px-6 py-10 sm:px-10 sm:py-16"
-            :aria-busy="busy"
+    <component
+        :is="inPortal ? AppLayout : 'div'"
+        v-bind="inPortal ? { breadcrumbs } : {}"
+    >
+        <div
+            class="bi-shell text-foreground"
+            :class="
+                inPortal
+                    ? 'min-h-full bg-[#F7F7F5] dark:bg-background'
+                    : 'min-h-screen bg-background'
+            "
         >
-            <div class="mb-10 max-w-2xl">
-                <p
-                    class="mb-3 text-xs font-semibold tracking-widest text-muted-foreground uppercase"
-                >
-                    Cuentas y empresas
-                </p>
-                <h1 class="text-3xl font-semibold tracking-tight sm:text-4xl">
-                    {{
-                        transfer
-                            ? 'Conecta con confianza.'
-                            : 'Tus conexiones Business.'
-                    }}
-                </h1>
-                <p class="mt-4 text-base leading-relaxed text-muted-foreground">
-                    {{
-                        transfer
-                            ? 'Comprueba la empresa y la cuenta de cada aplicación antes de confirmar.'
-                            : 'Vincula tus cuentas para abrir las aplicaciones desde LAUDA con la empresa correcta.'
-                    }}
-                </p>
-            </div>
-            <div
-                v-if="error"
-                role="alert"
-                class="mb-6 border-l-4 border-destructive bg-destructive/5 p-4 text-sm leading-relaxed"
-            >
-                {{ error }}
-                <button
-                    v-if="transfer && !expired && identity.account?.verified"
-                    type="button"
-                    class="bi-link ml-2"
-                    :disabled="busy"
-                    @click="prepare"
-                >
-                    Reintentar</button
-                ><a href="/business/identity" class="bi-link ml-2"
-                    >Recargar página</a
-                >
-            </div>
-            <p
-                v-if="notice"
-                role="status"
-                class="mb-6 border-l-4 border-primary bg-muted p-4 text-sm"
-            >
-                {{ notice }}
-            </p>
-            <section v-if="!identity.enabled" class="bi-panel">
-                <h2 class="text-xl font-semibold">
-                    Conexiones aún no disponibles
-                </h2>
-                <p class="mt-3 text-muted-foreground">
-                    La vinculación Business está pendiente de habilitación en
-                    esta aplicación. Podrás continuar cuando esté disponible.
-                </p>
-            </section>
-            <section v-else-if="!identity.account" class="bi-panel">
-                <h2 class="text-xl font-semibold">
-                    Inicia sesión en {{ identity.service_name }}
-                </h2>
-                <p class="mt-3 mb-6 text-muted-foreground">
-                    Utiliza la cuenta que deseas vincular. Tu solicitud se
-                    conservará en esta pestaña durante unos minutos.
-                </p>
-                <a href="/login" class="bi-primary">Iniciar sesión</a>
-            </section>
-            <section v-else-if="!identity.account.verified" class="bi-panel">
-                <h2 class="text-xl font-semibold">
-                    Verifica tu correo para continuar
-                </h2>
-                <p class="mt-3 mb-6 break-words text-muted-foreground">
-                    {{ identity.account.email }}
-                </p>
-                <a href="/email/verify" class="bi-primary">Verificar correo</a>
-            </section>
-            <template v-else>
+            <header v-if="!inPortal" class="border-b border-border">
                 <div
-                    class="mb-8 flex flex-wrap items-baseline justify-between gap-3 border-b border-border pb-5 text-sm"
+                    class="mx-auto flex max-w-5xl items-center justify-between gap-4 px-4 py-5 sm:px-10"
                 >
-                    <p>
-                        Sesión en {{ identity.service_name }}:
-                        <strong>{{ identity.account.name }}</strong
-                        ><span
-                            class="mt-1 block break-all text-muted-foreground sm:ml-2 sm:inline"
-                            >{{ identity.account.email }}</span
-                        >
-                    </p>
-                    <p
-                        v-if="transfer && !expired"
-                        class="text-muted-foreground"
+                    <a
+                        :href="identity.home_url"
+                        class="min-w-0 truncate text-xl font-bold tracking-tight"
+                        aria-label="Volver al inicio"
+                        >LAUDA<span
+                            class="ml-2 text-sm font-normal text-muted-foreground"
+                            >{{
+                                identity.side === 'central'
+                                    ? 'Business'
+                                    : identity.service_name
+                            }}</span
+                        ></a
                     >
-                        Vence en
-                        <span class="font-mono tabular-nums">{{
-                            minuteLabel
-                        }}</span>
+                    <a
+                        :href="identity.home_url"
+                        class="bi-link shrink-0 text-sm"
+                        >Volver al inicio <span aria-hidden="true">↗︎</span></a
+                    >
+                </div>
+            </header>
+            <main
+                class="mx-auto w-full"
+                :class="
+                    inPortal
+                        ? 'max-w-6xl px-4 py-6 sm:px-6 sm:py-8 lg:px-8'
+                        : 'max-w-5xl px-4 py-10 sm:px-10 sm:py-16'
+                "
+                :aria-busy="busy"
+            >
+                <div class="mb-8 max-w-2xl">
+                    <p
+                        v-if="!inPortal"
+                        class="mb-2 text-sm font-medium text-muted-foreground"
+                    >
+                        Cuentas y empresas
+                    </p>
+                    <h1
+                        class="text-2xl font-bold tracking-tight text-slate-950 sm:text-[28px] dark:text-white"
+                    >
+                        {{
+                            transfer
+                                ? 'Confirma la conexión'
+                                : 'Conexiones Business'
+                        }}
+                    </h1>
+                    <p
+                        class="mt-1.5 text-[15px] leading-6 text-slate-600 dark:text-slate-400"
+                    >
+                        {{
+                            transfer
+                                ? 'Revisa que la empresa y la cuenta de cada lado sean las correctas antes de confirmar.'
+                                : identity.side === 'central'
+                                  ? 'Conecta cada aplicación con tu empresa una sola vez y ábrela desde LAUDA sin volver a iniciar sesión.'
+                                  : 'Vincula tus cuentas para abrir las aplicaciones desde LAUDA con la empresa correcta.'
+                        }}
                     </p>
                 </div>
-                <section v-if="expired" class="bi-panel">
-                    <h2 class="text-xl font-semibold">La solicitud venció</h2>
-                    <p class="mt-3 mb-6 text-muted-foreground">
-                        Por seguridad, cada solicitud dura unos minutos. Inicia
-                        una nueva para continuar.
+                <div
+                    v-if="error"
+                    role="alert"
+                    class="mb-6 rounded-xl border border-red-200 bg-red-50 p-4 text-sm leading-relaxed text-red-900 dark:border-red-900/60 dark:bg-red-950/30 dark:text-red-100"
+                >
+                    {{ error }}
+                    <span class="mt-2 flex flex-wrap gap-x-4">
+                        <button
+                            v-if="
+                                transfer &&
+                                !expired &&
+                                identity.account?.verified
+                            "
+                            type="button"
+                            class="bi-link font-semibold"
+                            :disabled="busy"
+                            @click="prepare"
+                        >
+                            Reintentar</button
+                        ><a href="/business/identity" class="bi-link"
+                            >Recargar página</a
+                        >
+                    </span>
+                </div>
+                <p
+                    v-if="notice"
+                    role="status"
+                    class="mb-6 rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-900 dark:border-emerald-900/60 dark:bg-emerald-950/30 dark:text-emerald-100"
+                >
+                    {{ notice }}
+                </p>
+                <section v-if="!identity.enabled" class="bi-panel">
+                    <h2 class="text-lg font-semibold">
+                        Conexiones aún no disponibles
+                    </h2>
+                    <p class="mt-2 text-slate-600 dark:text-slate-400">
+                        Muy pronto podrás conectar tus aplicaciones desde aquí.
                     </p>
-                    <button class="bi-primary" type="button" @click="clear">
-                        Descartar solicitud
-                    </button>
                 </section>
-                <section v-else-if="transfer" aria-labelledby="connection-step">
-                    <p
-                        v-if="recovered"
-                        class="mb-5 text-sm text-muted-foreground"
-                    >
-                        Recuperamos la solicitud pendiente de esta pestaña.
+                <section v-else-if="!identity.account" class="bi-panel">
+                    <h2 class="text-lg font-semibold">
+                        Inicia sesión en {{ identity.service_name }}
+                    </h2>
+                    <p class="mt-2 mb-5 text-slate-600 dark:text-slate-400">
+                        Usa la cuenta que quieres conectar. Guardaremos tu
+                        solicitud en esta pestaña durante unos minutos.
                     </p>
-                    <template v-if="summary">
-                        <h2
-                            id="connection-step"
-                            class="mb-6 text-xl font-semibold"
+                    <a href="/login" :class="portalButton.primary"
+                        >Iniciar sesión</a
+                    >
+                </section>
+                <section
+                    v-else-if="!identity.account.verified"
+                    class="bi-panel"
+                >
+                    <h2 class="text-lg font-semibold">
+                        Verifica tu correo para continuar
+                    </h2>
+                    <p
+                        class="mt-2 mb-5 break-words text-slate-600 dark:text-slate-400"
+                    >
+                        {{ identity.account.email }}
+                    </p>
+                    <a href="/email/verify" :class="portalButton.primary"
+                        >Verificar correo</a
+                    >
+                </section>
+                <template v-else>
+                    <div
+                        class="mb-6 flex flex-wrap items-center justify-between gap-x-4 gap-y-1 text-sm text-slate-600 dark:text-slate-400"
+                    >
+                        <p class="min-w-0">
+                            Conectado como
+                            <strong
+                                class="font-semibold text-slate-900 dark:text-white"
+                                >{{ identity.account.name }}</strong
+                            ><span class="block break-all sm:ml-2 sm:inline">{{
+                                identity.account.email
+                            }}</span>
+                        </p>
+                        <p
+                            v-if="transfer && !expired"
+                            class="rounded-full bg-amber-50 px-3 py-1 text-amber-900 dark:bg-amber-950/40 dark:text-amber-100"
                         >
-                            {{
-                                identity.side === 'central'
-                                    ? 'Confirma esta conexión'
-                                    : 'Elige la empresa en ' +
-                                      identity.service_name
-                            }}
+                            Vence en
+                            <span class="font-semibold tabular-nums">{{
+                                minuteLabel
+                            }}</span>
+                        </p>
+                    </div>
+                    <section v-if="expired" class="bi-panel">
+                        <h2 class="text-lg font-semibold">
+                            La solicitud venció
                         </h2>
-                        <div
-                            class="grid gap-8 border-y border-border py-7 md:grid-cols-2 md:gap-12"
+                        <p class="mt-2 mb-5 text-slate-600 dark:text-slate-400">
+                            Por seguridad, cada solicitud dura unos minutos.
+                            Empieza una nueva para continuar.
+                        </p>
+                        <button
+                            :class="portalButton.dark"
+                            type="button"
+                            @click="clear"
                         >
-                            <div>
-                                <p
-                                    class="mb-4 text-sm font-semibold text-muted-foreground"
-                                >
-                                    01 / LAUDA
-                                </p>
-                                <dl class="space-y-4">
-                                    <div>
-                                        <dt
-                                            class="text-xs text-muted-foreground"
-                                        >
-                                            Empresa
-                                        </dt>
-                                        <dd
-                                            class="mt-1 text-lg font-medium break-words"
-                                        >
-                                            {{ summary.central_company_name }}
-                                        </dd>
-                                        <dd
-                                            class="text-xs text-muted-foreground"
-                                        >
-                                            Empresa #{{
-                                                summary.central_company_id
-                                            }}
-                                        </dd>
-                                    </div>
-                                    <div>
-                                        <dt
-                                            class="text-xs text-muted-foreground"
-                                        >
-                                            Cuenta
-                                        </dt>
-                                        <dd class="mt-1 font-medium">
-                                            {{ summary.central_user_name }}
-                                        </dd>
-                                        <dd
-                                            class="text-sm break-all text-muted-foreground"
-                                        >
-                                            {{ summary.central_user_email }} ·
-                                            #{{ summary.central_user_id }}
-                                        </dd>
-                                    </div>
-                                </dl>
-                            </div>
-                            <div>
-                                <p
-                                    class="mb-4 text-sm font-semibold text-muted-foreground"
-                                >
-                                    02 / {{ summary.service_name }}
-                                </p>
-                                <dl class="space-y-4">
-                                    <div>
-                                        <dt
-                                            class="text-xs text-muted-foreground"
-                                        >
-                                            <label
+                            Descartar solicitud
+                        </button>
+                    </section>
+                    <section
+                        v-else-if="transfer"
+                        aria-labelledby="connection-step"
+                    >
+                        <p
+                            v-if="recovered"
+                            class="mb-5 text-sm text-slate-600 dark:text-slate-400"
+                        >
+                            Recuperamos la solicitud que tenías abierta en esta
+                            pestaña.
+                        </p>
+                        <template v-if="summary">
+                            <h2
+                                id="connection-step"
+                                class="mb-4 text-lg font-semibold"
+                            >
+                                {{
+                                    identity.side === 'central'
+                                        ? `Conectar ${summary.service_name} con tu empresa`
+                                        : 'Elige la empresa en ' +
+                                          identity.service_name
+                                }}
+                            </h2>
+                            <div class="grid gap-4 md:grid-cols-2">
+                                <div class="bi-panel">
+                                    <p
+                                        class="mb-4 text-sm font-semibold text-slate-500"
+                                    >
+                                        En LAUDA
+                                    </p>
+                                    <dl class="space-y-4">
+                                        <div>
+                                            <dt class="text-xs text-slate-500">
+                                                Empresa
+                                            </dt>
+                                            <dd
+                                                class="mt-1 text-lg font-semibold break-words"
+                                            >
+                                                {{
+                                                    summary.central_company_name
+                                                }}
+                                            </dd>
+                                        </div>
+                                        <div>
+                                            <dt class="text-xs text-slate-500">
+                                                Cuenta
+                                            </dt>
+                                            <dd class="mt-1 font-medium">
+                                                {{ summary.central_user_name }}
+                                            </dd>
+                                            <dd
+                                                class="text-sm break-all text-slate-600 dark:text-slate-400"
+                                            >
+                                                {{ summary.central_user_email }}
+                                            </dd>
+                                        </div>
+                                    </dl>
+                                </div>
+                                <div class="bi-panel">
+                                    <p
+                                        class="mb-4 text-sm font-semibold text-slate-500"
+                                    >
+                                        En {{ summary.service_name }}
+                                    </p>
+                                    <dl class="space-y-4">
+                                        <div>
+                                            <dt class="text-xs text-slate-500">
+                                                <label
+                                                    v-if="
+                                                        identity.side ===
+                                                        'receiver'
+                                                    "
+                                                    for="local-company"
+                                                    >Empresa a vincular</label
+                                                ><span v-else>Empresa</span>
+                                            </dt>
+                                            <dd
                                                 v-if="
                                                     identity.side === 'receiver'
                                                 "
-                                                for="local-company"
-                                                >Empresa a vincular</label
-                                            ><span v-else>Empresa</span>
-                                        </dt>
-                                        <dd
-                                            v-if="identity.side === 'receiver'"
-                                            class="mt-2"
-                                        >
-                                            <select
-                                                id="local-company"
-                                                v-model="localCompany"
-                                                class="bi-select"
-                                                :disabled="
-                                                    busy ||
-                                                    !summary.companies?.length
-                                                "
+                                                class="mt-2"
                                             >
-                                                <option value="" disabled>
-                                                    Selecciona una empresa
-                                                </option>
-                                                <option
-                                                    v-for="company in summary.companies"
-                                                    :key="company.id"
-                                                    :value="String(company.id)"
+                                                <select
+                                                    id="local-company"
+                                                    v-model="localCompany"
+                                                    class="bi-select"
+                                                    :disabled="
+                                                        busy ||
+                                                        !summary.companies
+                                                            ?.length
+                                                    "
                                                 >
-                                                    {{ company.name }} · #{{
-                                                        company.id
-                                                    }}
-                                                </option>
-                                            </select>
-                                            <p
-                                                v-if="
-                                                    !summary.companies?.length
-                                                "
-                                                class="mt-3 text-sm text-muted-foreground"
-                                            >
-                                                Esta cuenta no tiene una empresa
-                                                con el permiso necesario. Revisa
-                                                tu acceso o vuelve a LAUDA para
-                                                iniciar otra solicitud.
-                                            </p>
-                                        </dd>
-                                        <template v-else
-                                            ><dd
-                                                class="mt-1 text-lg font-medium break-words"
+                                                    <option value="" disabled>
+                                                        Selecciona una empresa
+                                                    </option>
+                                                    <option
+                                                        v-for="company in summary.companies"
+                                                        :key="company.id"
+                                                        :value="
+                                                            String(company.id)
+                                                        "
+                                                    >
+                                                        {{ company.name }} · #{{
+                                                            company.id
+                                                        }}
+                                                    </option>
+                                                </select>
+                                                <p
+                                                    v-if="
+                                                        !summary.companies
+                                                            ?.length
+                                                    "
+                                                    class="mt-3 text-sm text-slate-600"
+                                                >
+                                                    Esta cuenta no tiene una
+                                                    empresa con el permiso
+                                                    necesario. Revisa tu acceso
+                                                    o vuelve a LAUDA para
+                                                    iniciar otra solicitud.
+                                                </p>
+                                            </dd>
+                                            <dd
+                                                v-else
+                                                class="mt-1 text-lg font-semibold break-words"
                                             >
                                                 {{ summary.local_company_name }}
                                             </dd>
-                                            <dd
-                                                class="text-xs text-muted-foreground"
-                                            >
-                                                Empresa #{{
-                                                    summary.local_company_id
+                                        </div>
+                                        <div>
+                                            <dt class="text-xs text-slate-500">
+                                                Cuenta
+                                            </dt>
+                                            <dd class="mt-1 font-medium">
+                                                {{
+                                                    summary.local_user_name ??
+                                                    identity.account.name
                                                 }}
-                                            </dd></template
-                                        >
-                                    </div>
-                                    <div>
-                                        <dt
-                                            class="text-xs text-muted-foreground"
-                                        >
-                                            Cuenta
-                                        </dt>
-                                        <dd class="mt-1 font-medium">
-                                            {{
-                                                summary.local_user_name ??
-                                                identity.account.name
-                                            }}
-                                        </dd>
-                                        <dd
-                                            class="text-sm break-all text-muted-foreground"
-                                        >
-                                            {{
-                                                summary.local_user_email ??
-                                                identity.account.email
-                                            }}
-                                            · #{{
-                                                summary.local_user_id ??
-                                                identity.account.id
-                                            }}
-                                        </dd>
-                                    </div>
-                                </dl>
+                                            </dd>
+                                            <dd
+                                                class="text-sm break-all text-slate-600 dark:text-slate-400"
+                                            >
+                                                {{
+                                                    summary.local_user_email ??
+                                                    identity.account.email
+                                                }}
+                                            </dd>
+                                        </div>
+                                    </dl>
+                                </div>
                             </div>
-                        </div>
-                        <p
-                            class="mt-6 max-w-2xl text-sm leading-relaxed text-muted-foreground"
-                        >
-                            {{
-                                identity.side === 'central'
-                                    ? 'Al confirmar, estas cuentas y empresas quedarán asociadas. Puedes revocar el acceso después; la asociación de identidad se conserva.'
-                                    : 'Continuar enviará esta selección a LAUDA para que la revises y confirmes. Podrás cancelarla antes de confirmar.'
-                            }}
-                        </p>
-                        <div class="mt-7 flex flex-wrap items-center gap-4">
-                            <button
-                                type="button"
-                                class="bi-primary"
-                                :disabled="
-                                    busy ||
-                                    (identity.side === 'receiver' &&
-                                        !chosenLocal)
-                                "
-                                @click="consent"
+                            <p
+                                class="mt-5 max-w-2xl text-sm leading-relaxed text-slate-600 dark:text-slate-400"
+                            >
+                                {{
+                                    identity.side === 'central'
+                                        ? 'Al confirmar, podrás abrir la aplicación desde LAUDA con esta empresa. Puedes quitar el acceso cuando quieras.'
+                                        : 'Continuar enviará esta selección a LAUDA para que la revises y confirmes. Podrás cancelarla antes de confirmar.'
+                                }}
+                            </p>
+                            <div
+                                class="mt-6 flex flex-col gap-3 sm:flex-row sm:items-center"
+                            >
+                                <button
+                                    type="button"
+                                    :class="portalButton.primary"
+                                    :disabled="
+                                        busy ||
+                                        (identity.side === 'receiver' &&
+                                            !chosenLocal)
+                                    "
+                                    @click="consent"
+                                >
+                                    {{
+                                        busy
+                                            ? 'Procesando…'
+                                            : identity.side === 'central'
+                                              ? 'Confirmar conexión'
+                                              : 'Revisar en LAUDA'
+                                    }}</button
+                                ><button
+                                    type="button"
+                                    :class="portalButton.link"
+                                    :disabled="busy"
+                                    @click="cancel"
+                                >
+                                    Cancelar solicitud
+                                </button>
+                            </div>
+                        </template>
+                        <div v-else class="bi-panel">
+                            <h2
+                                id="connection-step"
+                                class="text-lg font-semibold"
                             >
                                 {{
                                     busy
-                                        ? 'Procesando…'
-                                        : identity.side === 'central'
-                                          ? 'Confirmar conexión'
-                                          : 'Revisar en LAUDA'
-                                }}</button
-                            ><button
-                                type="button"
-                                class="bi-link text-sm"
-                                :disabled="busy"
-                                @click="cancel"
+                                        ? 'Comprobando la conexión…'
+                                        : 'Continuar con la conexión'
+                                }}
+                            </h2>
+                            <p
+                                class="mt-2 mb-5 text-slate-600 dark:text-slate-400"
                             >
-                                Cancelar solicitud
-                            </button>
+                                {{
+                                    transfer.stage === 'launch'
+                                        ? 'Comprobamos tu acceso a la empresa antes de abrir la aplicación.'
+                                        : 'Estamos comprobando la confirmación entre las dos aplicaciones.'
+                                }}
+                            </p>
+                            <div
+                                v-if="!busy"
+                                class="flex flex-col gap-3 sm:flex-row sm:items-center"
+                            >
+                                <button
+                                    type="button"
+                                    :class="portalButton.primary"
+                                    @click="prepare"
+                                >
+                                    Continuar</button
+                                ><button
+                                    type="button"
+                                    :class="portalButton.link"
+                                    @click="clear"
+                                >
+                                    Descartar enlace
+                                </button>
+                            </div>
                         </div>
-                    </template>
-                    <template v-else
-                        ><h2 id="connection-step" class="text-xl font-semibold">
-                            {{
-                                busy
-                                    ? 'Comprobando la conexión…'
-                                    : 'Continuar con la conexión'
-                            }}
-                        </h2>
-                        <p class="my-4 text-muted-foreground">
-                            {{
-                                transfer.stage === 'launch'
-                                    ? 'Verificamos tu acceso a la empresa antes de abrir la aplicación.'
-                                    : 'Estamos comprobando la confirmación entre las dos aplicaciones.'
-                            }}
-                        </p>
-                        <button
-                            v-if="!busy"
-                            type="button"
-                            class="bi-primary"
-                            @click="prepare"
-                        >
-                            Continuar</button
-                        ><button
-                            v-if="!busy"
-                            type="button"
-                            class="bi-link ml-4 text-sm"
-                            @click="clear"
-                        >
-                            Descartar enlace
-                        </button></template
+                    </section>
+                    <section
+                        v-else-if="identity.side === 'central'"
+                        aria-labelledby="connections-title"
                     >
-                </section>
-                <section
-                    v-else-if="identity.side === 'central'"
-                    aria-labelledby="connections-title"
-                >
-                    <div class="mb-8 max-w-md">
-                        <label
-                            for="central-company"
-                            class="mb-2 block text-sm font-medium"
-                            >Empresa en LAUDA</label
-                        ><select
-                            id="central-company"
-                            v-model="selectedCompany"
-                            class="bi-select"
-                            :disabled="busy || !identity.companies.length"
+                        <div
+                            v-if="identity.companies.length !== 1"
+                            class="mb-6 max-w-md"
                         >
-                            <option v-if="!identity.companies.length" value="">
-                                No hay empresas disponibles
-                            </option>
-                            <option
-                                v-for="company in identity.companies"
-                                :key="company.id"
-                                :value="String(company.id)"
+                            <label
+                                for="central-company"
+                                class="mb-2 block text-sm font-medium"
+                                >Empresa</label
+                            ><select
+                                id="central-company"
+                                v-model="selectedCompany"
+                                class="bi-select"
+                                :disabled="busy || !identity.companies.length"
                             >
-                                {{ company.name }} · #{{ company.id }}
-                            </option>
-                        </select>
+                                <option
+                                    v-if="!identity.companies.length"
+                                    value=""
+                                >
+                                    No hay empresas disponibles
+                                </option>
+                                <option
+                                    v-for="company in identity.companies"
+                                    :key="company.id"
+                                    :value="String(company.id)"
+                                >
+                                    {{ company.name }}
+                                </option>
+                            </select>
+                            <p
+                                v-if="!identity.companies.length"
+                                class="mt-3 text-sm text-slate-600"
+                            >
+                                Necesitas pertenecer a una empresa activa para
+                                conectar aplicaciones.
+                            </p>
+                        </div>
+                        <h2
+                            id="connections-title"
+                            class="mb-4 flex flex-wrap items-baseline gap-x-2 text-lg font-semibold"
+                        >
+                            Aplicaciones
+                            <span
+                                v-if="selected"
+                                class="text-sm font-normal text-slate-500"
+                                >de {{ selected.name }}</span
+                            >
+                        </h2>
+                        <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                            <AppTile
+                                v-for="service in selected?.services"
+                                :key="service.key"
+                                :title="service.name"
+                                :status="serviceStatus(service).label"
+                                :tone="serviceStatus(service).tone"
+                                :description="serviceHint(service)"
+                                :solid="service.ready"
+                            >
+                                <a
+                                    v-if="service.launch_url"
+                                    :href="service.launch_url"
+                                    class="w-full"
+                                    :class="portalButton.dark"
+                                    >Abrir {{ service.name }}
+                                    <span aria-hidden="true">↗︎</span></a
+                                >
+                                <template
+                                    v-else-if="
+                                        service.configured && service.can_link
+                                    "
+                                    ><button
+                                        type="button"
+                                        :class="portalButton.primary"
+                                        :disabled="busy"
+                                        @click="start(service)"
+                                    >
+                                        {{
+                                            service.member_active ||
+                                            service.pending
+                                                ? 'Continuar'
+                                                : 'Conectar'
+                                        }}</button
+                                    ><button
+                                        v-if="service.pending"
+                                        type="button"
+                                        :class="portalButton.link"
+                                        :disabled="busy"
+                                        @click="start(service, true)"
+                                    >
+                                        Empezar de nuevo
+                                    </button></template
+                                >
+                                <button
+                                    v-if="service.member_active"
+                                    :class="portalButton.link"
+                                    type="button"
+                                    :disabled="busy"
+                                    @click="
+                                        revoke = {
+                                            url: service.revoke_url,
+                                            company: selected!,
+                                            whole: false,
+                                            service: service.name,
+                                        }
+                                    "
+                                >
+                                    Quitar mi acceso
+                                </button>
+                                <button
+                                    v-if="
+                                        selected?.can_manage && service.active
+                                    "
+                                    :class="portalButton.link"
+                                    type="button"
+                                    :disabled="busy"
+                                    @click="
+                                        revoke = {
+                                            url: service.revoke_url,
+                                            company: selected!,
+                                            whole: true,
+                                            service: service.name,
+                                        }
+                                    "
+                                >
+                                    Desconectar la empresa
+                                </button>
+                                <IdentityRevokeConfirm
+                                    v-if="
+                                        revoke &&
+                                        revoke.service === service.name
+                                    "
+                                    :company="revoke.company.name"
+                                    :service="revoke.service"
+                                    :whole="revoke.whole"
+                                    :busy="busy"
+                                    @confirm="confirmRevoke"
+                                    @cancel="revoke = null"
+                                />
+                            </AppTile>
+                        </div>
+                        <p
+                            class="mt-6 max-w-2xl text-sm leading-relaxed text-slate-600 dark:text-slate-400"
+                        >
+                            Cada aplicación mantiene sus propios permisos. Para
+                            abrirla, también debe estar incluida en tu paquete
+                            vigente.
+                        </p>
+                    </section>
+                    <section v-else aria-labelledby="local-connections">
+                        <h2
+                            id="local-connections"
+                            class="text-lg font-semibold"
+                        >
+                            Empresas vinculadas
+                        </h2>
+                        <p class="mt-2 mb-6 text-sm text-slate-600">
+                            Inicia las nuevas conexiones desde LAUDA. Aquí
+                            puedes quitar el acceso a esta aplicación.
+                        </p>
+                        <a
+                            v-if="identity.hub_url"
+                            :href="identity.hub_url"
+                            :class="portalButton.primary"
+                            >Ir a conexiones en LAUDA
+                            <span aria-hidden="true">↗︎</span></a
+                        >
                         <p
                             v-if="!identity.companies.length"
-                            class="mt-3 text-sm text-muted-foreground"
+                            class="mt-8 text-sm text-slate-600"
                         >
-                            Necesitas una membresía activa en una empresa para
-                            crear conexiones.
+                            No tienes empresas disponibles con esta cuenta.
                         </p>
-                    </div>
-                    <h2
-                        id="connections-title"
-                        class="mb-2 text-lg font-semibold"
-                    >
-                        Aplicaciones
-                    </h2>
-                    <div
-                        v-for="service in selected?.services"
-                        :key="service.key"
-                        class="flex flex-col gap-4 border-b border-border py-6 sm:flex-row sm:items-center sm:justify-between"
-                    >
-                        <div>
-                            <h3 class="font-semibold">{{ service.name }}</h3>
-                            <p class="mt-1 text-sm text-muted-foreground">
-                                {{
-                                    !service.configured
-                                        ? 'Pendiente de habilitación'
-                                        : service.ready
-                                          ? 'Conexión confirmada'
-                                          : service.pending
-                                            ? 'Solicitud pendiente'
-                                            : service.member_active
-                                              ? 'Confirmación pendiente'
-                                              : service.active
-                                                ? 'Empresa vinculada · conecta tu cuenta'
-                                                : service.linked
-                                                  ? 'Acceso revocado'
-                                                  : 'Sin conexión'
-                                }}<span v-if="service.local_company_id">
-                                    · Empresa #{{
-                                        service.local_company_id
-                                    }}</span
-                                >
-                            </p>
-                            <p
-                                v-if="!service.can_link"
-                                class="mt-1 text-sm text-muted-foreground"
-                            >
-                                El propietario o administrador debe vincular
-                                primero la empresa.
-                            </p>
-                        </div>
                         <div
-                            class="flex flex-wrap items-center gap-4 sm:justify-end"
+                            v-for="company in identity.companies"
+                            :key="company.id"
+                            class="mt-6 flex flex-wrap items-center justify-between gap-4 border-b border-border pb-6"
                         >
-                            <a
-                                v-if="service.launch_url"
-                                :href="service.launch_url"
-                                class="bi-primary"
-                                >Abrir {{ service.name }}
-                                <span aria-hidden="true">↗︎</span></a
-                            >
-                            <template
-                                v-else-if="
-                                    service.configured && service.can_link
-                                "
-                                ><button
-                                    type="button"
-                                    class="bi-primary"
-                                    :disabled="busy"
-                                    @click="start(service)"
-                                >
+                            <div class="min-w-0">
+                                <h3 class="font-medium break-words">
+                                    {{ company.name }}
+                                </h3>
+                                <p class="mt-1 text-sm text-slate-600">
                                     {{
-                                        service.member_active || service.pending
-                                            ? 'Continuar'
-                                            : 'Conectar'
-                                    }}</button
-                                ><button
-                                    v-if="service.pending"
+                                        company.member_active
+                                            ? 'Tu cuenta está vinculada'
+                                            : company.linked
+                                              ? 'Empresa vinculada; tu cuenta no tiene acceso'
+                                              : 'Sin conexión activa'
+                                    }}
+                                </p>
+                            </div>
+                            <div class="flex flex-wrap gap-4">
+                                <button
+                                    v-if="company.member_active"
                                     type="button"
-                                    class="bi-link text-xs"
+                                    :class="portalButton.link"
                                     :disabled="busy"
-                                    @click="start(service, true)"
+                                    @click="
+                                        revoke = {
+                                            url: String(
+                                                identity.endpoints.revoke,
+                                            ),
+                                            company,
+                                            whole: false,
+                                            service: identity.service_name,
+                                        }
+                                    "
                                 >
-                                    Reiniciar solicitud
-                                </button></template
-                            >
-                            <button
-                                v-if="service.member_active"
-                                class="bi-link text-xs"
-                                type="button"
-                                :disabled="busy"
-                                @click="
-                                    revoke = {
-                                        url: service.revoke_url,
-                                        company: selected!,
-                                        whole: false,
-                                        service: service.name,
-                                    }
-                                "
-                            >
-                                Revocar mi acceso
-                            </button>
-                            <button
-                                v-if="selected?.can_manage && service.active"
-                                class="bi-link text-xs"
-                                type="button"
-                                :disabled="busy"
-                                @click="
-                                    revoke = {
-                                        url: service.revoke_url,
-                                        company: selected!,
-                                        whole: true,
-                                        service: service.name,
-                                    }
-                                "
-                            >
-                                Revocar empresa
-                            </button>
+                                    Quitar mi acceso</button
+                                ><button
+                                    v-if="company.can_manage && company.linked"
+                                    type="button"
+                                    :class="portalButton.link"
+                                    :disabled="busy"
+                                    @click="
+                                        revoke = {
+                                            url: String(
+                                                identity.endpoints.revoke,
+                                            ),
+                                            company,
+                                            whole: true,
+                                            service: identity.service_name,
+                                        }
+                                    "
+                                >
+                                    Desconectar la empresa
+                                </button>
+                            </div>
                         </div>
-                    </div>
-                    <p
-                        class="mt-6 text-xs leading-relaxed text-muted-foreground"
-                    >
-                        Cada aplicación conserva sus permisos y su inicio de
-                        sesión. Abrir una aplicación también requiere acceso
-                        comercial vigente.
-                    </p>
-                </section>
-                <section v-else aria-labelledby="local-connections">
-                    <h2 id="local-connections" class="text-lg font-semibold">
-                        Empresas vinculadas
-                    </h2>
-                    <p class="mt-2 mb-6 text-sm text-muted-foreground">
-                        Inicia las nuevas conexiones desde LAUDA. Aquí puedes
-                        revocar el acceso a esta aplicación.
-                    </p>
-                    <a
-                        v-if="identity.hub_url"
-                        :href="identity.hub_url"
-                        class="bi-primary"
-                        >Ir a conexiones en LAUDA
-                        <span aria-hidden="true">↗︎</span></a
-                    >
-                    <p
-                        v-if="!identity.companies.length"
-                        class="mt-8 text-sm text-muted-foreground"
-                    >
-                        No tienes empresas disponibles con esta cuenta.
-                    </p>
+                    </section>
                     <div
-                        v-for="company in identity.companies"
-                        :key="company.id"
-                        class="mt-6 flex flex-wrap items-center justify-between gap-4 border-b border-border pb-6"
+                        v-if="revoke && identity.side !== 'central'"
+                        class="mt-8"
                     >
-                        <div>
-                            <h3 class="font-medium">{{ company.name }}</h3>
-                            <p class="mt-1 text-sm text-muted-foreground">
-                                {{
-                                    company.member_active
-                                        ? 'Tu cuenta está vinculada'
-                                        : company.linked
-                                          ? 'Empresa vinculada; cuenta sin acceso'
-                                          : 'Sin conexión activa'
-                                }}<span v-if="company.central_company_id">
-                                    · LAUDA #{{
-                                        company.central_company_id
-                                    }}</span
-                                >
-                            </p>
-                        </div>
-                        <div class="flex flex-wrap gap-4">
-                            <button
-                                v-if="company.member_active"
-                                type="button"
-                                class="bi-link text-sm"
-                                :disabled="busy"
-                                @click="
-                                    revoke = {
-                                        url: String(identity.endpoints.revoke),
-                                        company,
-                                        whole: false,
-                                        service: identity.service_name,
-                                    }
-                                "
-                            >
-                                Revocar mi acceso</button
-                            ><button
-                                v-if="company.can_manage && company.linked"
-                                type="button"
-                                class="bi-link text-sm"
-                                :disabled="busy"
-                                @click="
-                                    revoke = {
-                                        url: String(identity.endpoints.revoke),
-                                        company,
-                                        whole: true,
-                                        service: identity.service_name,
-                                    }
-                                "
-                            >
-                                Revocar empresa
-                            </button>
-                        </div>
+                        <IdentityRevokeConfirm
+                            :company="revoke.company.name"
+                            :service="revoke.service"
+                            :whole="revoke.whole"
+                            :busy="busy"
+                            @confirm="confirmRevoke"
+                            @cancel="revoke = null"
+                        />
                     </div>
-                </section>
-                <section
-                    v-if="revoke"
-                    role="region"
-                    aria-labelledby="revoke-title"
-                    class="bi-panel mt-8"
-                >
-                    <h2 id="revoke-title" class="text-lg font-semibold">
-                        {{
-                            revoke.whole
-                                ? 'Revocar el acceso de toda la empresa'
-                                : 'Revocar tu acceso'
-                        }}
-                    </h2>
-                    <p
-                        class="my-4 text-sm leading-relaxed text-muted-foreground"
-                    >
-                        {{ revoke.company.name }} · {{ revoke.service }}.
-                        {{
-                            revoke.whole
-                                ? 'Ningún miembro podrá usar este vínculo para entrar desde LAUDA.'
-                                : 'Tu cuenta dejará de usar este vínculo para entrar desde LAUDA.'
-                        }}
-                        Las sesiones locales y la asociación de identidad se
-                        conservan.
-                    </p>
-                    <div class="flex flex-wrap gap-4">
-                        <button
-                            type="button"
-                            class="bi-primary"
-                            :disabled="busy"
-                            @click="confirmRevoke"
-                        >
-                            {{
-                                busy ? 'Revocando…' : 'Confirmar revocación'
-                            }}</button
-                        ><button
-                            type="button"
-                            class="bi-link text-sm"
-                            :disabled="busy"
-                            @click="revoke = null"
-                        >
-                            Conservar acceso
-                        </button>
-                    </div>
-                </section>
-            </template>
-        </main>
-    </div>
+                </template>
+            </main>
+        </div>
+    </component>
 </template>
 
 <style scoped>
@@ -1035,25 +1096,6 @@ onBeforeUnmount(() => {
     outline: 2px solid var(--primary);
     outline-offset: 4px;
 }
-.bi-primary {
-    display: inline-flex;
-    min-height: 44px;
-    align-items: center;
-    justify-content: center;
-    gap: 0.5rem;
-    padding: 0.7rem 1.1rem;
-    border-radius: 0.4rem;
-    background: color-mix(in srgb, var(--primary) 85%, black);
-    color: var(--primary-foreground);
-    font-size: 0.875rem;
-    font-weight: 600;
-    text-decoration: none;
-    cursor: pointer;
-}
-.bi-primary:hover {
-    filter: brightness(0.92);
-}
-.bi-primary:disabled,
 .bi-link:disabled {
     opacity: 0.5;
     cursor: wait;
@@ -1065,15 +1107,16 @@ onBeforeUnmount(() => {
 }
 .bi-panel {
     border: 1px solid var(--border);
-    padding: 1.5rem;
-    border-radius: 0.5rem;
+    padding: 1.25rem;
+    border-radius: 1rem;
+    background: var(--card, #fff);
 }
 .bi-select {
     width: 100%;
     min-height: 44px;
     padding: 0.65rem 0.75rem;
     border: 1px solid var(--border);
-    border-radius: 0.35rem;
+    border-radius: 0.75rem;
     background: var(--background);
     color: var(--foreground);
     font-size: 0.875rem;

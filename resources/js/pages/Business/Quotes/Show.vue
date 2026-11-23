@@ -5,6 +5,7 @@ import BusinessCapacitySummary from '@/components/BusinessCapacitySummary.vue';
 import BusinessTransitionSummary from '@/components/BusinessTransitionSummary.vue';
 import { Button } from '@/components/ui/button';
 import AppLayout from '@/layouts/AppLayout.vue';
+import { timezoneLabel } from '@/lib/timezoneLabel';
 import type {
     BusinessQuoteDetail,
     QuoteAcceptance,
@@ -166,7 +167,9 @@ async function accept() {
                 </h1>
                 <p class="text-sm leading-6 text-muted-foreground">
                     Emitida {{ date(quote.issued_at) }} · Válida hasta
-                    {{ date(quote.valid_until) }} ({{ snapshot.timezone }})
+                    {{ date(quote.valid_until) }} ({{
+                        timezoneLabel(snapshot.timezone)
+                    }})
                 </p>
             </header>
 

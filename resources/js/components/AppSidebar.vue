@@ -63,7 +63,6 @@ const activeCompany = computed(
 );
 
 const companyName = computed(() => activeCompany.value?.name ?? '');
-const companySlug = computed(() => activeCompany.value?.slug ?? '');
 const companyTaxId = computed(() => activeCompany.value?.tax_id ?? '');
 
 const lauda360 = computed(
@@ -142,46 +141,50 @@ const tenantAdminSections = computed<SidebarSection[]>(() => {
         '/app/transformacion-360/datos-bi',
     );
 
+    // Ordenado por tarea: usar las apps, armar y pagar el paquete, administrar la empresa.
     return [
         {
-            title: 'Ecosistema',
             items: byHrefs(tenantAdminMain, [
                 '/app',
                 '/app/control',
-                '/subscriber/services/my',
                 ...(page.props.businessIdentityEnabled ? ['/business/identity'] : []),
+            ]),
+        },
+        {
+            title: 'Mi paquete',
+            items: byHrefs(tenantAdminMain, [
+                ...(page.props.canConfigureBusinessPackage ? ['/app/business/self-service'] : []),
+                ...(page.props.businessCommercialEnabled ? ['/app/business/quotes'] : []),
+                '/subscriber/subscription',
+                '/subscriber/services/my',
+                '/subscriber/usage',
+            ]),
+        },
+        {
+            title: 'Pagos',
+            items: byHrefs(tenantAdminMain, [
+                '/subscriber/invoices',
+                '/subscriber/payments',
+                '/subscriber/payment-methods',
+            ]),
+        },
+        {
+            title: 'Mi empresa',
+            items: byHrefs(tenantAdminMain, [
+                '/subscriber/company',
                 '/subscriber/users',
+                '/subscriber/security',
             ]),
         },
         {
             title: 'LAUDA 360',
             items: byHrefs(tenantAdminMain, lauda360Hrefs),
         },
-        {
-            title: 'Cuenta',
-            items: byHrefs(tenantAdminMain, [
-                ...(page.props.canConfigureBusinessPackage ? ['/app/business/self-service'] : []),
-                ...(page.props.businessCommercialEnabled ? ['/app/business/quotes'] : []),
-                '/subscriber/subscription',
-                '/subscriber/usage',
-                '/subscriber/security',
-                '/subscriber/invoices',
-                '/subscriber/payments',
-            ]),
-        },
-        {
-            title: 'Empresa',
-            items: byHrefs(tenantAdminMain, [
-                '/subscriber/company',
-                '/subscriber/payment-methods',
-            ]),
-        },
     ];
 });
 
 const tenantUserSections = computed<SidebarSection[]>(() => [
     {
-        title: 'Ecosistema',
         items: byHrefs(tenantUserMain, ['/app']),
     },
     ...(page.props.businessIdentityEnabled ? [{
@@ -207,8 +210,7 @@ const homeHref = computed(() => (isAdmin.value ? '/dashboard' : '/app'));
 
 const brandCaption = computed(() => {
     if (isAdmin.value) return 'CONTROL CENTER';
-    if (tenantMode.value === 'subscriber.admin') return 'APP HUB';
-    return 'MIS APPS';
+    return 'MI EMPRESA';
 });
 </script>
 
@@ -259,7 +261,7 @@ const brandCaption = computed(() => {
                                     LAUDA
                                 </span>
                                 <span
-                                    class="truncate text-[8px] font-bold tracking-[0.18em] text-red-400"
+                                    class="truncate text-[9px] font-bold tracking-[0.16em] text-red-400"
                                 >
                                     {{ brandCaption }}
                                 </span>
@@ -274,27 +276,21 @@ const brandCaption = computed(() => {
                 class="mx-1 mb-1 rounded-lg border border-white/5 bg-white/5 px-3 py-2 group-data-[collapsible=icon]:hidden"
             >
                 <p
-                    class="text-[9px] font-bold tracking-[0.14em] text-white/35 uppercase"
+                    class="text-[10px] font-semibold tracking-[0.12em] text-white/50 uppercase"
                 >
-                    Empresa activa
+                    Empresa
                 </p>
                 <p
-                    class="wrap-break-words mt-1 text-[11px] font-bold text-white/85"
+                    class="mt-0.5 text-xs font-semibold break-words text-white/90"
                 >
                     {{ companyName }}
-                </p>
-                <p
-                    v-if="companySlug"
-                    class="mt-0.5 truncate text-[9px] text-white/45"
-                >
-                    {{ companySlug }}
                 </p>
 
                 <div
                     v-if="tenantMode === 'subscriber.admin'"
-                    class="mt-2 inline-flex max-w-full items-center rounded-md bg-white/5 px-2 py-1 text-[9px] text-white/55"
+                    class="mt-2 inline-flex max-w-full items-center rounded-md bg-white/5 px-2 py-1 text-[10px] text-white/65"
                 >
-                    <span class="mr-1 font-semibold text-white/35">RNC ·</span>
+                    <span class="mr-1 font-semibold text-white/50">RNC ·</span>
                     <span v-if="companyTaxId" class="truncate font-mono">
                         {{ companyTaxId }}
                     </span>
@@ -303,7 +299,7 @@ const brandCaption = computed(() => {
                         href="/subscriber/company"
                         class="font-bold text-red-400 transition hover:text-red-300"
                     >
-                        Asignarlo
+                        Agregar
                     </Link>
                 </div>
             </div>
@@ -318,7 +314,7 @@ const brandCaption = computed(() => {
             >
                 <div
                     v-if="section.title && section.items.length"
-                    class="mt-3 px-3 text-[8.5px] font-black tracking-[0.15em] text-white/20 uppercase group-data-[collapsible=icon]:hidden"
+                    class="mt-4 mb-1 px-4 text-[10px] font-semibold tracking-[0.12em] text-white/45 uppercase group-data-[collapsible=icon]:hidden"
                 >
                     {{ section.title }}
                 </div>
@@ -327,7 +323,10 @@ const brandCaption = computed(() => {
         </SidebarContent>
 
         <SidebarFooter class="bg-slate-900 text-white">
-            <NavFooter :items="footerNavItems" />
+            <NavFooter
+                :items="footerNavItems"
+                class="[&_[data-sidebar=menu-button]]:text-white/70 [&_[data-sidebar=menu-button]:hover]:bg-white/8 [&_[data-sidebar=menu-button]:hover]:text-white"
+            />
             <NavUser />
         </SidebarFooter>
     </Sidebar>

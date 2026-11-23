@@ -45,7 +45,7 @@ class TenantAppHubManagedServiceVisibilityContractTest extends TestCase
         );
 
         $this->assertStringContainsString(
-            "Gestionada desde LAUDAAPI",
+            "Gestionada por nuestro equipo",
             $hub
         );
     }
@@ -107,7 +107,7 @@ class TenantAppHubManagedServiceVisibilityContractTest extends TestCase
         );
 
         $this->assertStringContainsString(
-            "{ title: 'Control Panel', href: '/app/control', icon: 'Boxes' }",
+            "{ title: 'Panel de control', href: '/app/control', icon: 'Boxes' }",
             $navigation
         );
 

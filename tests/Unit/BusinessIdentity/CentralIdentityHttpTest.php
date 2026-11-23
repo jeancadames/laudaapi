@@ -264,6 +264,22 @@ final class CentralIdentityHttpTest extends TestCase
         $this->get('/business/identity')->assertOk()->assertInertia(fn ($page) => $page->where('identity.account', null)->has('identity.companies', 0));
     }
 
+    public function test_client_page_shares_only_the_portal_sidebar_context(): void
+    {
+        (require base_path('database/migrations/2026_01_24_123011_company_tax_profiles_table.php'))->up();
+        $this->get('/business/identity')->assertOk()->assertInertia(fn ($page) => $page->component('Business/Identity')
+            ->where('auth.user.tenant_access.mode', 'subscriber.admin')->where('auth.user.role', 'subscriber')
+            ->where('activeCompany.name', 'Test company')->where('businessIdentityEnabled', true)
+            ->missing('auth.user.password')->missing('identity.request_token'));
+    }
+
+    public function test_client_page_falls_back_to_its_own_frame_when_sidebar_context_fails(): void
+    {
+        // Sin la tabla de perfiles fiscales el contexto del menú no se puede leer: la página no se cae.
+        $this->get('/business/identity')->assertOk()->assertInertia(fn ($page) => $page->component('Business/Identity')
+            ->missing('auth.user.tenant_access')->missing('activeCompany')->has('identity.companies', 1));
+    }
+
     public function test_login_returns_to_the_fixed_identity_page_and_never_to_an_arbitrary_origin(): void
     {
         auth()->logout();

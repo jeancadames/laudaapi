@@ -31,8 +31,22 @@ class HandleInertiaRequests extends Middleware
     {
         // Identity uses an explicit company and must not mutate the application's current context.
         if ($request->routeIs('business.identity.*')) {
-            return [...parent::share($request), 'name' => config('app.name'),
+            $identity = [...parent::share($request), 'name' => config('app.name'),
                 'auth' => ['user' => $request->user()?->only(['id', 'name', 'email'])], 'flash' => []];
+
+            if (! $request->routeIs('business.identity.index') || $request->user()?->role !== 'subscriber') {
+                return $identity;
+            }
+
+            // El menú lateral es un complemento: si algún dato falla, la página
+            // sigue funcionando con su marco propio.
+            try {
+                return [...$identity, ...$this->identityPortalShare($request)];
+            } catch (\Throwable $exception) {
+                report($exception);
+
+                return $identity;
+            }
         }
 
         [$message, $author] = str(Inspiring::quotes()->random())->explode('-');
@@ -181,6 +195,37 @@ class HandleInertiaRequests extends Middleware
                 'timezone' => $company?->timezone ?? 'America/Santo_Domingo',
             ],
         ]);
+    }
+
+    /**
+     * «Conexiones Business» del cliente se muestra dentro del portal: solo lo que
+     * necesita el menú lateral, con consultas de lectura y sin fijar empresa.
+     */
+    private function identityPortalShare(Request $request): array
+    {
+        $user = $request->user();
+        $subscriberId = $this->resolveSubscriberId($user);
+        $tenantAccess = app(TenantAccessService::class)->resolve($user, $subscriberId);
+        $company = $subscriberId
+            ? app(CompanyContextResolver::class)->resolve($user, $subscriberId)
+            : null;
+        $commercial = (bool) config('business_commercial.enabled');
+
+        return [
+            'auth' => ['user' => [...$user->only(['id', 'name', 'email', 'role']), 'tenant_access' => $tenantAccess]],
+            'activeCompany' => $company ? [
+                'id' => $company->id,
+                'name' => $company->name,
+                'slug' => $company->slug,
+                'ws_subdomain' => $company->ws_subdomain,
+                'tax_id' => \App\Models\CompanyTaxProfile::query()->where('company_id', $company->id)->value('tax_id'),
+            ] : null,
+            'businessIdentityEnabled' => (bool) config('business_identity.enabled'),
+            'businessCommercialEnabled' => $commercial,
+            'canConfigureBusinessPackage' => $commercial && ($tenantAccess['can_manage_billing'] ?? false) && $company
+                && in_array(app(CentralMembership::class)->role($user, $company), ['owner', 'admin'], true),
+            'sidebarOpen' => ! $request->hasCookie('sidebar_state') || $request->cookie('sidebar_state') === 'true',
+        ];
     }
 
     private function lauda360Payload(

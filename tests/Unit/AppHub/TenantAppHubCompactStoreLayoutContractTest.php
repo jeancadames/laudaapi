@@ -21,9 +21,9 @@ class TenantAppHubCompactStoreLayoutContractTest extends TestCase
     public function test_company_and_billing_actions_live_in_header(): void
     {
         $hub = $this->hub();
-        $headerEnd = strpos($hub, '</header>');
+        $actionsEnd = strpos($hub, '</template>', strpos($hub, '#actions'));
 
-        $this->assertNotFalse($headerEnd);
+        $this->assertNotFalse($actionsEnd);
 
         foreach ([
             'href="/subscriber/company"',
@@ -32,19 +32,18 @@ class TenantAppHubCompactStoreLayoutContractTest extends TestCase
             $position = strpos($hub, $token);
 
             $this->assertNotFalse($position);
-            $this->assertLessThan($headerEnd, $position);
+            $this->assertLessThan($actionsEnd, $position);
             $this->assertSame(1, substr_count($hub, $token));
         }
     }
 
-    public function test_admin_sees_left_my_apps_and_right_app_store_columns(): void
+    public function test_my_apps_then_available_apps_as_full_width_grids(): void
     {
         $hub = $this->hub();
 
         foreach ([
             'id="my-apps-panel"',
             'id="app-store"',
-            ":class=\"isTenantAdmin ? 'lg:grid-cols-2' : 'grid-cols-1'\"",
             'v-for="app in installedApps"',
             'v-for="app in availableApps"',
             'Apps disponibles',
@@ -52,17 +51,21 @@ class TenantAppHubCompactStoreLayoutContractTest extends TestCase
             $this->assertStringContainsString($token, $hub);
         }
 
+        // Ambas listas usan la misma cuadrícula: nada de columnas desparejas.
+        $this->assertSame(2, substr_count($hub, 'class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3"'));
+        $this->assertStringNotContainsString("'lg:grid-cols-2'", $hub);
+
         $this->assertLessThan(
             strpos($hub, 'id="app-store"'),
             strpos($hub, 'id="my-apps-panel"')
         );
     }
 
-    public function test_cards_are_compact(): void
+    public function test_cards_share_the_portal_tile(): void
     {
         $hub = $this->hub();
 
-        $this->assertStringNotContainsString('min-h-56', $hub);
+        $this->assertStringContainsString("import AppTile from '@/components/portal/AppTile.vue';", $hub);
         $this->assertStringContainsString(
             ':key="`installed-${app.key}`"',
             $hub
@@ -70,14 +73,6 @@ class TenantAppHubCompactStoreLayoutContractTest extends TestCase
         $this->assertStringContainsString(
             ':key="`available-${app.key}`"',
             $hub
-        );
-
-        $this->assertGreaterThanOrEqual(
-            2,
-            substr_count(
-                $hub,
-                'rounded-2xl border border-slate-100 bg-white p-4'
-            )
         );
     }
 
@@ -101,16 +96,19 @@ class TenantAppHubCompactStoreLayoutContractTest extends TestCase
         }
     }
 
-    public function test_admin_summary_remains_after_t360(): void
+    public function test_no_roadmap_or_internal_language_for_clients(): void
     {
         $hub = $this->hub();
 
-        $t360 = strpos($hub, 'Plan consultivo y prioridades de transformación');
-        $summary = strpos($hub, 'Resumen administrativo');
-
-        $this->assertNotFalse($t360);
-        $this->assertNotFalse($summary);
-        $this->assertLessThan($summary, $t360);
+        foreach ([
+            'Resumen administrativo',
+            'En la siguiente etapa',
+            'Administrador del tenant',
+            'App Store',
+            'Control Panel',
+        ] as $removed) {
+            $this->assertStringNotContainsString($removed, $hub);
+        }
     }
 
     public function test_b7_and_no_pending_contracts_remain(): void
@@ -120,7 +118,7 @@ class TenantAppHubCompactStoreLayoutContractTest extends TestCase
         foreach ([
             "app.integration !== 'managed'",
             "app.state === 'active_managed'",
-            'Gestionada desde LAUDAAPI',
+            'Gestionada por nuestro equipo',
         ] as $token) {
             $this->assertStringContainsString($token, $hub);
         }
