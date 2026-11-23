@@ -248,6 +248,15 @@ export function useBusinessPackageBuilder(options: PackageBuilderOptions) {
         recalculate();
     }
 
+    function selectPreset(code: string) {
+        const preset = catalog.presets?.find(item => item.code === code);
+        if (!preset || confirming.value || !preset.levels.length) return;
+        selected.value = selectable.filter(product => preset.products.includes(product));
+        if (!preset.levels.includes(level.value)) level.value = preset.levels[0];
+        persist();
+        recalculate();
+    }
+
     function setCycle(value: Cycle) {
         if (
             confirming.value ||
@@ -344,6 +353,7 @@ export function useBusinessPackageBuilder(options: PackageBuilderOptions) {
         purchase,
         existingPurchaseId,
         toggle,
+        selectPreset,
         setCycle,
         retry: () => recalculate(true),
         confirm,

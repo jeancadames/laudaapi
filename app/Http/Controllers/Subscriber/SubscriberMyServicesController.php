@@ -217,7 +217,17 @@ class SubscriberMyServicesController extends Controller
 
         $businessPeriod = \App\Services\Billing\BusinessContractPeriods::forSubscription($subscription);
 
+        $categories = Service::whereNull('parent_id')->where('active', true)
+            ->whereIn('slug', ['api-facturacion-electronica', 'marketplace', 'laudaone'])
+            ->orderBy('sort_order')->get(['slug', 'title']);
+
         return Inertia::render('Subscriber/Services/My', [
+            'categories' => $categories->map(fn ($category) => [
+                'title' => $category->title,
+                'url' => route('subscriber.services.category', $category->slug, false),
+            ]),
+            'activation_url' => ActivationRequest::where('user_id', $user->id)->accessAllowed()->exists()
+                ? route('subscriber.activation.show', absolute: false) : null,
             'company' => [
                 'id' => $company->id,
                 'name' => $company->name,

@@ -10,6 +10,7 @@ export interface Selection {
 }
 
 export interface Catalog {
+    presets?: { code: string; name: string; products: Product[]; levels: Level[] }[];
     version: number;
     company_name: string;
     products: { code: Product; name: string; task: string; includes: string[]; inclusion_codes: string[] }[];

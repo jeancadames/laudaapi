@@ -43,12 +43,18 @@ final class BusinessPackagePricing
 
         $offered = [];
         $levels = [];
-        foreach ($this->guidedOffers($catalog, $available) as $offer) {
+        $presets = [];
+        foreach ($this->guidedOffers($catalog, $available) as $code => $offer) {
+            $enabledLevels = [];
             foreach ($offer['levels'] as $level => $price) {
                 if ($price['enabled']) {
+                    $enabledLevels[] = $level;
                     $levels[$level] = ['code' => $level, 'name' => $catalog['capacities'][$level]['name']];
                     $offered = array_merge($offered, $offer['products']);
                 }
+            }
+            if (count($offer['products']) > 1 && $enabledLevels) {
+                $presets[] = ['code' => $code, 'name' => $offer['name'], 'products' => $offer['products'], 'levels' => $enabledLevels];
             }
         }
         $products = [];
@@ -60,7 +66,7 @@ final class BusinessPackagePricing
             }
         }
 
-        return ['version' => $version->version, 'company_name' => $company->name, 'products' => $products,
+        return ['version' => $version->version, 'company_name' => $company->name, 'products' => $products, 'presets' => $presets,
             'cycles' => ['monthly', 'yearly'], 'levels' => array_values($levels), 'terms' => $catalog['terms'],
             'resume_purchase_id' => null];
     }

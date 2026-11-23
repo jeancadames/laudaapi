@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Head, router } from '@inertiajs/vue3'
+import { Head, Link, router } from '@inertiajs/vue3'
 import AppLayout from '@/layouts/AppLayout.vue'
 import SectionCard from '@/components/SectionCard.vue'
 import { Badge } from '@/components/ui/badge'
@@ -50,6 +50,8 @@ const props = defineProps<{
         period_end_human?: string | null
     }
 
+    categories: { title: string; url: string }[]
+    activation_url: string | null
     active_services: Array<ActiveService>
     requested_services: Array<RequestedService>
 }>()
@@ -593,6 +595,14 @@ const showCancelled = computed(() => filter.value === 'all' || filter.value === 
 
     <AppLayout :breadcrumbs="breadcrumbs">
         <div class="flex flex-col gap-4 p-4">
+            <nav v-if="props.categories.length || props.activation_url" aria-label="Catálogos de servicios" class="flex flex-wrap gap-2">
+                <Button v-for="category in props.categories" :key="category.url" variant="outline" as-child>
+                    <Link :href="category.url">{{ category.title }}</Link>
+                </Button>
+                <Button v-if="props.activation_url" variant="outline" as-child>
+                    <Link :href="props.activation_url">Ver mi activación</Link>
+                </Button>
+            </nav>
             <SectionCard title="Resumen" description="Servicios activos (por suscripción) y solicitudes (por catálogo)">
                 <div class="text-sm text-muted-foreground space-y-1">
                     <div>

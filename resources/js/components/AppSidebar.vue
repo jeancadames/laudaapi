@@ -96,7 +96,26 @@ function byHrefs(items: NavItem[], hrefs: string[]): NavItem[] {
 
 const adminSections = computed<SidebarSection[]>(() => [
     { items: byHrefs(adminMain, ['/dashboard']) },
-    ...(page.props.businessImplementationEnabled ? [{ title: 'Business', items: byHrefs(adminMain, ['/admin/business-implementations']) }] : []),
+    {
+        title: 'Business',
+        items: byHrefs(adminMain, [
+            '/admin/business-catalog',
+            ...(page.props.businessImplementationEnabled ? ['/admin/business-implementations'] : []),
+            '/admin/payments',
+            '/admin/invoices',
+        ]),
+    },
+    {
+        title: 'Servicios',
+        items: (page.props.adminServiceCategories ?? []) as NavItem[],
+    },
+    {
+        title: 'Administración',
+        items: byHrefs(adminMain, [
+            '/admin/company', '/admin/subscribers', '/admin/subscriptions',
+            '/admin/requests', '/admin/contacts', '/admin/auditlog', '/admin/errorlog',
+        ]),
+    },
     {
         title: 'LAUDA 360',
         items: byHrefs(adminMain, [
@@ -128,7 +147,9 @@ const tenantAdminSections = computed<SidebarSection[]>(() => {
             title: 'Ecosistema',
             items: byHrefs(tenantAdminMain, [
                 '/app',
-                '/app#app-store',
+                '/app/control',
+                '/subscriber/services/my',
+                ...(page.props.businessIdentityEnabled ? ['/business/identity'] : []),
                 '/subscriber/users',
             ]),
         },
@@ -139,8 +160,11 @@ const tenantAdminSections = computed<SidebarSection[]>(() => {
         {
             title: 'Cuenta',
             items: byHrefs(tenantAdminMain, [
+                ...(page.props.canConfigureBusinessPackage ? ['/app/business/self-service'] : []),
                 ...(page.props.businessCommercialEnabled ? ['/app/business/quotes'] : []),
                 '/subscriber/subscription',
+                '/subscriber/usage',
+                '/subscriber/security',
                 '/subscriber/invoices',
                 '/subscriber/payments',
             ]),
@@ -160,6 +184,10 @@ const tenantUserSections = computed<SidebarSection[]>(() => [
         title: 'Ecosistema',
         items: byHrefs(tenantUserMain, ['/app']),
     },
+    ...(page.props.businessIdentityEnabled ? [{
+        title: 'Business',
+        items: byHrefs(tenantAdminMain, ['/business/identity']),
+    }] : []),
 ]);
 
 const sections = computed<SidebarSection[]>(() => {
@@ -190,7 +218,7 @@ const brandCaption = computed(() => {
         variant="inset"
         class="border-r border-white/5 bg-slate-900 text-white"
     >
-        <SidebarHeader>
+        <SidebarHeader class="bg-slate-900 text-white">
             <SidebarMenu>
                 <SidebarMenuItem>
                     <SidebarMenuButton size="lg" as-child class="h-auto py-2">
@@ -282,7 +310,7 @@ const brandCaption = computed(() => {
         </SidebarHeader>
 
         <SidebarContent
-            class="[&::-webkit-scrollbar]:w-1 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-white/10 hover:[&::-webkit-scrollbar-thumb]:bg-white/20 [&::-webkit-scrollbar-track]:bg-transparent"
+            class="bg-slate-900 text-white group-data-[collapsible=icon]:overflow-y-auto [&::-webkit-scrollbar]:w-1 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-white/10 hover:[&::-webkit-scrollbar-thumb]:bg-white/20 [&::-webkit-scrollbar-track]:bg-transparent"
         >
             <template
                 v-for="section in sections"
@@ -298,7 +326,7 @@ const brandCaption = computed(() => {
             </template>
         </SidebarContent>
 
-        <SidebarFooter>
+        <SidebarFooter class="bg-slate-900 text-white">
             <NavFooter :items="footerNavItems" />
             <NavUser />
         </SidebarFooter>

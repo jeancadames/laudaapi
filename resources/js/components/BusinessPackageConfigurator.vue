@@ -217,6 +217,17 @@ watch(existingPurchaseId, (purchaseId) => {
                     </p>
                 </header>
 
+                <section v-if="catalog.presets?.length" class="space-y-3">
+                    <h2 class="text-lg font-semibold">Paquetes predeterminados</h2>
+                    <p class="text-sm text-muted-foreground">Elige una combinación inicial. Puedes ajustar las aplicaciones antes de revisar el precio.</p>
+                    <div class="flex flex-wrap gap-2">
+                        <Button v-for="preset in catalog.presets" :key="preset.code"
+                            variant="outline" @click="builder.selectPreset(preset.code)">
+                            {{ preset.name }}
+                        </Button>
+                    </div>
+                </section>
+
                 <fieldset class="space-y-4">
                     <legend class="text-lg font-semibold">
                         ¿Qué quieres hacer en tu negocio?

@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { Link } from '@inertiajs/vue3';
+import { Folder } from 'lucide-vue-next';
 
 import {
     SidebarGroup,
@@ -41,10 +42,12 @@ function iconClasses(active: boolean): string {
             <SidebarMenuItem v-for="item in items" :key="item.title">
                 <Link
                     :href="toUrl(item.href)"
+                    :aria-label="item.title"
+                    :title="item.title"
                     :class="itemClasses(isCurrentUrl(toUrl(item.href)))"
                 >
                     <component
-                        :is="item.icon"
+                        :is="item.icon ?? Folder"
                         :class="iconClasses(isCurrentUrl(toUrl(item.href)))"
                     />
 

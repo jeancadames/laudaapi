@@ -62,9 +62,10 @@ final class BusinessPackagePreviewTest extends TestCase
     {
         config(['ecosystem_hub.groups' => []]);
         $this->get('/app')->assertOk()->assertInertia(fn ($page) => $page->component('App/Home')
-            ->where('business_self_service.configurator_url', self::BASE));
+            ->where('canConfigureBusinessPackage', true)->where('business_self_service.configurator_url', self::BASE));
         $catalog = $this->getJson(self::BASE.'/v1/catalog')->assertOk()->json();
         $this->assertSame(['ecf', 'cumplimiento', 'pos', 'bys'], array_column($catalog['products'], 'code'));
+        $this->assertEqualsCanonicalizing(['business', 'comercial', 'fiscal'], array_column($catalog['presets'], 'code'));
         $this->assertSame(['facil_ecf'], $catalog['products'][0]['inclusion_codes']);
         $this->get(self::BASE)->assertOk()->assertInertia(fn ($page) => $page->component('Business/Package/Build', false)
             ->where('configurator.catalog', $catalog)->where('configurator.confirm_url', null));
@@ -520,7 +521,7 @@ final class BusinessPackagePreviewTest extends TestCase
         $this->getJson(self::BASE.'/v1/catalog?company_id=1')->assertOk()->assertJsonPath('company_name', 'Empresa ajena');
         $this->actingAs(User::findOrFail(3));
         config(['ecosystem_hub.groups' => []]);
-        $this->get('/app')->assertOk()->assertInertia(fn ($page) => $page->missing('business_self_service'));
+        $this->get('/app')->assertOk()->assertInertia(fn ($page) => $page->where('canConfigureBusinessPackage', false)->missing('business_self_service'));
         $this->getJson(self::BASE.'/v1/catalog')->assertForbidden();
         $this->preview(['ecf'])->assertForbidden()->assertJsonPath('code', 'forbidden');
     }

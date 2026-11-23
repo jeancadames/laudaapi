@@ -17,10 +17,11 @@ NODE = '/home/laudaerp/.nvm/versions/node/v22.23.3/bin/node'
 base = Path('/tmp/lauda-business-' + secrets.token_hex(8))
 base.mkdir(mode=0o700)
 (base / 'synthetic-only').write_text('Business quote acceptance browser only')
+navigation = '--navigation' in sys.argv
 transition = '--transition' in sys.argv
 renewal = '--renewal' in sys.argv
 activation = '--activation' in sys.argv or renewal or transition
-implementation = '--implementation' in sys.argv or activation
+implementation = '--implementation' in sys.argv or activation or navigation
 checkout = '--checkout' in sys.argv or implementation
 env = {**os.environ, 'LAUDA_BUSINESS_RUNTIME': str(base), 'LAUDA_BUSINESS_CHECKOUT_TEST': '1' if checkout else '0', 'LAUDA_BUSINESS_IMPLEMENTATION_TEST': '1' if implementation else '0', 'LAUDA_BUSINESS_ACTIVATION_TEST': '1' if activation else '0'}
 env['LAUDA_BUSINESS_TRANSITION_TEST'] = '1' if transition else '0'
@@ -75,7 +76,9 @@ with (base / 'server.log').open('wb') as log:
         server.socket = context.wrap_socket(server.socket, server_side=True)
         threading.Thread(target=server.serve_forever, daemon=True).start()
         time.sleep(1)
-        subprocess.run([NODE, str(HERE / ('transition.mjs' if transition else 'renewal.mjs' if renewal else 'implementation.mjs' if implementation else 'checkout.mjs' if checkout else 'browser.mjs')), str(base)], env=env, check=True, timeout=240)
+        subprocess.run([NODE, str(HERE / ('navigation.mjs' if navigation else 'transition.mjs' if transition else 'renewal.mjs' if renewal else 'implementation.mjs' if implementation else 'checkout.mjs' if checkout else 'browser.mjs')), str(base)], env=env, check=True, timeout=240)
+        if navigation:
+            sys.exit(0)
         result = subprocess.run(['php', str(HERE / 'browser.php'), 'verify'], env=env, capture_output=True, text=True, check=True)
         evidence = json.loads(result.stdout)
         (base / 'persistence-result.json').write_text(json.dumps(evidence, indent=2))

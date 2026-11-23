@@ -4,6 +4,15 @@ export const navigationByRole = {
     admin: {
         main: [
             { title: 'Dashboard', href: '/dashboard', icon: 'LayoutGrid' },
+            { title: 'Pagos', href: '/admin/payments', icon: 'CreditCard' },
+            { title: 'Facturas', href: '/admin/invoices', icon: 'ReceiptText' },
+            { title: 'Empresas', href: '/admin/company', icon: 'Building2' },
+            { title: 'Suscriptores', href: '/admin/subscribers', icon: 'Users' },
+            { title: 'Suscripciones', href: '/admin/subscriptions', icon: 'CreditCard' },
+            { title: 'Solicitudes de activación', href: '/admin/requests', icon: 'ClipboardCheck' },
+            { title: 'Contactos', href: '/admin/contacts', icon: 'Contact' },
+            { title: 'Auditoría', href: '/admin/auditlog', icon: 'Logs' },
+            { title: 'Registro de errores', href: '/admin/errorlog', icon: 'Logs' },
             { title: 'Implementaciones Business', href: '/admin/business-implementations', icon: 'FileText' },
             {
                 title: 'Catálogo y tarifas',
@@ -64,6 +73,11 @@ export const navigationByRole = {
                 href: '/app/transformacion-360/datos-bi',
                 icon: 'Database',
             },
+            { title: 'Armar mi paquete', href: '/app/business/self-service', icon: 'Boxes' },
+            { title: 'Conexiones Business', href: '/business/identity', icon: 'PlugZap' },
+            { title: 'Mis servicios', href: '/subscriber/services/my', icon: 'Layers' },
+            { title: 'Uso', href: '/subscriber/usage', icon: 'Gauge' },
+            { title: 'Seguridad', href: '/subscriber/security', icon: 'KeyRound' },
             { title: 'Usuarios', href: '/subscriber/users', icon: 'Users' },
             {
                 title: 'Cotizaciones',

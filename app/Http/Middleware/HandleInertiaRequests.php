@@ -7,6 +7,7 @@ use App\Models\DgiiCompanySetting;
 use App\Models\DiagnosisAssessment;
 use App\Models\TransformationCapabilityActivation;
 use App\Models\Service;
+use App\Services\BusinessIdentity\CentralMembership;
 use App\Services\Dgii\DgiiCertificateRequirements;
 use App\Services\Dgii\DgiiTokenManager;
 use App\Services\Entitlements\SubscriberEntitlements;
@@ -73,6 +74,20 @@ class HandleInertiaRequests extends Middleware
 
         return array_merge(parent::share($request), [
             'name' => config('app.name'),
+            'adminServiceCategories' => fn () => $user?->role === 'admin'
+                ? Service::whereNull('parent_id')->orderBy('sort_order')->get(['slug', 'title'])
+                    ->map(fn ($category) => ['title' => $category->title, 'href' => route('admin.services.index', $category->slug, false)])
+                : [],
+            'businessIdentityEnabled' => (bool) config('business_identity.enabled'),
+            'canConfigureBusinessPackage' => function () use ($user, $tenantAccess) {
+                if (! config('business_commercial.enabled') || $user?->role !== 'subscriber' || ! ($tenantAccess['can_manage_billing'] ?? false)) {
+                    return false;
+                }
+
+                $company = app(CompanyContextResolver::class)->resolve($user);
+
+                return $company && in_array(app(CentralMembership::class)->role($user, $company), ['owner', 'admin'], true);
+            },
             'businessCommercialEnabled' => (bool) config('business_commercial.enabled'),
             'businessImplementationEnabled' => config('business_commercial.enabled') && config('business_commercial.checkout_enabled') && config('business_commercial.implementation_enabled'),
 

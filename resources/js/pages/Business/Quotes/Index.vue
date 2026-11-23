@@ -1,8 +1,10 @@
 <script setup lang="ts">
 import AppLayout from '@/layouts/AppLayout.vue';
 import { Button } from '@/components/ui/button';
-import { Head, Link } from '@inertiajs/vue3';
+import { Head, Link, usePage } from '@inertiajs/vue3';
 import type { BusinessQuoteSummary } from '@/types/businessQuoteAcceptance';
+
+const page = usePage();
 
 defineProps<{
     quotes: {
@@ -48,6 +50,9 @@ const status = {
                     Revisa la oferta, su alcance y las condiciones antes de
                     confirmar la aceptación por tu empresa.
                 </p>
+                <Button v-if="page.props.canConfigureBusinessPackage" as-child>
+                    <Link href="/app/business/self-service">Armar mi paquete</Link>
+                </Button>
             </header>
             <div
                 v-if="quotes.data.length === 0"
