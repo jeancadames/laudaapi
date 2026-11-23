@@ -27,9 +27,9 @@ async function load(contents) {
 }
 
 const samples = await load(`export * from ${JSON.stringify(contractPath())};`);
-const { useBusinessPackageChange, createManageClient, appRows, changeProgress, purchaseIdFrom, replacementStart, purchaseView } = await load(`
+const { useBusinessPackageChange, createManageClient, appRows, changeProgress, purchaseIdFrom, replacementStart, purchaseView, periodFacts, orderedNames } = await load(`
     export { useBusinessPackageChange } from '@/composables/useBusinessPackageChange';
-    export { appRows, changeProgress, createManageClient, purchaseIdFrom, replacementStart } from '@/lib/businessPackageManage';
+    export { appRows, changeProgress, createManageClient, orderedNames, periodFacts, purchaseIdFrom, replacementStart } from '@/lib/businessPackageManage';
     export { purchaseView } from '@/lib/businessPurchaseStatus';
 `);
 
@@ -326,6 +326,32 @@ test('reemplazo pagado: espera, período terminado y conexión en revisión dice
         { product: 'bys', status: 'unavailable', message: REVIEW, action: null },
     ]), previous_package_url: null });
     assert.equal(mixed.message, 'Revisa el motivo indicado en cada aplicación.');
+});
+
+test('precio del período en curso y vigencia pagada: mismas etiquetas, renovación y fin', () => {
+    const money = (cents) => `RD$${(cents / 100).toLocaleString('en-US')}`;
+    const now = Date.parse('2026-12-01T12:00:00Z');
+    const facts = (period, cycle = 'monthly') => periodFacts(period, cycle, money, 'America/Santo_Domingo', now)
+        .map((fact) => `${fact.label}: ${fact.value}`);
+    // Respuesta anterior sin current_period: cada pantalla conserva su texto.
+    assert.deepEqual(periodFacts(undefined, 'monthly', money, 'America/Santo_Domingo', now), []);
+    assert.deepEqual(periodFacts({}, 'monthly', money, 'America/Santo_Domingo', now), []);
+    // Período en curso a RD$3,000 con la renovación prepagada: la fecha se extiende, el precio no.
+    assert.deepEqual(facts({ total_cents: 300000, access_until: '2027-01-23T17:28:00Z' }),
+        ['Precio del período en curso: RD$3,000 al mes', 'Acceso pagado hasta: 23 de enero de 2027']);
+    // Empezó el período renovado: el servidor manda el precio nuevo.
+    assert.deepEqual(facts({ total_cents: 240000, access_until: '2027-01-23T17:28:00Z' })[0], 'Precio del período en curso: RD$2,400 al mes');
+    assert.deepEqual(facts({ total_cents: 2880000, access_until: '2027-01-23T17:28:00Z' }, 'yearly')[0], 'Precio del período en curso: RD$28,800 al año');
+    // Terminó sin otro período: sin precio en curso y la fecha en pasado.
+    assert.deepEqual(facts({ total_cents: null, access_until: '2026-11-23T17:28:00Z' }),
+        ['Precio del período en curso: Sin período en curso', 'Acceso pagado: Terminó el 23 de noviembre de 2026']);
+    // Pago revertido.
+    assert.deepEqual(facts({ total_cents: 300000, access_until: null })[1], 'Acceso pagado: Sin pago confirmado');
+});
+
+test('cambio programado: nombres en el orden del catálogo', () => {
+    assert.deepEqual(orderedNames(['cumplimiento', 'ecf', 'pos'], { ecf: 'e-CF', cumplimiento: 'Cumplimiento', pos: 'POS con e-commerce' }),
+        ['e-CF', 'Cumplimiento', 'POS con e-commerce']);
 });
 
 test('identificador de la compra nueva desde purchase_url', () => {

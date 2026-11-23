@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { Link } from '@inertiajs/vue3';
 import {
+    CalendarClock,
     CircleAlert,
     CircleCheck,
     Clock,
@@ -14,8 +15,13 @@ import BusinessPackageAmounts from '@/components/BusinessPackageAmounts.vue';
 import { Button } from '@/components/ui/button';
 import { useBusinessPurchase } from '@/composables/useBusinessPurchase';
 import { cycleCopy, formatMoney, joinNames } from '@/lib/businessPackageCopy';
+import {
+    changeDate,
+    orderedNames,
+    periodFacts,
+    replacementStart,
+} from '@/lib/businessPackageManage';
 import { productNames } from '@/lib/businessPurchaseStatus';
-import { changeDate, replacementStart } from '@/lib/businessPackageManage';
 import type { SelfServiceClient } from '@/lib/businessSelfService';
 import type { Product, Purchase } from '@/types/businessSelfService';
 
@@ -114,9 +120,29 @@ const reloadPage = () => window.location.reload();
 const packageNames = computed(() =>
     joinNames(view.value?.access.map((row) => row.name) ?? []),
 );
-const changeNames = computed(() => joinNames(
-    (purchase.value?.scheduled_change?.products ?? []).map(code => props.names?.[code] ?? productNames[code]),
-));
+const changeNames = computed(() =>
+    joinNames(
+        orderedNames(purchase.value?.scheduled_change?.products ?? [], {
+            ...productNames,
+            ...props.names,
+        }),
+    ),
+);
+const scheduledDay = computed(() => {
+    const at = purchase.value?.scheduled_change?.effective_at;
+    return at ? changeDate(at, 'America/Santo_Domingo', false) : '';
+});
+/** Precio del período en curso y vigencia pagada (mismas etiquetas que «Administrar»). */
+const facts = computed(() =>
+    purchase.value
+        ? periodFacts(
+              purchase.value.current_period,
+              purchase.value.summary.selection.cycle,
+              money,
+              'America/Santo_Domingo',
+          )
+        : [],
+);
 const startDay = computed(() => {
     const start = purchase.value ? replacementStart(purchase.value) : null;
     return start ? changeDate(start, 'America/Santo_Domingo', false) : null;
@@ -306,19 +332,39 @@ const startDay = computed(() => {
                         {{ companyName }}
                     </p>
                     <p class="font-medium">{{ packageNames }}</p>
-                    <p class="text-sm text-muted-foreground">
-                        {{ purchase.current_period?.total_cents != null ? 'Precio del período vigente:' : 'Precio de esta compra:' }}
-                        {{ money(purchase.current_period?.total_cents ?? purchase.summary.recurring.total_cents) }}
+                    <dl
+                        v-if="facts.length"
+                        class="space-y-1 pt-1 text-sm"
+                        data-testid="package-period"
+                    >
+                        <div
+                            v-for="fact in facts"
+                            :key="fact.label"
+                            class="flex flex-wrap gap-x-1.5"
+                        >
+                            <dt class="text-muted-foreground">
+                                {{ fact.label }}:
+                            </dt>
+                            <dd
+                                :class="
+                                    fact.muted
+                                        ? 'text-muted-foreground'
+                                        : 'font-medium'
+                                "
+                            >
+                                {{ fact.value }}
+                            </dd>
+                        </div>
+                    </dl>
+                    <p v-else class="text-sm text-muted-foreground">
+                        Precio de esta compra:
+                        {{ money(purchase.summary.recurring.total_cents) }}
                         {{
                             purchase.summary.selection.cycle === 'yearly'
                                 ? 'al año'
                                 : 'al mes'
                         }}
                     </p>
-                    <p v-if="purchase.current_period?.access_until" class="text-sm">
-                        Acceso pagado hasta el {{ changeDate(purchase.current_period.access_until, 'America/Santo_Domingo') }}.
-                    </p>
-                    <p v-else-if="purchase.current_period" class="text-sm text-muted-foreground">Sin vigencia pagada confirmada.</p>
                 </div>
                 <div class="space-y-2 sm:max-w-56 sm:text-right">
                     <Button
@@ -331,21 +377,51 @@ const startDay = computed(() => {
                             >Administrar mi paquete</Link
                         >
                     </Button>
-                    <p class="text-xs leading-5 text-muted-foreground">
+                    <p
+                        v-if="!purchase.scheduled_change"
+                        class="text-xs leading-5 text-muted-foreground"
+                    >
                         Agrega o quita aplicaciones, o da de baja el paquete.
                     </p>
                 </div>
             </section>
 
-            <section v-if="purchase.scheduled_change" aria-labelledby="scheduled-title" class="space-y-2 rounded-xl border p-4 sm:p-5">
-                <h2 id="scheduled-title" class="text-lg font-semibold">
-                    {{ purchase.scheduled_change.products.length ? 'Cambio de productos programado' : 'Baja total programada' }}
+            <!-- Cambio ya registrado: qué pasa, desde cuándo y dónde verlo -->
+            <section
+                v-if="purchase.scheduled_change"
+                aria-labelledby="scheduled-title"
+                class="space-y-2 rounded-xl border p-4 text-sm leading-6 sm:p-5"
+                :class="
+                    purchase.scheduled_change.products.length
+                        ? 'border-sky-200 bg-sky-50 text-sky-950 dark:border-sky-900 dark:bg-sky-950/40 dark:text-sky-100'
+                        : 'border-amber-300 bg-amber-50 text-amber-950 dark:border-amber-900 dark:bg-amber-950/40 dark:text-amber-100'
+                "
+            >
+                <h2
+                    id="scheduled-title"
+                    class="flex items-center gap-2 text-lg font-semibold"
+                >
+                    <CalendarClock class="size-5 shrink-0" aria-hidden="true" />
+                    {{
+                        purchase.scheduled_change.products.length
+                            ? 'Cambio de productos programado'
+                            : 'Baja total programada'
+                    }}
                 </h2>
-                <p class="text-sm">
-                    El paquete actual termina el {{ changeDate(purchase.scheduled_change.effective_at, 'America/Santo_Domingo') }}.
-                    <span v-if="changeNames">Tu selección para el próximo período incluye {{ changeNames }}.</span>
+                <p v-if="purchase.scheduled_change.products.length">
+                    Desde el <strong>{{ scheduledDay }}</strong
+                    >, tu paquete tendrá {{ changeNames }}. Hasta esa fecha
+                    sigues con tu paquete actual.
                 </p>
-                <Link :href="purchase.scheduled_change.manage_url" class="inline-flex min-h-11 items-center font-medium underline">Ver detalle del cambio</Link>
+                <p v-else>
+                    Tu acceso termina el <strong>{{ scheduledDay }}</strong
+                    >. Hasta esa fecha sigues usando tus aplicaciones.
+                </p>
+                <Link
+                    :href="purchase.scheduled_change.manage_url"
+                    class="inline-flex min-h-11 items-center font-medium underline underline-offset-4"
+                    >Ver detalle del cambio</Link
+                >
             </section>
 
             <!-- Acceso por aplicación -->

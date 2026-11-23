@@ -285,3 +285,67 @@ export function changeProgress(
     })();
     return { payment: pay, activation };
 }
+
+export type PeriodFact = { label: string; value: string; muted?: boolean };
+
+/**
+ * Precio del período en curso y vigencia pagada, con las mismas etiquetas en
+ * «Ver mi paquete» y «Administrar mi paquete». Sin `current_period` (respuesta
+ * anterior) devuelve una lista vacía y cada pantalla usa su texto previo.
+ */
+export function periodFacts(
+    period: Partial<PackagePeriod> | null | undefined,
+    cycle: Cycle,
+    money: (cents: number) => string,
+    timeZone: string,
+    now = Date.now(),
+): PeriodFact[] {
+    if (!period || !('total_cents' in period || 'access_until' in period))
+        return [];
+    const per = cycle === 'yearly' ? 'al año' : 'al mes';
+    const facts: PeriodFact[] = [
+        period.total_cents != null
+            ? {
+                  label: 'Precio del período en curso',
+                  value: `${money(period.total_cents)} ${per}`,
+              }
+            : {
+                  label: 'Precio del período en curso',
+                  value: 'Sin período en curso',
+                  muted: true,
+              },
+    ];
+    const until = period.access_until;
+    if (until) {
+        const day = changeDate(until, timeZone, false);
+        facts.push(
+            Date.parse(until) > now
+                ? { label: 'Acceso pagado hasta', value: day }
+                : {
+                      label: 'Acceso pagado',
+                      value: `Terminó el ${day}`,
+                      muted: true,
+                  },
+        );
+    } else {
+        facts.push({
+            label: 'Acceso pagado',
+            value: 'Sin pago confirmado',
+            muted: true,
+        });
+    }
+    return facts;
+}
+
+/** Nombres en el orden del catálogo, aunque el servidor los ordene distinto. */
+export function orderedNames(
+    codes: readonly Product[],
+    names: Partial<Record<Product, string>>,
+): string[] {
+    const order: Product[] = ['ecf', 'cumplimiento', 'pos', 'bys'];
+    const rank = (code: Product) =>
+        order.includes(code) ? order.indexOf(code) : order.length;
+    return [...codes]
+        .sort((a, b) => rank(a) - rank(b))
+        .map((code) => names[code] ?? code);
+}

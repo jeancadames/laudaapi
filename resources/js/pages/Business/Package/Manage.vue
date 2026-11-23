@@ -27,6 +27,7 @@ import { cycleCopy, formatMoney, joinNames } from '@/lib/businessPackageCopy';
 import {
     changeDate,
     changeProgress,
+    periodFacts,
     createManageClient,
     FATE_LABEL,
     productOrder,
@@ -83,6 +84,18 @@ const period = plan.current.cycle === 'yearly' ? 'año' : 'mes';
 const money = (cents: number) => formatMoney(cents, 'DOP');
 const day = (iso: string) => changeDate(iso, plan.timezone, false);
 const moment = (iso: string) => changeDate(iso, plan.timezone);
+/** Precio del período en curso y vigencia pagada (mismas etiquetas que «Ver mi paquete»). */
+const facts = periodFacts(
+    plan.current,
+    plan.current.cycle,
+    money,
+    plan.timezone,
+);
+const paidUntilDay =
+    plan.current.access_until &&
+    Date.parse(plan.current.access_until) > Date.now()
+        ? day(plan.current.access_until)
+        : null;
 const namesOf = (fate: AppFate, list = rows.value) =>
     joinNames(list.filter((row) => row.fate === fate).map((row) => row.name));
 const currentNames = joinNames(
@@ -244,22 +257,41 @@ const reloadPage = () => window.location.reload();
                 <h1 class="text-2xl font-semibold tracking-tight sm:text-3xl">
                     Administrar mi paquete
                 </h1>
-                <div class="rounded-xl border bg-muted/30 p-4">
+                <div
+                    class="rounded-xl border bg-muted/30 p-4"
+                    data-testid="current-package"
+                >
                     <p class="text-sm text-muted-foreground">
                         {{ ended ? 'Paquete anterior' : 'Tienes contratado' }}
                     </p>
                     <p class="mt-1 font-semibold">{{ currentNames }}</p>
-                    <p class="mt-1 text-sm text-muted-foreground">
-                        <template v-if="plan.current.total_cents != null">
-                            Precio del período vigente: {{ money(plan.current.total_cents) }} por {{ period }}.
-                        </template>
-                        <template v-else-if="plan.current.total_cents === null">Sin período de facturación vigente.</template>
-                        <template v-else>Facturación {{ cycle.adverb }}</template>
+                    <dl v-if="facts.length" class="mt-2 space-y-1 text-sm">
+                        <div
+                            v-for="fact in facts"
+                            :key="fact.label"
+                            class="flex flex-wrap gap-x-1.5"
+                        >
+                            <dt class="text-muted-foreground">
+                                {{ fact.label }}:
+                            </dt>
+                            <dd
+                                :class="
+                                    fact.muted
+                                        ? 'text-muted-foreground'
+                                        : 'font-medium'
+                                "
+                            >
+                                {{ fact.value }}
+                            </dd>
+                        </div>
+                        <div class="flex flex-wrap gap-x-1.5">
+                            <dt class="text-muted-foreground">Facturación:</dt>
+                            <dd>{{ cycle.option }}</dd>
+                        </div>
+                    </dl>
+                    <p v-else class="mt-1 text-sm text-muted-foreground">
+                        Facturación {{ cycle.adverb }}
                     </p>
-                    <p v-if="plan.current.access_until" class="mt-1 text-sm">
-                        Acceso pagado hasta el {{ moment(plan.current.access_until) }}.
-                    </p>
-                    <p v-else-if="plan.current.access_until === null" class="mt-1 text-sm text-muted-foreground">Sin vigencia pagada confirmada.</p>
                 </div>
             </header>
 
@@ -277,7 +309,12 @@ const reloadPage = () => window.location.reload();
                             Marca las que quieres conservar o agregar y desmarca
                             las que ya no necesitas. Nada cambia hasta que
                             revises el precio y confirmes. Tu acceso actual
-                            sigue igual hasta el final del período pagado.
+                            sigue igual
+                            {{
+                                paidUntilDay
+                                    ? `hasta el ${paidUntilDay}`
+                                    : 'hasta el final del período pagado'
+                            }}.
                         </p>
                         <ul class="space-y-3">
                             <li v-for="row in rows" :key="row.code">
