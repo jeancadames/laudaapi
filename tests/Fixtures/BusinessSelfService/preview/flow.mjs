@@ -21,7 +21,7 @@ const money = (cents) =>
 export default async ({ page, navigate, capture }) => {
     const mobile = () => page.setViewportSize({ width: 390, height: 844 });
     const option = (name) => page.getByRole('checkbox', { name: new RegExp(name) });
-    const price = page.getByLabel('Precio de tu paquete');
+    const price = page.getByLabel('Precio de tu plan');
     const review = page.getByRole('button', { name: 'Ver resumen' });
     const ready = () => review.and(page.locator(':enabled')).waitFor();
     const noOverflow = async (label) =>
@@ -35,13 +35,15 @@ export default async ({ page, navigate, capture }) => {
     const lastPreview = () => page.evaluate(() => window.__selfService.filter((entry) => entry.path.endsWith('/preview')).at(-1));
     /** La barra muestra exactamente los importes de la última respuesta. */
     const barMatchesServer = async (products) => {
+        await page.waitForTimeout(50);
         await ready();
         const { status, body } = await lastPreview();
         assert.equal(status, 200);
         assert.deepEqual(body.selection.products, products);
         const text = TEXT(await price.innerText());
         assert.ok(text.includes(`Pagas hoy ${money(body.due_today.total_cents)}`), `${text} ≠ hoy ${money(body.due_today.total_cents)}`);
-        assert.ok(text.includes(`Precio mensual ${money(body.recurring.total_cents)}`), `${text} ≠ mensual`);
+        const period = body.selection.cycle === 'yearly' ? 'Precio anual' : 'Precio mensual';
+        assert.ok(text.includes(`${period} ${money(body.recurring.total_cents)}`), `${text} ≠ ${period}`);
         return { body, text };
     };
     const pickFiscal = async () => {
@@ -90,15 +92,14 @@ export default async ({ page, navigate, capture }) => {
 
     // 5. Resumen al 0 %: incluye Fácil ECF, sin fila de impuestos y «Precio mensual».
     await review.click();
-    await page.getByRole('heading', { level: 1, name: 'Resumen de tu paquete' }).waitFor();
+    await page.getByRole('heading', { level: 1, name: 'Tu plan personalizado' }).waitFor();
     const summary = TEXT(await page.locator('#app').innerText());
     for (const expected of [
         /Fácil ECF incluido/,
         /Implementación Guiada/,
-        /Tu selección corresponde al paquete Fiscal\. Facturación mensual\./,
-        /Pagas hoy Total de hoy RD\$2,000 Corresponde al primer mes\./,
-        /Precio mensual Total mensual RD\$2,000 Este paquete no se renueva automáticamente\./,
-        /Este precio se mantiene hasta el 15 de enero de 2030/,
+        /Pagas hoy RD\$2,000 Precio mensual RD\$2,000 Hoy pagas el primer mes\. Este plan no se renueva automáticamente\./,
+        /Cómo calculamos tu precio Tarifa aplicada: Fiscal\. Precio mensual Tarifa Fiscal · e-CF y Cumplimiento RD\$2,000 Total mensual RD\$2,000/,
+        /Elegiste e-CF y Cumplimiento\. Facturación mensual\. Precio válido hasta el 15 de enero de 2030/,
     ])
         assert.match(summary, expected);
     assert.doesNotMatch(summary, /Impuesto|Luego|Confirmar/);
@@ -118,7 +119,7 @@ export default async ({ page, navigate, capture }) => {
     await barMatchesServer(['ecf', 'cumplimiento', 'bys']);
     await review.click();
     await page.getByText('Total mensual').waitFor();
-    assert.match(TEXT(await page.locator('#app').innerText()), /Precio mensual Paquete Fiscal \(e-CF \+ Cumplimiento\) RD\$2,000 BYS RD\$1,000 Total mensual RD\$3,000/);
+    assert.match(TEXT(await page.locator('#app').innerText()), /Aplicamos la tarifa Fiscal a e-CF y Cumplimiento\. BYS se suma por separado\. Precio mensual Tarifa Fiscal · e-CF y Cumplimiento RD\$2,000 BYS RD\$1,000 Total mensual RD\$3,000/);
     await capture('06-resumen-con-bys');
     await mobile();
     await page.getByRole('button', { name: 'Cambiar mi selección' }).click();
@@ -135,7 +136,7 @@ export default async ({ page, navigate, capture }) => {
     await page.getByText('Total de hoy').waitFor();
     assert.match(
         TEXT(await page.locator('#app').innerText()),
-        /Pagas hoy Base, antes de impuestos RD\$2,000 Impuestos RD\$360 Total de hoy RD\$2,360.*Precio mensual Base, antes de impuestos RD\$2,000 Impuestos RD\$360 Total mensual RD\$2,360/,
+        /Pagas hoy RD\$2,360 Precio mensual RD\$2,360 Importes con impuestos incluidos\..*Precio mensual Tarifa Fiscal · e-CF y Cumplimiento RD\$2,000 Impuestos RD\$360 Total mensual RD\$2,360 Pagas hoy Base, antes de impuestos RD\$2,000 Impuestos RD\$360 Total de hoy RD\$2,360/,
     );
     await capture('07-resumen-con-impuestos');
 
@@ -175,7 +176,7 @@ export default async ({ page, navigate, capture }) => {
     await pickFiscal();
     await review.click();
     await page.getByText('Cargos únicos').waitFor();
-    assert.match(TEXT(await page.locator('#app').innerText()), /Primer mes RD\$2,000 Cargos únicos RD\$6,000 Total de hoy RD\$8,000.*Total mensual RD\$2,000/);
+    assert.match(TEXT(await page.locator('#app').innerText()), /Pagas hoy RD\$8,000 Precio mensual RD\$2,000.*Total mensual RD\$2,000 Pagas hoy Primer mes RD\$2,000 Cargos únicos RD\$6,000 Total de hoy RD\$8,000/);
     await capture('09-cargo-unico');
 
     // 13. Sin catálogo publicado y sin permiso.
@@ -201,10 +202,10 @@ export default async ({ page, navigate, capture }) => {
     await mobile();
     await pickFiscal();
     await review.click();
-    await page.getByRole('heading', { level: 1, name: 'Resumen de tu paquete' }).waitFor();
+    await page.getByRole('heading', { level: 1, name: 'Tu plan personalizado' }).waitFor();
     const submit = page.getByRole('button', { name: 'Confirmar compra' });
     assert.equal(await submit.isDisabled(), true, 'sin aceptar no se confirma');
-    await page.getByRole('checkbox', { name: /acepto contratar este paquete/ }).check();
+    await page.getByRole('checkbox', { name: /acepto contratar este plan/ }).check();
     await capture('11-confirmar');
     await mobile();
     await submit.click();
@@ -292,4 +293,84 @@ export default async ({ page, navigate, capture }) => {
     await page.getByRole('link', { name: 'Ver mi paquete' }).click();
     await purchaseHeading('Tus aplicaciones están listas');
     assert.equal(new URL(page.url()).searchParams.get('compra'), (await lastPurchase()).body.purchase_id);
+
+    // ─────────────── Plan personalizado: desglose de preview.components ───────────────
+    const NAMES = { ecf: 'e-CF', cumplimiento: 'Cumplimiento', pos: 'POS', bys: 'BYS' };
+    const join = (names) => (names.length < 2 ? names.join('') : `${names.slice(0, -1).join(', ')} y ${names.at(-1)}`);
+    const reviewPlan = page.getByRole('button', { name: 'Ver resumen' });
+    /** El resumen muestra exactamente la última respuesta: aplicaciones, hoy, período y componentes. */
+    const summaryMatchesServer = async (explanation) => {
+        const { body } = await lastPreview();
+        await reviewPlan.click();
+        await page.getByRole('heading', { level: 1, name: 'Tu plan personalizado' }).waitFor();
+        const text = TEXT(await page.locator('#app').innerText());
+        const period = body.selection.cycle === 'yearly' ? 'anual' : 'mensual';
+        const apps = TEXT(await page.getByRole('list', { name: 'Aplicaciones elegidas' }).innerText());
+        for (const code of body.selection.products) assert.ok(apps.includes(NAMES[code]), `${NAMES[code]} no aparece`);
+        assert.ok(text.includes(`Pagas hoy ${money(body.due_today.total_cents)} Precio ${period} ${money(body.recurring.total_cents)}`), 'hoy/período');
+        assert.equal(TEXT(await page.getByTestId('pricing-explanation').innerText()), explanation);
+        const rows = [...body.components.filter((c) => c.products.length > 1), ...body.components.filter((c) => c.products.length <= 1)]
+            .map((c) => `${c.products.length > 1 ? `Tarifa ${c.name} · ${join(c.products.map((p) => NAMES[p]))}` : NAMES[c.products[0]]} ${money(c.net_cents)}`)
+            .join(' ');
+        assert.ok(text.includes(`Precio ${period} ${rows} Total ${period} ${money(body.recurring.total_cents)}`), `desglose: ${rows}`);
+        assert.ok(text.includes(`Elegiste ${join(body.selection.products.map((p) => NAMES[p]))}. Facturación ${period}.`));
+        assert.doesNotMatch(text, /ahorr/i, 'sin dato de ahorro del servidor');
+        await noOverflow(`plan ${body.selection.products.join('+')}`);
+        return body;
+    };
+    const editPlan = async () => {
+        await page.getByRole('button', { name: 'Cambiar mi selección' }).click();
+        await page.getByRole('heading', { level: 1, name: 'Armar mi paquete' }).waitFor();
+    };
+    const setApps = async (codes) => {
+        const labels = { ecf: 'Emitir facturas', cumplimiento: 'Gestionar mis obligaciones', pos: 'Registrar ventas', bys: 'Gestionar compras' };
+        for (const [code, label] of Object.entries(labels)) await option(label).setChecked(codes.includes(code));
+    };
+
+    // 22. POS + BYS: dos aplicaciones, cada una con su importe.
+    await fresh(at('configurador'));
+    await mobile();
+    await setApps(['pos', 'bys']);
+    await barMatchesServer(['pos', 'bys']);
+    let plan = await summaryMatchesServer('Cada aplicación tiene su propia tarifa.');
+    assert.equal(plan.components.length, 2);
+    await capture('20-plan-pos-bys');
+    await mobile();
+
+    // 23. Editar → e-CF + Cumplimiento + BYS: tres aplicaciones, dos componentes.
+    await editPlan();
+    await setApps(['ecf', 'cumplimiento', 'bys']);
+    await barMatchesServer(['ecf', 'cumplimiento', 'bys']);
+    plan = await summaryMatchesServer('Aplicamos la tarifa Fiscal a e-CF y Cumplimiento. BYS se suma por separado.');
+    assert.equal(plan.components.length, 2);
+    await capture('21-plan-fiscal-bys');
+    await mobile();
+
+    // 24. Las cuatro: todo encaja en una tarifa.
+    await editPlan();
+    await setApps(['ecf', 'cumplimiento', 'pos', 'bys']);
+    await barMatchesServer(['ecf', 'cumplimiento', 'pos', 'bys']);
+    plan = await summaryMatchesServer('Tarifa aplicada: Business.');
+    await capture('22-plan-cuatro');
+    await mobile();
+
+    // 25. Mensual → anual: el resumen usa la última respuesta (ciclo e importes anuales).
+    await editPlan();
+    const monthly = (await lastPreview()).body;
+    await page.getByRole('radio', { name: 'Anual' }).check();
+    await barMatchesServer(['ecf', 'cumplimiento', 'pos', 'bys']);
+    plan = await summaryMatchesServer('Tarifa aplicada: Business.');
+    assert.equal(plan.selection.cycle, 'yearly');
+    assert.notEqual(plan.recurring.total_cents, monthly.recurring.total_cents);
+    await capture('23-plan-anual');
+    await mobile();
+
+    // 26. Volver a editar con anual: quitar POS; el resumen refleja la nueva respuesta.
+    await editPlan();
+    assert.equal(await page.getByRole('radio', { name: 'Anual' }).isChecked(), true, 'conserva el ciclo');
+    await option('Registrar ventas').uncheck();
+    await barMatchesServer(['ecf', 'cumplimiento', 'bys']);
+    plan = await summaryMatchesServer('Aplicamos la tarifa Fiscal a e-CF y Cumplimiento. BYS se suma por separado.');
+    assert.equal(plan.selection.cycle, 'yearly');
+    assert.doesNotMatch(TEXT(await page.getByRole('list', { name: 'Aplicaciones elegidas' }).innerText()), /POS/);
 };

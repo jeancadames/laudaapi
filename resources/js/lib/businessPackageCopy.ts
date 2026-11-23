@@ -1,4 +1,9 @@
-import type { Amount, Cycle, Product } from '@/types/businessSelfService';
+import type {
+    Amount,
+    Cycle,
+    Preview,
+    Product,
+} from '@/types/businessSelfService';
 
 /**
  * Textos de apoyo del configurador. La tarea, el nombre de la aplicación y las
@@ -83,3 +88,63 @@ export const formatDate = (iso: string) =>
         timeStyle: 'short',
         timeZone: 'America/Santo_Domingo',
     }).format(new Date(iso));
+
+/** «e-CF», «e-CF y BYS», «e-CF, POS y BYS». */
+export const joinNames = (names: string[]) =>
+    names.length <= 1
+        ? (names[0] ?? '')
+        : `${names.slice(0, -1).join(', ')} y ${names.at(-1)}`;
+
+type PriceComponent = Pick<
+    Preview['components'][number],
+    'name' | 'products' | 'net_cents'
+>;
+
+/**
+ * Por qué el precio tiene estos componentes, con los nombres que devuelve el
+ * servidor en `preview.components`. Solo describe; no compara ni calcula.
+ */
+export function pricingExplanation(
+    components: PriceComponent[],
+    nameOf: (code: Product) => string,
+): string {
+    if (!components.length) return '';
+    if (components.length === 1)
+        return `Tarifa aplicada: ${components[0].name}.`;
+    const bundles = components.filter((item) => item.products.length > 1);
+    const separate = components
+        .filter((item) => item.products.length === 1)
+        .map((item) => nameOf(item.products[0]));
+    if (!bundles.length) return 'Cada aplicación tiene su propia tarifa.';
+    const sentences = bundles.map(
+        (item) =>
+            `Aplicamos la tarifa ${item.name} a ${joinNames(item.products.map(nameOf))}.`,
+    );
+    if (separate.length)
+        sentences.push(
+            `${joinNames(separate)} se ${separate.length === 1 ? 'suma' : 'suman'} por separado.`,
+        );
+    return sentences.join(' ');
+}
+
+/**
+ * Una fila por componente: la tarifa combinada nombra sus aplicaciones. Las
+ * tarifas combinadas van primero, como en la explicación; dentro de cada grupo
+ * se conserva el orden del servidor. Solo cambia el orden, nunca los importes.
+ */
+export const componentRows = (
+    components: PriceComponent[],
+    nameOf: (code: Product) => string,
+) =>
+    [
+        ...components.filter((item) => item.products.length > 1),
+        ...components.filter((item) => item.products.length <= 1),
+    ].map((item) => ({
+        label:
+            item.products.length > 1
+                ? `Tarifa ${item.name} · ${joinNames(item.products.map(nameOf))}`
+                : item.products.length === 1
+                  ? nameOf(item.products[0])
+                  : item.name,
+        cents: item.net_cents,
+    }));

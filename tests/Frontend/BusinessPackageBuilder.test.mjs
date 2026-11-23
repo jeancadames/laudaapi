@@ -36,13 +36,13 @@ async function load(contents) {
 const samples = await load(`export * from ${JSON.stringify(CONTRACT)};`);
 const {
     useBusinessPackageBuilder, useBusinessPurchase, createSelfServiceClient, SelfServiceError, purchaseUrl, isPurchaseId, purchaseView,
-    formatMoney, inclusionsOf, showsTax, cycleCopy,
+    formatMoney, inclusionsOf, showsTax, cycleCopy, pricingExplanation, componentRows, joinNames,
 } = await load(`
     export { useBusinessPackageBuilder } from '@/composables/useBusinessPackageBuilder';
     export { useBusinessPurchase } from '@/composables/useBusinessPurchase';
     export { createSelfServiceClient, SelfServiceError, purchaseUrl, isPurchaseId } from '@/lib/businessSelfService';
     export { purchaseView } from '@/lib/businessPurchaseStatus';
-    export { cycleCopy, formatMoney, inclusionsOf, showsTax } from '@/lib/businessPackageCopy';
+    export { componentRows, cycleCopy, formatMoney, inclusionsOf, joinNames, pricingExplanation, showsTax } from '@/lib/businessPackageCopy';
 `);
 
 const memory = (seed = {}) => {
@@ -616,4 +616,56 @@ test('la página con compra pendiente lleva resume_purchase_id, también en el c
     assert.equal(page.catalog.resume_purchase_id, samples.payable.purchase_id);
     const catalog = await createSelfServiceClient(backend.urls, backend.fetch).catalog();
     assert.equal(catalog.resume_purchase_id, samples.payable.purchase_id);
+});
+
+// ───────────────────────── Plan personalizado ─────────────────────────
+
+const appName = (code) => samples.catalog.products.find((product) => product.code === code).name;
+
+test('explicación del precio con preview.components del contrato', () => {
+    assert.equal(pricingExplanation(samples.preview.components, appName), 'Tarifa aplicada: Fiscal.');
+    assert.equal(pricingExplanation(samples.customPreview.components, appName), 'Aplicamos la tarifa Fiscal a e-CF y Cumplimiento. BYS se suma por separado.');
+    assert.deepEqual(componentRows(samples.customPreview.components, appName), [
+        { label: 'Tarifa Fiscal · e-CF y Cumplimiento', cents: 200000 },
+        { label: 'BYS', cents: 100000 },
+    ]);
+});
+
+test('explicación: aplicaciones sueltas, una tarifa completa y varias combinadas', () => {
+    const pos = { offer_code: 'pos', name: 'POS', products: ['pos'], net_cents: 150000 };
+    const bys = { offer_code: 'bys', name: 'BYS', products: ['bys'], net_cents: 100000 };
+    assert.equal(pricingExplanation([pos, bys], appName), 'Cada aplicación tiene su propia tarifa.');
+    assert.deepEqual(componentRows([pos, bys], appName).map((row) => row.label), ['POS', 'BYS']);
+    const business = { offer_code: 'business', name: 'Business', products: ['ecf', 'pos', 'cumplimiento', 'bys'], net_cents: 350000 };
+    assert.equal(pricingExplanation([business], appName), 'Tarifa aplicada: Business.');
+    assert.equal(componentRows([business], appName)[0].label, 'Tarifa Business · e-CF, POS, Cumplimiento y BYS');
+    const comercial = { offer_code: 'comercial', name: 'Comercial', products: ['ecf', 'pos'], net_cents: 250000 };
+    const cumplimiento = { offer_code: 'cumplimiento', name: 'Cumplimiento', products: ['cumplimiento'], net_cents: 100000 };
+    assert.deepEqual(componentRows([bys, { ...samples.customPreview.components[0] }], appName).map((row) => row.label),
+        ['Tarifa Fiscal · e-CF y Cumplimiento', 'BYS'], 'la tarifa combinada va primero aunque el servidor la envíe después');
+    assert.equal(pricingExplanation([comercial, cumplimiento, bys], appName),
+        'Aplicamos la tarifa Comercial a e-CF y POS. Cumplimiento y BYS se suman por separado.');
+    assert.equal(pricingExplanation([], appName), '');
+    assert.equal(joinNames(['e-CF']), 'e-CF');
+});
+
+test('mensual → anual y volver a editar: la propuesta visible es siempre la última respuesta', async () => {
+    const { builder, backend } = mount();
+    for (const code of ['ecf', 'cumplimiento', 'pos', 'bys']) builder.toggle(code);
+    await settled(builder);
+    const monthly = builder.proposal.value;
+    assert.equal(monthly.selection.cycle, 'monthly');
+    builder.setCycle('yearly');
+    assert.equal(builder.proposalIsCurrent.value, false, 'mientras calcula no se puede abrir el resumen');
+    await settled(builder);
+    const yearly = builder.proposal.value;
+    assert.equal(yearly.selection.cycle, 'yearly');
+    assert.notEqual(yearly.recurring.total_cents, monthly.recurring.total_cents);
+    assert.equal(yearly.proposal_ref, [...backend.state.proposals.keys()].at(-1), 'no es la última respuesta');
+    assert.equal(previews(backend).at(-1).body.cycle, 'yearly');
+    builder.toggle('pos');
+    await settled(builder);
+    assert.deepEqual(builder.proposal.value.selection, { products: ['ecf', 'cumplimiento', 'bys'], level: 'initial', cycle: 'yearly' });
+    assert.equal(builder.proposalIsCurrent.value, true);
+    assert.equal(pricingExplanation(builder.proposal.value.components, appName), 'Aplicamos la tarifa Fiscal a e-CF y Cumplimiento. BYS se suma por separado.');
 });

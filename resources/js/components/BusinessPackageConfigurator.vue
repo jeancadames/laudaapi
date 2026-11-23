@@ -6,11 +6,14 @@ import BusinessPackageAmounts from '@/components/BusinessPackageAmounts.vue';
 import { Button } from '@/components/ui/button';
 import { useBusinessPackageBuilder } from '@/composables/useBusinessPackageBuilder';
 import {
+    componentRows,
     cycleCopy,
     formatDate,
     formatMoney,
     helpFor,
     inclusionsOf,
+    joinNames,
+    pricingExplanation,
     showsTax,
 } from '@/lib/businessPackageCopy';
 import type { SelfServiceClient } from '@/lib/businessSelfService';
@@ -147,41 +150,26 @@ const todayRows = computed(() => {
     return rows;
 });
 
-/** Precio por período: componentes de la oferta, impuestos si los hay y total. */
+/**
+ * Precio por período, tal como lo devuelve Laravel: una fila por componente de
+ * `preview.components`, impuestos si los hay y el total del ciclo.
+ */
 const periodRows = computed(() => {
     const preview = proposal.value;
     if (!preview) return [];
-    const tax = taxShown(preview);
-    const rows =
-        preview.components.length > 1
-            ? preview.components.map((component) => ({
-                  label:
-                      component.products.length > 1
-                          ? `Paquete ${component.name} (${component.products.map(nameOf).join(' + ')})`
-                          : component.name,
-                  cents: component.net_cents,
-              }))
-            : tax
-              ? [
-                    {
-                        label: 'Base, antes de impuestos',
-                        cents: preview.recurring.net_cents,
-                    },
-                ]
-              : [];
-    if (tax)
+    const rows = componentRows(preview.components, nameOf);
+    if (taxShown(preview))
         rows.push({ label: 'Impuestos', cents: preview.recurring.tax_cents });
     return rows;
 });
 
-const coverage = computed(() => {
-    const preview = proposal.value;
-    if (!preview || !preview.components.length) return '';
-    const [only] = preview.components;
-    return preview.components.length === 1 && only.products.length > 1
-        ? `Tu selección corresponde al paquete ${only.name}.`
-        : `Precio calculado con ${preview.components.map((component) => component.name).join(' + ')}.`;
-});
+/** «Tarifa aplicada: Business» o qué tarifa cubre qué aplicaciones. */
+const explanation = computed(() =>
+    proposal.value ? pricingExplanation(proposal.value.components, nameOf) : '',
+);
+const chosenNames = computed(() =>
+    joinNames((proposal.value?.selection.products ?? []).map(nameOf)),
+);
 
 const capacities = computed(() => {
     const capacity = proposal.value?.capacity;
@@ -223,8 +211,9 @@ watch(existingPurchaseId, (purchaseId) => {
                         Armar mi paquete
                     </h1>
                     <p class="leading-7 text-muted-foreground">
-                        Elige lo que necesitas y mira el precio antes de
-                        contratar. Todavía no se cobra nada.
+                        Elige solo las aplicaciones que necesitas, en la
+                        combinación que quieras: armamos tu plan y te mostramos
+                        el precio antes de contratar. Todavía no se cobra nada.
                     </p>
                 </header>
 
@@ -340,11 +329,11 @@ watch(existingPurchaseId, (purchaseId) => {
 
             <!-- Precio en vivo: barra fija en el celular, tarjeta en tableta y escritorio -->
             <aside
-                aria-label="Precio de tu paquete"
+                aria-label="Precio de tu plan"
                 class="fixed inset-x-0 bottom-0 z-20 border-t bg-background px-4 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] shadow-[0_-8px_24px_rgba(0,0,0,0.08)] md:static md:z-auto md:rounded-xl md:border md:p-6 md:shadow-none"
             >
                 <h2 class="hidden text-lg font-semibold md:mb-4 md:block">
-                    Tu paquete
+                    Tu plan
                 </h2>
                 <div aria-live="polite" class="min-h-[3.25rem]">
                     <p
@@ -400,6 +389,12 @@ watch(existingPurchaseId, (purchaseId) => {
                                 >
                             </li>
                         </ul>
+                        <p
+                            v-if="explanation"
+                            class="mb-3 hidden text-sm leading-6 text-muted-foreground md:block"
+                        >
+                            {{ explanation }}
+                        </p>
                         <p
                             class="flex flex-wrap items-baseline justify-between gap-x-3"
                         >
@@ -475,8 +470,12 @@ watch(existingPurchaseId, (purchaseId) => {
                     tabindex="-1"
                     class="text-2xl font-semibold tracking-tight outline-none sm:text-3xl"
                 >
-                    Resumen de tu paquete
+                    Tu plan personalizado
                 </h1>
+                <p class="leading-7 text-muted-foreground">
+                    Armado con las aplicaciones que elegiste. Puedes cambiarlas
+                    antes de confirmar.
+                </p>
             </header>
 
             <div
@@ -523,52 +522,137 @@ watch(existingPurchaseId, (purchaseId) => {
                     </p>
                 </div>
 
-                <section aria-labelledby="included-title" class="space-y-4">
-                    <h2 id="included-title" class="text-lg font-semibold">
-                        Qué incluye
+                <!-- Lo esencial primero: aplicaciones, hoy y por período -->
+                <section
+                    aria-labelledby="plan-title"
+                    class="space-y-5 rounded-xl border bg-muted/30 p-4 sm:p-6"
+                >
+                    <h2 id="plan-title" class="sr-only">
+                        Aplicaciones y precio
                     </h2>
-                    <ul class="divide-y rounded-xl border px-4">
+                    <ul class="space-y-3" aria-label="Aplicaciones elegidas">
                         <li
                             v-for="code in proposal.selection.products"
                             :key="code"
-                            class="space-y-1 py-4"
+                            class="flex items-start gap-2"
                         >
-                            <h3 class="font-semibold">{{ nameOf(code) }}</h3>
-                            <p
-                                v-if="byCode.get(code)?.task"
-                                class="text-sm text-muted-foreground"
-                            >
-                                {{ byCode.get(code)?.task }}
-                            </p>
-                            <p
-                                v-for="item in includedIn(code)"
-                                :key="item.granted"
-                                class="flex items-start gap-1.5 text-sm leading-6 font-semibold text-emerald-800 dark:text-emerald-300"
-                            >
-                                <Check
-                                    class="mt-1 size-4 shrink-0 text-emerald-600 dark:text-emerald-400"
-                                    aria-hidden="true"
-                                />
-                                {{ item.granted }}
-                            </p>
-                        </li>
-                        <li class="space-y-1 py-4">
-                            <h3 class="font-semibold">
-                                Implementación
-                                {{ proposal.implementation.name }}
-                            </h3>
-                            <p class="text-sm leading-6 text-muted-foreground">
-                                {{ proposal.implementation.scope }}
-                            </p>
+                            <Check
+                                class="mt-1 size-4 shrink-0 text-primary"
+                                aria-hidden="true"
+                            />
+                            <span class="min-w-0">
+                                <span class="block font-semibold">{{
+                                    nameOf(code)
+                                }}</span>
+                                <span
+                                    v-if="byCode.get(code)?.task"
+                                    class="block text-sm text-muted-foreground"
+                                    >{{ byCode.get(code)?.task }}</span
+                                >
+                                <span
+                                    v-for="item in includedIn(code)"
+                                    :key="item.granted"
+                                    class="block text-sm font-semibold text-emerald-800 dark:text-emerald-300"
+                                    >{{ item.granted }}</span
+                                >
+                            </span>
                         </li>
                     </ul>
-                    <p
-                        v-if="coverage"
-                        class="text-sm leading-6 text-muted-foreground"
-                    >
-                        {{ coverage }} Facturación
-                        {{ cycleCopy[proposal.selection.cycle].adverb }}.
+                    <dl class="space-y-3 border-t pt-4">
+                        <div
+                            class="flex flex-wrap items-baseline justify-between gap-x-3"
+                        >
+                            <dt class="font-semibold">Pagas hoy</dt>
+                            <dd
+                                class="text-2xl font-semibold tracking-tight tabular-nums"
+                            >
+                                {{ money(proposal.due_today.total_cents) }}
+                            </dd>
+                        </div>
+                        <div
+                            class="flex flex-wrap items-baseline justify-between gap-x-3"
+                        >
+                            <dt class="text-muted-foreground">
+                                {{ periodTitle(proposal) }}
+                            </dt>
+                            <dd class="font-semibold tabular-nums">
+                                {{ money(proposal.recurring.total_cents) }}
+                            </dd>
+                        </div>
+                    </dl>
+                    <p class="text-sm leading-6 text-muted-foreground">
+                        <template v-if="!todayRows.length"
+                            >Hoy pagas el
+                            {{
+                                cycleCopy[
+                                    proposal.selection.cycle
+                                ].first.toLowerCase()
+                            }}.
+                        </template>
+                        <template v-if="taxShown(proposal)"
+                            >Importes con impuestos incluidos.
+                        </template>
+                        {{
+                            proposal.automatic_renewal
+                                ? 'Se renueva automáticamente según las condiciones de abajo.'
+                                : 'Este plan no se renueva automáticamente.'
+                        }}
                     </p>
+                </section>
+
+                <!-- Cómo se forma el precio: preview.components tal cual -->
+                <section aria-labelledby="pricing-title" class="space-y-4">
+                    <h2 id="pricing-title" class="text-lg font-semibold">
+                        Cómo calculamos tu precio
+                    </h2>
+                    <p
+                        v-if="explanation"
+                        class="leading-7"
+                        data-testid="pricing-explanation"
+                    >
+                        {{ explanation }}
+                    </p>
+                    <div class="space-y-6 rounded-xl border p-4 sm:p-6">
+                        <BusinessPackageAmounts
+                            :title="periodTitle(proposal)"
+                            :total-label="`Total ${cycleCopy[proposal.selection.cycle].adverb}`"
+                            :rows="periodRows"
+                            :total-cents="proposal.recurring.total_cents"
+                            :currency="proposal.currency"
+                        />
+                        <div v-if="todayRows.length" class="border-t pt-5">
+                            <BusinessPackageAmounts
+                                title="Pagas hoy"
+                                total-label="Total de hoy"
+                                :rows="todayRows"
+                                :total-cents="proposal.due_today.total_cents"
+                                :currency="proposal.currency"
+                            />
+                        </div>
+                    </div>
+                    <p class="text-sm leading-6 text-muted-foreground">
+                        Elegiste {{ chosenNames }}. Facturación
+                        {{ cycleCopy[proposal.selection.cycle].adverb }}.
+                        <span class="block"
+                            >Precio válido hasta el
+                            {{ formatDate(proposal.expires_at) }}</span
+                        >
+                    </p>
+                </section>
+
+                <section aria-labelledby="included-title" class="space-y-4">
+                    <h2 id="included-title" class="text-lg font-semibold">
+                        También incluye
+                    </h2>
+                    <div class="space-y-1 rounded-xl border p-4">
+                        <h3 class="font-semibold">
+                            Implementación
+                            {{ proposal.implementation.name }}
+                        </h3>
+                        <p class="text-sm leading-6 text-muted-foreground">
+                            {{ proposal.implementation.scope }}
+                        </p>
+                    </div>
                     <dl class="grid grid-cols-2 gap-x-4 gap-y-3">
                         <div
                             v-for="capacity in capacities"
@@ -589,44 +673,6 @@ watch(existingPurchaseId, (purchaseId) => {
                     >
                         La capacidad de documentos se renueva cada mes, también
                         con pago anual.
-                    </p>
-                </section>
-
-                <section
-                    aria-labelledby="amounts-title"
-                    class="space-y-6 rounded-xl border bg-muted/30 p-4 sm:p-6"
-                >
-                    <h2 id="amounts-title" class="sr-only">Importes</h2>
-                    <BusinessPackageAmounts
-                        title="Pagas hoy"
-                        total-label="Total de hoy"
-                        emphasis
-                        :rows="todayRows"
-                        :total-cents="proposal.due_today.total_cents"
-                        :currency="proposal.currency"
-                        :note="
-                            todayRows.length
-                                ? undefined
-                                : `Corresponde al ${cycleCopy[proposal.selection.cycle].first.toLowerCase()}.`
-                        "
-                    />
-                    <div class="border-t pt-5">
-                        <BusinessPackageAmounts
-                            :title="periodTitle(proposal)"
-                            :total-label="`Total ${cycleCopy[proposal.selection.cycle].adverb}`"
-                            :rows="periodRows"
-                            :total-cents="proposal.recurring.total_cents"
-                            :currency="proposal.currency"
-                            :note="
-                                proposal.automatic_renewal
-                                    ? 'Se renueva automáticamente según las condiciones de abajo.'
-                                    : 'Este paquete no se renueva automáticamente.'
-                            "
-                        />
-                    </div>
-                    <p class="text-sm leading-6 text-muted-foreground">
-                        Este precio se mantiene hasta el
-                        {{ formatDate(proposal.expires_at) }}
                     </p>
                 </section>
 
@@ -664,7 +710,7 @@ watch(existingPurchaseId, (purchaseId) => {
                             />
                             <span
                                 >Revisé lo que incluye, los importes y las
-                                condiciones, y acepto contratar este paquete en
+                                condiciones, y acepto contratar este plan en
                                 nombre de {{ catalog.company_name }}.</span
                             >
                         </label>
@@ -697,7 +743,7 @@ watch(existingPurchaseId, (purchaseId) => {
                     </form>
                 </template>
                 <p v-else class="text-sm leading-6 text-muted-foreground">
-                    Revisa tu paquete con calma. Pronto podrás contratarlo desde
+                    Revisa tu plan con calma. Pronto podrás contratarlo desde
                     aquí.
                 </p>
             </template>
