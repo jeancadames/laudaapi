@@ -164,6 +164,9 @@ final class BusinessQuoteCheckoutService
                 return 'Una solución no está disponible para facturación. Solicita una revisión.';
             }
         }
+        if (isset($receipt->snapshot['self_service']['replaces_contract_id'])) {
+            return BusinessPackageChanges::replacementHold(ServiceCommercialQuote::findOrFail($receipt->service_commercial_quote_id));
+        }
         if (isset($receipt->snapshot['transition'])) {
             return app(BusinessTransitionService::class)->reason(ServiceCommercialQuote::findOrFail($receipt->service_commercial_quote_id));
         }

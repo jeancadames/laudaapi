@@ -112,6 +112,8 @@ export type Access =
       };
 
 export interface Purchase {
+    manage_url?: string | null;
+    previous_package_url?: string | null;
     purchase_id: string;
     invoice_number: string | null;
     currency: 'DOP';

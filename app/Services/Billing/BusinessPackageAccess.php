@@ -36,6 +36,11 @@ final class BusinessPackageAccess
         $identity = app(IdentityPage::class)->data($actor, $company->id);
         $links = array_column($identity['companies'][0]['services'] ?? [], null, 'key');
         $contract = BusinessContract::where('service_quote_checkout_id', $checkout->id)->first();
+        if ($contract && Schema::hasTable('business_package_changes')
+            && DB::table('business_package_changes')->where('business_contract_id', $contract->id)->where('effective_at', '<=', now())->exists()) {
+            return array_map(fn ($code) => ['product' => $code, 'status' => 'unavailable',
+                'message' => 'El período contratado para este paquete terminó.', 'action' => null], $products);
+        }
         $items = $contract ? DB::table('business_contract_items')->where('business_contract_id', $contract->id)
             ->pluck('subscription_item_id', 'service_id') : collect();
         $implementation = config('business_commercial.implementation_enabled') && Schema::hasTable('business_implementation_orders');

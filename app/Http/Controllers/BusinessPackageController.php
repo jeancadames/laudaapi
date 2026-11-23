@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Services\Billing\BusinessCatalogService;
 use App\Services\Billing\BusinessPackagePricing;
+use App\Services\Billing\BusinessPackageChanges;
 use App\Services\Billing\BusinessPackagePurchases;
 use App\Services\BusinessIdentity\CentralMembership;
 use App\Services\Subscribers\CompanyContextResolver;
@@ -30,6 +31,20 @@ final class BusinessPackageController extends Controller
         $company = $companies->resolve($user);
         if (! $company || $user->role !== 'subscriber' || ! in_array($membership->role($user, $company), ['owner', 'admin'], true)) {
             return response()->json(['code' => 'forbidden', 'message' => 'Solo el propietario o un administrador de la empresa puede armar el paquete.'], 403);
+        }
+        if ($request->routeIs('business.package.manage', 'business.package.change.*')) {
+            $changes = app(BusinessPackageChanges::class);
+            $purchase = $request->route('purchase');
+            if ($request->routeIs('business.package.manage')) {
+                return Inertia::render('Business/Package/Manage', ['plan' => $changes->page($company, $purchase)]);
+            }
+            $confirm = $request->routeIs('business.package.change.confirm');
+            $data = $request->validate(['products' => ['present', 'array', 'list', 'max:4'],
+                'products.*' => ['string', 'distinct:strict', Rule::in(['ecf', 'pos', 'cumplimiento', 'bys'])],
+                'terms_hash' => $confirm ? ['required', 'string', 'size:64'] : ['prohibited'],
+                'accepted' => $confirm ? ['required', 'accepted'] : ['prohibited']]);
+
+            return response()->json($changes->review($user, $company, $purchase, $data['products'], $data['terms_hash'] ?? null));
         }
         if ($request->routeIs('business.package.purchase')) {
             return response()->json($purchases->details($user, $company, $request->route('purchase')));

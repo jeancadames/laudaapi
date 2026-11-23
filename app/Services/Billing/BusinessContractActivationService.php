@@ -118,6 +118,9 @@ final class BusinessContractActivationService
 
     private function transitionReason(ServiceCommercialQuote $quote, int $checkoutId): ?string
     {
+        if (isset($quote->snapshot['self_service']['replaces_contract_id'])) {
+            return BusinessPackageChanges::replacementHold($quote, $checkoutId);
+        }
         if (isset($quote->snapshot['transition'])) {
             return app(BusinessTransitionService::class)->reason($quote, true);
         }
@@ -267,6 +270,9 @@ final class BusinessContractActivationService
             $effective = $effective->utc();
             $end = $end->utc();
             $transition = isset($receipt->snapshot['transition']);
+            if ($sourceId = $receipt->snapshot['self_service']['replaces_contract_id'] ?? null) {
+                BusinessPackageChanges::finishDue((int) $sourceId);
+            }
             $subscription = $transition ? app(BusinessTransitionService::class)->retireSources($quote)
                 : Subscription::where('subscriber_id', $quote->subscriber_id)->where('status', 'active')->first();
             if (! $subscription) {

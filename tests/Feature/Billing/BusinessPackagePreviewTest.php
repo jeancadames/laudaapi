@@ -348,6 +348,138 @@ final class BusinessPackagePreviewTest extends TestCase
         $this->getJson($lastPurchaseUrl)->assertNotFound();
     }
 
+    private function activeManagedPackage(string $cycle = 'monthly'): array
+    {
+        foreach (['2026_11_06_000006_create_business_implementation_orders', '2026_08_24_190000_create_service_bundle_discount_rules_and_applications',
+            '2026_11_06_000007_create_business_contracts', '2026_11_23_000002_create_business_package_changes'] as $migration) {
+            (require base_path('database/migrations/'.$migration.'.php'))->up();
+        }
+        BusinessContractFixtures::configure();
+        $proposal = $this->preview(['ecf', 'cumplimiento', 'bys'], $cycle)->assertOk()->json();
+        $id = $this->postJson(self::BASE.'/v1/purchases', ['accepted' => true, 'idempotency_key' => (string) Str::uuid(),
+            'proposal_ref' => $proposal['proposal_ref']])->assertCreated()->json('purchase_id');
+        $quote = ServiceCommercialQuote::where('public_id', $id)->sole();
+        $invoice = Invoice::sole();
+        Payment::create(['invoice_id' => $invoice->id, 'company_id' => $invoice->company_id, 'amount' => $invoice->total,
+            'currency' => $invoice->currency, 'method' => 'bank_transfer', 'paid_at' => now()]);
+        BusinessContractFixtures::links($quote);
+        $data = ['action' => 'complete', 'confirmed' => true, 'version' => 0, 'note' => 'Configuración verificada.',
+            'snapshot_hash' => BusinessQuoteAcceptanceService::fingerprint($quote), 'idempotency_key' => (string) Str::uuid()];
+        $this->postJson('/app/business/quotes/'.$id.'/implementation', $data)->assertOk();
+        $url = self::BASE.'/'.$id.'/manage';
+        $this->getJson(self::BASE.'/v1/purchases/'.$id)->assertJsonPath('manage_url', $url);
+        $this->get($url)->assertInertia(fn ($page) => $page->component('Business/Package/Manage', false)->where('plan.change', null));
+
+        return [$url, $id];
+    }
+
+    public function test_cancel_package_at_paid_boundary_without_an_invoice_or_early_loss_of_access(): void
+    {
+        [$url, $id] = $this->activeManagedPackage();
+        $this->actingAs(User::findOrFail(2));
+        $this->postJson($url.'/preview', ['products' => []])->assertNotFound();
+        $this->actingAs(User::findOrFail(3));
+        $this->postJson($url.'/preview', ['products' => []])->assertForbidden();
+        $this->actingAs(User::findOrFail(1));
+        $review = $this->postJson($url.'/preview', ['products' => []])->assertOk()->assertJsonPath('total_cents', 0)->json();
+        $submit = ['products' => [], 'accepted' => true, 'terms_hash' => $review['terms_hash']];
+        $this->postJson($url.'/confirm', array_replace($submit, ['terms_hash' => str_repeat('a', 64)]))->assertConflict();
+        $this->postJson($url.'/confirm', $submit)->assertOk()->assertJsonPath('purchase_url', null);
+        $this->postJson($url.'/confirm', $submit)->assertOk();
+        $this->assertDatabaseCount('invoices', 1);
+        $this->assertDatabaseCount('business_package_changes', 1);
+        $item = DB::table('business_contract_items')->value('subscription_item_id');
+        CarbonImmutable::setTestNow(CarbonImmutable::parse($review['effective_at'])->subSecond());
+        $this->assertTrue(\App\Services\Entitlements\BusinessContractCoverage::itemIsCovered($item));
+        CarbonImmutable::setTestNow(CarbonImmutable::parse($review['effective_at']));
+        $this->assertFalse(\App\Services\Entitlements\BusinessContractCoverage::itemIsCovered($item));
+        \App\Services\Billing\BusinessPackageChanges::finishDue();
+        \App\Services\Billing\BusinessPackageChanges::finishDue();
+        $this->assertDatabaseHas('subscriptions', ['status' => 'expired']);
+        $this->assertDatabaseHas('subscription_items', ['id' => $item, 'status' => 'cancelled']);
+    }
+
+    public function test_annual_change_requires_review_again_if_the_published_price_changes(): void
+    {
+        [$url] = $this->activeManagedPackage('yearly');
+        $review = $this->postJson($url.'/preview', ['products' => ['pos']])->assertOk()->assertJsonPath('total_cents', 1620000)->json();
+        $catalog = app(BusinessCatalogService::class);
+        $current = $catalog->current();
+        $draft = $catalog->revise($current, $current->lock_version, 4)->refresh();
+        $payload = $draft->payload;
+        $payload['offers']['pos']['levels']['initial']['annual_cents'] = 1400000;
+        $draft = $catalog->save($draft, $draft->lock_version, $payload, 4);
+        CarbonImmutable::setTestNow(CarbonImmutable::now('UTC')->addMinute());
+        $catalog->publish($draft, $draft->lock_version, null, 4);
+        $this->postJson($url.'/confirm', ['products' => ['pos'], 'accepted' => true, 'terms_hash' => $review['terms_hash']])->assertConflict();
+        $this->assertDatabaseCount('invoices', 1);
+        $this->assertDatabaseCount('business_package_changes', 0);
+        $this->postJson($url.'/preview', ['products' => ['pos']])->assertOk()->assertJsonPath('total_cents', 1400000)
+            ->assertJsonPath('effective_at', $review['effective_at']);
+    }
+
+    public function test_cancellation_respects_an_accepted_and_prepaid_renewal(): void
+    {
+        [$url, $id] = $this->activeManagedPackage();
+        (require base_path('database/migrations/2026_11_06_000008_create_business_renewals.php'))->up();
+        config(['business_commercial.renewal_enabled' => true]);
+        $contract = \App\Models\BusinessContract::sole();
+        $service = app(\App\Services\Billing\BusinessRenewalService::class);
+        $admin = User::findOrFail(4);
+        $owner = User::findOrFail(1);
+        $offer = $service->propose($admin, $id, ['confirmed' => true, 'idempotency_key' => (string) Str::uuid(),
+            'period_number' => 2, 'expected_revision' => 0, 'valid_until' => $contract->period_ends_at->subDay()->toIso8601String(),
+            'base_cents' => 300000, 'discount_cents' => 0, 'tax_bps' => 0, 'commercial_note' => 'Renovación de prueba de un período.',
+            ...\App\Services\Billing\BusinessRenewalTerms::POLICIES]);
+        $consent = ['offer_id' => $offer->id, 'terms_hash' => $offer->terms_hash, 'confirmed' => true, 'idempotency_key' => (string) Str::uuid()];
+        $service->accept($owner, $id, $consent);
+        $this->postJson($url.'/preview', ['products' => []])->assertConflict();
+        $period = $service->issue($admin, $id, $consent);
+        $this->postJson($url.'/preview', ['products' => []])->assertConflict();
+        Payment::create(['invoice_id' => $period->invoice_id, 'company_id' => $contract->company_id, 'amount' => $period->total,
+            'currency' => 'DOP', 'method' => 'bank_transfer', 'paid_at' => now()]);
+        $review = $this->postJson($url.'/preview', ['products' => []])->assertOk()
+            ->assertJsonPath('effective_at', $period->period_ends_at->toIso8601String())->json();
+        $this->postJson($url.'/confirm', ['products' => [], 'accepted' => true, 'terms_hash' => $review['terms_hash']])->assertOk();
+        CarbonImmutable::setTestNow($period->period_starts_at->addDay());
+        $item = DB::table('business_contract_items')->value('subscription_item_id');
+        $this->assertTrue(\App\Services\Entitlements\BusinessContractCoverage::itemIsCovered($item));
+        CarbonImmutable::setTestNow($period->period_ends_at);
+        $this->assertFalse(\App\Services\Entitlements\BusinessContractCoverage::itemIsCovered($item));
+    }
+
+    public function test_replacement_prices_selected_products_and_uses_the_new_invoice_only_after_consent(): void
+    {
+        [$url, $oldId] = $this->activeManagedPackage();
+        $review = $this->postJson($url.'/preview', ['products' => ['ecf', 'pos']])->assertOk()->assertJsonPath('total_cents', 250000)->json();
+        $this->assertDatabaseCount('invoices', 1);
+        $params = ['products' => ['pos', 'ecf'], 'accepted' => true, 'terms_hash' => $review['terms_hash']];
+        $next = $this->postJson($url.'/confirm', $params)->assertOk()->json('purchase_url');
+        $this->postJson($url.'/confirm', $params)->assertOk()->assertJsonPath('purchase_url', $next);
+        $this->assertDatabaseCount('invoices', 2);
+        $id = Str::after($next, '?compra=');
+        $quote = ServiceCommercialQuote::where('public_id', $id)->sole();
+        $invoice = Invoice::latest('id')->firstOrFail();
+        $this->assertEquals(2500, $invoice->total);
+        $this->assertSame(0, $quote->snapshot['one_time_cents']);
+        $this->assertDatabaseCount('business_contracts', 1);
+        Payment::create(['invoice_id' => $invoice->id, 'company_id' => $invoice->company_id, 'amount' => $invoice->total,
+            'currency' => $invoice->currency, 'method' => 'bank_transfer', 'paid_at' => now()]);
+        $pos = $quote->replicate();
+        $pos->snapshot = ['products' => ['pos' => $quote->snapshot['products']['pos']]];
+        BusinessContractFixtures::links($pos);
+        $consent = ['action' => 'complete', 'confirmed' => true, 'version' => 0, 'note' => 'Configuración revisada.',
+            'snapshot_hash' => BusinessQuoteAcceptanceService::fingerprint($quote), 'idempotency_key' => (string) Str::uuid()];
+        $this->postJson('/app/business/quotes/'.$id.'/implementation', $consent)->assertConflict();
+        CarbonImmutable::setTestNow(CarbonImmutable::parse($review['effective_at'])->addSecond());
+        $this->postJson('/app/business/quotes/'.$id.'/implementation', $consent)->assertOk();
+        $this->assertDatabaseCount('business_contracts', 2);
+        $this->assertDatabaseCount('invoices', 2);
+        $this->assertDatabaseHas('subscriptions', ['status' => 'expired']);
+        $this->getJson(self::BASE.'/v1/purchases/'.$id)->assertJsonPath('access.0.status', 'ready')->assertJsonPath('access.1.status', 'ready');
+        $this->getJson(self::BASE.'/v1/purchases/'.$oldId)->assertJsonPath('access.0.status', 'unavailable');
+    }
+
     public function test_expired_reference_disabled_checkout_and_revoked_membership_cannot_invoice(): void
     {
         $payload = $this->purchasePayload(['ecf']);

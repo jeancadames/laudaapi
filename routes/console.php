@@ -11,3 +11,7 @@ Artisan::command('inspire', function () {
 Schedule::command('dgii:tokens:refresh')
     ->everyMinute()
     ->withoutOverlapping(10);
+
+Schedule::call(fn () => \App\Services\Billing\BusinessPackageChanges::finishDue())
+    ->name('business:finalizar-paquetes')
+    ->everyMinute();

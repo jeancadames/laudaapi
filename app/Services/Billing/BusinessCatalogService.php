@@ -197,7 +197,7 @@ final class BusinessCatalogService
                 app(BusinessImplementationService::class)->authorizeAdmin(User::findOrFail($actor));
                 $snapshot['transition'] = app(BusinessTransitionService::class)->proposal($company, $snapshot['products'], $transition);
             } else {
-                $this->rules->require(! $snapshot['transition_requires_review'], 'company', 'Esta empresa requiere reconocer sus servicios y períodos pagados antes de emitir una nueva contratación (F4).');
+                $this->rules->require(isset($packagePreview['replaces_contract_id']) || ! $snapshot['transition_requires_review'], 'company', 'Esta empresa requiere reconocer sus servicios y períodos pagados antes de emitir una nueva contratación (F4).');
             }
             unset($snapshot['transition_review']);
             $snapshot['commercial_status'] = 'quoted';

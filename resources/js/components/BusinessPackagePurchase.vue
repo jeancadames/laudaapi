@@ -190,6 +190,14 @@ const reloadPage = () => window.location.reload();
                 </h1>
             </header>
 
+            <Button v-if="purchase.manage_url" as-child variant="outline" class="min-h-11">
+                <Link :href="purchase.manage_url">Administrar mi paquete</Link>
+            </Button>
+
+            <Link v-if="purchase.previous_package_url" :href="purchase.previous_package_url" class="inline-flex min-h-11 items-center text-sm underline">
+                Ver el cambio de paquete
+            </Link>
+
             <!-- Estado y acción principal -->
             <section
                 role="status"

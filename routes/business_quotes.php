@@ -18,6 +18,9 @@ Route::middleware([BusinessIdentityResponse::class, 'auth', 'verified'])
         Route::post('/v1/purchases', BusinessPackageController::class)->middleware('throttle:20,1,business-package-purchase')->name('confirm');
         Route::post('/v1/purchases/{purchase}/proof', [BusinessTransferProofController::class, 'store'])
             ->whereUuid('purchase')->middleware('throttle:10,1,business-transfer-proof')->name('proof');
+        Route::get('/{purchase}/manage', BusinessPackageController::class)->whereUuid('purchase')->name('manage');
+        Route::post('/{purchase}/manage/preview', BusinessPackageController::class)->whereUuid('purchase')->middleware('throttle:60,1')->name('change.preview');
+        Route::post('/{purchase}/manage/confirm', BusinessPackageController::class)->whereUuid('purchase')->middleware('throttle:20,1')->name('change.confirm');
         Route::get('/v1/purchases/{purchase}', BusinessPackageController::class)->whereUuid('purchase')
             ->middleware('throttle:60,1,business-package-status')->name('purchase');
     });

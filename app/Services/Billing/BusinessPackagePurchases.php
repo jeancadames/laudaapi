@@ -177,7 +177,14 @@ final class BusinessPackagePurchases
         $summary = $quote->snapshot['self_service'];
         $access = app(BusinessPackageAccess::class)->details($actor, $company, $quote, $checkout, $payment['status']);
 
+        $previous = isset($summary['replaces_contract_id'])
+            ? $this->companyPurchases($company)->join('business_contracts as previous', 'previous.service_quote_checkout_id', '=', 'c.id')
+                ->where('previous.id', $summary['replaces_contract_id'])->value('service_commercial_quotes.public_id') : null;
+
         return ['purchase_id' => $publicId, 'invoice_number' => $bill['number'], 'currency' => $summary['currency'],
+            'previous_package_url' => $previous ? route('business.package.manage', $previous, false) : null,
+            'manage_url' => Schema::hasTable('business_package_changes') && BusinessContract::where('service_quote_checkout_id', $checkout->id)->exists()
+                ? route('business.package.manage', $publicId, false) : null,
             'summary' => $summary, 'balance_cents' => $bill['balance_cents'], 'payment' => $payment, 'access' => $access];
     }
 

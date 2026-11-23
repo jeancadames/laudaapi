@@ -102,3 +102,13 @@ LAUDA_BUSINESS_MYSQL=0 vendor/bin/phpunit --do-not-cache-result \
 
 node_modules/.bin/tsc --noEmit --strict --skipLibCheck --target es2022 docs/autoservicio/contrato-v1.ts
 ```
+
+## Administrar un paquete activado
+
+La respuesta de la compra incluye `manage_url` cuando existe el contrato y se aplicó la migración de cambios. La página devuelve la selección vigente, las aplicaciones disponibles y las URLs de revisión y confirmación. El propietario o un administrador de la empresa puede usarlas. Una compra de reemplazo incluye `previous_package_url` para volver al cambio registrado.
+
+- La revisión recibe `products` con la selección completa del próximo ciclo. Una lista vacía solicita la baja total. Laravel devuelve los productos, `effective_at`, el importe por ciclo en centavos (`total_cents`) y `terms_hash`. Mantiene el nivel y el ciclo actuales. La revisión no emite factura.
+- La confirmación recibe la misma selección, `accepted: true` y el hash revisado. Si cambia el precio o la fecha, el servidor devuelve 409 y se requiere una nueva revisión. Repetir una confirmación idéntica recupera el cambio registrado.
+- El acceso anterior vence en el instante indicado, incluidas las renovaciones ya pagadas. Una renovación aceptada pendiente de facturar o conciliar requiere resolverla antes de programar el cambio.
+- La baja total tiene importe cero. Para una selección con productos, la confirmación devuelve `purchase_url` y genera una factura por el primer ciclo del paquete nuevo. Se conserva el flujo de transferencia, comprobante y confirmación por LAUDA. El titular puede dar conformidad y activar a partir del vencimiento anterior con pago completo y vínculos verificados.
+- El programador de Laravel actualiza cada minuto los estados de las suscripciones y sus productos vencidos. La autorización de acceso comprueba la fecha también entre ejecuciones.

@@ -163,6 +163,9 @@ final class BusinessQuoteAcceptanceService
                 return 'Una solución dejó de estar disponible. Solicita una nueva cotización.';
             }
         }
+        if (isset($snapshot['self_service']['replaces_contract_id'])) {
+            return BusinessPackageChanges::replacementHold($quote);
+        }
         if (isset($snapshot['transition'])) {
             return app(BusinessTransitionService::class)->reason($quote);
         }
