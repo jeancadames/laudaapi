@@ -7,6 +7,7 @@
  * lo que devolvió el servidor.
  *
  *   ?pantalla=inicio|configurador   &escenario=<clave de SCENARIOS>
+ *   &contratar=1   habilita confirm_url (bloque 3)
  */
 import '../../../../resources/css/app.css';
 
@@ -21,9 +22,10 @@ const scenario = query.get('escenario') ?? 'exito';
 if (!(scenario in SCENARIOS))
     throw new Error(`Escenario desconocido: ${scenario}`);
 const screen = query.get('pantalla') ?? 'configurador';
+const purchases = query.get('contratar') === '1';
 const here = window.location.pathname;
 const link = (pantalla: string) =>
-    `${here}?pantalla=${pantalla}&escenario=${scenario}`;
+    `${here}?pantalla=${pantalla}&escenario=${scenario}${purchases ? '&contratar=1' : ''}`;
 
 const backend = createMockBackend({
     samples,
@@ -31,6 +33,16 @@ const backend = createMockBackend({
     delay: 350,
     base: '/vista-previa/v1',
 });
+// Como Laravel, las compras creadas sobreviven a una recarga de la página.
+const STORED = 'vista-previa.compras';
+try {
+    for (const [key, purchase] of JSON.parse(
+        window.sessionStorage.getItem(STORED) ?? '[]',
+    ))
+        backend.state.purchases.set(key, purchase);
+} catch {
+    // Sin almacenamiento, cada carga empieza sin compras.
+}
 const log: { path: string; status: number; body: unknown }[] = [];
 (window as unknown as { __selfService: typeof log }).__selfService = log;
 const realFetch = window.fetch.bind(window);
@@ -38,6 +50,14 @@ window.fetch = async (input, init) => {
     const url = String(input);
     if (!url.startsWith(backend.base)) return realFetch(input, init);
     const response = await backend.fetch(url, init);
+    try {
+        window.sessionStorage.setItem(
+            STORED,
+            JSON.stringify([...backend.state.purchases]),
+        );
+    } catch {
+        // Igual que arriba.
+    }
     log.push({
         path: url,
         status: response.status,
@@ -100,7 +120,10 @@ const pages: Record<
     configurador: {
         component: 'Business/Package/Build',
         props: {
-            configurator: backend.configurator({ homeUrl: link('inicio') }),
+            configurator: backend.configurator({
+                homeUrl: link('inicio'),
+                purchases,
+            }),
         },
     },
     inicio: {
@@ -114,7 +137,21 @@ const pages: Record<
                 ? {
                       business_self_service: {
                           configurator_url: link('configurador'),
-                          pending_purchase: null,
+                          // Forma de AppGatewayController: retomar en la página del configurador.
+                          pending_purchase: backend.configurator()
+                              .resume_purchase_id
+                              ? {
+                                    id: backend.configurator()
+                                        .resume_purchase_id,
+                                    message:
+                                        'Puedes retomar tu compra desde aquí.',
+                                    next_action: {
+                                        type: 'review',
+                                        label: 'Ver mi compra',
+                                        url: link('configurador'),
+                                    },
+                                }
+                              : null,
                       },
                   }
                 : {}),

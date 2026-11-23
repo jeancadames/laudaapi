@@ -132,6 +132,8 @@ export function useBusinessPackageBuilder(options: PackageBuilderOptions) {
     /** Resumen anterior cuando el precio cambió al confirmar. */
     const priceChange = ref<{ previous: Preview } | null>(null);
     const purchase = ref<Purchase | null>(null);
+    /** El servidor ya tiene una compra en curso para la empresa (`existing_purchase`). */
+    const existingPurchaseId = ref<string | null>(null);
 
     let confirmKey: { proposal_ref: string; key: string } | null =
         typeof stored.confirm?.proposal_ref === 'string' &&
@@ -298,7 +300,16 @@ export function useBusinessPackageBuilder(options: PackageBuilderOptions) {
             } else if (problem?.code === 'proposal_expired') {
                 recalculate(true);
                 confirmError.value = failureOf(error);
+            } else if (problem?.code === 'existing_purchase') {
+                existingPurchaseId.value = problem.purchase_id;
+                confirmError.value = failureOf(error);
             } else {
+                if (problem?.code === 'key_conflict') {
+                    // La clave quedó asociada a otra operación: el próximo intento usa una nueva.
+                    confirmKey = null;
+                    accepted.value = false;
+                    persist();
+                }
                 const result = failureOf(error);
                 confirmError.value =
                     result.code === 'network'
@@ -331,6 +342,7 @@ export function useBusinessPackageBuilder(options: PackageBuilderOptions) {
         confirmError,
         priceChange,
         purchase,
+        existingPurchaseId,
         toggle,
         setCycle,
         retry: () => recalculate(true),

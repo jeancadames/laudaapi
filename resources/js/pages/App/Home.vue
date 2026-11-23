@@ -67,6 +67,13 @@ const props = defineProps<{
 
 const breadcrumbs: BreadcrumbItem[] = [{ title: 'Inicio', href: '/app' }];
 
+const pendingPurchase = computed(
+    () => props.business_self_service?.pending_purchase ?? null,
+);
+/** Rutas del portal navegan con Inertia; cualquier otra URL, con el navegador. */
+const isInternal = (url: string) =>
+    url.startsWith('/') && !url.startsWith('//');
+
 const isTenantAdmin = computed(
     () => props.tenant_access.mode === 'subscriber.admin',
 );
@@ -235,25 +242,50 @@ const appInitial = (app: Solution) =>
                                     id="package-builder-title"
                                     class="text-lg font-black text-slate-950 dark:text-white"
                                 >
-                                    Armar mi paquete
+                                    {{
+                                        pendingPurchase
+                                            ? 'Tienes una compra en curso'
+                                            : 'Armar mi paquete'
+                                    }}
                                 </h2>
                                 <p
                                     class="mt-1 text-sm leading-6 text-slate-500 dark:text-slate-400"
                                 >
-                                    Elige lo que necesita tu negocio y mira
-                                    cuánto pagarás antes de contratar.
+                                    {{
+                                        pendingPurchase
+                                            ? pendingPurchase.message
+                                            : 'Elige lo que necesita tu negocio y mira cuánto pagarás antes de contratar.'
+                                    }}
                                 </p>
                             </div>
                         </div>
 
                         <div class="flex shrink-0 flex-col gap-2 sm:items-end">
+                            <!-- Con una compra en curso, retomarla es lo principal: no se admite otra. -->
+                            <component
+                                v-if="pendingPurchase?.next_action"
+                                :is="
+                                    isInternal(pendingPurchase.next_action.url)
+                                        ? Link
+                                        : 'a'
+                                "
+                                :href="pendingPurchase.next_action.url"
+                                class="inline-flex h-12 items-center justify-center gap-2 rounded-xl bg-red-600 px-5 text-sm font-bold text-white transition hover:bg-red-700"
+                            >
+                                {{ pendingPurchase.next_action.label }}
+                            </component>
                             <Link
+                                v-else
                                 :href="
                                     props.business_self_service.configurator_url
                                 "
                                 class="inline-flex h-12 items-center justify-center gap-2 rounded-xl bg-red-600 px-5 text-sm font-bold text-white transition hover:bg-red-700"
                             >
-                                Armar mi paquete
+                                {{
+                                    pendingPurchase
+                                        ? 'Ver mi compra'
+                                        : 'Armar mi paquete'
+                                }}
                             </Link>
                         </div>
                     </div>

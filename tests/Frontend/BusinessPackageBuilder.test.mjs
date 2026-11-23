@@ -34,9 +34,14 @@ async function load(contents) {
 }
 
 const samples = await load(`export * from ${JSON.stringify(CONTRACT)};`);
-const { useBusinessPackageBuilder, createSelfServiceClient, SelfServiceError, formatMoney, inclusionsOf, showsTax, cycleCopy } = await load(`
+const {
+    useBusinessPackageBuilder, useBusinessPurchase, createSelfServiceClient, SelfServiceError, purchaseUrl, isPurchaseId, purchaseView,
+    formatMoney, inclusionsOf, showsTax, cycleCopy,
+} = await load(`
     export { useBusinessPackageBuilder } from '@/composables/useBusinessPackageBuilder';
-    export { createSelfServiceClient, SelfServiceError } from '@/lib/businessSelfService';
+    export { useBusinessPurchase } from '@/composables/useBusinessPurchase';
+    export { createSelfServiceClient, SelfServiceError, purchaseUrl, isPurchaseId } from '@/lib/businessSelfService';
+    export { purchaseView } from '@/lib/businessPurchaseStatus';
     export { cycleCopy, formatMoney, inclusionsOf, showsTax } from '@/lib/businessPackageCopy';
 `);
 
@@ -377,7 +382,238 @@ test('sin confirm_url (bloque 2) confirmar no envía nada', async () => {
 
 test('la prop configurator del doble coincide con la forma del contrato', () => {
     const page = createMockBackend({ samples }).configurator();
-    assert.deepEqual(Object.keys(page).sort(), ['availability', 'calculate_url', 'catalog', 'catalog_url', 'company', 'confirm_url', 'home_url']);
+    assert.deepEqual(Object.keys(page).sort(), ['availability', 'calculate_url', 'catalog', 'catalog_url', 'company', 'confirm_url', 'home_url', 'resume_purchase_id']);
     assert.equal(page.confirm_url, null);
+    assert.equal(page.resume_purchase_id, null);
     assert.equal(createMockBackend({ samples, scenario: 'sin-catalogo' }).configurator().catalog, null);
+});
+
+// ───────────────────────── Bloque 3: confirmar, pagar y retomar ─────────────────────────
+
+const purchaseReads = (backend) => backend.state.requests.filter((request) => request.method === 'GET' && request.path.includes('/purchases/'));
+
+function track(scenario, purchaseId, { initial = null, pollDelaysMs = [0, 0, 0, 0] } = {}) {
+    const backend = createMockBackend({ samples, scenario });
+    const tracker = useBusinessPurchase({
+        client: createSelfServiceClient(backend.urls, backend.fetch),
+        purchaseId,
+        initial,
+        names: Object.fromEntries(samples.catalog.products.map((product) => [product.code, product.name])),
+        pollDelaysMs,
+    });
+    return { tracker, backend };
+}
+
+async function until(predicate, timeout = 3000) {
+    const started = Date.now();
+    while (!predicate()) {
+        if (Date.now() - started > timeout) throw new Error('La condición no se cumplió a tiempo');
+        await new Promise((resolve) => setTimeout(resolve, 5));
+    }
+}
+
+test('la URL de consulta sigue la ruta del contrato y solo acepta UUID', () => {
+    const id = samples.payable.purchase_id;
+    assert.equal(purchaseUrl({ catalog_url: '/app/business/self-service/v1/catalog', confirm_url: '/app/business/self-service/v1/purchases' }, id),
+        `/app/business/self-service/v1/purchases/${id}`);
+    assert.equal(purchaseUrl({ catalog_url: '/app/business/self-service/v1/catalog', confirm_url: null }, id),
+        `/app/business/self-service/v1/purchases/${id}`);
+    assert.equal(isPurchaseId(id), true);
+    for (const value of ['', '../catalog', 'a8a13d0a', null, 42]) assert.equal(isPurchaseId(value), false, String(value));
+});
+
+test('cada estado de pago tiene su propio mensaje y solo las acciones del servidor', () => {
+    const payable = purchaseView(samples.payable);
+    assert.equal(payable.title, 'Tu compra está lista para pagar');
+    assert.match(payable.message, /Paga RD\$2,000/);
+    assert.deepEqual(payable.primary, samples.payable.payment.action);
+    assert.equal(payable.waiting, false);
+
+    const waiting = purchaseView(samples.waitingForPayment);
+    assert.equal(waiting.title, 'Estamos confirmando tu pago');
+    assert.equal(waiting.primary, null, 'mientras se confirma no se ofrece pagar otra vez');
+    assert.equal(waiting.waiting, true);
+
+    const failed = purchaseView(samples.failedPayment);
+    assert.equal(failed.tone, 'problem');
+    assert.equal(failed.message, samples.failedPayment.payment.message);
+    assert.deepEqual(failed.primary, samples.failedPayment.payment.action, 'reintentar la compra existente');
+
+    const failedWithoutRetry = purchaseView({ ...samples.failedPayment, payment: { ...samples.failedPayment.payment, action: null } });
+    assert.equal(failedWithoutRetry.primary, null);
+
+    const preparing = purchaseView({ ...samples.payable, payment: { status: 'preparing', action: null } });
+    assert.equal(preparing.title, 'Estamos preparando tu pago');
+    assert.equal(preparing.primary, null);
+    assert.equal(preparing.waiting, true);
+
+    const reversed = purchaseView({ ...samples.paidNeedsLink, balance_cents: 200000, payment: { status: 'reversed', action: null } });
+    assert.equal(reversed.tone, 'problem');
+    assert.match(reversed.message, /quedan RD\$2,000 por pagar/);
+});
+
+test('abono parcial: «payable» con el saldo restante del servidor, distinto de un pago en revisión', () => {
+    const partial = purchaseView({ ...samples.payable, balance_cents: 50000 });
+    assert.equal(partial.title, 'Recibimos parte del pago');
+    assert.match(partial.message, /Quedan RD\$500 por pagar/);
+    assert.deepEqual(partial.primary, samples.payable.payment.action);
+    const review = purchaseView(samples.waitingForPayment);
+    assert.equal(review.title, 'Estamos confirmando tu pago');
+    assert.match(review.message, /ni enviar otro comprobante/);
+});
+
+test('pago pendiente y pago recibido con activación pendiente tienen mensajes distintos', () => {
+    const pendingPayment = purchaseView(samples.payable);
+    const paidPending = purchaseView({
+        ...samples.payable, balance_cents: 0, payment: { status: 'paid', action: null },
+        access: samples.payable.access.map((item) => ({ ...item, message: 'Pago confirmado. Falta completar la activación.' })),
+    });
+    assert.notEqual(pendingPayment.title, paidPending.title);
+    assert.equal(paidPending.title, 'Pago recibido');
+    assert.match(paidPending.message, /Estamos activando/);
+    assert.equal(paidPending.primary, null);
+    assert.equal(paidPending.waiting, true);
+    assert.deepEqual(paidPending.access.map((row) => [row.name, row.badge, row.message]), [
+        ['e-CF', 'Pendiente', 'Pago confirmado. Falta completar la activación.'],
+        ['Cumplimiento', 'Pendiente', 'Pago confirmado. Falta completar la activación.'],
+    ]);
+});
+
+test('pago recibido con vínculo pendiente: «Vincular mi empresa» es la acción principal', () => {
+    const view = purchaseView(samples.paidNeedsLink, { ecf: 'e-CF', cumplimiento: 'Cumplimiento' });
+    assert.equal(view.title, 'Pago recibido: falta un paso');
+    assert.match(view.message, /No se te cobrará de nuevo/);
+    assert.deepEqual(view.primary, { label: 'Vincular mi empresa', url: '/business/identity' });
+    assert.deepEqual(view.access.map((row) => row.badge), ['Falta vincular tu empresa', 'Falta vincular tu empresa']);
+});
+
+test('acceso disponible: cada aplicación abre con la etiqueta y URL del servidor', () => {
+    const view = purchaseView(samples.active);
+    assert.equal(view.title, 'Tus aplicaciones están listas');
+    assert.equal(view.primary, null, 'con dos aplicaciones listas ninguna va primero');
+    assert.deepEqual(view.access.map((row) => row.action), samples.active.access.map((item) => item.action));
+    assert.deepEqual(view.access.map((row) => row.action.label), ['Abrir e-CF', 'Abrir Cumplimiento']);
+
+    const single = purchaseView({ ...samples.active, access: [samples.active.access[0]] });
+    assert.equal(single.title, 'Tu aplicación está lista');
+    assert.deepEqual(single.primary, samples.active.access[0].action);
+
+    const mixed = purchaseView({ ...samples.active, access: [samples.active.access[0], samples.paidNeedsLink.access[1]] });
+    assert.deepEqual(mixed.primary, samples.paidNeedsLink.access[1].action, 'lo que falta por hacer va antes de abrir');
+});
+
+test('una acción que el servidor no envía no aparece', () => {
+    const view = purchaseView({
+        ...samples.paidNeedsLink,
+        access: [{ product: 'ecf', status: 'unavailable', message: 'e-CF no está disponible por ahora.', action: null }],
+    });
+    assert.equal(view.primary, null);
+    assert.equal(view.access[0].action, null);
+    assert.equal(view.access[0].message, 'e-CF no está disponible por ahora.');
+});
+
+test('tras confirmar se muestra la compra devuelta sin volver a pedirla', async () => {
+    const { tracker, backend } = track('exito', samples.payable.purchase_id, { initial: samples.payable });
+    assert.equal(tracker.view.value.title, 'Tu compra está lista para pagar');
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    assert.equal(purchaseReads(backend).length, 0, 'payable no cambia solo: no se consulta');
+    tracker.dispose();
+});
+
+test('retomar: consulta GET /purchases/{id} y sigue el estado hasta el pago recibido', async () => {
+    const { tracker, backend } = track('pago-en-proceso', samples.payable.purchase_id, { pollDelaysMs: [0, 0] });
+    await until(() => tracker.stalled.value);
+    // processing, processing, pago recibido con activación pendiente (que también se espera).
+    assert.equal(tracker.view.value.title, 'Pago recibido');
+    assert.deepEqual(purchaseReads(backend).map((request) => request.path), Array(3).fill(`${backend.base}/purchases/${samples.payable.purchase_id}`));
+    tracker.dispose();
+});
+
+test('las consultas automáticas se detienen y queda «Actualizar estado»', async () => {
+    const { tracker, backend } = track('pago-en-proceso', samples.payable.purchase_id, { pollDelaysMs: [0] });
+    await until(() => tracker.stalled.value);
+    assert.equal(purchaseReads(backend).length, 2);
+    assert.equal(tracker.view.value.title, 'Estamos confirmando tu pago');
+    tracker.refresh();
+    await until(() => tracker.view.value.title === 'Pago recibido');
+    tracker.dispose();
+});
+
+test('el enlace de pago aparece cuando el servidor termina de prepararlo', async () => {
+    const { tracker } = track('pago-preparandose', samples.payable.purchase_id);
+    await until(() => tracker.view.value?.primary);
+    assert.deepEqual(tracker.view.value.primary, samples.payable.payment.action);
+    tracker.dispose();
+});
+
+test('compra inexistente o de otra empresa: 404 sin estado anterior', async () => {
+    const { tracker } = track('exito', 'b6f0a3f2-9a4c-4d55-9d35-6f2a1c0e7d11');
+    await until(() => tracker.error.value);
+    assert.equal(tracker.error.value.code, 'purchase_not_found');
+    assert.equal(tracker.purchase.value, null);
+    tracker.dispose();
+});
+
+test('si falla una actualización se conserva el último estado conocido', async () => {
+    const backend = createMockBackend({ samples, scenario: 'pago-en-proceso' });
+    let reads = 0;
+    const flaky = async (url, init) => {
+        if (String(url).includes('/purchases/') && ++reads === 2) throw new TypeError('Failed to fetch');
+        return backend.fetch(url, init);
+    };
+    const tracker = useBusinessPurchase({
+        client: createSelfServiceClient(backend.urls, flaky), purchaseId: samples.payable.purchase_id, pollDelaysMs: [0],
+    });
+    await until(() => tracker.staleError.value);
+    assert.equal(tracker.staleError.value.code, 'network');
+    assert.equal(tracker.view.value.title, 'Estamos confirmando tu pago');
+    assert.equal(tracker.error.value, null);
+    tracker.dispose();
+});
+
+test('existing_purchase al confirmar: se ofrece retomar la compra devuelta', async () => {
+    const { builder, backend } = mount('compra-en-curso');
+    builder.toggle('ecf');
+    builder.toggle('cumplimiento');
+    await settled(builder);
+    builder.accepted.value = true;
+    await builder.confirm();
+    assert.equal(builder.purchase.value, null);
+    assert.equal(builder.existingPurchaseId.value, samples.payable.purchase_id);
+    assert.equal(builder.confirmError.value.code, 'existing_purchase');
+    assert.equal(backend.state.purchases.size, 0);
+});
+
+test('key_conflict: el siguiente intento usa una clave nueva y exige aceptar otra vez', async () => {
+    const backend = createMockBackend({ samples });
+    let conflict = true;
+    const conflicting = { ...backend, fetch: async (url, init) => {
+        if (String(url).endsWith('/purchases') && conflict) {
+            conflict = false;
+            backend.state.requests.push({ method: 'POST', path: new URL(String(url), 'http://lauda.local').pathname, body: JSON.parse(init.body) });
+            return new Response(JSON.stringify({ code: 'key_conflict', message: 'La clave pertenece a otra operación.' }), { status: 409 });
+        }
+        return backend.fetch(url, init);
+    } };
+    const { builder } = mount('exito', { backend: conflicting });
+    builder.toggle('ecf');
+    builder.toggle('cumplimiento');
+    await settled(builder);
+    builder.accepted.value = true;
+    await builder.confirm();
+    assert.equal(builder.confirmError.value.code, 'key_conflict');
+    assert.equal(builder.accepted.value, false);
+    builder.accepted.value = true;
+    await builder.confirm();
+    assert.equal(builder.purchase.value.purchase_id, samples.payable.purchase_id);
+    assert.deepEqual(confirmations(backend).map((request) => request.body.idempotency_key), ['key-1', 'key-2']);
+});
+
+test('la página con compra pendiente lleva resume_purchase_id, también en el catálogo', async () => {
+    const backend = createMockBackend({ samples, scenario: 'pago-recibido' });
+    const page = backend.configurator();
+    assert.equal(page.resume_purchase_id, samples.payable.purchase_id);
+    assert.equal(page.catalog.resume_purchase_id, samples.payable.purchase_id);
+    const catalog = await createSelfServiceClient(backend.urls, backend.fetch).catalog();
+    assert.equal(catalog.resume_purchase_id, samples.payable.purchase_id);
 });

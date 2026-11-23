@@ -43,6 +43,7 @@ export interface Configurator {
     catalog_url: string;
     calculate_url: string;
     confirm_url: string | null;
+    resume_purchase_id?: string | null;
     home_url: string;
 }
 
@@ -140,9 +141,19 @@ export type Problem =
           message: string;
       };
 
+/**
+ * Compra en curso que Inicio ofrece retomar. No está en contrato-v1.ts: es la
+ * forma que envía AppGatewayController. Se usan su mensaje, etiqueta y URL tal
+ * cual llegan.
+ */
+export type PendingPurchaseEntry = {
+    id: string;
+    message: string;
+    next_action: { type: string; label: string; url: string } | null;
+};
+
 /** Entrada de Inicio (prop `business_self_service` de App/Home). */
 export type SelfServiceHomeEntry = {
     configurator_url: string;
-    // Bloque 2: siempre null. La forma de la compra pendiente llega con el bloque 3.
-    pending_purchase: null;
+    pending_purchase: PendingPurchaseEntry | null;
 };

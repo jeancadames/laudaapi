@@ -19,6 +19,22 @@ export const SCENARIOS = {
     'precio-actualizado': 'El catálogo cambia antes de confirmar (409 price_changed)',
     'red-lenta': 'La primera respuesta llega después de la segunda',
     'sin-conexion': 'El primer cálculo falla por red',
+    'compra-en-curso': 'Ya hay una compra pendiente (409 existing_purchase al confirmar)',
+    'pago-preparandose': 'Compra pendiente: el enlace de pago se prepara y luego queda listo',
+    'pago-en-proceso': 'Compra pendiente: el pago se confirma y queda la activación',
+    'pago-fallido': 'Compra pendiente: pago rechazado con reintento',
+    'pago-recibido': 'Compra pendiente: pago recibido, falta vincular la empresa',
+    'acceso-listo': 'Compra pendiente: e-CF y Cumplimiento disponibles',
+};
+
+/** Escenarios que llegan con una compra pendiente y la secuencia de estados que devuelve GET. */
+const PURCHASE_TIMELINES = {
+    'compra-en-curso': ['payable'],
+    'pago-preparandose': ['preparing', 'preparing', 'payable'],
+    'pago-en-proceso': ['waitingForPayment', 'waitingForPayment', 'paidPending'],
+    'pago-fallido': ['failedPayment'],
+    'pago-recibido': ['paidNeedsLink'],
+    'acceso-listo': ['active'],
 };
 
 /** Tarifas mensuales del catálogo inicial (BusinessCatalogSeeder), solo para muestras sintéticas. */
@@ -53,7 +69,20 @@ function cheapestCover(products) {
 export function createMockBackend({ samples, scenario = 'exito', delay = 0, base = '/app/business/self-service/v1' }) {
     const urls = { catalog_url: `${base}/catalog`, calculate_url: `${base}/preview`, confirm_url: `${base}/purchases` };
     if (!(scenario in SCENARIOS)) throw new Error(`Escenario desconocido: ${scenario}`);
-    const state = { previews: 0, confirmations: 0, purchases: new Map(), proposals: new Map(), requests: [], priceChanged: false };
+    const state = { previews: 0, confirmations: 0, purchases: new Map(), proposals: new Map(), requests: [], priceChanged: false, purchaseReads: 0 };
+    const timeline = PURCHASE_TIMELINES[scenario] ?? null;
+    const pendingId = timeline ? samples.payable.purchase_id : null;
+    /** Muestras del contrato más las dos formas que el backend del bloque 3 ya devuelve. */
+    const purchaseSamples = {
+        ...samples,
+        preparing: { ...samples.payable, payment: { status: 'preparing', action: null } },
+        paidPending: {
+            ...samples.payable,
+            balance_cents: 0,
+            payment: { status: 'paid', action: null },
+            access: samples.payable.access.map((item) => ({ ...item, message: 'Pago confirmado. Falta completar la activación.' })),
+        },
+    };
     const order = samples.catalog.products.map((product) => product.code);
     const amount = (net, rateBps) => {
         const tax = Math.round((net * rateBps) / 10000);
@@ -100,7 +129,7 @@ export function createMockBackend({ samples, scenario = 'exito', delay = 0, base
         if (scenario === 'sin-catalogo') return json(503, samples.catalogUnavailable);
         if (scenario === 'sin-permiso')
             return json(403, { code: 'forbidden', message: `Solo el propietario o un administrador de ${samples.catalog.company_name} puede contratar.` });
-        return json(200, clone(samples.catalog));
+        return json(200, { ...clone(samples.catalog), resume_purchase_id: pendingId });
     }
 
     async function preview(body) {
@@ -122,6 +151,7 @@ export function createMockBackend({ samples, scenario = 'exito', delay = 0, base
     async function confirm(body) {
         state.confirmations++;
         if (delay) await new Promise((resolve) => setTimeout(resolve, delay));
+        if (pendingId) return json(409, { code: 'existing_purchase', message: 'Ya hay una compra en curso.', purchase_id: pendingId });
         const existing = state.purchases.get(body.idempotency_key);
         if (existing) return json(200, existing);
         const reviewed = state.proposals.get(body.proposal_ref) ?? (body.proposal_ref === samples.priceChanged.replacement.proposal_ref ? samples.priceChanged.replacement : null);
@@ -133,6 +163,15 @@ export function createMockBackend({ samples, scenario = 'exito', delay = 0, base
         const purchase = { ...clone(samples.payable), summary: clone(reviewed), balance_cents: reviewed.due_today_cents };
         state.purchases.set(body.idempotency_key, purchase);
         return json(201, purchase);
+    }
+
+    function purchase(id) {
+        if (id === pendingId) {
+            const name = timeline[Math.min(state.purchaseReads++, timeline.length - 1)];
+            return json(200, clone(purchaseSamples[name]));
+        }
+        const created = [...state.purchases.values()].find((candidate) => candidate.purchase_id === id);
+        return created ? json(200, clone(created)) : json(404, { code: 'purchase_not_found', message: 'No se encontró la compra.' });
     }
 
     /** Sustituto de fetch para las rutas v1. */
@@ -152,7 +191,9 @@ export function createMockBackend({ samples, scenario = 'exito', delay = 0, base
                   ? preview(body)
                   : method === 'POST' && route === '/purchases'
                     ? confirm(body)
-                    : Promise.resolve(json(404, {}));
+                    : method === 'GET' && route.startsWith('/purchases/')
+                      ? Promise.resolve(purchase(decodeURIComponent(route.slice('/purchases/'.length))))
+                      : Promise.resolve(json(404, {}));
         return Promise.race([work, abort]);
     }
 
@@ -162,9 +203,10 @@ export function createMockBackend({ samples, scenario = 'exito', delay = 0, base
         return {
             company: { id: 77, name: samples.catalog.company_name },
             availability: unpublished ? 'catalog_unpublished' : 'available',
-            catalog: unpublished ? null : clone(samples.catalog),
+            catalog: unpublished ? null : { ...clone(samples.catalog), resume_purchase_id: pendingId },
             ...urls,
-            confirm_url: purchases ? urls.confirm_url : null,
+            confirm_url: purchases || pendingId ? urls.confirm_url : null,
+            resume_purchase_id: pendingId,
             home_url: homeUrl,
         };
     }

@@ -81,7 +81,29 @@ export type SelfServiceClient = {
     preview(selection: Selection, signal?: AbortSignal): Promise<Preview>;
     /** Disponible cuando el servidor entrega `confirm_url` (bloque 3). */
     confirm(request: Confirm): Promise<Purchase>;
+    /** Estado vigente de una compra: factura, saldo, pago y accesos. */
+    purchase(purchaseId: string, signal?: AbortSignal): Promise<Purchase>;
 };
+
+/**
+ * URL de consulta de una compra. El contrato fija GET `/purchases/{id}` bajo la
+ * misma base que `catalog_url`, pero la página no la recibe; se deriva de
+ * `confirm_url` (POST `/purchases`) o, si falta, de `catalog_url`.
+ */
+export function purchaseUrl(
+    urls: Pick<SelfServiceUrls, 'catalog_url' | 'confirm_url'>,
+    purchaseId: string,
+): string {
+    const collection =
+        urls.confirm_url ??
+        urls.catalog_url.replace(/\/catalog$/, '/purchases');
+    return `${collection.replace(/\/$/, '')}/${encodeURIComponent(purchaseId)}`;
+}
+
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+/** Identificador de compra válido para la ruta (el servidor exige UUID). */
+export const isPurchaseId = (value: unknown): value is string =>
+    typeof value === 'string' && UUID.test(value);
 
 function xsrfToken(): string {
     if (typeof document === 'undefined') return '';
@@ -187,5 +209,12 @@ export function createSelfServiceClient(
                 );
             return request<Purchase>('POST', urls.confirm_url, body);
         },
+        purchase: (purchaseId, signal) =>
+            request<Purchase>(
+                'GET',
+                purchaseUrl(urls, purchaseId),
+                undefined,
+                signal,
+            ),
     };
 }

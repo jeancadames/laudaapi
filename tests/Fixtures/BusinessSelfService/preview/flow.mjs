@@ -1,5 +1,6 @@
 /**
- * Recorrido de navegador del bloque 2 de «Armar mi paquete»: de Inicio al resumen.
+ * Recorrido de navegador de «Armar mi paquete»: de Inicio al resumen (bloque 2),
+ * confirmar, pagar y retomar la compra (bloque 3).
  * Comprueba en 390 px que lo que ve el cliente coincide con la respuesta del
  * servidor y captura cada estado en móvil y escritorio.
  *
@@ -10,7 +11,8 @@
 import assert from 'node:assert/strict';
 
 const PREVIEW = '/tests/Fixtures/BusinessSelfService/preview/index.html';
-const at = (pantalla, escenario = 'exito') => `${PREVIEW}?pantalla=${pantalla}&escenario=${escenario}`;
+const at = (pantalla, escenario = 'exito', extra = '') => `${PREVIEW}?pantalla=${pantalla}&escenario=${escenario}${extra}`;
+const CONTRATAR = '&contratar=1';
 const TEXT = (text) => text.replace(/\s+/g, ' ');
 // Mismo formato que resources/js/lib/businessPackageCopy.ts.
 const money = (cents) =>
@@ -187,4 +189,94 @@ export default async ({ page, navigate, capture }) => {
     await navigate(at('inicio', 'sin-permiso'));
     await page.getByRole('heading', { name: 'Inicio' }).waitFor();
     assert.equal(await page.getByRole('link', { name: 'Armar mi paquete' }).count(), 0);
+
+    // ─────────────── Bloque 3: confirmar, pagar y retomar ───────────────
+    const purchaseHeading = (name, timeout = 8000) => page.getByRole('heading', { level: 1, name }).waitFor({ timeout });
+    const lastPurchase = () =>
+        page.evaluate(() => window.__selfService.filter((entry) => entry.path.includes('/purchases')).at(-1));
+    const appText = async () => TEXT(await page.locator('#app').innerText());
+
+    // 14. Confirmar: aceptar es obligatorio; la compra creada muestra «Continuar al pago» del servidor.
+    await fresh(at('configurador', 'exito', CONTRATAR));
+    await mobile();
+    await pickFiscal();
+    await review.click();
+    await page.getByRole('heading', { level: 1, name: 'Resumen de tu paquete' }).waitFor();
+    const submit = page.getByRole('button', { name: 'Confirmar compra' });
+    assert.equal(await submit.isDisabled(), true, 'sin aceptar no se confirma');
+    await page.getByRole('checkbox', { name: /acepto contratar este paquete/ }).check();
+    await capture('11-confirmar');
+    await mobile();
+    await submit.click();
+    await purchaseHeading('Tu compra está lista para pagar');
+    const created = await lastPurchase();
+    assert.equal(created.status, 201);
+    assert.equal(new URL(page.url()).searchParams.get('compra'), created.body.purchase_id);
+    const pay = page.getByRole('link', { name: created.body.payment.action.label });
+    assert.equal(await pay.getAttribute('href'), created.body.payment.action.url);
+    const paying = await appText();
+    assert.match(paying, new RegExp(`Paga ${money(created.body.balance_cents).replace('$', '\\$')}`));
+    assert.match(paying, /Total de la compra RD\$2,000 Por pagar: RD\$2,000\./);
+    assert.match(paying, /e-CF Pendiente Esperando el pago\. Cumplimiento Pendiente Esperando el pago\./);
+    assert.equal(await page.getByRole('link', { name: /^Abrir/ }).count(), 0, 'sin acceso no hay enlaces de apertura');
+    await noOverflow('compra por pagar');
+    await capture('12-compra-por-pagar');
+    await mobile();
+
+    // 15. Recargar (o volver del proveedor) recupera la misma compra por ?compra=.
+    await page.reload();
+    await purchaseHeading('Tu compra está lista para pagar');
+    assert.equal((await lastPurchase()).path.endsWith(`/purchases/${created.body.purchase_id}`), true);
+
+    // 16. Inicio con compra pendiente: retomarla es la acción principal y sigue el estado.
+    await fresh(at('inicio', 'pago-en-proceso'));
+    await mobile();
+    await page.getByRole('heading', { name: 'Tienes una compra en curso' }).waitFor();
+    assert.equal(await page.getByRole('link', { name: 'Armar mi paquete' }).count(), 0);
+    await capture('13-inicio-compra-en-curso');
+    await mobile();
+    await page.getByRole('link', { name: 'Ver mi compra' }).click();
+    await purchaseHeading('Estamos confirmando tu pago');
+    assert.match(await appText(), /No necesitas pagar de nuevo ni enviar otro comprobante/);
+    assert.equal(await page.getByRole('link', { name: 'Continuar al pago' }).count(), 0);
+    await capture('14-confirmando-pago');
+    await mobile();
+    // Pago pendiente y pago recibido con activación pendiente: mensajes distintos.
+    // La página vuelve a consultar sola (cada 5 s el primer minuto).
+    await purchaseHeading('Pago recibido', 20000);
+    assert.match(await appText(), /Estamos activando tus aplicaciones/);
+    assert.match(await appText(), /Pago confirmado\. Falta completar la activación\./);
+    await capture('15-pago-recibido-activando');
+
+    // 17. Pago rechazado: mensaje del servidor y reintento sobre la misma compra.
+    await fresh(at('configurador', 'pago-fallido'));
+    await mobile();
+    await purchaseHeading('No pudimos completar el pago');
+    const failed = await lastPurchase();
+    assert.match(await appText(), new RegExp(failed.body.payment.message));
+    assert.equal(await page.getByRole('link', { name: failed.body.payment.action.label }).getAttribute('href'), failed.body.payment.action.url);
+    await capture('16-pago-rechazado');
+
+    // 18. Pago recibido con vínculo pendiente: «Vincular mi empresa» una sola vez.
+    await fresh(at('configurador', 'pago-recibido'));
+    await mobile();
+    await purchaseHeading('Pago recibido: falta un paso');
+    assert.equal(await page.getByRole('link', { name: 'Vincular mi empresa' }).count(), 1);
+    assert.match(await appText(), /Pagado\./);
+    await capture('17-falta-vincular');
+
+    // 19. Acceso disponible: cada aplicación abre con la URL del servidor.
+    await fresh(at('configurador', 'acceso-listo'));
+    await mobile();
+    await purchaseHeading('Tus aplicaciones están listas');
+    const opened = await lastPurchase();
+    for (const access of opened.body.access)
+        assert.equal(await page.getByRole('link', { name: access.action.label }).getAttribute('href'), access.action.url);
+    await noOverflow('acceso disponible');
+    await capture('18-acceso-listo');
+
+    // 20. Con resume_purchase_id la página abre la compra pendiente en lugar del configurador.
+    await fresh(at('configurador', 'compra-en-curso', CONTRATAR));
+    await mobile();
+    await purchaseHeading('Tu compra está lista para pagar');
 };

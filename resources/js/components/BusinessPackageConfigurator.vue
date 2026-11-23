@@ -14,13 +14,24 @@ import {
     showsTax,
 } from '@/lib/businessPackageCopy';
 import type { SelfServiceClient } from '@/lib/businessSelfService';
-import type { Catalog, Preview, Product } from '@/types/businessSelfService';
+import type {
+    Catalog,
+    Preview,
+    Product,
+    Purchase,
+} from '@/types/businessSelfService';
 
 const props = defineProps<{
     catalog: Catalog;
     client: SelfServiceClient;
     storageScope: string | number;
     purchasesEnabled: boolean;
+}>();
+const emit = defineEmits<{
+    /** Compra creada (201) o recuperada con la misma clave (200). */
+    purchased: [purchase: Purchase];
+    /** Ya existe una compra en curso (`existing_purchase`): mostrarla. */
+    resume: [purchaseId: string];
 }>();
 const catalog = props.catalog;
 
@@ -50,6 +61,7 @@ const {
     confirmError,
     priceChange,
     purchase,
+    existingPurchaseId,
 } = builder;
 onBeforeUnmount(builder.dispose);
 
@@ -182,10 +194,12 @@ const capacities = computed(() => {
     ].filter((item, index) => index < 2 || item.quantity > 0);
 });
 
-// Tras confirmar, el servidor indica el siguiente paso; la interfaz lo sigue.
-const nextAction = computed(() => purchase.value?.payment.action ?? null);
-watch(nextAction, (action) => {
-    if (action?.url) window.location.assign(action.url);
+// Tras confirmar, la página muestra la compra y la acción que indique el servidor.
+watch(purchase, (created) => {
+    if (created) emit('purchased', created);
+});
+watch(existingPurchaseId, (purchaseId) => {
+    if (purchaseId) emit('resume', purchaseId);
 });
 </script>
 
@@ -632,30 +646,7 @@ watch(nextAction, (action) => {
                 </section>
 
                 <template v-if="purchasesEnabled">
-                    <div
-                        v-if="purchase"
-                        role="status"
-                        class="space-y-2 rounded-xl border p-4"
-                    >
-                        <h2 class="font-semibold">Compra registrada</h2>
-                        <p class="text-sm leading-6 text-muted-foreground">
-                            {{
-                                nextAction
-                                    ? 'Te llevamos al siguiente paso…'
-                                    : 'Te avisaremos cuando puedas continuar.'
-                            }}
-                        </p>
-                        <Button
-                            v-if="nextAction"
-                            size="lg"
-                            class="h-12 w-full"
-                            as-child
-                        >
-                            <a :href="nextAction.url">{{ nextAction.label }}</a>
-                        </Button>
-                    </div>
                     <form
-                        v-else
                         class="space-y-4"
                         :aria-busy="confirming"
                         @submit.prevent="builder.confirm()"
@@ -695,12 +686,13 @@ watch(nextAction, (action) => {
                             {{
                                 confirming
                                     ? 'Registrando tu compra…'
-                                    : 'Confirmar y continuar al pago'
+                                    : 'Confirmar compra'
                             }}
                         </Button>
                         <p class="text-sm leading-6 text-muted-foreground">
-                            Al confirmar todavía no se cobra: el pago se hace en
-                            el paso siguiente.
+                            Al confirmar registramos tu compra y su factura.
+                            Todavía no se cobra: el pago se hace en el paso
+                            siguiente.
                         </p>
                     </form>
                 </template>

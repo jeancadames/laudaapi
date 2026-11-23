@@ -1,20 +1,72 @@
 <script setup lang="ts">
-import { Head, Link } from '@inertiajs/vue3';
-import { onBeforeUnmount, ref } from 'vue';
+import { Head, Link, router, usePage } from '@inertiajs/vue3';
+import { computed, onBeforeUnmount, ref, shallowRef } from 'vue';
 import BusinessPackageConfigurator from '@/components/BusinessPackageConfigurator.vue';
+import BusinessPackagePurchase from '@/components/BusinessPackagePurchase.vue';
 import { Button } from '@/components/ui/button';
 import AppLayout from '@/layouts/AppLayout.vue';
 import {
     createSelfServiceClient,
     isAbort,
+    isPurchaseId,
     SelfServiceError,
     type FailureCode,
 } from '@/lib/businessSelfService';
-import type { Catalog, Configurator } from '@/types/businessSelfService';
+import type {
+    Catalog,
+    Configurator,
+    Product,
+    Purchase,
+} from '@/types/businessSelfService';
 
 const props = defineProps<{ configurator: Configurator }>();
 const configurator = props.configurator;
 const client = createSelfServiceClient(configurator);
+
+// Compra que se muestra en lugar del configurador. Orden: la de la URL
+// (?compra=, al volver del pago o recargar), la recién confirmada y la que el
+// servidor indica como pendiente, aunque el catálogo ya no esté disponible.
+const page = usePage();
+const currentUrl = () => new URL(page.url, 'http://lauda.local');
+const urlPurchaseId = computed(() => {
+    const value = currentUrl().searchParams.get('compra');
+    return isPurchaseId(value) ? value : null;
+});
+const sessionPurchaseId = ref<string | null>(null);
+const dismissedPurchaseId = ref<string | null>(null);
+const resumeId =
+    configurator.resume_purchase_id ??
+    configurator.catalog?.resume_purchase_id ??
+    null;
+const purchaseId = computed(() => {
+    const id =
+        urlPurchaseId.value ??
+        sessionPurchaseId.value ??
+        (isPurchaseId(resumeId) ? resumeId : null);
+    return id && id !== dismissedPurchaseId.value ? id : null;
+});
+const createdPurchase = shallowRef<Purchase | null>(null);
+
+function showPurchase(id: string, created: Purchase | null = null) {
+    createdPurchase.value = created;
+    sessionPurchaseId.value = id;
+    dismissedPurchaseId.value = null;
+    // Reemplaza el paso del resumen: Atrás ya no vuelve a un formulario confirmado.
+    const url = currentUrl();
+    url.searchParams.delete('paso');
+    url.searchParams.set('compra', id);
+    router.replace({ url: url.pathname + url.search, preserveState: true });
+}
+
+/** La compra no existe para esta empresa: volver al configurador. */
+function restart() {
+    dismissedPurchaseId.value = purchaseId.value;
+    sessionPurchaseId.value = null;
+    createdPurchase.value = null;
+    const url = currentUrl();
+    url.searchParams.delete('compra');
+    router.replace({ url: url.pathname + url.search, preserveState: true });
+}
 
 type State =
     | { status: 'ready'; catalog: Catalog }
@@ -65,6 +117,16 @@ async function reload() {
 onBeforeUnmount(() => controller?.abort());
 const reloadPage = () => window.location.reload();
 
+const productNames = computed(
+    () =>
+        Object.fromEntries(
+            (state.value.status === 'ready'
+                ? state.value.catalog.products
+                : (configurator.catalog?.products ?? [])
+            ).map((product) => [product.code, product.name]),
+        ) as Partial<Record<Product, string>>,
+);
+
 const failureTitle: Partial<Record<FailureCode, string>> = {
     forbidden: 'No puedes contratar por esta empresa',
     catalog_unavailable: 'Todavía no hay precios publicados',
@@ -73,20 +135,41 @@ const failureTitle: Partial<Record<FailureCode, string>> = {
 </script>
 
 <template>
-    <Head title="Armar mi paquete" />
+    <Head :title="purchaseId ? 'Tu compra' : 'Armar mi paquete'" />
     <AppLayout
         :breadcrumbs="[
             { title: 'Inicio', href: configurator.home_url },
-            { title: 'Armar mi paquete', href: '' },
+            { title: purchaseId ? 'Tu compra' : 'Armar mi paquete', href: '' },
         ]"
     >
         <div class="mx-auto w-full max-w-5xl px-4 py-6 sm:px-8 sm:py-8">
+            <BusinessPackagePurchase
+                v-if="purchaseId"
+                :key="purchaseId"
+                :client="client"
+                :purchase-id="purchaseId"
+                :initial="
+                    createdPurchase?.purchase_id === purchaseId
+                        ? createdPurchase
+                        : null
+                "
+                :names="productNames"
+                :company-name="configurator.company.name"
+                :home-url="configurator.home_url"
+                :can-restart="state.status === 'ready'"
+                @restart="restart"
+            />
+
             <BusinessPackageConfigurator
-                v-if="state.status === 'ready'"
+                v-else-if="state.status === 'ready'"
                 :catalog="state.catalog"
                 :client="client"
                 :storage-scope="configurator.company.id"
                 :purchases-enabled="!!configurator.confirm_url"
+                @purchased="
+                    (created) => showPurchase(created.purchase_id, created)
+                "
+                @resume="(id) => showPurchase(id)"
             />
 
             <!-- Sin catálogo, sin permiso o sin conexión: orientación y salida -->
