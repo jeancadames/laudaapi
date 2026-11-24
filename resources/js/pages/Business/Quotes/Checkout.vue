@@ -1,10 +1,11 @@
 <script setup lang="ts">
-import BusinessTransferProofForm from '@/components/BusinessTransferProofForm.vue';
-import BusinessTransitionSummary from '@/components/BusinessTransitionSummary.vue';
-import AppLayout from '@/layouts/AppLayout.vue';
-import { Button } from '@/components/ui/button';
 import { Head, Link, router } from '@inertiajs/vue3';
 import { computed, ref, watch } from 'vue';
+import BusinessTransferProofForm from '@/components/BusinessTransferProofForm.vue';
+import BusinessTransitionSummary from '@/components/BusinessTransitionSummary.vue';
+import PortalPage from '@/components/portal/PortalPage.vue';
+import { Button } from '@/components/ui/button';
+import AppLayout from '@/layouts/AppLayout.vue';
 import type { BusinessQuoteCheckout } from '@/types/businessQuoteCheckout';
 
 const props = defineProps<{
@@ -123,24 +124,17 @@ async function createInvoice() {
             { title: 'Facturación', href: current.create_url },
         ]"
     >
-        <div class="mx-auto w-full max-w-5xl space-y-8 px-5 py-8 sm:px-8">
-            <header class="space-y-3">
-                <Link
-                    :href="current.purchase_url ?? quote.url"
-                    class="inline-flex min-h-11 items-center text-sm text-muted-foreground underline underline-offset-4"
-                    >{{ current.purchase_url ? 'Volver a mi compra' : 'Volver a la cotización' }}</Link
-                >
-                <p class="text-sm font-medium break-words">
-                    {{ quote.company_name }}
-                </p>
-                <h1 class="text-3xl font-semibold tracking-tight">
-                    Facturación Business
-                </h1>
-                <p class="text-muted-foreground">
-                    {{ quote.offer_name }} · {{ quote.level_name }} · Ciclo
-                    {{ cycle }}
-                </p>
-            </header>
+        <PortalPage
+            :eyebrow="quote.company_name"
+            title="Facturación Business"
+            :description="`${quote.offer_name} · ${quote.level_name} · Pago ${cycle}`"
+            :back="{
+                href: current.purchase_url ?? quote.url,
+                label: current.purchase_url
+                    ? 'Volver a mi compra'
+                    : 'Volver a la cotización',
+            }"
+        >
             <BusinessTransitionSummary
                 v-if="current.quote.snapshot.transition"
                 :plan="current.quote.snapshot.transition"
@@ -305,8 +299,15 @@ async function createInvoice() {
                             "
                             class="text-sm leading-6"
                         >
-                            <template v-if="current.transfer">Factura cubierta. Continúa con la implementación de tus aplicaciones.</template>
-                            <template v-else>No hay saldo pendiente. La activación de las soluciones y el inicio de la implementación se coordinan por separado.</template>
+                            <template v-if="current.transfer"
+                                >Factura cubierta. Continúa con la
+                                implementación de tus aplicaciones.</template
+                            >
+                            <template v-else
+                                >No hay saldo pendiente. La activación de las
+                                soluciones y el inicio de la implementación se
+                                coordinan por separado.</template
+                            >
                         </p>
                         <BusinessTransferProofForm
                             v-else-if="current.transfer"
@@ -408,6 +409,6 @@ async function createInvoice() {
                     </form>
                 </aside>
             </div>
-        </div>
+        </PortalPage>
     </AppLayout>
 </template>

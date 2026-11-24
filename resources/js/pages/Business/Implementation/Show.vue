@@ -1,8 +1,9 @@
 <script setup lang="ts">
-import AppLayout from '@/layouts/AppLayout.vue';
-import { Button } from '@/components/ui/button';
 import { Head, Link, router } from '@inertiajs/vue3';
 import { computed, ref, watch } from 'vue';
+import PortalPage from '@/components/portal/PortalPage.vue';
+import { Button } from '@/components/ui/button';
+import AppLayout from '@/layouts/AppLayout.vue';
 import type {
     BusinessImplementation,
     ImplementationAction,
@@ -138,6 +139,10 @@ async function submit() {
     <AppLayout
         :breadcrumbs="[
             {
+                title: 'Inicio',
+                href: current.admin ? '/dashboard' : '/app',
+            },
+            {
                 title: current.admin
                     ? 'Implementaciones Business'
                     : 'Facturación',
@@ -146,27 +151,17 @@ async function submit() {
             { title: 'Implementación', href: current.action_url },
         ]"
     >
-        <div class="mx-auto w-full max-w-5xl space-y-8 px-5 py-8 sm:px-8">
-            <header class="space-y-3">
-                <Link
-                    :href="back"
-                    class="inline-flex min-h-11 items-center text-sm text-muted-foreground underline underline-offset-4"
-                    >{{
-                        current.admin
-                            ? 'Volver a implementaciones'
-                            : 'Volver a facturación'
-                    }}</Link
-                >
-                <p class="text-sm font-medium break-words">
-                    {{ quote.company_name }}
-                </p>
-                <h1 class="text-3xl font-semibold tracking-tight">
-                    Implementación Business
-                </h1>
-                <p class="text-muted-foreground">
-                    {{ quote.offer_name }} · {{ quote.level_name }}
-                </p>
-            </header>
+        <PortalPage
+            :eyebrow="quote.company_name"
+            title="Implementación Business"
+            :description="`${quote.offer_name} · ${quote.level_name}`"
+            :back="{
+                href: back,
+                label: current.admin
+                    ? 'Volver a implementaciones'
+                    : 'Volver a facturación',
+            }"
+        >
             <div
                 class="grid items-start gap-8 lg:grid-cols-[minmax(0,1fr)_minmax(18rem,22rem)]"
             >
@@ -205,8 +200,9 @@ async function submit() {
                         {{
                             current.order
                                 ? 'El seguimiento conserva las condiciones aceptadas por tu empresa.'
-                                : current.guided ? 'Revisa la configuración de las aplicaciones vinculadas. Tu conformidad activa el paquete contratado.'
-                                : 'Solicita la coordinación del alcance aceptado. El inicio requiere que la factura esté cubierta.'
+                                : current.guided
+                                  ? 'Revisa la configuración de las aplicaciones vinculadas. Tu conformidad activa el paquete contratado.'
+                                  : 'Solicita la coordinación del alcance aceptado. El inicio requiere que la factura esté cubierta.'
                         }}
                     </p>
                     <details class="rounded-lg border p-4">
@@ -239,17 +235,26 @@ async function submit() {
                         <p class="text-sm text-muted-foreground">
                             {{
                                 current.order
-                                    ? `Orden #${current.order.id}`
-                                    : current.guided ? 'Autoservicio' : 'Por solicitar'
+                                    ? current.admin
+                                        ? `Orden #${current.order.id}`
+                                        : 'Tu implementación'
+                                    : current.guided
+                                      ? 'Autoservicio'
+                                      : 'Por solicitar'
                             }}
                         </p>
                         <h2 class="text-xl font-semibold">
                             {{
                                 current.order?.status_label ??
-                                (current.guided ? 'Implementación guiada' : 'Coordinar implementación')
+                                (current.guided
+                                    ? 'Implementación guiada'
+                                    : 'Coordinar implementación')
                             }}
                         </h2>
-                        <p v-if="current.order && !current.guided" class="text-sm">
+                        <p
+                            v-if="current.order && !current.guided"
+                            class="text-sm"
+                        >
                             Responsable:
                             {{
                                 current.order.assigned_name ??
@@ -322,7 +327,9 @@ async function submit() {
                                 >{{
                                     action === 'deliver'
                                         ? 'Evidencia de entrega'
-                                        : current.guided ? '¿Qué configuración revisaste?' : 'Detalle del cambio'
+                                        : current.guided
+                                          ? '¿Qué configuración revisaste?'
+                                          : 'Detalle del cambio'
                                 }}</label
                             >
                             <textarea
@@ -353,7 +360,11 @@ async function submit() {
                                 :disabled="busy || !!pending"
                                 class="mt-1 size-4 shrink-0 accent-primary"
                             />
-                            <span v-if="current.guided">Doy mi conformidad a la implementación y autorizo activar el paquete de {{ quote.company_name }}.</span>
+                            <span v-if="current.guided"
+                                >Doy mi conformidad a la implementación y
+                                autorizo activar el paquete de
+                                {{ quote.company_name }}.</span
+                            >
                             <span v-else
                                 >Confirmo esta acción para
                                 {{ quote.company_name }}.</span
@@ -402,8 +413,17 @@ async function submit() {
                         @click="router.reload()"
                         >Actualizar estado</Button
                     >
-                    <Button v-if="current.purchase_url" as-child variant="outline" class="min-h-11 w-full">
-                        <Link :href="current.purchase_url">{{ current.order?.status === 'completed' ? 'Ver mis aplicaciones' : 'Volver a mi compra' }}</Link>
+                    <Button
+                        v-if="current.purchase_url"
+                        as-child
+                        variant="outline"
+                        class="min-h-11 w-full"
+                    >
+                        <Link :href="current.purchase_url">{{
+                            current.order?.status === 'completed'
+                                ? 'Ver mis aplicaciones'
+                                : 'Volver a mi compra'
+                        }}</Link>
                     </Button>
                     <p v-else class="text-xs leading-5 text-muted-foreground">
                         La activación de las soluciones y la renovación se
@@ -450,6 +470,6 @@ async function submit() {
                     </ol>
                 </section>
             </div>
-        </div>
+        </PortalPage>
     </AppLayout>
 </template>

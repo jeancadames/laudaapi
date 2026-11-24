@@ -1,8 +1,9 @@
 <script setup lang="ts">
-import { computed } from 'vue';
 import { Head, Link } from '@inertiajs/vue3';
+import { ArrowLeft } from 'lucide-vue-next';
+import { computed } from 'vue';
+import { portalButton } from '@/components/portal/buttons';
 import AppLayout from '@/layouts/AppLayout.vue';
-import { Button } from '@/components/ui/button';
 import type { BreadcrumbItem } from '@/types';
 
 type InvoiceItem = {
@@ -61,7 +62,7 @@ const props = defineProps<{
 }>();
 
 const breadcrumbs: BreadcrumbItem[] = [
-    { title: 'Mi ecosistema', href: '/app' },
+    { title: 'Inicio', href: '/app' },
     { title: 'Facturas', href: '/subscriber/invoices' },
     {
         title: props.invoice.number,
@@ -69,29 +70,22 @@ const breadcrumbs: BreadcrumbItem[] = [
     },
 ];
 
-const balanceNumber = computed(() =>
-    Number(props.invoice.balance ?? 0),
-);
+const balanceNumber = computed(() => Number(props.invoice.balance ?? 0));
 
 const canPay = computed(
-    () =>
-        balanceNumber.value > 0
-        && Boolean(props.invoice.payment_url),
+    () => balanceNumber.value > 0 && Boolean(props.invoice.payment_url),
 );
 
 const hasFiscalData = computed(
     () =>
-        Boolean(props.invoice.document_class)
-        || Boolean(props.invoice.document_type)
-        || Boolean(props.invoice.fiscal_number)
-        || Boolean(props.invoice.security_code),
+        Boolean(props.invoice.document_class) ||
+        Boolean(props.invoice.document_type) ||
+        Boolean(props.invoice.fiscal_number) ||
+        Boolean(props.invoice.security_code),
 );
 
 const customerName = computed(
-    () =>
-        props.company.legal_name
-        || props.company.name
-        || 'Cliente',
+    () => props.company.legal_name || props.company.name || 'Cliente',
 );
 
 function money(value: string | number | null | undefined): string {
@@ -106,7 +100,7 @@ function money(value: string | number | null | undefined): string {
 }
 
 function dateLabel(value?: string | null): string {
-    if (! value) return '—';
+    if (!value) return '—';
 
     const parsed = new Date(`${value}T00:00:00`);
 
@@ -124,8 +118,10 @@ function cycleLabel(value?: string | null): string {
 
     if (cycle === 'monthly') return 'Mensual';
     if (cycle === 'yearly' || cycle === 'annual') return 'Anual';
+    if (cycle === 'one_time' || cycle === 'once') return 'Pago único';
 
-    return value || '';
+    // Un código desconocido no se muestra al cliente.
+    return /^[a-z_]+$/.test(cycle) ? '' : value || '';
 }
 
 function statusLabel(value: string): string {
@@ -163,69 +159,83 @@ function printInvoice(): void {
     <Head :title="`Factura ${invoice.number}`" />
 
     <AppLayout :breadcrumbs="breadcrumbs">
-        <div class="invoice-page bg-[#FAFAF8] p-4 sm:p-6 lg:p-8">
+        <div
+            class="invoice-page min-h-full bg-[#F7F7F5] px-4 py-6 sm:px-6 sm:py-8 lg:px-8 dark:bg-background"
+        >
             <div class="mx-auto max-w-5xl">
-                <div class="mb-4 flex flex-wrap items-center justify-between gap-3 print:hidden">
-                    <Button variant="outline" as-child>
-                        <Link href="/subscriber/invoices">
-                            Volver a facturas
-                        </Link>
-                    </Button>
+                <div
+                    class="mb-4 flex flex-wrap items-center justify-between gap-3 print:hidden"
+                >
+                    <Link
+                        href="/subscriber/invoices"
+                        class="inline-flex min-h-10 items-center gap-1.5 rounded-md text-sm font-medium text-slate-600 hover:text-slate-950 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-400 dark:text-slate-400 dark:hover:text-white"
+                    >
+                        <ArrowLeft class="size-4" aria-hidden="true" />
+                        Volver a facturas
+                    </Link>
 
                     <div class="flex flex-wrap gap-2">
-                        <Button type="button" variant="outline" @click="printInvoice">
-                            Imprimir
-                        </Button>
-
-                        <Button
-                            v-if="invoice.hosted_invoice_url"
-                            variant="outline"
-                            as-child
+                        <button
+                            type="button"
+                            :class="portalButton.secondary"
+                            @click="printInvoice"
                         >
-                            <a
-                                :href="invoice.hosted_invoice_url"
-                                target="_blank"
-                                rel="noopener"
-                            >
-                                Abrir comprobante
-                            </a>
-                        </Button>
+                            Imprimir
+                        </button>
 
-                        <Button v-if="canPay" as-child>
-                            <a
-                                :href="invoice.payment_url!"
-                                target="_blank"
-                                rel="noopener"
-                            >
-                                Pagar {{ money(invoice.balance) }}
-                            </a>
-                        </Button>
+                        <a
+                            v-if="invoice.hosted_invoice_url"
+                            :href="invoice.hosted_invoice_url"
+                            target="_blank"
+                            rel="noopener"
+                            :class="portalButton.secondary"
+                        >
+                            Abrir comprobante
+                        </a>
+
+                        <a
+                            v-if="canPay"
+                            :href="invoice.payment_url!"
+                            target="_blank"
+                            rel="noopener"
+                            :class="portalButton.primary"
+                        >
+                            Pagar {{ money(invoice.balance) }}
+                        </a>
                     </div>
                 </div>
 
                 <article
-                    class="overflow-hidden rounded-[2rem] border border-slate-200 bg-white shadow-sm print:rounded-none print:border-0 print:shadow-none"
+                    class="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm print:rounded-none print:border-0 print:shadow-none"
                 >
                     <header
                         class="flex flex-col gap-8 border-b border-slate-200 p-6 sm:p-8 lg:flex-row lg:items-start lg:justify-between"
                     >
                         <div>
-                            <p class="text-xs font-bold tracking-[0.24em] text-red-600 uppercase">
-                                LAUDAAPI
+                            <p
+                                class="text-xs font-bold tracking-[0.24em] text-red-600 uppercase"
+                            >
+                                LAUDA
                             </p>
-                            <h1 class="mt-2 text-3xl font-black tracking-tight text-slate-950">
+                            <h1
+                                class="mt-2 text-3xl font-bold tracking-tight text-slate-950"
+                            >
                                 Factura
                             </h1>
-                            <p class="mt-2 text-sm font-semibold text-slate-500">
+                            <p
+                                class="mt-2 text-sm font-semibold text-slate-500"
+                            >
                                 Servicios y soluciones digitales
                             </p>
                         </div>
 
                         <div class="lg:text-right">
-                            <p class="text-xs font-bold tracking-widest text-slate-400 uppercase">
+                            <p
+                                class="text-xs font-bold tracking-widest text-slate-500 uppercase"
+                            >
                                 Número
                             </p>
-                            <p class="mt-1 text-lg font-black text-slate-950">
+                            <p class="mt-1 text-lg font-bold text-slate-950">
                                 {{ invoice.number }}
                             </p>
 
@@ -242,10 +252,12 @@ function printInvoice(): void {
                         class="grid gap-8 border-b border-slate-200 p-6 sm:p-8 md:grid-cols-2"
                     >
                         <div>
-                            <p class="text-xs font-bold tracking-widest text-slate-400 uppercase">
+                            <p
+                                class="text-xs font-bold tracking-widest text-slate-500 uppercase"
+                            >
                                 Facturado a
                             </p>
-                            <p class="mt-3 text-lg font-black text-slate-950">
+                            <p class="mt-3 text-lg font-bold text-slate-950">
                                 {{ customerName }}
                             </p>
 
@@ -267,31 +279,45 @@ function printInvoice(): void {
 
                         <div class="grid grid-cols-2 gap-5 md:text-right">
                             <div>
-                                <p class="text-xs font-bold tracking-widest text-slate-400 uppercase">
+                                <p
+                                    class="text-xs font-bold tracking-widest text-slate-500 uppercase"
+                                >
                                     Fecha de emisión
                                 </p>
-                                <p class="mt-2 text-sm font-bold text-slate-900">
+                                <p
+                                    class="mt-2 text-sm font-bold text-slate-900"
+                                >
                                     {{ dateLabel(invoice.issued_on) }}
                                 </p>
                             </div>
 
                             <div>
-                                <p class="text-xs font-bold tracking-widest text-slate-400 uppercase">
+                                <p
+                                    class="text-xs font-bold tracking-widest text-slate-500 uppercase"
+                                >
                                     Vencimiento
                                 </p>
-                                <p class="mt-2 text-sm font-bold text-slate-900">
+                                <p
+                                    class="mt-2 text-sm font-bold text-slate-900"
+                                >
                                     {{ dateLabel(invoice.due_on) }}
                                 </p>
                             </div>
 
                             <div
-                                v-if="invoice.period_start || invoice.period_end"
+                                v-if="
+                                    invoice.period_start || invoice.period_end
+                                "
                                 class="col-span-2"
                             >
-                                <p class="text-xs font-bold tracking-widest text-slate-400 uppercase">
+                                <p
+                                    class="text-xs font-bold tracking-widest text-slate-500 uppercase"
+                                >
                                     Período facturado
                                 </p>
-                                <p class="mt-2 text-sm font-bold text-slate-900">
+                                <p
+                                    class="mt-2 text-sm font-bold text-slate-900"
+                                >
                                     {{ dateLabel(invoice.period_start) }}
                                     <span class="mx-1 text-slate-400">—</span>
                                     {{ dateLabel(invoice.period_end) }}
@@ -302,19 +328,29 @@ function printInvoice(): void {
 
                     <section class="p-6 sm:p-8">
                         <div class="overflow-x-auto">
-                            <table class="w-full min-w-[640px] border-collapse text-left">
+                            <table
+                                class="w-full min-w-[640px] border-collapse text-left"
+                            >
                                 <thead>
                                     <tr class="border-b border-slate-200">
-                                        <th class="pb-3 pr-4 text-xs font-bold tracking-widest text-slate-400 uppercase">
+                                        <th
+                                            class="pr-4 pb-3 text-xs font-bold tracking-widest text-slate-500 uppercase"
+                                        >
                                             Concepto
                                         </th>
-                                        <th class="pb-3 px-3 text-right text-xs font-bold tracking-widest text-slate-400 uppercase">
+                                        <th
+                                            class="px-3 pb-3 text-right text-xs font-bold tracking-widest text-slate-500 uppercase"
+                                        >
                                             Cant.
                                         </th>
-                                        <th class="pb-3 px-3 text-right text-xs font-bold tracking-widest text-slate-400 uppercase">
+                                        <th
+                                            class="px-3 pb-3 text-right text-xs font-bold tracking-widest text-slate-500 uppercase"
+                                        >
                                             Precio
                                         </th>
-                                        <th class="pb-3 pl-3 text-right text-xs font-bold tracking-widest text-slate-400 uppercase">
+                                        <th
+                                            class="pb-3 pl-3 text-right text-xs font-bold tracking-widest text-slate-500 uppercase"
+                                        >
                                             Total
                                         </th>
                                     </tr>
@@ -332,31 +368,47 @@ function printInvoice(): void {
                                             </p>
 
                                             <div
-                                                v-if="item.plan_name || item.billing_cycle"
+                                                v-if="
+                                                    item.plan_name ||
+                                                    item.billing_cycle
+                                                "
                                                 class="mt-1 flex flex-wrap gap-x-2 text-xs font-semibold text-slate-500"
                                             >
                                                 <span v-if="item.plan_name">
                                                     Plan {{ item.plan_name }}
                                                 </span>
                                                 <span
-                                                    v-if="item.plan_name && item.billing_cycle"
+                                                    v-if="
+                                                        item.plan_name &&
+                                                        item.billing_cycle
+                                                    "
                                                     aria-hidden="true"
                                                 >
                                                     ·
                                                 </span>
                                                 <span v-if="item.billing_cycle">
-                                                    {{ cycleLabel(item.billing_cycle) }}
+                                                    {{
+                                                        cycleLabel(
+                                                            item.billing_cycle,
+                                                        )
+                                                    }}
                                                 </span>
                                             </div>
                                         </td>
 
-                                        <td class="py-5 px-3 text-right font-semibold text-slate-700">
+                                        <td
+                                            class="px-3 py-5 text-right font-semibold text-slate-700"
+                                        >
                                             {{ item.quantity }}
                                         </td>
-                                        <td class="py-5 px-3 text-right font-semibold text-slate-700">
+                                        <td
+                                            class="px-3 py-5 text-right font-semibold text-slate-700"
+                                        >
                                             {{ money(item.unit_price) }}
                                         </td>
-                                        <td class="py-5 pl-3 text-right font-black text-slate-950">
+                                        <td
+                                            class="py-5 pl-3 text-right font-bold text-slate-950"
+                                        >
                                             {{ money(item.line_total) }}
                                         </td>
                                     </tr>
@@ -366,7 +418,8 @@ function printInvoice(): void {
                                             colspan="4"
                                             class="py-8 text-center text-sm font-medium text-slate-500"
                                         >
-                                            Esta factura no tiene conceptos detallados.
+                                            Esta factura no tiene conceptos
+                                            detallados.
                                         </td>
                                     </tr>
                                 </tbody>
@@ -379,34 +432,48 @@ function printInvoice(): void {
                                     v-if="hasFiscalData"
                                     class="rounded-2xl border border-slate-200 bg-slate-50 p-5"
                                 >
-                                    <p class="text-xs font-bold tracking-widest text-slate-400 uppercase">
+                                    <p
+                                        class="text-xs font-bold tracking-widest text-slate-500 uppercase"
+                                    >
                                         Comprobante fiscal
                                     </p>
 
                                     <dl class="mt-4 grid gap-4 sm:grid-cols-2">
                                         <div v-if="invoice.document_type">
-                                            <dt class="text-xs font-semibold text-slate-500">
+                                            <dt
+                                                class="text-xs font-semibold text-slate-500"
+                                            >
                                                 Tipo
                                             </dt>
-                                            <dd class="mt-1 text-sm font-bold text-slate-900">
+                                            <dd
+                                                class="mt-1 text-sm font-bold text-slate-900"
+                                            >
                                                 {{ invoice.document_type }}
                                             </dd>
                                         </div>
 
                                         <div v-if="invoice.fiscal_number">
-                                            <dt class="text-xs font-semibold text-slate-500">
+                                            <dt
+                                                class="text-xs font-semibold text-slate-500"
+                                            >
                                                 NCF / e-CF
                                             </dt>
-                                            <dd class="mt-1 text-sm font-bold text-slate-900">
+                                            <dd
+                                                class="mt-1 text-sm font-bold text-slate-900"
+                                            >
                                                 {{ invoice.fiscal_number }}
                                             </dd>
                                         </div>
 
                                         <div v-if="invoice.security_code">
-                                            <dt class="text-xs font-semibold text-slate-500">
+                                            <dt
+                                                class="text-xs font-semibold text-slate-500"
+                                            >
                                                 Código de seguridad
                                             </dt>
-                                            <dd class="mt-1 text-sm font-bold text-slate-900">
+                                            <dd
+                                                class="mt-1 text-sm font-bold text-slate-900"
+                                            >
                                                 {{ invoice.security_code }}
                                             </dd>
                                         </div>
@@ -414,36 +481,57 @@ function printInvoice(): void {
                                 </div>
                             </div>
 
-                            <div class="rounded-2xl bg-slate-950 p-6 text-white">
+                            <div
+                                class="rounded-2xl bg-slate-950 p-6 text-white"
+                            >
                                 <dl class="space-y-3">
-                                    <div class="flex items-center justify-between gap-4 text-sm">
-                                        <dt class="text-slate-400">Subtotal</dt>
-                                        <dd class="font-bold">{{ money(invoice.subtotal) }}</dd>
-                                    </div>
-
                                     <div
-                                        v-if="Number(invoice.discount_total) > 0"
                                         class="flex items-center justify-between gap-4 text-sm"
                                     >
-                                        <dt class="text-slate-400">Descuento</dt>
+                                        <dt class="text-slate-400">Subtotal</dt>
                                         <dd class="font-bold">
-                                            − {{ money(invoice.discount_total) }}
+                                            {{ money(invoice.subtotal) }}
                                         </dd>
                                     </div>
 
-                                    <div class="flex items-center justify-between gap-4 text-sm">
-                                        <dt class="text-slate-400">Impuestos</dt>
-                                        <dd class="font-bold">{{ money(invoice.tax_total) }}</dd>
+                                    <div
+                                        v-if="
+                                            Number(invoice.discount_total) > 0
+                                        "
+                                        class="flex items-center justify-between gap-4 text-sm"
+                                    >
+                                        <dt class="text-slate-400">
+                                            Descuento
+                                        </dt>
+                                        <dd class="font-bold">
+                                            −
+                                            {{ money(invoice.discount_total) }}
+                                        </dd>
+                                    </div>
+
+                                    <div
+                                        class="flex items-center justify-between gap-4 text-sm"
+                                    >
+                                        <dt class="text-slate-400">
+                                            Impuestos
+                                        </dt>
+                                        <dd class="font-bold">
+                                            {{ money(invoice.tax_total) }}
+                                        </dd>
                                     </div>
 
                                     <div class="border-t border-white/15 pt-4">
-                                        <div class="flex items-end justify-between gap-4">
+                                        <div
+                                            class="flex items-end justify-between gap-4"
+                                        >
                                             <dt>
-                                                <p class="text-xs font-bold tracking-widest text-slate-400 uppercase">
+                                                <p
+                                                    class="text-xs font-bold tracking-widest text-slate-500 uppercase"
+                                                >
                                                     Total
                                                 </p>
                                             </dt>
-                                            <dd class="text-2xl font-black">
+                                            <dd class="text-2xl font-bold">
                                                 {{ money(invoice.total) }}
                                             </dd>
                                         </div>
@@ -463,10 +551,12 @@ function printInvoice(): void {
                                 <div
                                     class="mt-5 rounded-xl border border-white/10 bg-white/5 p-4"
                                 >
-                                    <p class="text-xs font-bold tracking-widest text-slate-400 uppercase">
+                                    <p
+                                        class="text-xs font-bold tracking-widest text-slate-500 uppercase"
+                                    >
                                         Balance pendiente
                                     </p>
-                                    <p class="mt-1 text-2xl font-black">
+                                    <p class="mt-1 text-2xl font-bold">
                                         {{ money(invoice.balance) }}
                                     </p>
                                 </div>
@@ -476,18 +566,18 @@ function printInvoice(): void {
                                     :href="invoice.payment_url!"
                                     target="_blank"
                                     rel="noopener"
-                                    class="mt-4 inline-flex w-full items-center justify-center rounded-xl bg-white px-4 py-3 text-sm font-black text-slate-950 transition hover:bg-slate-100 print:hidden"
+                                    class="mt-4 inline-flex w-full items-center justify-center rounded-xl bg-white px-4 py-3 text-sm font-bold text-slate-950 transition hover:bg-slate-100 print:hidden"
                                 >
                                     Pagar {{ money(invoice.balance) }}
                                 </a>
 
                                 <p
                                     v-else-if="balanceNumber > 0"
-                                    class="mt-4 text-xs font-medium leading-5 text-slate-400 print:hidden"
+                                    class="mt-4 text-xs leading-5 font-medium text-slate-400 print:hidden"
                                 >
-                                    Esta factura está pendiente de pago. El botón
-                                    de pago aparecerá cuando exista un enlace de
-                                    pago disponible.
+                                    Esta factura está pendiente de pago. El
+                                    botón de pago aparecerá cuando exista un
+                                    enlace de pago disponible.
                                 </p>
                             </div>
                         </div>
@@ -496,8 +586,8 @@ function printInvoice(): void {
                     <footer
                         class="border-t border-slate-200 bg-slate-50 px-6 py-5 text-center text-xs font-medium text-slate-500 sm:px-8"
                     >
-                        Esta factura corresponde a servicios contratados a través
-                        de LAUDAAPI.
+                        Esta factura corresponde a servicios contratados a
+                        través de LAUDA.
                     </footer>
                 </article>
             </div>

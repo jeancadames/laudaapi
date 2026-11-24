@@ -1,110 +1,113 @@
 <script setup lang="ts">
-import { Head, router, Link } from '@inertiajs/vue3'
-import { computed, ref } from 'vue'
-import AppLayout from '@/layouts/AppLayout.vue'
-import SectionCard from '@/components/SectionCard.vue'
-import { Badge } from '@/components/ui/badge'
-import { Button } from '@/components/ui/button'
-import type { BreadcrumbItem } from '@/types'
-import { subscriber } from '@/routes'
+import { Head, router, Link } from '@inertiajs/vue3';
+import { computed, ref } from 'vue';
+import { portalButton } from '@/components/portal/buttons';
+import PortalPage from '@/components/portal/PortalPage.vue';
+import AppLayout from '@/layouts/AppLayout.vue';
+import { formatDay, formatMoney, pageLabel } from '@/lib/portalFormat';
+import type { BreadcrumbItem } from '@/types';
 
 type InvoiceRow = {
-    id: number
-    number: string
-    status: string
-    issued_on?: string | null
-    due_on?: string | null
-    currency: string
-    total: string
-    amount_paid: string
-    balance: string
-    document_class?: string | null
-    document_type?: string | null
-    fiscal_number?: string | null
-    hosted_invoice_url?: string | null
-    payment_url?: string | null
-}
+    id: number;
+    number: string;
+    status: string;
+    issued_on?: string | null;
+    due_on?: string | null;
+    currency: string;
+    total: string;
+    amount_paid: string;
+    balance: string;
+    document_class?: string | null;
+    document_type?: string | null;
+    fiscal_number?: string | null;
+    hosted_invoice_url?: string | null;
+    payment_url?: string | null;
+};
 
-type LinkItem = { url: string | null; label: string; active: boolean }
+type LinkItem = { url: string | null; label: string; active: boolean };
 
 type Paginator<T> = {
-    data: T[]
-    links: LinkItem[]
-    meta?: any
-}
-
-type BadgeVariant = 'default' | 'secondary' | 'destructive' | 'outline' | null
+    data: T[];
+    links: LinkItem[];
+    meta?: any;
+};
 
 const props = defineProps<{
-    company: { id: number; name: string; currency: string; timezone: string }
-    filters: { status: string; q: string; from?: string | null; to?: string | null }
-    invoices: Paginator<InvoiceRow>
-}>()
+    company: { id: number; name: string; currency: string; timezone: string };
+    filters: {
+        status: string;
+        q: string;
+        from?: string | null;
+        to?: string | null;
+    };
+    invoices: Paginator<InvoiceRow>;
+}>();
 
 const breadcrumbs: BreadcrumbItem[] = [
-    { title: 'Suscriptor', href: subscriber().url },
+    { title: 'Inicio', href: '/app' },
     { title: 'Facturas', href: '/subscriber/invoices' },
-]
+];
 
 // -------------------------
 // local state (synced with server filters)
 // -------------------------
-const status = ref(props.filters.status ?? 'all')
-const q = ref(props.filters.q ?? '')
-const from = ref(props.filters.from ?? '')
-const to = ref(props.filters.to ?? '')
+const status = ref(props.filters.status ?? 'all');
+const q = ref(props.filters.q ?? '');
+const from = ref(props.filters.from ?? '');
+const to = ref(props.filters.to ?? '');
 
-const showAdvanced = ref(false)
+const showAdvanced = ref(false);
 
 // -------------------------
 // helpers
 // -------------------------
 function normStatus(s: any) {
-    return String(s ?? '').toLowerCase().trim()
+    return String(s ?? '')
+        .toLowerCase()
+        .trim();
 }
 
 function statusLabel(st: string) {
-    const s = normStatus(st)
-    if (s === 'draft') return 'Borrador'
-    if (s === 'issued') return 'Emitida'
-    if (s === 'paid') return 'Pagada'
-    if (s === 'void') return 'Anulada'
-    if (s === 'overdue') return 'Vencida'
-    return st || '—'
+    const s = normStatus(st);
+    if (s === 'draft') return 'Borrador';
+    if (s === 'issued') return 'Por pagar';
+    if (s === 'paid') return 'Pagada';
+    if (s === 'void') return 'Anulada';
+    if (s === 'overdue') return 'Vencida';
+    return st || '—';
 }
 
-function badgeVariantByInvoiceStatus(st: string): BadgeVariant {
-    const s = normStatus(st)
-    if (s === 'overdue') return 'destructive'
-    if (s === 'void') return 'destructive'
-    if (s === 'paid') return 'secondary'
-    if (s === 'issued') return 'secondary'
-    if (s === 'draft') return 'outline'
-    return 'secondary'
+/** Verde = pagada · ámbar = por pagar · rojo = vencida · gris = borrador o anulada. */
+function statusTone(st: string) {
+    const s = normStatus(st);
+    if (s === 'paid')
+        return 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300';
+    if (s === 'overdue')
+        return 'bg-red-50 text-red-700 dark:bg-red-950/40 dark:text-red-300';
+    if (s === 'issued')
+        return 'bg-amber-50 text-amber-800 dark:bg-amber-950/40 dark:text-amber-200';
+    return 'bg-slate-100 text-slate-600 dark:bg-slate-900 dark:text-slate-300';
 }
+
+const statusTabs = [
+    ['all', 'Todas'],
+    ['issued', 'Por pagar'],
+    ['overdue', 'Vencidas'],
+    ['paid', 'Pagadas'],
+    ['void', 'Anuladas'],
+] as const;
 
 function balanceClass(inv: InvoiceRow) {
-    const st = normStatus(inv.status)
-    if (st === 'paid') return 'text-emerald-600 dark:text-emerald-400'
-    if (st === 'overdue') return 'text-rose-600 dark:text-rose-400'
-    const b = Number(inv.balance)
-    if (Number.isFinite(b) && b <= 0) return 'text-emerald-600 dark:text-emerald-400'
-    return 'text-muted-foreground'
+    const st = normStatus(inv.status);
+    if (st === 'paid') return 'text-emerald-600 dark:text-emerald-400';
+    if (st === 'overdue') return 'text-rose-600 dark:text-rose-400';
+    const b = Number(inv.balance);
+    if (Number.isFinite(b) && b <= 0)
+        return 'text-emerald-600 dark:text-emerald-400';
+    return 'text-muted-foreground';
 }
 
-const rows = computed(() => props.invoices?.data ?? [])
-
-// Totales de la página actual (como ya tienes)
-const counts = computed(() => {
-    const list = rows.value
-    const c = { all: 0, draft: 0, issued: 0, paid: 0, overdue: 0, void: 0 }
-    for (const inv of list) {
-        c.all++
-        const st = normStatus(inv.status) as keyof typeof c
-        if (st in c) (c as any)[ st ]++
-    }
-    return c
-})
+const rows = computed(() => props.invoices?.data ?? []);
 
 const hasActiveFilters = computed(() => {
     return (
@@ -112,8 +115,8 @@ const hasActiveFilters = computed(() => {
         !!q.value.trim() ||
         !!from.value ||
         !!to.value
-    )
-})
+    );
+});
 
 // -------------------------
 // actions
@@ -127,223 +130,242 @@ function applyFilters() {
             from: from.value || undefined,
             to: to.value || undefined,
         },
-        { preserveScroll: true, preserveState: true, replace: true }
-    )
+        { preserveScroll: true, preserveState: true, replace: true },
+    );
 }
 
 function clearFilters() {
-    status.value = 'all'
-    q.value = ''
-    from.value = ''
-    to.value = ''
-    applyFilters()
+    status.value = 'all';
+    q.value = '';
+    from.value = '';
+    to.value = '';
+    applyFilters();
 }
 
 function setStatus(s: string) {
-    status.value = s
+    status.value = s;
     // aquí lo aplicamos de inmediato porque es un “tab”
-    applyFilters()
+    applyFilters();
 }
 
 function goTo(url: string | null) {
-    if (!url) return
-    router.visit(url, { preserveScroll: true, preserveState: true })
+    if (!url) return;
+    router.visit(url, { preserveScroll: true, preserveState: true });
 }
 </script>
 
 <template>
-
     <Head title="Facturas" />
 
     <AppLayout :breadcrumbs="breadcrumbs">
-        <div class="flex flex-col gap-4 p-4">
-            <!-- Header limpio -->
-            <div class="flex flex-col gap-2 md:flex-row md:items-end md:justify-between">
-                <div>
-                    <h1 class="text-xl font-semibold">Facturas</h1>
-                    <div class="text-sm text-muted-foreground">
-                        <span class="font-medium text-foreground">{{ props.company.name }}</span>
-                        · Moneda: {{ props.company.currency }}
-                        · TZ: {{ props.company.timezone }}
+        <PortalPage
+            :eyebrow="props.company.name"
+            title="Facturas"
+            description="Tus facturas de LAUDA: lo que se cobró, lo que ya pagaste y lo que queda pendiente."
+        >
+            <div class="space-y-3">
+                <div
+                    class="flex flex-col gap-3 md:flex-row md:items-center md:justify-between"
+                >
+                    <div
+                        class="flex flex-wrap gap-2"
+                        role="group"
+                        aria-label="Filtrar por estado"
+                    >
+                        <button
+                            v-for="[value, label] in statusTabs"
+                            :key="value"
+                            type="button"
+                            class="min-h-10 rounded-full border px-4 text-sm font-medium transition-colors"
+                            :class="
+                                status === value
+                                    ? 'border-slate-950 bg-slate-950 text-white dark:border-white dark:bg-white dark:text-slate-950'
+                                    : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-200'
+                            "
+                            :aria-pressed="status === value"
+                            @click="setStatus(value)"
+                        >
+                            {{ label }}
+                        </button>
+                    </div>
+                    <div class="flex flex-wrap gap-2">
+                        <button
+                            type="button"
+                            :class="portalButton.secondary"
+                            :aria-expanded="showAdvanced"
+                            @click="showAdvanced = !showAdvanced"
+                        >
+                            {{ showAdvanced ? 'Ocultar búsqueda' : 'Buscar' }}
+                        </button>
+                        <button
+                            v-if="hasActiveFilters"
+                            type="button"
+                            :class="portalButton.link"
+                            @click="clearFilters"
+                        >
+                            Quitar filtros
+                        </button>
                     </div>
                 </div>
 
-                <div class="flex flex-wrap gap-2">
-                    <Button variant="outline" size="sm" @click="showAdvanced = !showAdvanced">
-                        {{ showAdvanced ? 'Ocultar filtros' : 'Filtros avanzados' }}
-                    </Button>
-                    <Button v-if="hasActiveFilters" variant="outline" size="sm" @click="clearFilters">
-                        Limpiar
-                    </Button>
-                </div>
+                <form
+                    v-if="showAdvanced"
+                    class="grid gap-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm md:grid-cols-[2fr_1fr_1fr_auto] md:items-end dark:border-slate-800 dark:bg-slate-950"
+                    @submit.prevent="applyFilters"
+                >
+                    <label class="block text-sm">
+                        <span
+                            class="font-medium text-slate-700 dark:text-slate-300"
+                            >Número de factura o comprobante</span
+                        >
+                        <input
+                            v-model="q"
+                            type="search"
+                            class="mt-1.5 h-10 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm dark:border-slate-800 dark:bg-slate-950"
+                            placeholder="Ej. LAUDA-0001 o E310000000001"
+                        />
+                    </label>
+                    <label class="block text-sm">
+                        <span
+                            class="font-medium text-slate-700 dark:text-slate-300"
+                            >Emitida desde</span
+                        >
+                        <input
+                            v-model="from"
+                            type="date"
+                            class="mt-1.5 h-10 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm dark:border-slate-800 dark:bg-slate-950"
+                        />
+                    </label>
+                    <label class="block text-sm">
+                        <span
+                            class="font-medium text-slate-700 dark:text-slate-300"
+                            >Hasta</span
+                        >
+                        <input
+                            v-model="to"
+                            type="date"
+                            class="mt-1.5 h-10 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm dark:border-slate-800 dark:bg-slate-950"
+                        />
+                    </label>
+                    <button type="submit" :class="portalButton.dark">
+                        Buscar
+                    </button>
+                </form>
             </div>
 
-            <!-- Resumen en cards (más visual) -->
-            <div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
-                <SectionCard title="Página" description="Cantidad en esta página">
-                    <div class="text-2xl font-semibold">{{ counts.all }}</div>
-                </SectionCard>
-
-                <SectionCard title="Emitidas" description="En esta página">
-                    <div class="flex items-center gap-2">
-                        <Badge variant="secondary">issued</Badge>
-                        <div class="text-2xl font-semibold">{{ counts.issued }}</div>
-                    </div>
-                </SectionCard>
-
-                <SectionCard title="Pagadas" description="En esta página">
-                    <div class="flex items-center gap-2">
-                        <Badge variant="secondary">paid</Badge>
-                        <div class="text-2xl font-semibold">{{ counts.paid }}</div>
-                    </div>
-                </SectionCard>
-
-                <SectionCard title="Vencidas" description="En esta página">
-                    <div class="flex items-center gap-2">
-                        <Badge variant="destructive">overdue</Badge>
-                        <div class="text-2xl font-semibold">{{ counts.overdue }}</div>
-                    </div>
-                </SectionCard>
-
-                <SectionCard title="Anuladas" description="En esta página">
-                    <div class="flex items-center gap-2">
-                        <Badge variant="destructive">void</Badge>
-                        <div class="text-2xl font-semibold">{{ counts.void }}</div>
-                    </div>
-                </SectionCard>
+            <div
+                v-if="rows.length === 0"
+                class="rounded-2xl border border-dashed border-slate-300 bg-white p-8 text-center dark:border-slate-700 dark:bg-slate-950"
+            >
+                <h2 class="font-semibold text-slate-950 dark:text-white">
+                    {{
+                        hasActiveFilters
+                            ? 'No hay facturas con estos filtros'
+                            : 'Todavía no tienes facturas'
+                    }}
+                </h2>
+                <p class="mt-2 text-sm text-slate-600 dark:text-slate-400">
+                    {{
+                        hasActiveFilters
+                            ? 'Prueba con otro estado o quita los filtros.'
+                            : 'Aquí aparecerán cuando contrates una aplicación.'
+                    }}
+                </p>
             </div>
 
-            <!-- Estado como tabs/segmented -->
-            <SectionCard title="Estado" description="Filtra rápidamente por estado">
-                <div class="flex flex-wrap gap-2">
-                    <Button size="sm" variant="outline" :class="status === 'all' ? 'bg-muted' : ''" @click="setStatus('all')">
-                        Todas
-                    </Button>
-                    <Button size="sm" variant="outline" :class="status === 'draft' ? 'bg-muted' : ''" @click="setStatus('draft')">
-                        Borrador
-                    </Button>
-                    <Button size="sm" variant="outline" :class="status === 'issued' ? 'bg-muted' : ''" @click="setStatus('issued')">
-                        Emitidas
-                    </Button>
-                    <Button size="sm" variant="outline" :class="status === 'paid' ? 'bg-muted' : ''" @click="setStatus('paid')">
-                        Pagadas
-                    </Button>
-                    <Button size="sm" variant="outline" :class="status === 'overdue' ? 'bg-muted' : ''" @click="setStatus('overdue')">
-                        Vencidas
-                    </Button>
-                    <Button size="sm" variant="outline" :class="status === 'void' ? 'bg-muted' : ''" @click="setStatus('void')">
-                        Anuladas
-                    </Button>
-                </div>
-            </SectionCard>
-
-            <!-- Filtros avanzados colapsables -->
-            <SectionCard v-if="showAdvanced" title="Filtros avanzados" description="Búsqueda y rango de fechas">
-                <div class="grid gap-3 md:grid-cols-4">
-                    <div class="md:col-span-2">
-                        <div class="text-xs text-muted-foreground mb-1">Buscar</div>
-                        <input v-model="q" type="text" class="w-full rounded-md border px-3 py-2 text-sm bg-background" placeholder="No. factura / NCF / provider id..." @keydown.enter.prevent="applyFilters" />
+            <ul
+                v-else
+                class="divide-y divide-slate-100 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm dark:divide-slate-800 dark:border-slate-800 dark:bg-slate-950"
+            >
+                <li
+                    v-for="inv in rows"
+                    :key="inv.id"
+                    class="grid gap-3 p-4 sm:p-5 md:grid-cols-[minmax(0,1fr)_auto] md:items-center"
+                >
+                    <div class="min-w-0 space-y-1">
+                        <div class="flex flex-wrap items-center gap-2">
+                            <h2
+                                class="font-semibold break-all text-slate-950 dark:text-white"
+                            >
+                                {{ inv.number }}
+                            </h2>
+                            <span
+                                class="rounded-full px-2 py-0.5 text-xs font-medium"
+                                :class="statusTone(inv.status)"
+                                >{{ statusLabel(inv.status) }}</span
+                            >
+                        </div>
+                        <p class="text-sm text-slate-600 dark:text-slate-400">
+                            Emitida {{ formatDay(inv.issued_on) }}
+                            <template v-if="inv.due_on">
+                                · Vence {{ formatDay(inv.due_on) }}</template
+                            >
+                            <template v-if="inv.fiscal_number">
+                                · Comprobante {{ inv.fiscal_number }}</template
+                            >
+                        </p>
+                        <p class="text-sm text-slate-800 dark:text-slate-200">
+                            Total {{ formatMoney(inv.total, inv.currency) }}
+                            <span
+                                v-if="Number(inv.balance) > 0"
+                                class="font-semibold"
+                                :class="balanceClass(inv)"
+                            >
+                                · Pendiente
+                                {{
+                                    formatMoney(inv.balance, inv.currency)
+                                }}</span
+                            >
+                            <span
+                                v-else-if="Number(inv.amount_paid) > 0"
+                                class="text-slate-600 dark:text-slate-400"
+                            >
+                                · Pagado
+                                {{
+                                    formatMoney(inv.amount_paid, inv.currency)
+                                }}</span
+                            >
+                        </p>
                     </div>
-
-                    <div>
-                        <div class="text-xs text-muted-foreground mb-1">Desde (issued_on)</div>
-                        <input v-model="from" type="date" class="w-full rounded-md border px-3 py-2 text-sm bg-background" />
+                    <div class="flex flex-col gap-2 sm:flex-row md:justify-end">
+                        <a
+                            v-if="inv.payment_url"
+                            :href="inv.payment_url"
+                            target="_blank"
+                            rel="noopener"
+                            :class="portalButton.primary"
+                            >Pagar</a
+                        >
+                        <Link
+                            :href="`/subscriber/invoices/${inv.id}`"
+                            :class="portalButton.secondary"
+                            >Ver factura</Link
+                        >
                     </div>
+                </li>
+            </ul>
 
-                    <div>
-                        <div class="text-xs text-muted-foreground mb-1">Hasta (issued_on)</div>
-                        <input v-model="to" type="date" class="w-full rounded-md border px-3 py-2 text-sm bg-background" />
-                    </div>
-                </div>
-
-                <div class="mt-3 flex justify-end gap-2">
-                    <Button variant="outline" size="sm" @click="clearFilters">Limpiar</Button>
-                    <Button size="sm" @click="applyFilters">Aplicar</Button>
-                </div>
-            </SectionCard>
-
-            <!-- Tabla en su propio card -->
-            <SectionCard title="Listado" description="Facturas de tu compañía">
-                <div class="overflow-x-auto rounded-lg border">
-                    <table class="w-full text-sm">
-                        <thead class="bg-muted/40">
-                            <tr class="text-left">
-                                <th class="px-3 py-2">Número</th>
-                                <th class="px-3 py-2">Estado</th>
-                                <th class="px-3 py-2">Emitida</th>
-                                <th class="px-3 py-2">Vence</th>
-                                <th class="px-3 py-2">NCF</th>
-                                <th class="px-3 py-2 text-right">Total</th>
-                                <th class="px-3 py-2 text-right">Pagado</th>
-                                <th class="px-3 py-2 text-right">Balance</th>
-                                <th class="px-3 py-2">Acciones</th>
-                            </tr>
-                        </thead>
-
-                        <tbody>
-                            <tr v-if="rows.length === 0">
-                                <td colspan="9" class="px-3 py-4 text-muted-foreground">
-                                    No hay facturas para los filtros seleccionados.
-                                </td>
-                            </tr>
-
-                            <tr v-for="inv in rows" :key="inv.id" class="border-t">
-                                <td class="px-3 py-2 font-medium">{{ inv.number }}</td>
-
-                                <td class="px-3 py-2">
-                                    <Badge :variant="badgeVariantByInvoiceStatus(inv.status)">
-                                        {{ statusLabel(inv.status) }}
-                                    </Badge>
-                                </td>
-
-                                <td class="px-3 py-2 text-muted-foreground">{{ inv.issued_on ?? '—' }}</td>
-                                <td class="px-3 py-2 text-muted-foreground">{{ inv.due_on ?? '—' }}</td>
-
-                                <td class="px-3 py-2 text-muted-foreground">
-                                    <span v-if="inv.fiscal_number">{{ inv.fiscal_number }}</span>
-                                    <span v-else>—</span>
-                                </td>
-
-                                <td class="px-3 py-2 text-right">
-                                    {{ inv.total }} {{ inv.currency }}
-                                </td>
-
-                                <td class="px-3 py-2 text-right">
-                                    {{ inv.amount_paid }} {{ inv.currency }}
-                                </td>
-
-                                <td class="px-3 py-2 text-right font-medium" :class="balanceClass(inv)">
-                                    {{ inv.balance }} {{ inv.currency }}
-                                </td>
-
-                                <td class="px-3 py-2">
-                                    <div class="flex flex-wrap gap-2">
-                                        <Button size="sm" variant="outline" as-child>
-                                            <Link :href="`/subscriber/invoices/${inv.id}`">Ver</Link>
-                                        </Button>
-
-                                        <Button v-if="inv.hosted_invoice_url" size="sm" variant="outline" as-child>
-                                            <a :href="inv.hosted_invoice_url" target="_blank" rel="noopener">Abrir</a>
-                                        </Button>
-
-                                        <!-- Pagar (solo UI, la lógica la haces después) -->
-                                        <Button v-if="inv.payment_url" size="sm" class="bg-emerald-600 text-white hover:bg-emerald-700" as-child>
-                                            <a :href="inv.payment_url" target="_blank" rel="noopener">Pagar</a>
-                                        </Button>
-                                    </div>
-                                </td>
-                            </tr>
-                        </tbody>
-                    </table>
-                </div>
-
-                <!-- Pagination -->
-                <div v-if="props.invoices.links?.length" class="mt-4 flex flex-wrap gap-2">
-                    <Button v-for="l in props.invoices.links" :key="l.label" size="sm" variant="outline" :disabled="!l.url" :class="l.active ? 'bg-muted' : ''" @click="goTo(l.url)">
-                        <span v-html="l.label"></span>
-                    </Button>
-                </div>
-            </SectionCard>
-        </div>
+            <nav
+                v-if="props.invoices.links?.length > 3"
+                aria-label="Páginas de facturas"
+                class="flex flex-wrap gap-2"
+            >
+                <button
+                    v-for="l in props.invoices.links"
+                    :key="l.label"
+                    type="button"
+                    class="min-h-10 min-w-10 rounded-xl border px-3 text-sm"
+                    :class="
+                        l.active
+                            ? 'border-slate-950 bg-slate-950 text-white'
+                            : 'border-slate-200 bg-white text-slate-700 disabled:opacity-40'
+                    "
+                    :disabled="!l.url"
+                    @click="goTo(l.url)"
+                >
+                    {{ pageLabel(l.label) }}
+                </button>
+            </nav>
+        </PortalPage>
     </AppLayout>
 </template>
