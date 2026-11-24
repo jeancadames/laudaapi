@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Head, Link, router } from '@inertiajs/vue3';
+import { Head, Link, router, usePage } from '@inertiajs/vue3';
 import {
     ArrowLeft,
     CalendarClock,
@@ -50,6 +50,10 @@ const plan = props.plan;
 const change = useBusinessPackageChange({
     plan,
     client: createManageClient(plan),
+    // «Agregar a mi paquete» desde el Panel de control: se suma a lo contratado.
+    add: new URL(usePage().url, 'http://lauda.local').searchParams.getAll(
+        'agregar',
+    ),
     reloadChange: () =>
         new Promise<RegisteredChange | null>((resolve) => {
             let found: RegisteredChange | null = null;

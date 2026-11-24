@@ -32,6 +32,8 @@ const urlPurchaseId = computed(() => {
     const value = currentUrl().searchParams.get('compra');
     return isPurchaseId(value) ? value : null;
 });
+// «Agregar a mi paquete» desde el Panel de control: la aplicación llega marcada.
+const requestedApps = currentUrl().searchParams.getAll('agregar');
 const sessionPurchaseId = ref<string | null>(null);
 const dismissedPurchaseId = ref<string | null>(null);
 const resumeId =
@@ -166,6 +168,7 @@ const failureTitle: Partial<Record<FailureCode, string>> = {
                 :client="client"
                 :storage-scope="configurator.company.id"
                 :purchases-enabled="!!configurator.confirm_url"
+                :add="requestedApps"
                 @purchased="
                     (created) => showPurchase(created.purchase_id, created)
                 "

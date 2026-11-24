@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { Head, router, usePage } from '@inertiajs/vue3';
-import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import AppTile from '@/components/portal/AppTile.vue';
 import { portalButton } from '@/components/portal/buttons';
 import IdentityRevokeConfirm from '@/components/portal/IdentityRevokeConfirm.vue';
@@ -81,12 +81,26 @@ const revoke = ref<{
     company: Company;
     whole: boolean;
     service: string;
+    serviceKey: string;
 } | null>(null);
 const selected = computed(() =>
     props.identity.companies.find(
         (c) => String(c.id) === selectedCompany.value,
     ),
 );
+// La confirmación pertenece a una empresa y una aplicación concretas: al cambiar
+// de empresa se descarta para no actuar sobre la empresa anterior.
+watch(selectedCompany, () => {
+    revoke.value = null;
+});
+function revokeTargets(serviceKey: string): boolean {
+    return (
+        !!revoke.value &&
+        !!selected.value &&
+        revoke.value.serviceKey === serviceKey &&
+        revoke.value.company.id === selected.value.id
+    );
+}
 const chosenLocal = computed(() =>
     summary.value?.companies?.find((c) => String(c.id) === localCompany.value),
 );
@@ -316,6 +330,13 @@ async function start(service: Solution, restart = false) {
 async function confirmRevoke() {
     await run(async () => {
         if (!revoke.value) return;
+        if (
+            props.identity.side === 'central' &&
+            revoke.value.company.id !== selected.value?.id
+        ) {
+            revoke.value = null;
+            return;
+        }
         await json(
             revoke.value.url,
             {
@@ -945,6 +966,7 @@ onBeforeUnmount(() => {
                                             company: selected!,
                                             whole: false,
                                             service: service.name,
+                                            serviceKey: service.key,
                                         }
                                     "
                                 >
@@ -963,16 +985,14 @@ onBeforeUnmount(() => {
                                             company: selected!,
                                             whole: true,
                                             service: service.name,
+                                            serviceKey: service.key,
                                         }
                                     "
                                 >
                                     Desconectar la empresa
                                 </button>
                                 <IdentityRevokeConfirm
-                                    v-if="
-                                        revoke &&
-                                        revoke.service === service.name
-                                    "
+                                    v-if="revoke && revokeTargets(service.key)"
                                     :company="revoke.company.name"
                                     :service="revoke.service"
                                     :whole="revoke.whole"
@@ -1047,6 +1067,7 @@ onBeforeUnmount(() => {
                                             company,
                                             whole: false,
                                             service: identity.service_name,
+                                            serviceKey: identity.service_name,
                                         }
                                     "
                                 >
@@ -1064,6 +1085,7 @@ onBeforeUnmount(() => {
                                             company,
                                             whole: true,
                                             service: identity.service_name,
+                                            serviceKey: identity.service_name,
                                         }
                                     "
                                 >

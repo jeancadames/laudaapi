@@ -12,6 +12,7 @@ use App\Services\Subscribers\SubscriberResolver;
 use App\Services\Subscribers\TenantAccessService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 use Inertia\Inertia;
 
 class AppGatewayController extends Controller
@@ -152,8 +153,22 @@ class AppGatewayController extends Controller
                         return redirect()->route('app.gateway');
                     }
 
+                    // «Agregar a mi paquete»: con un paquete activado se cambia ese paquete;
+                    // sin paquete se arma uno nuevo.
+                    $packageManageUrl = null;
+                    if (config('business_commercial.enabled') && ($tenantAccess['can_manage_billing'] ?? false)
+                        && Schema::hasTable('business_package_changes')
+                        && in_array(app(CentralMembership::class)->role($user, $company), ['owner', 'admin'], true)) {
+                        $activated = app(BusinessPackagePurchases::class)->lastActivatedId($company);
+                        $packageManageUrl = $activated ? route('business.package.manage', $activated, false) : null;
+                    }
+
                     return Inertia::render('App/Hub', [
                         'business_identity_url' => config('business_identity.enabled') ? route('business.identity.index') : null,
+                        'business_package' => [
+                            'configurator_url' => route('business.package.build', absolute: false),
+                            'manage_url' => $packageManageUrl,
+                        ],
                         'company' => [
                             'id' => $company->id,
                             'name' =>

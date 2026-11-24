@@ -103,4 +103,25 @@ class AppGatewayHubContractTest extends TestCase
             );
         }
     }
+
+    public function test_add_to_package_opens_manage_for_an_active_package_and_keeps_the_app(): void
+    {
+        $controller = $this->read('app/Http/Controllers/AppGatewayController.php');
+        $hub = $this->read('resources/js/pages/App/Hub.vue');
+
+        // Con paquete activado, «Administrar mi paquete»; sin paquete, el configurador.
+        $this->assertStringContainsString("'business_package' => [", $controller);
+        $this->assertStringContainsString("route('business.package.manage', \$activated, false)", $controller);
+        $this->assertStringContainsString("route('business.package.build', absolute: false)", $controller);
+
+        // El botón lleva la aplicación elegida y nunca un enlace fijo al configurador.
+        $this->assertStringContainsString(':href="addToPackageHref(app)"', $hub);
+        $this->assertStringContainsString('props.business_package?.manage_url ??', $hub);
+        $this->assertStringContainsString('?agregar=${encodeURIComponent(String(app.service_key))}', $hub);
+        $this->assertStringNotContainsString('href="/app/business/self-service"', $hub);
+
+        // Ambas pantallas leen la aplicación pedida.
+        $this->assertStringContainsString("searchParams.getAll('agregar')", $this->read('resources/js/pages/Business/Package/Build.vue'));
+        $this->assertStringContainsString("'agregar',", $this->read('resources/js/pages/Business/Package/Manage.vue'));
+    }
 }

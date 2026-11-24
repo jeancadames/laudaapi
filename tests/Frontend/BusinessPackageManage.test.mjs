@@ -83,11 +83,12 @@ function backend({ prices = { ecf: 100000, cumplimiento: 100000, pos: 150000, by
     };
     return { state, fetch };
 }
-function mount(server = backend(), page = plan()) {
+function mount(server = backend(), page = plan(), add = undefined) {
     const change = useBusinessPackageChange({
         plan: page,
         client: createManageClient(page, server.fetch),
         reloadChange: async () => server.state.saved,
+        add,
     });
     return { change, server };
 }
@@ -99,6 +100,18 @@ test('cada aplicación dice si se conserva, se agrega o se da de baja', () => {
     const missing = appRows({ ...plan(), available: ['ecf'] }, ['ecf']);
     assert.equal(missing.find((row) => row.code === 'pos').locked, true, 'no se puede agregar lo que no está publicado');
     assert.equal(missing.find((row) => row.code === 'bys').locked, false, 'lo contratado se puede quitar');
+});
+
+test('«Agregar a mi paquete»: conserva lo contratado y marca la aplicación pedida', () => {
+    const { change } = mount(backend(), plan(), ['pos', 'ecf', 'nomina']);
+    assert.deepEqual(fates(change.rows.value), { ecf: 'kept', cumplimiento: 'kept', pos: 'added', bys: 'kept' });
+    assert.equal(change.changed.value, true);
+
+    const locked = mount(backend(), { ...plan(), available: ['ecf'] }, ['pos']).change;
+    assert.equal(locked.changed.value, false, 'no marca lo que no está publicado');
+
+    const saved = { products: ['ecf'], effective_at: EFFECTIVE, total_cents: 100000, terms_hash: 'x'.repeat(64), purchase_url: null };
+    assert.equal(mount(backend(), plan(saved), ['pos']).change.changed.value, false, 'con un cambio registrado no se marca nada');
 });
 
 test('quitar BYS: la revisión usa precio y fecha del servidor; nada se registra hasta confirmar', async () => {

@@ -200,32 +200,58 @@ class HandleInertiaRequests extends Middleware
     /**
      * «Conexiones Business» del cliente se muestra dentro del portal: solo lo que
      * necesita el menú lateral, con consultas de lectura y sin fijar empresa.
+     *
+     * Exige lo mismo que la lista de conexiones (correo verificado y membresía
+     * activa en una empresa activa). Si no se cumple, no se comparte nada y la
+     * página conserva su marco propio.
      */
     private function identityPortalShare(Request $request): array
     {
         $user = $request->user();
+        if (! $user->hasVerifiedEmail()) {
+            return [];
+        }
+
         $subscriberId = $this->resolveSubscriberId($user);
-        $tenantAccess = app(TenantAccessService::class)->resolve($user, $subscriberId);
         $company = $subscriberId
             ? app(CompanyContextResolver::class)->resolve($user, $subscriberId)
             : null;
+        $membershipRole = $company ? app(CentralMembership::class)->role($user, $company) : null;
+        if ($membershipRole === null) {
+            return [];
+        }
+
+        $tenantAccess = app(TenantAccessService::class)->resolve($user, $subscriberId);
+        $isTenantAdmin = ($tenantAccess['mode'] ?? null) === TenantAccessService::SUBSCRIBER_ADMIN;
         $commercial = (bool) config('business_commercial.enabled');
 
         return [
-            'auth' => ['user' => [...$user->only(['id', 'name', 'email', 'role']), 'tenant_access' => $tenantAccess]],
-            'activeCompany' => $company ? [
-                'id' => $company->id,
+            'auth' => ['user' => [...$user->only(['id', 'name', 'email', 'role']), 'tenant_access' => ['mode' => $tenantAccess['mode'] ?? null]]],
+            // El menú muestra el nombre a todos y el RNC solo a quien administra la empresa.
+            'activeCompany' => [
                 'name' => $company->name,
-                'slug' => $company->slug,
-                'ws_subdomain' => $company->ws_subdomain,
-                'tax_id' => \App\Models\CompanyTaxProfile::query()->where('company_id', $company->id)->value('tax_id'),
-            ] : null,
+                ...($isTenantAdmin ? ['tax_id' => \App\Models\CompanyTaxProfile::query()->where('company_id', $company->id)->value('tax_id')] : []),
+            ],
+            // Mismas capacidades que el resto del portal (p. ej. «Branding e identidad»).
+            'lauda360' => $this->identityLauda360($request, $user, $subscriberId, $tenantAccess),
             'businessIdentityEnabled' => (bool) config('business_identity.enabled'),
             'businessCommercialEnabled' => $commercial,
-            'canConfigureBusinessPackage' => $commercial && ($tenantAccess['can_manage_billing'] ?? false) && $company
-                && in_array(app(CentralMembership::class)->role($user, $company), ['owner', 'admin'], true),
+            'canConfigureBusinessPackage' => $commercial && ($tenantAccess['can_manage_billing'] ?? false)
+                && in_array($membershipRole, ['owner', 'admin'], true),
             'sidebarOpen' => ! $request->hasCookie('sidebar_state') || $request->cookie('sidebar_state') === 'true',
         ];
+    }
+
+    /** Si las capacidades no se pueden leer, el menú se muestra sin ese grupo opcional. */
+    private function identityLauda360(Request $request, $user, ?int $subscriberId, array $tenantAccess): ?array
+    {
+        try {
+            return $this->lauda360Payload($request, $user, $subscriberId, $tenantAccess);
+        } catch (\Throwable $exception) {
+            report($exception);
+
+            return null;
+        }
     }
 
     private function lauda360Payload(

@@ -51,7 +51,7 @@ const memory = (seed = {}) => {
 };
 const STORAGE_KEY = 'lauda.business.package.v1.77';
 
-function mount(scenario = 'exito', { storage = memory(), backend = createMockBackend({ samples, scenario }) } = {}) {
+function mount(scenario = 'exito', { storage = memory(), backend = createMockBackend({ samples, scenario }), add } = {}) {
     let keys = 0;
     const builder = useBusinessPackageBuilder({
         catalog: samples.catalog,
@@ -60,6 +60,7 @@ function mount(scenario = 'exito', { storage = memory(), backend = createMockBac
         storageScope: 77,
         debounceMs: 0,
         newKey: () => `key-${++keys}`,
+        add,
     });
     return { builder, backend, storage };
 }
@@ -223,6 +224,19 @@ test('ignora almacenamiento dañado y opciones que el catálogo ya no ofrece', (
         assert.deepEqual(builder.selection.value, { products, level: 'initial', cycle: 'monthly' });
         builder.dispose();
     }
+});
+
+test('«Agregar a mi paquete»: la aplicación pedida llega marcada y se suma a lo guardado', async () => {
+    const fresh = mount('exito', { add: ['pos'] });
+    assert.deepEqual(fresh.builder.selected.value, ['pos']);
+    await settled(fresh.builder);
+    assert.equal(fresh.builder.proposalIsCurrent.value, true, 'calcula el precio con la aplicación marcada');
+    fresh.builder.dispose();
+
+    const storage = memory({ [STORAGE_KEY]: JSON.stringify({ products: ['ecf'], level: 'initial', cycle: 'monthly' }) });
+    const merged = mount('exito', { storage, add: ['pos', 'nomina'] });
+    assert.deepEqual(merged.builder.selected.value, ['ecf', 'pos'], 'orden del catálogo; ignora lo que no se ofrece');
+    merged.builder.dispose();
 });
 
 test('invalid_selection: señala el producto por `products.N` y muestra el motivo', async () => {

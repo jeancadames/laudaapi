@@ -29,6 +29,8 @@ const props = defineProps<{
     client: SelfServiceClient;
     storageScope: string | number;
     purchasesEnabled: boolean;
+    /** Aplicaciones que llegan marcadas («Agregar a mi paquete»). */
+    add?: string[];
 }>();
 const emit = defineEmits<{
     /** Compra creada (201) o recuperada con la misma clave (200). */
@@ -51,6 +53,7 @@ const builder = useBusinessPackageBuilder({
     client: props.client,
     storage: sessionStore(),
     storageScope: props.storageScope,
+    add: props.add,
 });
 const {
     selected,
@@ -218,11 +221,20 @@ watch(existingPurchaseId, (purchaseId) => {
                 </header>
 
                 <section v-if="catalog.presets?.length" class="space-y-3">
-                    <h2 class="text-lg font-semibold">Paquetes predeterminados</h2>
-                    <p class="text-sm text-muted-foreground">Elige una combinación inicial. Puedes ajustar las aplicaciones antes de revisar el precio.</p>
+                    <h2 class="text-lg font-semibold">
+                        Paquetes predeterminados
+                    </h2>
+                    <p class="text-sm text-muted-foreground">
+                        Elige una combinación inicial. Puedes ajustar las
+                        aplicaciones antes de revisar el precio.
+                    </p>
                     <div class="flex flex-wrap gap-2">
-                        <Button v-for="preset in catalog.presets" :key="preset.code"
-                            variant="outline" @click="builder.selectPreset(preset.code)">
+                        <Button
+                            v-for="preset in catalog.presets"
+                            :key="preset.code"
+                            variant="outline"
+                            @click="builder.selectPreset(preset.code)"
+                        >
                             {{ preset.name }}
                         </Button>
                     </div>

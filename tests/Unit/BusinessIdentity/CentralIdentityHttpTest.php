@@ -12,6 +12,7 @@ use Illuminate\Foundation\Testing\TestCase;
 use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Schema;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PragmaRX\Google2FA\Google2FA;
 use Tests\Support\BusinessIdentityApplication;
@@ -269,8 +270,46 @@ final class CentralIdentityHttpTest extends TestCase
         (require base_path('database/migrations/2026_01_24_123011_company_tax_profiles_table.php'))->up();
         $this->get('/business/identity')->assertOk()->assertInertia(fn ($page) => $page->component('Business/Identity')
             ->where('auth.user.tenant_access.mode', 'subscriber.admin')->where('auth.user.role', 'subscriber')
-            ->where('activeCompany.name', 'Test company')->where('businessIdentityEnabled', true)
+            ->where('activeCompany.name', 'Test company')->has('activeCompany.tax_id')->where('businessIdentityEnabled', true)
+            ->missing('activeCompany.id')->missing('activeCompany.slug')->missing('activeCompany.ws_subdomain')
+            ->missing('auth.user.tenant_access.can_manage_billing')
             ->missing('auth.user.password')->missing('identity.request_token'));
+    }
+
+    public function test_sidebar_context_keeps_the_active_lauda360_capabilities(): void
+    {
+        (require base_path('database/migrations/2026_01_24_123011_company_tax_profiles_table.php'))->up();
+        (require base_path('database/migrations/2026_08_30_190000_create_transformation_capability_activations_table.php'))->up();
+        Schema::withoutForeignKeyConstraints(fn () => DB::table('transformation_capability_activations')->insert([
+            'company_id' => 1, 'diagnosis_assessment_id' => 1, 'capability_key' => 'branding_identity',
+            'source_type' => 'synthetic', 'source_id' => 1, 'status' => 'activated',
+        ]));
+
+        // «Branding e identidad» no desaparece del menú al entrar en Conexiones.
+        $this->get('/business/identity')->assertOk()->assertInertia(fn ($page) => $page->component('Business/Identity')
+            ->where('lauda360.company_id', 1)->where('lauda360.active_capabilities', ['branding_identity']));
+    }
+
+    public function test_sidebar_context_is_not_shared_with_an_unverified_account(): void
+    {
+        (require base_path('database/migrations/2026_01_24_123011_company_tax_profiles_table.php'))->up();
+        DB::table('users')->where('id', 1)->update(['email_verified_at' => null]);
+        $this->actingAs(User::findOrFail(1));
+
+        $this->get('/business/identity')->assertOk()->assertInertia(fn ($page) => $page->component('Business/Identity')
+            ->missing('activeCompany')->missing('auth.user.tenant_access')->missing('lauda360')->has('identity.companies', 0));
+    }
+
+    public function test_sidebar_context_is_not_shared_without_an_active_membership(): void
+    {
+        (require base_path('database/migrations/2026_01_24_123011_company_tax_profiles_table.php'))->up();
+        // La empresa sigue siendo suya (owner_user_id), pero la membresía ya no está activa.
+        DB::table('subscriber_user')->where('user_id', 1)->update(['active' => false]);
+        DB::table('companies')->where('id', 1)->update(['owner_user_id' => 1]);
+        $this->actingAs(User::findOrFail(1));
+
+        $this->get('/business/identity')->assertOk()->assertInertia(fn ($page) => $page->component('Business/Identity')
+            ->missing('activeCompany')->missing('auth.user.tenant_access')->missing('lauda360')->has('identity.companies', 0));
     }
 
     public function test_client_page_falls_back_to_its_own_frame_when_sidebar_context_fails(): void

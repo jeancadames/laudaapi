@@ -121,6 +121,10 @@ const props = defineProps<{
     groups: ActionGroup[];
     tenant_access: TenantAccess;
     business_identity_url?: string | null;
+    business_package?: {
+        configurator_url: string;
+        manage_url: string | null;
+    } | null;
     transformation360: Transformation360ControlPanel;
 }>();
 
@@ -211,7 +215,20 @@ const packageProducts = ['ecf', 'cumplimiento', 'pos', 'bys'];
 
 const addsToPackage = (app: Solution) =>
     Boolean(page.props.canConfigureBusinessPackage) &&
+    Boolean(props.business_package) &&
     packageProducts.includes(String(app.service_key));
+
+/**
+ * Con paquete activo se abre «Administrar mi paquete» (conserva lo contratado);
+ * sin paquete, «Armar mi paquete». En ambos la aplicación llega marcada.
+ */
+const addToPackageHref = (app: Solution) => {
+    const base =
+        props.business_package?.manage_url ??
+        props.business_package?.configurator_url ??
+        '/app/business/self-service';
+    return `${base}?agregar=${encodeURIComponent(String(app.service_key))}`;
+};
 
 /** Mostrar el buscador solo cuando hay suficientes apps para necesitarlo. */
 const showSearch = computed(() => uniqueApps.value.length > 4);
@@ -373,7 +390,7 @@ const stateLabel = (app: Solution) =>
                         >
                             <Link
                                 v-if="addsToPackage(app)"
-                                href="/app/business/self-service"
+                                :href="addToPackageHref(app)"
                                 :class="portalButton.primary"
                             >
                                 Agregar a mi paquete

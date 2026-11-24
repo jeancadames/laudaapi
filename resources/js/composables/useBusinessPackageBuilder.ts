@@ -29,6 +29,8 @@ export type PackageBuilderOptions = {
     storageScope?: string | number;
     debounceMs?: number;
     newKey?: () => string;
+    /** Aplicaciones pedidas desde otra pantalla («Agregar a mi paquete»); se suman a lo guardado. */
+    add?: readonly string[];
 };
 
 export type PackageFailure = {
@@ -115,7 +117,13 @@ export function useBusinessPackageBuilder(options: PackageBuilderOptions) {
     }
 
     const stored = readStored();
-    const initial = sanitize(stored);
+    const initial = sanitize({
+        ...stored,
+        products: [
+            ...(Array.isArray(stored.products) ? stored.products : []),
+            ...(options.add ?? []),
+        ],
+    });
 
     const selected = ref<Product[]>(initial.products);
     const level = ref<Level>(initial.level);
@@ -249,10 +257,13 @@ export function useBusinessPackageBuilder(options: PackageBuilderOptions) {
     }
 
     function selectPreset(code: string) {
-        const preset = catalog.presets?.find(item => item.code === code);
+        const preset = catalog.presets?.find((item) => item.code === code);
         if (!preset || confirming.value || !preset.levels.length) return;
-        selected.value = selectable.filter(product => preset.products.includes(product));
-        if (!preset.levels.includes(level.value)) level.value = preset.levels[0];
+        selected.value = selectable.filter((product) =>
+            preset.products.includes(product),
+        );
+        if (!preset.levels.includes(level.value))
+            level.value = preset.levels[0];
         persist();
         recalculate();
     }

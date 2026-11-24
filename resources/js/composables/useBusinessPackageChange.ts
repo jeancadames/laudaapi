@@ -27,9 +27,22 @@ export function useBusinessPackageChange(options: {
     client: ManageClient;
     /** Vuelve a leer la página (prop `plan`) y devuelve el cambio registrado, si existe. */
     reloadChange: () => Promise<RegisteredChange | null>;
+    /** Aplicaciones pedidas desde otra pantalla («Agregar a mi paquete»): parten marcadas. */
+    add?: readonly string[];
 }) {
     const { plan, client } = options;
-    const selection = ref<Product[]>([...plan.current.products]);
+    const requested = appRows(plan, plan.current.products)
+        .filter(
+            (row) =>
+                row.fate === 'excluded' &&
+                !row.locked &&
+                (options.add ?? []).includes(row.code),
+        )
+        .map((row) => row.code);
+    const selection = ref<Product[]>([
+        ...plan.current.products,
+        ...(plan.change ? [] : requested),
+    ]);
     const review = shallowRef<ChangeReview | null>(null);
     const saved = shallowRef<RegisteredChange | null>(plan.change);
     const accepted = ref(false);
