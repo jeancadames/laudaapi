@@ -1,16 +1,17 @@
 <script setup lang="ts">
 import { Head, Link, router } from '@inertiajs/vue3'
-import AppLayout from '@/layouts/AppLayout.vue'
+import { computed, ref } from 'vue'
+import { portalButton } from '@/components/portal/buttons'
+import PortalPage from '@/components/portal/PortalPage.vue'
 import SectionCard from '@/components/SectionCard.vue'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import type { BreadcrumbItem } from '@/types'
-import { computed, ref } from 'vue'
-import { subscriber } from '@/routes'
 import { useToast } from '@/components/ui/toast/use-toast'
 import { useDateFormatter } from '@/composables/useDateFormatter'
+import AppLayout from '@/layouts/AppLayout.vue'
+import type { BreadcrumbItem } from '@/types'
 
-const { formatDate, formatDateTime } = useDateFormatter()
+const { formatDate } = useDateFormatter()
 
 const { toast } = useToast()
 
@@ -57,8 +58,8 @@ const props = defineProps<{
 }>()
 
 const breadcrumbs: BreadcrumbItem[] = [
-    { title: 'Suscriptor', href: subscriber().url },
-    { title: 'Mis Servicios', href: '/subscriber/services/my' },
+    { title: 'Inicio', href: '/app' },
+    { title: 'Mis servicios', href: '/subscriber/services/my' },
 ]
 
 // -------------------------
@@ -97,13 +98,13 @@ function badgeVariant(status: any) {
 
 function label(status: any) {
     const s = normStatus(status)
-    if (s === 'trialing' || s === 'trial') return 'Trial'
+    if (s === 'trialing' || s === 'trial') return 'En prueba'
     if (s === 'active') return 'Activo'
     if (s === 'pending') return 'Solicitado'
     if (s === 'pending_payment') return 'Pendiente de pago'
     if (s === 'cancelled') return 'Cancelado'
     if (status === 'business_review') return 'Revisar cobertura Business'
-    return status || '—'
+    return 'Sin estado'
 }
 
 const activeServiceIds = computed(() => {
@@ -142,9 +143,9 @@ function canActivatePending(r: RequestedService) {
 }
 
 function pendingDisabledReason(r: RequestedService): string | null {
-    if (!props.activation_request) return 'Requiere solicitud de activación.'
+    if (!props.activation_request) return 'Primero activa tu cuenta.'
     const st = normStatus(r?.status)
-    if (st !== 'pending') return `Estado actual: ${r?.status ?? '—'}`
+    if (st !== 'pending') return `Estado: ${label(r?.status)}.`
     if (isAlreadyActive(r.service_id)) return 'Ya está activo.'
     return null
 }
@@ -162,11 +163,11 @@ function canCancelActive(s: ActiveService) {
 function cancelDisabledReason(s: ActiveService): string | null {
     if (s.business_managed) return 'Incluido en Business. Los cambios requieren revisión del contrato.'
     if (!isCancelableActiveStatus(s?.status)) {
-        return `No cancelable en estado: ${s?.status ?? '—'}`
+        return 'No se puede cancelar en este momento.'
     }
     const itemId = getSubscriptionItemId(s)
     if (!Number.isFinite(itemId) || itemId <= 0) {
-        return 'Falta subscription_item_id (o subscription_item.id) en el payload.'
+        return 'No se puede cancelar desde aquí. Escríbenos a soporte.'
     }
     return null
 }
@@ -527,13 +528,22 @@ function activateRequested(
     )
 }
 
+/** Aplicación cuya cancelación se está confirmando (la confirmación aparece en su tarjeta). */
+const cancellingId = ref<number | null>(null)
+
 function cancelSubscriptionItemByService(s: ActiveService) {
     const itemId = getSubscriptionItemId(s)
+
+    if (Number.isFinite(itemId) && itemId > 0 && cancellingId.value !== itemId) {
+        cancellingId.value = itemId
+        return
+    }
+    cancellingId.value = null
 
     if (!Number.isFinite(itemId) || itemId <= 0) {
         toast({
             title: 'No se puede cancelar',
-            description: 'No se encontró subscription_item_id en el servicio activo.',
+            description: 'No pudimos identificar esta aplicación. Escríbenos a soporte.',
             variant: 'destructive',
         })
         return
@@ -594,78 +604,83 @@ const showCancelled = computed(() => filter.value === 'all' || filter.value === 
     <Head title="Mis Servicios" />
 
     <AppLayout :breadcrumbs="breadcrumbs">
-        <div class="flex flex-col gap-4 p-4">
-            <nav v-if="props.categories.length || props.activation_url" aria-label="Catálogos de servicios" class="flex flex-wrap gap-2">
-                <Button v-for="category in props.categories" :key="category.url" variant="outline" as-child>
-                    <Link :href="category.url">{{ category.title }}</Link>
-                </Button>
-                <Button v-if="props.activation_url" variant="outline" as-child>
-                    <Link :href="props.activation_url">Ver mi activación</Link>
-                </Button>
-            </nav>
-            <SectionCard title="Resumen" description="Servicios activos (por suscripción) y solicitudes (por catálogo)">
-                <div class="text-sm text-muted-foreground space-y-1">
-                    <div>
-                        <span class="font-medium text-foreground">{{ props.company.name }}</span>
-                    </div>
+        <PortalPage
+            :eyebrow="props.company.name"
+            title="Mis servicios"
+            description="Las aplicaciones de tu suscripción y las que pediste activar."
+        >
+            <template v-if="props.categories.length || props.activation_url" #actions>
+                <Link
+                    v-for="category in props.categories"
+                    :key="category.url"
+                    :href="category.url"
+                    :class="portalButton.secondary"
+                >{{ category.title }}</Link>
+                <Link v-if="props.activation_url" :href="props.activation_url" :class="portalButton.secondary">Ver mi activación</Link>
+            </template>
 
-                    <div>
-                        Suscripción:
-                        <span class="font-medium text-foreground">{{ props.subscription?.status ?? '—' }}</span>
-                        <span v-if="props.subscription?.trial_ends_at_human">
-                            · Prueba termina: {{ formatDate(props.subscription.trial_ends_at_human) }}
-                        </span>
-                    </div>
+            <p
+                v-if="!props.activation_request && activeCount === 0"
+                role="status"
+                class="rounded-2xl border border-amber-300 bg-amber-50 p-4 text-sm text-amber-900 dark:border-amber-900/60 dark:bg-amber-950/30 dark:text-amber-100"
+            >
+                Para activar aplicaciones, primero activa tu cuenta.
+            </p>
+            <p
+                v-else-if="props.subscription?.trial_ends_at_human"
+                class="text-sm text-slate-600 dark:text-slate-400"
+            >
+                Tu período de prueba termina el {{ formatDate(props.subscription.trial_ends_at_human) }}.
+            </p>
 
-                    <div v-if="props.activation_request">
-                        Solicitud:
-                        <span class="font-medium text-foreground">#{{ props.activation_request.id }}</span>
-                        · {{ props.activation_request.status }}
-                    </div>
-
-                    <div v-else class="text-rose-600 dark:text-rose-400">
-                        No tienes solicitud de activación. Debes crearla para poder activar servicios.
-                    </div>
+            <div class="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+                <div class="flex flex-wrap gap-2" role="group" aria-label="Filtrar por estado">
+                    <button
+                        v-for="[key, text, count] in ([
+                            ['all', 'Todas', null],
+                            ['active', 'Activas', activeCount],
+                            ['pending', 'Solicitadas', requestedPendingCount],
+                            ['pending_payment', 'Por pagar', requestedPendingPaymentCount],
+                            ['cancelled', 'Canceladas', cancelledRequestedCount],
+                        ] as const)"
+                        :key="key"
+                        type="button"
+                        class="min-h-10 rounded-full border px-4 text-sm font-medium transition-colors"
+                        :class="filter === key ? 'border-slate-950 bg-slate-950 text-white dark:border-white dark:bg-white dark:text-slate-950' : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-200'"
+                        :aria-pressed="filter === key"
+                        @click="filter = key"
+                    >
+                        {{ text }}<span v-if="count" class="ml-1.5 tabular-nums opacity-70">{{ count }}</span>
+                    </button>
                 </div>
+                <label class="w-full md:w-64">
+                    <span class="sr-only">Buscar aplicación</span>
+                    <input
+                        v-model="q"
+                        type="search"
+                        class="h-10 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm dark:border-slate-800 dark:bg-slate-950"
+                        placeholder="Buscar aplicación"
+                    />
+                </label>
+            </div>
 
-                <div class="mt-3 flex flex-wrap gap-2 text-sm">
-                    <Badge variant="secondary">Activos: {{ activeCount }}</Badge>
-                    <Badge variant="secondary">Solicitudes: {{ requestedPendingCount }}</Badge>
-                    <Badge variant="secondary">Pendiente de pago: {{ requestedPendingPaymentCount }}</Badge>
-                    <Badge v-if="cancelledRequestedCount > 0" variant="secondary">Cancelados: {{ cancelledRequestedCount }}</Badge>
-                </div>
-
-                <!-- ✅ Filtros -->
-                <div class="mt-4 flex flex-col gap-3">
-                    <div class="flex flex-wrap gap-2">
-                        <Button size="sm" variant="outline" :class="filter === 'all' ? 'bg-muted' : ''" @click="filter = 'all'">Todos</Button>
-                        <Button size="sm" variant="outline" :class="filter === 'active' ? 'bg-muted' : ''" @click="filter = 'active'">Activos</Button>
-                        <Button size="sm" variant="outline" :class="filter === 'pending' ? 'bg-muted' : ''" @click="filter = 'pending'">Solicitudes</Button>
-                        <Button size="sm" variant="outline" :class="filter === 'pending_payment' ? 'bg-muted' : ''" @click="filter = 'pending_payment'">Pendiente de pago</Button>
-                        <Button size="sm" variant="outline" :class="filter === 'cancelled' ? 'bg-muted' : ''" @click="filter = 'cancelled'">Cancelados</Button>
-                    </div>
-
-                    <input v-model="q" type="text" class="w-full rounded-md border px-3 py-2 text-sm bg-background" placeholder="Buscar por título o categoría..." />
-                </div>
-            </SectionCard>
-
-            <SectionCard v-if="showActive" title="Servicios activos" description="Provienen de subscription_items (status active/trialing)">
+            <SectionCard v-if="showActive" title="Activas" description="Las aplicaciones que puedes usar ahora.">
                 <div v-if="activeFiltered.length === 0" class="text-sm text-muted-foreground">
                     No hay servicios activos para este filtro.
                 </div>
 
                 <div v-else class="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
-                    <div v-for="s in activeFiltered" :key="`a-${getSubscriptionItemId(s) || s.service_id || s.id}`" class="rounded-xl border p-4">
+                    <div v-for="s in activeFiltered" :key="`a-${getSubscriptionItemId(s) || s.service_id || s.id}`" class="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-950">
                         <div class="flex items-start justify-between gap-2">
                             <div class="min-w-0">
-                                <div class="text-sm font-semibold truncate">{{ s.title }}</div>
+                                <div class="text-sm font-semibold break-words">{{ s.title }}</div>
 
                                 <div v-if="s.short_description" class="text-sm text-muted-foreground line-clamp-2 mt-1">
                                     {{ s.short_description }}
                                 </div>
 
                                 <div v-if="s.category?.title" class="text-xs text-muted-foreground mt-2">
-                                    Categoría: {{ s.category.title }}
+                                    {{ s.category.title }}
                                 </div>
                             </div>
 
@@ -673,9 +688,20 @@ const showCancelled = computed(() => filter.value === 'all' || filter.value === 
                         </div>
 
                         <div class="mt-4 flex flex-wrap items-center gap-2">
-                            <Button size="sm" variant="destructive" :disabled="!canCancelActive(s)" @click="cancelSubscriptionItemByService(s)">
+                            <Button v-if="!s.business_managed && cancellingId !== getSubscriptionItemId(s)" size="sm" variant="outline" :disabled="!canCancelActive(s)" @click="cancelSubscriptionItemByService(s)">
                                 Cancelar
                             </Button>
+                            <div
+                                v-else-if="cancellingId === getSubscriptionItemId(s)"
+                                role="alert"
+                                class="w-full space-y-3 rounded-xl border border-amber-300 bg-amber-50 p-3 text-sm dark:border-amber-900/60 dark:bg-amber-950/30"
+                            >
+                                <p>¿Cancelar {{ s.title }}? Dejarás de poder usarla.</p>
+                                <div class="flex flex-wrap gap-2">
+                                    <button type="button" :class="portalButton.dark" @click="cancelSubscriptionItemByService(s)">Sí, cancelar</button>
+                                    <button type="button" :class="portalButton.link" @click="cancellingId = null">Mantenerla</button>
+                                </div>
+                            </div>
 
                             <div v-if="!canCancelActive(s)" class="text-xs text-muted-foreground">
                                 {{ cancelDisabledReason(s) }}
@@ -685,23 +711,23 @@ const showCancelled = computed(() => filter.value === 'all' || filter.value === 
                 </div>
             </SectionCard>
 
-            <SectionCard v-if="showPending" title="Solicitudes pendientes" description="Servicios solicitados en estado pending">
+            <SectionCard v-if="showPending && (filter !== 'all' || requestedPending.length)" title="Solicitadas" description="Elige el plan y la forma de pago para activarlas.">
                 <div v-if="requestedPending.length === 0" class="text-sm text-muted-foreground">
                     No hay solicitudes pendientes para este filtro.
                 </div>
 
                 <div v-else class="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
-                    <div v-for="r in requestedPending" :key="`r-p-${r.service_id}`" class="rounded-xl border p-4">
+                    <div v-for="r in requestedPending" :key="`r-p-${r.service_id}`" class="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-950">
                         <div class="flex items-start justify-between gap-2">
                             <div class="min-w-0">
-                                <div class="text-sm font-semibold truncate">{{ r.title }}</div>
+                                <div class="text-sm font-semibold break-words">{{ r.title }}</div>
 
                                 <div v-if="r.short_description" class="text-sm text-muted-foreground line-clamp-2 mt-1">
                                     {{ r.short_description }}
                                 </div>
 
                                 <div v-if="r.category?.title" class="text-xs text-muted-foreground mt-2">
-                                    Categoría: {{ r.category.title }}
+                                    {{ r.category.title }}
                                 </div>
                             </div>
 
@@ -787,7 +813,7 @@ const showCancelled = computed(() => filter.value === 'all' || filter.value === 
                                             v-else-if="props.subscription?.status === 'active'"
                                             class="text-[11px] text-muted-foreground"
                                         >
-                                            La suscripción legacy fija el ciclo
+                                            Tu suscripción actual define el ciclo
                                         </span>
                                     </div>
 
@@ -869,23 +895,23 @@ const showCancelled = computed(() => filter.value === 'all' || filter.value === 
                 </div>
             </SectionCard>
 
-            <SectionCard v-if="showPendingPayment" title="Pendientes de pago" description="Servicios en estado pendiente (acción de pago se agrega luego)">
+            <SectionCard v-if="showPendingPayment && (filter !== 'all' || requestedPendingPayment.length)" title="Por pagar" description="Se activan cuando se confirme el pago de su factura.">
                 <div v-if="requestedPendingPayment.length === 0" class="text-sm text-muted-foreground">
                     No hay pendientes de pago para este filtro.
                 </div>
 
                 <div v-else class="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
-                    <div v-for="r in requestedPendingPayment" :key="`r-pp-${r.service_id}`" class="rounded-xl border p-4">
+                    <div v-for="r in requestedPendingPayment" :key="`r-pp-${r.service_id}`" class="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-950">
                         <div class="flex items-start justify-between gap-2">
                             <div class="min-w-0">
-                                <div class="text-sm font-semibold truncate">{{ r.title }}</div>
+                                <div class="text-sm font-semibold break-words">{{ r.title }}</div>
 
                                 <div v-if="r.short_description" class="text-sm text-muted-foreground line-clamp-2 mt-1">
                                     {{ r.short_description }}
                                 </div>
 
                                 <div v-if="r.category?.title" class="text-xs text-muted-foreground mt-2">
-                                    Categoría: {{ r.category.title }}
+                                    {{ r.category.title }}
                                 </div>
                             </div>
 
@@ -893,29 +919,30 @@ const showCancelled = computed(() => filter.value === 'all' || filter.value === 
                         </div>
 
                         <div class="mt-3 text-xs text-muted-foreground">
-                            Este servicio está <span class="font-medium">pendiente de pago</span>. La acción de pago se agregará más adelante.
+                            Esta aplicación se activa cuando se confirme el pago.
+                            <Link href="/subscriber/invoices" class="font-medium text-slate-950 underline underline-offset-4 dark:text-white">Ver mis facturas</Link>
                         </div>
                     </div>
                 </div>
             </SectionCard>
 
-            <SectionCard v-if="showCancelled" title="Solicitudes canceladas" description="Histórico de solicitudes en estado cancelled">
+            <SectionCard v-if="showCancelled && (filter !== 'all' || requestedCancelled.length)" title="Canceladas" description="Solicitudes que ya no siguen.">
                 <div v-if="requestedCancelled.length === 0" class="text-sm text-muted-foreground">
                     No hay cancelados para este filtro.
                 </div>
 
                 <div v-else class="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
-                    <div v-for="r in requestedCancelled" :key="`r-c-${r.service_id}`" class="rounded-xl border p-4 opacity-80">
+                    <div v-for="r in requestedCancelled" :key="`r-c-${r.service_id}`" class="rounded-2xl border border-slate-200 bg-white p-4 opacity-80 dark:border-slate-800 dark:bg-slate-950">
                         <div class="flex items-start justify-between gap-2">
                             <div class="min-w-0">
-                                <div class="text-sm font-semibold truncate">{{ r.title }}</div>
+                                <div class="text-sm font-semibold break-words">{{ r.title }}</div>
 
                                 <div v-if="r.short_description" class="text-sm text-muted-foreground line-clamp-2 mt-1">
                                     {{ r.short_description }}
                                 </div>
 
                                 <div v-if="r.category?.title" class="text-xs text-muted-foreground mt-2">
-                                    Categoría: {{ r.category.title }}
+                                    {{ r.category.title }}
                                 </div>
                             </div>
 
@@ -928,6 +955,6 @@ const showCancelled = computed(() => filter.value === 'all' || filter.value === 
                     </div>
                 </div>
             </SectionCard>
-        </div>
+        </PortalPage>
     </AppLayout>
 </template>

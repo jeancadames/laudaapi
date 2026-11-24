@@ -1,91 +1,109 @@
 <script setup lang="ts">
-import { Head, router } from '@inertiajs/vue3'
-import AppLayout from '@/layouts/AppLayout.vue'
-import SectionCard from '@/components/SectionCard.vue'
-import { Button } from '@/components/ui/button'
-import type { BreadcrumbItem } from '@/types'
-import { computed, ref } from 'vue'
-import { subscriber } from '@/routes'
-import servicesRoutes from '@/routes/subscriber/services'
-import { useToast } from '@/components/ui/toast/use-toast'
-import { Badge } from '@/components/ui/badge'
-import { BadgeCheckIcon } from 'lucide-vue-next'
+import { Head, router } from '@inertiajs/vue3';
+import { computed, ref } from 'vue';
+import { portalButton } from '@/components/portal/buttons';
+import PortalPage from '@/components/portal/PortalPage.vue';
+import { useToast } from '@/components/ui/toast/use-toast';
+import AppLayout from '@/layouts/AppLayout.vue';
+import { formatMoney } from '@/lib/portalFormat';
+import servicesRoutes from '@/routes/subscriber/services';
+import type { BreadcrumbItem } from '@/types';
 
-const { toast } = useToast()
+const { toast } = useToast();
 
-const DEFAULT_CATEGORY = 'api-facturacion-electronica'
+const DEFAULT_CATEGORY = 'api-facturacion-electronica';
 
 const props = defineProps<{
-    company: null | { id: number; name: string; currency: string; timezone: string }
-    activation_request: null | { id: number; status: string }
-    subscription_status: string | null
-    can_select_services: boolean
+    company: null | {
+        id: number;
+        name: string;
+        currency: string;
+        timezone: string;
+    };
+    activation_request: null | { id: number; status: string };
+    subscription_status: string | null;
+    can_select_services: boolean;
+    can_select_services_reason?: string | null;
 
     category: {
-        id: number
-        title: string
-        slug: string
-        short_description?: string | null
-        description?: string | null
-        icon?: string | null
-    }
+        id: number;
+        title: string;
+        slug: string;
+        short_description?: string | null;
+        description?: string | null;
+        icon?: string | null;
+    };
 
     services: Array<{
-        id: number
-        title: string
-        slug: string
-        short_description?: string | null
-        description?: string | null
-        badge?: string | null
+        id: number;
+        title: string;
+        slug: string;
+        short_description?: string | null;
+        description?: string | null;
+        badge?: string | null;
 
-        type: string
-        billable: boolean
-        billing_model: string
-        currency: string
-        monthly_price: string | number | null
-        yearly_price: string | number | null
+        type: string;
+        billable: boolean;
+        billing_model: string;
+        currency: string;
+        monthly_price: string | number | null;
+        yearly_price: string | number | null;
 
-        requested: boolean
-        request_status?: string | null
-        active: boolean
-    }>
-}>()
+        requested: boolean;
+        request_status?: string | null;
+        active: boolean;
+    }>;
+}>();
 
 const breadcrumbs: BreadcrumbItem[] = [
-    { title: 'Suscriptor', href: subscriber().url },
+    { title: 'Inicio', href: '/app' },
     { title: 'Servicios', href: servicesRoutes.category(DEFAULT_CATEGORY).url },
-    { title: props.category.title, href: servicesRoutes.category(props.category.slug).url },
-]
+    {
+        title: props.category.title,
+        href: servicesRoutes.category(props.category.slug).url,
+    },
+];
 
-const canSelect = computed(() => !!props.can_select_services)
+const canSelect = computed(() => !!props.can_select_services);
 
 function toggleService(serviceId: number) {
     if (!canSelect.value) {
         toast({
-            title: 'Servicio no disponible',
-            description: props.can_select_services_reason ?? 'No puedes solicitar servicios en este momento.',
+            title: 'No disponible',
+            description:
+                props.can_select_services_reason ??
+                'No puedes solicitar servicios en este momento.',
             variant: 'destructive',
-        })
-        return
+        });
+        return;
     }
 
     if (!props.activation_request) {
         toast({
-            title: 'Requiere solicitud de activación',
-            description: 'Debes crear una solicitud antes de solicitar servicios.',
+            title: 'Primero activa tu cuenta',
+            description:
+                'Cuando tu cuenta esté activa podrás pedir aplicaciones.',
             variant: 'destructive',
-        })
-        return
+        });
+        return;
     }
 
-    router.post('/subscriber/services/request', { service_id: serviceId }, { preserveScroll: true })
+    router.post(
+        '/subscriber/services/request',
+        { service_id: serviceId },
+        { preserveScroll: true },
+    );
 }
 
 function priceLabel(s: any) {
-    if (!s.billable) return 'Incluido'
-    const m = s.monthly_price ? `${s.monthly_price} ${s.currency}/mes` : null
-    const y = s.yearly_price ? `${s.yearly_price} ${s.currency}/año` : null
-    return [ m, y ].filter(Boolean).join(' • ') || '—'
+    if (!s.billable) return 'Incluido';
+    const m = s.monthly_price
+        ? `${formatMoney(s.monthly_price, s.currency)} al mes`
+        : null;
+    const y = s.yearly_price
+        ? `${formatMoney(s.yearly_price, s.currency)} al año`
+        : null;
+    return [m, y].filter(Boolean).join(' · ') || 'Precio a consultar';
 }
 
 /**
@@ -95,43 +113,36 @@ function priceLabel(s: any) {
  * - pending/pending_payment => solicitado/pendiente
  */
 function statusLabel(s: any) {
-    if (s.active) return 'Activo'
+    if (s.active) return 'Activo';
 
-    const st = String(s.request_status ?? '').toLowerCase()
+    const st = String(s.request_status ?? '').toLowerCase();
 
     // ✅ si está cancelled, para el catálogo es como "no solicitado"
-    if (st === 'cancelled') return 'Disponible'
+    if (st === 'cancelled') return 'Disponible';
 
-    if (!s.requested) return 'Disponible'
-    if (st === 'pending_payment') return 'Pendiente de pago'
-    if (st === 'pending') return 'Solicitado'
+    if (!s.requested) return 'Disponible';
+    if (st === 'pending_payment') return 'Pendiente de pago';
+    if (st === 'pending') return 'Solicitado';
 
-    // fallback
-    return st || 'Solicitado'
+    return 'Solicitado';
 }
 
 const headerDescription = computed(() => {
-    return props.category.short_description?.trim()
-        || props.category.description?.trim()
-        || 'Servicios disponibles en esta categoría'
-})
+    return (
+        props.category.short_description?.trim() ||
+        props.category.description?.trim() ||
+        'Servicios disponibles en esta categoría'
+    );
+});
 
-function isBlueStatus(s: any) {
-    const st = statusLabel(s)
-    // ✅ Disponible y Activo son azules; y cancelled ahora cae en "Disponible"
-    return st === 'Disponible' || st === 'Activo'
-}
-
-function badgeVariant(s: any): 'secondary' | 'destructive' {
-    return isBlueStatus(s) ? 'secondary' : 'destructive'
-}
-
-function badgeBlueClass(s: any) {
-    return isBlueStatus(s) ? 'bg-blue-500 text-white dark:bg-blue-600' : ''
-}
-
-function showBadgeIcon(s: any) {
-    return isBlueStatus(s)
+/** Verde = activa · ámbar = solicitada o por pagar · gris = disponible. */
+function statusTone(s: any) {
+    const st = statusLabel(s);
+    if (st === 'Activo')
+        return 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300';
+    if (st === 'Disponible')
+        return 'bg-slate-100 text-slate-600 dark:bg-slate-900 dark:text-slate-300';
+    return 'bg-amber-50 text-amber-800 dark:bg-amber-950/40 dark:text-amber-200';
 }
 
 /**
@@ -141,111 +152,138 @@ function showBadgeIcon(s: any) {
  * - si request_status es cancelled => debe permitir "Solicitar" (no "Quitar")
  */
 function isCancelledRequest(s: any) {
-    return String(s.request_status ?? '').toLowerCase() === 'cancelled'
+    return String(s.request_status ?? '').toLowerCase() === 'cancelled';
 }
 
 function canToggle(s: any) {
-    if (!props.activation_request) return false
-    if (!canSelect.value) return false
-    if (s.active) return false
-    return true
+    if (!props.activation_request) return false;
+    if (!canSelect.value) return false;
+    if (s.active) return false;
+    return true;
 }
 
 function buttonLabel(s: any) {
-    if (s.active) return 'Activo'
-    if (!canSelect.value) return 'Requiere suscripción'
+    if (s.active) return 'Activo';
+    if (!canSelect.value) return 'Requiere suscripción';
 
     // ✅ cancelled => vuelve a ser "Solicitar"
-    if (isCancelledRequest(s)) return 'Solicitar'
+    if (isCancelledRequest(s)) return 'Solicitar';
 
     // requested (no cancelled) => Quitar
-    if (s.requested) return 'Quitar'
+    if (s.requested) return 'Quitar';
 
-    return 'Solicitar'
+    return 'Solicitar';
 }
 
 // búsqueda opcional
-const q = ref('')
+const q = ref('');
 const filtered = computed(() => {
-    const term = q.value.trim().toLowerCase()
-    if (!term) return props.services
+    const term = q.value.trim().toLowerCase();
+    if (!term) return props.services;
     return props.services.filter((s) => {
-        const t = (s.title ?? '').toLowerCase()
-        const slug = (s.slug ?? '').toLowerCase()
-        const sd = (s.short_description ?? '').toLowerCase()
-        const d = (s.description ?? '').toLowerCase()
-        return t.includes(term) || slug.includes(term) || sd.includes(term) || d.includes(term)
-    })
-})
+        const t = (s.title ?? '').toLowerCase();
+        const sd = (s.short_description ?? '').toLowerCase();
+        const d = (s.description ?? '').toLowerCase();
+        return t.includes(term) || sd.includes(term) || d.includes(term);
+    });
+});
 </script>
 
 <template>
-
     <Head :title="props.category.title" />
 
     <AppLayout :breadcrumbs="breadcrumbs">
-        <div class="flex h-full flex-1 flex-col gap-4 overflow-x-auto rounded-xl p-4">
-            <SectionCard :title="props.category.title" :description="headerDescription">
-                <div class="text-sm text-muted-foreground mb-4 space-y-2">
-                    <div v-if="props.activation_request">
-                        Solicitud:
-                        <span class="font-medium text-foreground">#{{ props.activation_request.id }}</span>
-                        • Estado: {{ props.activation_request.status }}
+        <PortalPage
+            :eyebrow="props.company?.name ?? null"
+            :title="props.category.title"
+            :description="headerDescription"
+        >
+            <p
+                v-if="!props.activation_request"
+                role="status"
+                class="rounded-2xl border border-amber-300 bg-amber-50 p-4 text-sm text-amber-900 dark:border-amber-900/60 dark:bg-amber-950/30 dark:text-amber-100"
+            >
+                Para pedir aplicaciones, primero activa tu cuenta.
+            </p>
+            <p
+                v-else-if="!canSelect"
+                role="status"
+                class="rounded-2xl border border-amber-300 bg-amber-50 p-4 text-sm text-amber-900 dark:border-amber-900/60 dark:bg-amber-950/30 dark:text-amber-100"
+            >
+                {{
+                    props.can_select_services_reason ??
+                    'Por ahora no puedes pedir aplicaciones desde aquí.'
+                }}
+            </p>
+
+            <label v-if="props.services.length > 4" class="block max-w-md">
+                <span class="sr-only">Buscar aplicación</span>
+                <input
+                    v-model="q"
+                    type="search"
+                    class="h-10 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm dark:border-slate-800 dark:bg-slate-950"
+                    placeholder="Buscar aplicación"
+                />
+            </label>
+
+            <ul class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                <li
+                    v-for="s in filtered"
+                    :key="s.id"
+                    class="flex flex-col gap-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-950"
+                >
+                    <div class="flex items-start justify-between gap-3">
+                        <h2
+                            class="font-semibold break-words text-slate-950 dark:text-white"
+                        >
+                            {{ s.title }}
+                        </h2>
+                        <span
+                            class="shrink-0 rounded-full px-2 py-0.5 text-xs font-medium"
+                            :class="statusTone(s)"
+                            >{{ statusLabel(s) }}</span
+                        >
                     </div>
-                    <div v-else class="text-rose-600 dark:text-rose-400">
-                        No tienes solicitud de activación. Debes crearla antes de solicitar servicios.
-                    </div>
+                    <p
+                        v-if="s.short_description || s.description"
+                        class="line-clamp-3 text-sm text-slate-600 dark:text-slate-400"
+                    >
+                        {{ s.short_description || s.description }}
+                    </p>
+                    <p
+                        class="text-sm font-medium text-slate-800 dark:text-slate-200"
+                    >
+                        {{ priceLabel(s) }}
+                    </p>
+                    <p
+                        v-if="s.badge"
+                        class="text-xs text-slate-600 dark:text-slate-400"
+                    >
+                        {{ s.badge }}
+                    </p>
+                    <button
+                        type="button"
+                        class="mt-auto w-full"
+                        :class="
+                            canToggle(s) &&
+                            !(s.requested && !isCancelledRequest(s))
+                                ? portalButton.primary
+                                : portalButton.secondary
+                        "
+                        :disabled="!canToggle(s)"
+                        @click="toggleService(s.id)"
+                    >
+                        {{ buttonLabel(s) }}
+                    </button>
+                </li>
+            </ul>
 
-                    <div v-if="props.activation_request && !canSelect" class="text-amber-600 dark:text-amber-400">
-                        No puedes solicitar servicios en este momento.
-                        <span v-if="props.subscription_status" class="text-muted-foreground">
-                            (Estado actual: {{ props.subscription_status }})
-                        </span>
-                    </div>
-                </div>
-
-                <div class="mb-4">
-                    <input v-model="q" type="text" class="w-full rounded-md border px-3 py-2 text-sm bg-background" placeholder="Buscar por título, slug o descripción..." />
-                </div>
-
-                <div class="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-                    <div v-for="s in filtered" :key="s.id" class="rounded-xl border border-sidebar-border/70 bg-background p-4 dark:border-sidebar-border">
-                        <div class="flex items-start justify-between gap-3">
-                            <div class="min-w-0">
-                                <div class="text-sm font-semibold truncate">{{ s.title }}</div>
-
-                                <div v-if="s.short_description" class="mt-1 text-sm text-muted-foreground line-clamp-2">
-                                    {{ s.short_description }}
-                                </div>
-                                <div v-else-if="s.description" class="mt-1 text-sm text-muted-foreground line-clamp-2">
-                                    {{ s.description }}
-                                </div>
-
-                                <div class="mt-2 text-xs text-muted-foreground">
-                                    {{ priceLabel(s) }} • {{ s.billing_model }}
-                                </div>
-                            </div>
-
-                            <Badge :variant="badgeVariant(s)" class="shrink-0 gap-1" :class="badgeBlueClass(s)">
-                                <BadgeCheckIcon v-if="showBadgeIcon(s)" class="h-3.5 w-3.5" />
-                                {{ statusLabel(s) }}
-                            </Badge>
-                        </div>
-
-                        <div class="mt-4 flex items-center justify-between gap-2">
-                            <Button size="sm" variant="outline" :disabled="!canToggle(s)" @click="toggleService(s.id)">
-                                {{ buttonLabel(s) }}
-                            </Button>
-
-                            <div v-if="s.badge" class="text-xs text-muted-foreground">{{ s.badge }}</div>
-                        </div>
-                    </div>
-                </div>
-
-                <div v-if="filtered.length === 0" class="text-sm text-muted-foreground">
-                    No hay servicios que coincidan con tu búsqueda.
-                </div>
-            </SectionCard>
-        </div>
+            <p
+                v-if="filtered.length === 0"
+                class="rounded-2xl border border-dashed border-slate-300 bg-white p-6 text-center text-sm text-slate-600 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-400"
+            >
+                No hay aplicaciones que coincidan con tu búsqueda.
+            </p>
+        </PortalPage>
     </AppLayout>
 </template>

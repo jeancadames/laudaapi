@@ -1,129 +1,117 @@
 <script setup lang="ts">
-import { Head, router, useForm } from '@inertiajs/vue3'
-import { computed, ref } from 'vue'
-import AppLayout from '@/layouts/AppLayout.vue'
-import SectionCard from '@/components/SectionCard.vue'
-import { Badge } from '@/components/ui/badge'
-import { Button } from '@/components/ui/button'
-import type { BreadcrumbItem } from '@/types'
-import { subscriber } from '@/routes'
-import { useToast } from '@/components/ui/toast/use-toast'
-import Select from '@/components/ui/select/Select.vue'
-import SelectTrigger from '@/components/ui/select/SelectTrigger.vue'
-import SelectValue from '@/components/ui/select/SelectValue.vue'
-import SelectContent from '@/components/ui/select/SelectContent.vue'
-import SelectGroup from '@/components/ui/select/SelectGroup.vue'
-import SelectItem from '@/components/ui/select/SelectItem.vue'
-import Textarea from '@/components/ui/textarea/Textarea.vue'
+import { Head, router, useForm } from '@inertiajs/vue3';
+import { computed, ref } from 'vue';
+import { portalButton } from '@/components/portal/buttons';
+import PortalPage from '@/components/portal/PortalPage.vue';
+import PortalSection from '@/components/portal/PortalSection.vue';
+import Textarea from '@/components/ui/textarea/Textarea.vue';
+import { useToast } from '@/components/ui/toast/use-toast';
+import AppLayout from '@/layouts/AppLayout.vue';
+import { formatDay } from '@/lib/portalFormat';
+import type { BreadcrumbItem } from '@/types';
 
-const { toast } = useToast()
+const { toast } = useToast();
 
 /**
  * Tipos
  */
-type TicketStatus = 'open' | 'pending' | 'answered' | 'closed'
-type TicketPriority = 'low' | 'normal' | 'high' | 'urgent'
+type TicketStatus = 'open' | 'pending' | 'answered' | 'closed';
+type TicketPriority = 'low' | 'normal' | 'high' | 'urgent';
 
 type SupportTicket = {
-    id: number
-    subject: string
-    status: TicketStatus
-    priority?: TicketPriority | null
-    category?: string | null
-    last_reply_at?: string | null
-    created_at?: string | null
-}
+    id: number;
+    subject: string;
+    status: TicketStatus;
+    priority?: TicketPriority | null;
+    category?: string | null;
+    last_reply_at?: string | null;
+    created_at?: string | null;
+};
 
 type FaqItem = {
-    id: number
-    question: string
-    answer: string
-    category?: string | null
+    id: number;
+    question: string;
+    answer: string;
+    category?: { title?: string | null } | null;
     // útil si luego quieres destacar
-    featured?: boolean
-}
-
-type BadgeVariant = 'default' | 'secondary' | 'destructive' | 'outline' | null
+    featured?: boolean;
+};
 
 const props = defineProps<{
-    faqs: FaqItem[]
-    tickets: SupportTicket[]
+    /** Laravel la envía como `faq` (SubscriberSupportController). */
+    faq: FaqItem[];
+    tickets: SupportTicket[];
     // opcional si quieres que el backend mande filtros actuales
     filters?: {
-        q?: string | null
-        status?: TicketStatus | 'all' | null
-    }
-}>()
+        q?: string | null;
+        status?: TicketStatus | 'all' | null;
+    };
+}>();
 
 /**
  * Breadcrumbs
  */
 const breadcrumbs: BreadcrumbItem[] = [
-    { title: 'Suscriptor', href: subscriber().url },
+    { title: 'Inicio', href: '/app' },
     { title: 'Soporte', href: '/subscriber/support' },
-]
+];
 
 /**
  * Helpers UI
  */
 function statusLabel(st: TicketStatus): string {
-    if (st === 'open') return 'Abierto'
-    if (st === 'pending') return 'Pendiente'
-    if (st === 'answered') return 'Respondido'
-    if (st === 'closed') return 'Cerrado'
-    return st
+    if (st === 'open') return 'Abierto';
+    if (st === 'pending') return 'Pendiente';
+    if (st === 'answered') return 'Respondido';
+    if (st === 'closed') return 'Cerrado';
+    return st;
 }
 
-function statusVariant(st: TicketStatus): BadgeVariant {
-    // ✅ Tipado fuerte (evita error TS)
-    if (st === 'open') return 'secondary'
-    if (st === 'pending') return 'outline'
-    if (st === 'answered') return 'secondary'
-    if (st === 'closed') return 'secondary'
-    return 'secondary'
+/** Ámbar = espera respuesta de soporte · verde = respondida · gris = cerrada. */
+function statusTone(st: TicketStatus): string {
+    if (st === 'answered')
+        return 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300';
+    if (st === 'closed')
+        return 'bg-slate-100 text-slate-600 dark:bg-slate-900 dark:text-slate-300';
+    return 'bg-amber-50 text-amber-800 dark:bg-amber-950/40 dark:text-amber-200';
 }
 
 function priorityLabel(p?: TicketPriority | null): string {
-    if (!p) return 'Normal'
-    if (p === 'low') return 'Baja'
-    if (p === 'normal') return 'Normal'
-    if (p === 'high') return 'Alta'
-    if (p === 'urgent') return 'Urgente'
-    return p
-}
-
-function priorityVariant(p?: TicketPriority | null): BadgeVariant {
-    if (!p || p === 'normal' || p === 'low') return 'secondary'
-    if (p === 'high') return 'outline'
-    if (p === 'urgent') return 'destructive'
-    return 'secondary'
+    if (!p) return 'Normal';
+    if (p === 'low') return 'Baja';
+    if (p === 'normal') return 'Normal';
+    if (p === 'high') return 'Alta';
+    if (p === 'urgent') return 'Urgente';
+    return p;
 }
 
 /**
  * Filtros (locales + opcional sync a URL)
  * Si prefieres server-side: en applyFilters() haces router.get() con query params
  */
-const q = ref<string>(props.filters?.q ?? '')
-const status = ref<TicketStatus | 'all'>(props.filters?.status ?? 'all')
+const q = ref<string>(props.filters?.q ?? '');
+const status = ref<TicketStatus | 'all'>(props.filters?.status ?? 'all');
 
 const filteredFaqs = computed(() => {
-    const term = q.value.trim().toLowerCase()
-    if (!term) return props.faqs ?? []
-    return (props.faqs ?? []).filter((f) => {
-        const hay = `${f.question} ${f.answer} ${f.category ?? ''}`.toLowerCase()
-        return hay.includes(term)
-    })
-})
+    const term = q.value.trim().toLowerCase();
+    if (!term) return props.faq ?? [];
+    return (props.faq ?? []).filter((f) => {
+        const hay =
+            `${f.question} ${f.answer} ${f.category?.title ?? ''}`.toLowerCase();
+        return hay.includes(term);
+    });
+});
 
 const filteredTickets = computed(() => {
-    const term = q.value.trim().toLowerCase()
+    const term = q.value.trim().toLowerCase();
     return (props.tickets ?? []).filter((t) => {
-        const matchesStatus = status.value === 'all' ? true : t.status === status.value
-        const hay = `${t.subject} ${t.category ?? ''}`.toLowerCase()
-        const matchesQ = !term ? true : hay.includes(term)
-        return matchesStatus && matchesQ
-    })
-})
+        const matchesStatus =
+            status.value === 'all' ? true : t.status === status.value;
+        const hay = `${t.subject} ${t.category ?? ''}`.toLowerCase();
+        const matchesQ = !term ? true : hay.includes(term);
+        return matchesStatus && matchesQ;
+    });
+});
 
 function applyFilters() {
     // ✅ Si quieres que el backend filtre y la URL mantenga estado:
@@ -133,240 +121,297 @@ function applyFilters() {
             q: q.value?.trim() || null,
             status: status.value === 'all' ? null : status.value,
         },
-        { preserveScroll: true, preserveState: true, replace: true }
-    )
+        { preserveScroll: true, preserveState: true, replace: true },
+    );
 }
 
 /**
  * Nuevo ticket (creación)
  * Ajusta la ruta a tu controlador real: POST /subscriber/support/tickets por ejemplo.
  */
-const showNew = ref(false)
+const showNew = ref(false);
 
 const form = useForm({
     subject: '',
     category: '',
     priority: 'normal' as TicketPriority,
     message: '',
-})
+});
 
-const isSaving = computed(() => form.processing)
+const isSaving = computed(() => form.processing);
 
 function createTicket() {
     if (!form.subject.trim() || !form.message.trim()) {
         toast({
             title: 'Faltan datos',
-            description: 'Asunto y mensaje son requeridos.',
+            description: 'Escribe el asunto y el mensaje.',
             variant: 'destructive',
-        })
-        return
+        });
+        return;
     }
 
     // ✅ Ruta sugerida (ajústala a la tuya)
     form.post('/subscriber/support/tickets', {
         preserveScroll: true,
         onSuccess: () => {
-            showNew.value = false
-            form.reset()
+            showNew.value = false;
+            form.reset();
         },
-    })
+    });
 }
 </script>
 
 <template>
-
     <Head title="Soporte" />
 
     <AppLayout :breadcrumbs="breadcrumbs">
-        <div class="flex flex-col gap-4 p-4">
-            <!-- Header + filtros -->
-            <SectionCard title="Soporte" description="Preguntas frecuentes y tickets de soporte">
-                <div class="grid gap-3 md:grid-cols-3">
-                    <div class="md:col-span-2 space-y-1">
-                        <label class="text-sm font-medium">Buscar</label>
-                        <input v-model="q" type="text" class="w-full rounded-md border px-3 py-2 text-sm bg-background" placeholder="Buscar en FAQs o tickets..." @keydown.enter.prevent="applyFilters" />
-                    </div>
+        <PortalPage
+            title="Soporte"
+            description="Busca una respuesta rápida o escríbenos. Te respondemos aquí mismo."
+        >
+            <template #actions>
+                <button
+                    type="button"
+                    :class="
+                        showNew ? portalButton.secondary : portalButton.dark
+                    "
+                    :aria-expanded="showNew"
+                    @click="showNew = !showNew"
+                >
+                    {{ showNew ? 'Cerrar' : 'Escribir a soporte' }}
+                </button>
+            </template>
 
-                    <div class="space-y-1">
-                        <label class="text-sm font-medium">Estado</label>
-                        <Select v-model="status" @update:model-value="applyFilters">
-                            <SelectTrigger class="w-full rounded-md border px-3 py-2 text-sm bg-background">
-                                <SelectValue placeholder="Todos" />
-                            </SelectTrigger>
-
-                            <SelectContent>
-                                <SelectGroup>
-                                    <SelectItem value="all">Todos</SelectItem>
-                                    <SelectItem value="open">Abierto</SelectItem>
-                                    <SelectItem value="pending">Pendiente</SelectItem>
-                                    <SelectItem value="answered">Respondido</SelectItem>
-                                    <SelectItem value="closed">Cerrado</SelectItem>
-                                </SelectGroup>
-                            </SelectContent>
-                        </Select>
-                    </div>
+            <form
+                v-if="showNew"
+                class="grid gap-4 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5 md:grid-cols-2 dark:border-slate-800 dark:bg-slate-950"
+                @submit.prevent="createTicket"
+            >
+                <h2
+                    class="font-semibold text-slate-950 md:col-span-2 dark:text-white"
+                >
+                    Nueva solicitud
+                </h2>
+                <label class="block text-sm md:col-span-2">
+                    <span class="font-medium text-slate-700 dark:text-slate-300"
+                        >Asunto</span
+                    >
+                    <input
+                        v-model="form.subject"
+                        type="text"
+                        class="mt-1.5 h-10 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm dark:border-slate-800 dark:bg-slate-950"
+                        placeholder="Ej. No puedo abrir una aplicación"
+                    />
+                    <span
+                        v-if="form.errors.subject"
+                        class="mt-1 block text-red-600"
+                        >{{ form.errors.subject }}</span
+                    >
+                </label>
+                <label class="block text-sm">
+                    <span class="font-medium text-slate-700 dark:text-slate-300"
+                        >Tema (opcional)</span
+                    >
+                    <input
+                        v-model="form.category"
+                        type="text"
+                        class="mt-1.5 h-10 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm dark:border-slate-800 dark:bg-slate-950"
+                        placeholder="Ej. Facturación, aplicaciones, cuenta"
+                    />
+                    <span
+                        v-if="form.errors.category"
+                        class="mt-1 block text-red-600"
+                        >{{ form.errors.category }}</span
+                    >
+                </label>
+                <label class="block text-sm">
+                    <span class="font-medium text-slate-700 dark:text-slate-300"
+                        >¿Qué tan urgente es?</span
+                    >
+                    <select
+                        v-model="form.priority"
+                        class="mt-1.5 h-10 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm dark:border-slate-800 dark:bg-slate-950"
+                    >
+                        <option value="low">Puede esperar</option>
+                        <option value="normal">Normal</option>
+                        <option value="high">Me afecta el trabajo</option>
+                        <option value="urgent">No puedo trabajar</option>
+                    </select>
+                    <span
+                        v-if="form.errors.priority"
+                        class="mt-1 block text-red-600"
+                        >{{ form.errors.priority }}</span
+                    >
+                </label>
+                <label class="block text-sm md:col-span-2">
+                    <span class="font-medium text-slate-700 dark:text-slate-300"
+                        >Mensaje</span
+                    >
+                    <Textarea
+                        v-model="form.message"
+                        rows="5"
+                        class="mt-1.5 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm dark:border-slate-800 dark:bg-slate-950"
+                        placeholder="Cuéntanos qué pasó y qué esperabas que pasara."
+                    />
+                    <span
+                        v-if="form.errors.message"
+                        class="mt-1 block text-red-600"
+                        >{{ form.errors.message }}</span
+                    >
+                </label>
+                <div class="flex flex-col gap-2 sm:flex-row md:col-span-2">
+                    <button
+                        type="submit"
+                        :disabled="isSaving"
+                        :class="portalButton.dark"
+                    >
+                        {{ isSaving ? 'Enviando…' : 'Enviar solicitud' }}
+                    </button>
+                    <button
+                        type="button"
+                        :disabled="isSaving"
+                        :class="portalButton.link"
+                        @click="showNew = false"
+                    >
+                        Cancelar
+                    </button>
                 </div>
+            </form>
 
-                <div class="mt-4 flex flex-wrap items-center justify-between gap-2">
-                    <div class="text-sm text-muted-foreground">
-                        FAQs: <span class="font-medium text-foreground">{{ filteredFaqs.length }}</span>
-                        · Tickets: <span class="font-medium text-foreground">{{ filteredTickets.length }}</span>
-                    </div>
+            <label class="block max-w-xl">
+                <span class="sr-only">Buscar en preguntas y solicitudes</span>
+                <input
+                    v-model="q"
+                    type="search"
+                    class="h-11 w-full rounded-xl border border-slate-200 bg-white px-4 text-sm shadow-sm dark:border-slate-800 dark:bg-slate-950"
+                    placeholder="Buscar en preguntas frecuentes y en tus solicitudes"
+                    @keydown.enter.prevent="applyFilters"
+                />
+            </label>
 
-                    <div class="flex gap-2">
-                        <Button variant="outline" size="sm" @click="applyFilters">Aplicar</Button>
-                        <Button size="sm" @click="showNew = !showNew">
-                            {{ showNew ? 'Cerrar' : 'Nuevo ticket' }}
-                        </Button>
-                    </div>
-                </div>
-
-                <!-- Nuevo ticket -->
-                <div v-if="showNew" class="mt-4 rounded-xl border p-4">
-                    <div class="grid gap-3 md:grid-cols-2">
-                        <div class="space-y-1 md:col-span-2">
-                            <label class="text-sm font-medium">Asunto</label>
-                            <input v-model="form.subject" type="text" class="w-full rounded-md border px-3 py-2 text-sm bg-background" placeholder="Ej: No puedo activar un servicio" />
-                            <div v-if="form.errors.subject" class="text-xs text-rose-600">
-                                {{ form.errors.subject }}
+            <PortalSection
+                heading-id="tickets-title"
+                title="Tus solicitudes"
+                :count="filteredTickets.length"
+            >
+                <template #aside>
+                    <label class="text-sm">
+                        <span class="sr-only">Estado</span>
+                        <select
+                            v-model="status"
+                            class="h-10 rounded-xl border border-slate-200 bg-white px-3 text-sm dark:border-slate-800 dark:bg-slate-950"
+                            @change="applyFilters"
+                        >
+                            <option value="all">Todas</option>
+                            <option value="open">Abiertas</option>
+                            <option value="pending">Pendientes</option>
+                            <option value="answered">Respondidas</option>
+                            <option value="closed">Cerradas</option>
+                        </select>
+                    </label>
+                </template>
+                <p
+                    v-if="filteredTickets.length === 0"
+                    class="rounded-2xl border border-dashed border-slate-300 bg-white p-6 text-center text-sm text-slate-600 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-400"
+                >
+                    {{
+                        (props.tickets ?? []).length
+                            ? 'No hay solicitudes con esta búsqueda.'
+                            : 'Todavía no nos has escrito. Si necesitas ayuda, pulsa «Escribir a soporte».'
+                    }}
+                </p>
+                <ul
+                    v-else
+                    class="divide-y divide-slate-100 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm dark:divide-slate-800 dark:border-slate-800 dark:bg-slate-950"
+                >
+                    <li
+                        v-for="t in filteredTickets"
+                        :key="t.id"
+                        class="flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between sm:p-5"
+                    >
+                        <div class="min-w-0 space-y-1">
+                            <div class="flex flex-wrap items-center gap-2">
+                                <h3
+                                    class="font-semibold break-words text-slate-950 dark:text-white"
+                                >
+                                    {{ t.subject }}
+                                </h3>
+                                <span
+                                    class="rounded-full px-2 py-0.5 text-xs font-medium"
+                                    :class="statusTone(t.status)"
+                                    >{{ statusLabel(t.status) }}</span
+                                >
                             </div>
+                            <p
+                                class="text-sm text-slate-600 dark:text-slate-400"
+                            >
+                                <template v-if="t.category"
+                                    >{{ t.category }} · </template
+                                >Prioridad
+                                {{ priorityLabel(t.priority).toLowerCase() }}
+                                <template v-if="t.last_reply_at">
+                                    · Última respuesta
+                                    {{ formatDay(t.last_reply_at) }}</template
+                                >
+                                <template v-else-if="t.created_at">
+                                    · Enviada
+                                    {{ formatDay(t.created_at) }}</template
+                                >
+                            </p>
                         </div>
+                        <button
+                            type="button"
+                            :class="portalButton.secondary"
+                            @click="
+                                router.get(
+                                    `/subscriber/support/tickets/${t.id}`,
+                                )
+                            "
+                        >
+                            Ver conversación
+                        </button>
+                    </li>
+                </ul>
+            </PortalSection>
 
-                        <div class="space-y-1">
-                            <label class="text-sm font-medium">Categoría</label>
-                            <input v-model="form.category" type="text" class="w-full rounded-md border px-3 py-2 text-sm bg-background" placeholder="Ej: Facturación, Servicios, Cuenta..." />
-                            <div v-if="form.errors.category" class="text-xs text-rose-600">
-                                {{ form.errors.category }}
-                            </div>
-                        </div>
-
-                        <div class="space-y-1">
-                            <label class="text-sm font-medium">Prioridad</label>
-                            <Select v-model="form.priority">
-                                <SelectTrigger class="w-full rounded-md border px-3 py-2 text-sm bg-background">
-                                    <SelectValue placeholder="Selecciona la prioridad" />
-                                </SelectTrigger>
-
-                                <SelectContent>
-                                    <SelectGroup>
-                                        <SelectItem value="low">Baja</SelectItem>
-                                        <SelectItem value="normal">Normal</SelectItem>
-                                        <SelectItem value="high">Alta</SelectItem>
-                                        <SelectItem value="urgent">Urgente</SelectItem>
-                                    </SelectGroup>
-                                </SelectContent>
-                            </Select>
-                            <div v-if="form.errors.priority" class="text-xs text-rose-600">
-                                {{ form.errors.priority }}
-                            </div>
-                        </div>
-
-                        <div class="space-y-1 md:col-span-2">
-                            <label class="text-sm font-medium">Mensaje</label>
-                            <Textarea v-model="form.message" rows="5" class="w-full rounded-md border px-3 py-2 text-sm bg-background" placeholder="Describe el problema con detalles..." />
-                            <div v-if="form.errors.message" class="text-xs text-rose-600">
-                                {{ form.errors.message }}
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="mt-4 flex justify-end gap-2">
-                        <Button variant="outline" :disabled="isSaving" @click="showNew = false">Cancelar</Button>
-                        <Button :disabled="isSaving" @click="createTicket">
-                            <span v-if="isSaving">Enviando...</span>
-                            <span v-else>Crear ticket</span>
-                        </Button>
-                    </div>
+            <PortalSection
+                heading-id="faq-title"
+                title="Preguntas frecuentes"
+                :count="filteredFaqs.length"
+            >
+                <p
+                    v-if="filteredFaqs.length === 0"
+                    class="rounded-2xl border border-dashed border-slate-300 bg-white p-6 text-center text-sm text-slate-600 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-400"
+                >
+                    No encontramos preguntas con esa búsqueda.
+                </p>
+                <div
+                    v-else
+                    class="divide-y divide-slate-100 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm dark:divide-slate-800 dark:border-slate-800 dark:bg-slate-950"
+                >
+                    <details
+                        v-for="f in filteredFaqs"
+                        :key="f.id"
+                        class="group p-4 sm:p-5"
+                    >
+                        <summary
+                            class="flex cursor-pointer list-none items-start justify-between gap-3 font-medium text-slate-950 dark:text-white"
+                        >
+                            {{ f.question }}
+                            <span
+                                class="shrink-0 text-slate-500 transition-transform group-open:rotate-45"
+                                aria-hidden="true"
+                                >+</span
+                            >
+                        </summary>
+                        <p
+                            class="mt-2 text-sm leading-6 whitespace-pre-wrap text-slate-600 dark:text-slate-400"
+                        >
+                            {{ f.answer }}
+                        </p>
+                    </details>
                 </div>
-            </SectionCard>
-
-            <!-- FAQs -->
-            <SectionCard title="Preguntas frecuentes" description="Respuestas rápidas (Q&A)">
-                <div v-if="filteredFaqs.length === 0" class="text-sm text-muted-foreground">
-                    No hay FAQs que coincidan con tu búsqueda.
-                </div>
-
-                <div v-else class="space-y-3">
-                    <div v-for="f in filteredFaqs" :key="f.id" class="rounded-xl border p-4">
-                        <div class="flex items-start justify-between gap-2">
-                            <div class="min-w-0">
-                                <div class="text-sm font-semibold">{{ f.question }}</div>
-                                <div class="mt-2 text-sm text-muted-foreground whitespace-pre-wrap">
-                                    {{ f.answer }}
-                                </div>
-                            </div>
-
-                            <Badge v-if="f.category" variant="outline" class="shrink-0">
-                                {{ f.category }}
-                            </Badge>
-                        </div>
-                    </div>
-                </div>
-            </SectionCard>
-
-            <!-- Tickets -->
-            <SectionCard title="Mis tickets" description="Historial de solicitudes a soporte">
-                <div v-if="filteredTickets.length === 0" class="text-sm text-muted-foreground">
-                    No tienes tickets con esos filtros.
-                </div>
-
-                <div v-else class="rounded-xl border overflow-x-auto">
-                    <table class="w-full text-sm">
-                        <thead class="bg-muted/50">
-                            <tr class="text-left">
-                                <th class="px-3 py-2">#</th>
-                                <th class="px-3 py-2">Asunto</th>
-                                <th class="px-3 py-2">Categoría</th>
-                                <th class="px-3 py-2">Prioridad</th>
-                                <th class="px-3 py-2">Estado</th>
-                                <th class="px-3 py-2">Última respuesta</th>
-                                <th class="px-3 py-2"></th>
-                            </tr>
-                        </thead>
-
-                        <tbody>
-                            <tr v-for="t in filteredTickets" :key="t.id" class="border-t">
-                                <td class="px-3 py-2 text-muted-foreground">#{{ t.id }}</td>
-
-                                <td class="px-3 py-2">
-                                    <div class="font-medium">{{ t.subject }}</div>
-                                    <div v-if="t.created_at" class="text-xs text-muted-foreground">
-                                        Creado: {{ t.created_at }}
-                                    </div>
-                                </td>
-
-                                <td class="px-3 py-2">
-                                    <span class="text-muted-foreground">{{ t.category ?? '—' }}</span>
-                                </td>
-
-                                <td class="px-3 py-2">
-                                    <Badge :variant="priorityVariant(t.priority)">
-                                        {{ priorityLabel(t.priority) }}
-                                    </Badge>
-                                </td>
-
-                                <td class="px-3 py-2">
-                                    <!-- ✅ Aquí estaba tu error: ahora variant está tipado -->
-                                    <Badge :variant="statusVariant(t.status)">
-                                        {{ statusLabel(t.status) }}
-                                    </Badge>
-                                </td>
-
-                                <td class="px-3 py-2 text-muted-foreground">
-                                    {{ t.last_reply_at ?? '—' }}
-                                </td>
-
-                                <td class="px-3 py-2 text-right">
-                                    <!-- Ajusta ruta show si la creas -->
-                                    <Button size="sm" variant="outline" @click="router.get(`/subscriber/support/tickets/${t.id}`)">
-                                        Ver
-                                    </Button>
-                                </td>
-                            </tr>
-                        </tbody>
-                    </table>
-                </div>
-            </SectionCard>
-        </div>
+            </PortalSection>
+        </PortalPage>
     </AppLayout>
 </template>

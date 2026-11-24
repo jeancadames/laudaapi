@@ -1,375 +1,274 @@
 <script setup lang="ts">
-import { Head, router } from '@inertiajs/vue3'
-import AppLayout from '@/layouts/AppLayout.vue'
-import SectionCard from '@/components/SectionCard.vue'
-import { Button } from '@/components/ui/button'
-import { Badge } from '@/components/ui/badge'
-import type { BreadcrumbItem } from '@/types'
-import { computed, ref } from 'vue'
-import { subscriber } from '@/routes'
-import { useDateFormatter } from '@/composables/useDateFormatter'
-import Select from '@/components/ui/select/Select.vue'
-import SelectTrigger from '@/components/ui/select/SelectTrigger.vue'
-import SelectValue from '@/components/ui/select/SelectValue.vue'
-import SelectContent from '@/components/ui/select/SelectContent.vue'
-import SelectGroup from '@/components/ui/select/SelectGroup.vue'
-import SelectItem from '@/components/ui/select/SelectItem.vue'
+import { Head, router } from '@inertiajs/vue3';
+import { computed, ref } from 'vue';
+import { portalButton } from '@/components/portal/buttons';
+import PortalPage from '@/components/portal/PortalPage.vue';
+import PortalSection from '@/components/portal/PortalSection.vue';
+import { useDateFormatter } from '@/composables/useDateFormatter';
+import AppLayout from '@/layouts/AppLayout.vue';
+import { formatDay } from '@/lib/portalFormat';
+import type { BreadcrumbItem } from '@/types';
 
-const { formatDate, formatDateTime } = useDateFormatter()
+const { formatDate } = useDateFormatter();
 
-type ServiceOpt = { id: number; title: string; slug?: string | null }
+type ServiceOpt = { id: number; title: string; slug?: string | null };
 
 const props = defineProps<{
-    company: { id: number; name: string; currency: string; timezone: string }
+    company: { id: number; name: string; currency: string; timezone: string };
     subscription: null | {
-        id: number
-        status: string
-        billing_cycle: string
-        currency: string
-        trial_ends_at_human?: string | null
-        period_end_human?: string | null
-    }
-    filters: { from: string | null; to: string | null; service_id: number | null }
-    services: ServiceOpt[]
-    summary: { total_records: number; total_quantity: string }
+        id: number;
+        status: string;
+        billing_cycle: string;
+        currency: string;
+        trial_ends_at_human?: string | null;
+        period_end_human?: string | null;
+    };
+    filters: {
+        from: string | null;
+        to: string | null;
+        service_id: number | null;
+    };
+    services: ServiceOpt[];
+    summary: { total_records: number; total_quantity: string };
 
     by_service: Array<{
-        service: { id: number; title: string; slug?: string | null }
-        total_records: number
-        total_quantity: string
-        unit_name?: string | null
-    }>
+        service: { id: number; title: string; slug?: string | null };
+        total_records: number;
+        total_quantity: string;
+        unit_name?: string | null;
+    }>;
 
     rows: Array<{
-        id: number
-        occurred_on: string
-        service: { id: number; title: string; slug?: string | null }
-        quantity: string
-        unit_name?: string | null
-        meta?: any
-        created_at?: string
-    }>
-}>()
+        id: number;
+        occurred_on: string;
+        service: { id: number; title: string; slug?: string | null };
+        quantity: string;
+        unit_name?: string | null;
+        meta?: any;
+        created_at?: string;
+    }>;
+}>();
 
 const breadcrumbs: BreadcrumbItem[] = [
-    { title: 'Suscriptor', href: subscriber().url },
-    { title: 'Uso y Límites', href: '/subscriber/usage' },
-]
+    { title: 'Inicio', href: '/app' },
+    { title: 'Uso', href: '/subscriber/usage' },
+];
 
 // -------------------------
 // Filters
 // -------------------------
-const from = ref(props.filters.from ?? '')
-const to = ref(props.filters.to ?? '')
-const serviceId = ref<number | null>(props.filters.service_id ?? null)
+const from = ref(props.filters.from ?? '');
+const to = ref(props.filters.to ?? '');
+// «Todas» es la cadena vacía: un <select> no muestra bien la opción null.
+const serviceId = ref<number | ''>(props.filters.service_id || '');
 
-const hasSubscription = computed(() => !!props.subscription?.id)
+const hasSubscription = computed(() => !!props.subscription?.id);
 
 function applyFilters() {
     router.get(
         '/subscriber/usage',
-        { from: from.value || null, to: to.value || null, service_id: serviceId.value || null },
-        { preserveScroll: true, preserveState: true }
-    )
+        {
+            from: from.value || null,
+            to: to.value || null,
+            service_id: serviceId.value || null,
+        },
+        { preserveScroll: true, preserveState: true },
+    );
 }
 
 function resetFilters() {
-    from.value = ''
-    to.value = ''
-    serviceId.value = null
-    router.get('/subscriber/usage', {}, { preserveScroll: true, preserveState: true })
+    from.value = '';
+    to.value = '';
+    serviceId.value = '';
+    router.get(
+        '/subscriber/usage',
+        {},
+        { preserveScroll: true, preserveState: true },
+    );
 }
 
 // -------------------------
 // Helpers
 // -------------------------
-function safeUnit(unit?: string | null) {
-    const u = (unit ?? '').trim()
-    return u ? u : '—'
+/** «1234.5000» → «1,234.5»; las cantidades se leen como números, no como columnas de base de datos. */
+function qty(v: unknown): string {
+    const n = Number(
+        String(v ?? '')
+            .replace(/,/g, '')
+            .trim(),
+    );
+    return Number.isFinite(n)
+        ? new Intl.NumberFormat('es-DO', { maximumFractionDigits: 2 }).format(n)
+        : '—';
 }
 
-function safeTitle(t?: string | null) {
-    const x = (t ?? '').trim()
-    return x ? x : '—'
-}
-
-function toNumber(v: any): number {
-    // soporta "1234.56" y "1,234.56"
-    const s = String(v ?? '').replace(/,/g, '').trim()
-    const n = Number(s)
-    return Number.isFinite(n) ? n : 0
-}
-
-function fmtQty(n: number) {
-    // 4 decimales por tu schema (12,4)
-    return n.toFixed(4)
-}
-
-// -------------------------
-// ✅ Destacado (Top service del rango)
-// -------------------------
-const topService = computed(() => {
-    if (!props.by_service?.length) return null
-
-    // order por total_quantity numérico desc
-    const sorted = [ ...props.by_service ].sort((a, b) => {
-        return toNumber(b.total_quantity) - toNumber(a.total_quantity)
-    })
-
-    return sorted[ 0 ] ?? null
-})
-
-// -------------------------
-// ✅ Totales por día (aprox, basado en rows <= 500)
-// -------------------------
-const byDay = computed(() => {
-    const map = new Map<
-        string,
-        { occurred_on: string; total_records: number; total_quantity_num: number; unit_name: string }
-    >()
-
-    for (const r of props.rows ?? []) {
-        const day = String(r.occurred_on ?? '').trim()
-        if (!day) continue
-
-        const qty = toNumber(r.quantity)
-        const unit = safeUnit(r.unit_name)
-
-        if (!map.has(day)) {
-            map.set(day, { occurred_on: day, total_records: 0, total_quantity_num: 0, unit_name: unit })
-        }
-
-        const cur = map.get(day)!
-        cur.total_records += 1
-        cur.total_quantity_num += qty
-
-        // si hay mezcla de unidades en el día, marca como "—"
-        if (cur.unit_name !== unit) cur.unit_name = '—'
-    }
-
-    // desc por fecha (YYYY-MM-DD)
-    return Array.from(map.values()).sort((a, b) => (a.occurred_on < b.occurred_on ? 1 : -1))
-})
-
-// -------------------------
-// ✅ Expandir meta por registro
-// -------------------------
-const expandedMetaIds = ref<Set<number>>(new Set())
-
-function toggleMeta(id: number) {
-    const s = new Set(expandedMetaIds.value)
-    if (s.has(id)) s.delete(id)
-    else s.add(id)
-    expandedMetaIds.value = s
-}
-
-function isMetaOpen(id: number) {
-    return expandedMetaIds.value.has(id)
-}
+const unit = (u?: string | null) => (u ?? '').trim();
+const hasFilters = computed(
+    () => !!(from.value || to.value || serviceId.value),
+);
 </script>
 
 <template>
-
-    <Head title="Uso y Límites" />
+    <Head title="Uso" />
 
     <AppLayout :breadcrumbs="breadcrumbs">
-        <div class="flex flex-col gap-4 p-4">
-            <!-- Resumen -->
-            <SectionCard title="Resumen" description="Consumo por servicio (usage_records)">
-                <div class="text-sm text-muted-foreground space-y-1">
-                    <div><span class="font-medium text-foreground">{{ props.company.name }}</span></div>
-                    <div>
-                        Suscripción:
-                        <span class="font-medium text-foreground">{{ props.subscription?.status ?? '—' }}</span>
-                        <span v-if="props.subscription?.period_end_human"> · Periodo termina: {{ formatDate(props.subscription.period_end_human) }}</span>
-                    </div>
+        <PortalPage
+            :eyebrow="props.company.name"
+            title="Uso"
+            :description="
+                props.subscription?.period_end_human
+                    ? `Lo que tu empresa ha usado de cada aplicación. El período actual termina el ${formatDate(props.subscription.period_end_human)}.`
+                    : 'Lo que tu empresa ha usado de cada aplicación.'
+            "
+        >
+            <form
+                class="grid gap-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm md:grid-cols-[1fr_1fr_2fr_auto] md:items-end dark:border-slate-800 dark:bg-slate-950"
+                @submit.prevent="applyFilters"
+            >
+                <label class="block text-sm">
+                    <span class="font-medium text-slate-700 dark:text-slate-300"
+                        >Desde</span
+                    >
+                    <input
+                        v-model="from"
+                        type="date"
+                        class="mt-1.5 h-10 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm dark:border-slate-800 dark:bg-slate-950"
+                    />
+                </label>
+                <label class="block text-sm">
+                    <span class="font-medium text-slate-700 dark:text-slate-300"
+                        >Hasta</span
+                    >
+                    <input
+                        v-model="to"
+                        type="date"
+                        class="mt-1.5 h-10 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm dark:border-slate-800 dark:bg-slate-950"
+                    />
+                </label>
+                <label class="block text-sm">
+                    <span class="font-medium text-slate-700 dark:text-slate-300"
+                        >Aplicación</span
+                    >
+                    <select
+                        v-model="serviceId"
+                        class="mt-1.5 h-10 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm dark:border-slate-800 dark:bg-slate-950"
+                    >
+                        <option value="">Todas</option>
+                        <option
+                            v-for="s in props.services"
+                            :key="s.id"
+                            :value="s.id"
+                        >
+                            {{ s.title }}
+                        </option>
+                    </select>
+                </label>
+                <div class="flex flex-col gap-2 sm:flex-row">
+                    <button
+                        type="submit"
+                        :disabled="!hasSubscription"
+                        :class="portalButton.dark"
+                    >
+                        Ver
+                    </button>
+                    <button
+                        v-if="hasFilters"
+                        type="button"
+                        :class="portalButton.link"
+                        @click="resetFilters"
+                    >
+                        Quitar filtros
+                    </button>
                 </div>
+            </form>
 
-                <div class="mt-3 flex flex-wrap gap-2 text-sm">
-                    <Badge variant="secondary">Registros: {{ props.summary.total_records }}</Badge>
-                    <Badge variant="secondary">Total qty: {{ props.summary.total_quantity }}</Badge>
-                </div>
+            <p
+                v-if="!hasSubscription"
+                class="rounded-2xl border border-dashed border-slate-300 bg-white p-6 text-center text-sm text-slate-600 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-400"
+            >
+                Cuando tengas una suscripción activa, aquí verás cuánto usas
+                cada aplicación.
+            </p>
 
-                <!-- ✅ Destacado -->
-                <div v-if="topService" class="mt-4 rounded-xl border p-4">
-                    <div class="flex items-start justify-between gap-2">
-                        <div class="min-w-0">
-                            <div class="text-xs text-muted-foreground">Destacado del rango</div>
-                            <div class="text-sm font-semibold truncate">
-                                {{ safeTitle(topService.service.title) }}
-                            </div>
-                            <div class="text-xs text-muted-foreground mt-1">
-                                Unidad: {{ safeUnit(topService.unit_name) }}
-                            </div>
-                        </div>
+            <template v-else>
+                <PortalSection
+                    heading-id="by-app-title"
+                    title="Por aplicación"
+                    :count="props.by_service.length"
+                >
+                    <p
+                        v-if="props.by_service.length === 0"
+                        class="rounded-2xl border border-dashed border-slate-300 bg-white p-6 text-center text-sm text-slate-600 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-400"
+                    >
+                        No hay uso registrado en estas fechas.
+                    </p>
+                    <ul v-else class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                        <li
+                            v-for="r in props.by_service"
+                            :key="`svc-${r.service.id}`"
+                            class="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-950"
+                        >
+                            <h3
+                                class="font-semibold break-words text-slate-950 dark:text-white"
+                            >
+                                {{ r.service.title || 'Aplicación' }}
+                            </h3>
+                            <p
+                                class="mt-2 text-2xl font-semibold text-slate-950 tabular-nums dark:text-white"
+                            >
+                                {{ qty(r.total_quantity) }}
+                                <span
+                                    class="text-sm font-normal text-slate-600 dark:text-slate-400"
+                                    >{{ unit(r.unit_name) }}</span
+                                >
+                            </p>
+                            <p
+                                class="text-sm text-slate-600 dark:text-slate-400"
+                            >
+                                {{ r.total_records }}
+                                {{
+                                    r.total_records === 1
+                                        ? 'registro'
+                                        : 'registros'
+                                }}
+                            </p>
+                        </li>
+                    </ul>
+                </PortalSection>
 
-                        <div class="text-right">
-                            <div class="text-xs text-muted-foreground">Total</div>
-                            <div class="text-lg font-semibold tabular-nums">
-                                {{ topService.total_quantity }}
-                            </div>
-                            <div class="text-xs text-muted-foreground">
-                                Registros: {{ topService.total_records }}
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </SectionCard>
-
-            <!-- Filtros -->
-            <SectionCard title="Filtros" description="Rango de fechas y servicio">
-                <div class="grid gap-3 md:grid-cols-4">
-                    <div class="space-y-1">
-                        <label class="text-sm font-medium">Desde</label>
-                        <input v-model="from" type="date" class="w-full rounded-md border px-3 py-2 text-sm bg-background" />
-                    </div>
-
-                    <div class="space-y-1">
-                        <label class="text-sm font-medium">Hasta</label>
-                        <input v-model="to" type="date" class="w-full rounded-md border px-3 py-2 text-sm bg-background" />
-                    </div>
-
-                    <div class="space-y-1 md:col-span-2">
-                        <label class="text-sm font-medium">Servicio</label>
-                        <Select v-model="serviceId">
-                            <SelectTrigger class="w-full rounded-md border px-3 py-2 text-sm bg-background">
-                                <SelectValue placeholder="Todos" />
-                            </SelectTrigger>
-
-                            <SelectContent>
-                                <SelectGroup>
-                                    <SelectItem :value="null">Todos</SelectItem>
-
-                                    <SelectItem v-for="s in props.services" :key="s.id" :value="s.id">
-                                        {{ s.title }}
-                                    </SelectItem>
-                                </SelectGroup>
-                            </SelectContent>
-                        </Select>
-                    </div>
-                </div>
-
-                <div class="mt-4 flex gap-2 justify-end">
-                    <Button variant="outline" @click="resetFilters">Reiniciar</Button>
-                    <Button :disabled="!hasSubscription" @click="applyFilters">Aplicar</Button>
-                </div>
-
-                <div v-if="!hasSubscription" class="mt-2 text-xs text-muted-foreground">
-                    No hay suscripción activa todavía.
-                </div>
-            </SectionCard>
-
-            <!-- ✅ Totales por servicio (cards) -->
-            <SectionCard title="Totales por servicio" description="Suma de consumo en el rango actual">
-                <div v-if="props.by_service.length === 0" class="text-sm text-muted-foreground">
-                    No hay datos agregados para este rango.
-                </div>
-
-                <div v-else class="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
-                    <div v-for="r in props.by_service" :key="`svc-${r.service.id}`" class="rounded-xl border p-4">
-                        <div class="flex items-start justify-between gap-2">
-                            <div class="min-w-0">
-                                <div class="text-sm font-semibold truncate">
-                                    {{ safeTitle(r.service.title) }}
-                                </div>
-                                <div class="text-xs text-muted-foreground mt-1">
-                                    Unidad: {{ safeUnit(r.unit_name) }}
-                                </div>
-                            </div>
-
-                            <Badge variant="secondary" class="shrink-0">
-                                Registros: {{ r.total_records }}
-                            </Badge>
-                        </div>
-
-                        <div class="mt-3">
-                            <div class="text-xs text-muted-foreground">Total</div>
-                            <div class="text-lg font-semibold tabular-nums">
-                                {{ r.total_quantity }}
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </SectionCard>
-
-            <!-- ✅ Totales por día (cards) -->
-            <SectionCard title="Totales por día" description="Calculado desde los registros visibles (máx 500)">
-                <div v-if="byDay.length === 0" class="text-sm text-muted-foreground">
-                    No hay datos por día.
-                </div>
-
-                <div v-else class="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
-                    <div v-for="d in byDay" :key="`day-${d.occurred_on}`" class="rounded-xl border p-4">
-                        <div class="flex items-start justify-between gap-2">
-                            <div class="min-w-0">
-                                <div class="text-sm font-semibold truncate">{{ d.occurred_on }}</div>
-                                <div class="text-xs text-muted-foreground mt-1">
-                                    Unidad: {{ d.unit_name }}
-                                </div>
-                            </div>
-
-                            <Badge variant="secondary" class="shrink-0">
-                                Registros: {{ d.total_records }}
-                            </Badge>
-                        </div>
-
-                        <div class="mt-3">
-                            <div class="text-xs text-muted-foreground">Total</div>
-                            <div class="text-lg font-semibold tabular-nums">
-                                {{ fmtQty(d.total_quantity_num) }}
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </SectionCard>
-
-            <!-- ✅ Registros (cards) -->
-            <SectionCard title="Registros" description="Últimos 500 registros filtrados">
-                <div v-if="props.rows.length === 0" class="text-sm text-muted-foreground">
-                    No hay registros en este rango.
-                </div>
-
-                <div v-else class="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
-                    <div v-for="r in props.rows" :key="r.id" class="rounded-xl border p-4">
-                        <div class="flex items-start justify-between gap-2">
-                            <div class="min-w-0">
-                                <div class="text-sm font-semibold truncate">
-                                    {{ safeTitle(r.service.title) }}
-                                </div>
-                                <div class="text-xs text-muted-foreground mt-1">
-                                    Fecha: {{ r.occurred_on }}
-                                </div>
-                            </div>
-
-                            <Badge variant="secondary" class="shrink-0">
-                                {{ r.quantity }}
-                            </Badge>
-                        </div>
-
-                        <div class="mt-3 flex items-center justify-between gap-2">
-                            <div class="text-xs text-muted-foreground">
-                                Unidad: <span class="text-foreground">{{ safeUnit(r.unit_name) }}</span>
-                            </div>
-
-                            <div v-if="r.created_at" class="text-[11px] text-muted-foreground">
-                                {{ r.created_at }}
-                            </div>
-                        </div>
-
-                        <div class="mt-3 flex items-center justify-end">
-                            <Button v-if="r.meta" size="sm" variant="outline" @click="toggleMeta(r.id)">
-                                <span v-if="isMetaOpen(r.id)">Ocultar meta</span>
-                                <span v-else>Ver meta</span>
-                            </Button>
-                        </div>
-
-                        <div v-if="r.meta && isMetaOpen(r.id)" class="mt-3 text-[11px] text-muted-foreground">
-                            <div class="font-medium text-foreground mb-1">meta</div>
-                            <pre class="whitespace-pre-wrap wrap-break-word rounded-md border p-2 bg-background/50">{{ JSON.stringify(r.meta, null, 2) }}</pre>
-                        </div>
-                    </div>
-                </div>
-            </SectionCard>
-        </div>
+                <PortalSection
+                    v-if="props.rows.length"
+                    heading-id="rows-title"
+                    title="Detalle"
+                    description="Los registros más recientes de estas fechas."
+                >
+                    <ul
+                        class="divide-y divide-slate-100 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm dark:divide-slate-800 dark:border-slate-800 dark:bg-slate-950"
+                    >
+                        <li
+                            v-for="r in props.rows"
+                            :key="r.id"
+                            class="flex items-center justify-between gap-3 px-4 py-3 text-sm"
+                        >
+                            <span class="min-w-0">
+                                <span
+                                    class="block font-medium break-words text-slate-950 dark:text-white"
+                                    >{{ r.service.title || 'Aplicación' }}</span
+                                >
+                                <span
+                                    class="text-slate-600 dark:text-slate-400"
+                                    >{{ formatDay(r.occurred_on) }}</span
+                                >
+                            </span>
+                            <span
+                                class="shrink-0 font-semibold text-slate-950 tabular-nums dark:text-white"
+                            >
+                                {{ qty(r.quantity) }} {{ unit(r.unit_name) }}
+                            </span>
+                        </li>
+                    </ul>
+                </PortalSection>
+            </template>
+        </PortalPage>
     </AppLayout>
 </template>

@@ -1,95 +1,139 @@
 <script setup lang="ts">
-import { Head, router } from '@inertiajs/vue3'
-import { computed } from 'vue'
+import { Head, router } from '@inertiajs/vue3';
+import { computed } from 'vue';
 
-import AppLayout from '@/layouts/AppLayout.vue'
-import StatCard from '@/components/StatCard.vue'
-import SectionCard from '@/components/SectionCard.vue'
-import { Button } from '@/components/ui/button'
+import { portalButton } from '@/components/portal/buttons';
+import PortalPage from '@/components/portal/PortalPage.vue';
+import { useDateFormatter } from '@/composables/useDateFormatter';
+import AppLayout from '@/layouts/AppLayout.vue';
 
-// import { useDateFormatter } from '@/composables/useDateFormatter'
-import { useDateFormatter } from '@/composables/useDateFormatter'
-
-const { formatDate, formatDateTime } = useDateFormatter()
+const { formatDate } = useDateFormatter();
 
 const props = defineProps<{
-    activation: any | null
+    activation: any | null;
     state: {
-        has_activation_request: boolean
-        has_subscriber: boolean
-        has_company: boolean
-        has_subscription: boolean
-    }
-    subscriber: any | null
-    company: any | null
-    subscription: any | null
-}>()
+        has_activation_request: boolean;
+        has_subscriber: boolean;
+        has_company: boolean;
+        has_subscription: boolean;
+    };
+    subscriber: any | null;
+    company: any | null;
+    subscription: any | null;
+}>();
 
-const status = computed(() => String(props.activation?.status ?? ''))
-const canActivate = computed(() => status.value === 'accepted')
+const status = computed(() => String(props.activation?.status ?? ''));
+const canActivate = computed(() => status.value === 'accepted');
 
 const statusMessage = computed(() => {
-    if (!props.activation) return 'No encontramos una solicitud de activación para tu usuario.'
-    if (status.value === 'accepted') return 'Tu solicitud fue aceptada. Puedes iniciar el trial ahora.'
-    if (status.value === 'trialing') return 'Tu trial ya está activo. No necesitas volver a activar.'
-    if (status.value === 'converted') return 'Tu cuenta ya fue convertida. No necesitas volver a activar.'
-    return `Este proceso no está disponible con el estado actual: ${status.value}`
-})
+    if (!props.activation)
+        return 'No encontramos una solicitud de activación para tu cuenta.';
+    if (status.value === 'accepted')
+        return 'Tu solicitud fue aceptada. Ya puedes empezar tu período de prueba.';
+    if (status.value === 'trialing')
+        return 'Tu período de prueba ya está en curso. No necesitas hacer nada más.';
+    if (status.value === 'converted')
+        return 'Tu cuenta ya está activa. No necesitas hacer nada más.';
+    return 'Tu solicitud todavía está en revisión. Te avisaremos cuando puedas continuar.';
+});
 
 const buttonText = computed(() => {
-    if (!props.activation) return 'No disponible'
-    if (canActivate.value) return 'Activar / Continuar'
-    if ([ 'trialing', 'converted' ].includes(status.value)) return 'Ya activado'
-    return 'No disponible'
-})
+    if (!props.activation) return 'No disponible';
+    if (canActivate.value) return 'Empezar mi prueba';
+    if (['trialing', 'converted'].includes(status.value))
+        return 'Ya está activa';
+    return 'No disponible';
+});
 
 function activate() {
-    if (!canActivate.value) return
-    router.post('/subscriber/activation/activate', {}, { preserveScroll: true })
+    if (!canActivate.value) return;
+    router.post(
+        '/subscriber/activation/activate',
+        {},
+        { preserveScroll: true },
+    );
 }
+
+const done = computed(() => ['trialing', 'converted'].includes(status.value));
+const steps = computed(() => [
+    { label: 'Solicitud recibida', ok: props.state.has_activation_request },
+    {
+        label: 'Cuenta y empresa creadas',
+        ok: props.state.has_subscriber && props.state.has_company,
+    },
+    { label: 'Suscripción activa', ok: props.state.has_subscription },
+]);
 </script>
 
 <template>
+    <Head title="Activa tu cuenta" />
 
-    <Head title="Solicitud de Activación" />
+    <AppLayout
+        :breadcrumbs="[
+            { title: 'Inicio', href: '/app' },
+            { title: 'Activa tu cuenta', href: '/subscriber/activation' },
+        ]"
+    >
+        <PortalPage
+            :eyebrow="props.company?.name ?? props.subscriber?.name ?? null"
+            title="Activa tu cuenta"
+            :description="statusMessage"
+            width="narrow"
+        >
+            <ol
+                class="divide-y divide-slate-100 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm dark:divide-slate-800 dark:border-slate-800 dark:bg-slate-950"
+            >
+                <li
+                    v-for="step in steps"
+                    :key="step.label"
+                    class="flex items-center justify-between gap-3 p-4"
+                >
+                    <span
+                        class="text-sm font-medium text-slate-950 dark:text-white"
+                        >{{ step.label }}</span
+                    >
+                    <span
+                        class="rounded-full px-2 py-0.5 text-xs font-medium"
+                        :class="
+                            step.ok
+                                ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300'
+                                : 'bg-slate-100 text-slate-600 dark:bg-slate-900 dark:text-slate-300'
+                        "
+                        >{{ step.ok ? 'Listo' : 'Pendiente' }}</span
+                    >
+                </li>
+            </ol>
 
-    <AppLayout :breadcrumbs="[
-        { title: 'Suscriptor', href: '/subscriber' },
-        { title: 'Solicitud de Activación', href: '/subscriber/activation' },
-    ]">
-        <div class="flex flex-col gap-4 p-4">
-            <div class="grid gap-6 md:grid-cols-4">
-                <StatCard title="Solicitud" :value="props.state.has_activation_request ? 'Creada' : 'No existe'" description="Solicitudes de activación" :trend-positive="props.state.has_activation_request" />
-                <StatCard title="Suscriptor" :value="props.state.has_subscriber ? 'OK' : 'Pendiente'" description="Suscriptores + Usuarios" :trend-positive="props.state.has_subscriber" />
-                <StatCard title="Empresa" :value="props.state.has_company ? 'OK' : 'Pendiente'" description="Compañia" :trend-positive="props.state.has_company" />
-                <StatCard title="Suscripción" :value="props.subscription?.status ?? '—'" description="Suscripciones" :trend-positive="(props.subscription?.status ?? '') === 'active'" />
+            <div
+                v-if="props.activation?.trial_ends_at_human"
+                class="rounded-2xl border border-slate-200 bg-white p-4 text-sm text-slate-700 shadow-sm dark:border-slate-800 dark:bg-slate-950 dark:text-slate-300"
+            >
+                Tu período de prueba termina el
+                <strong>{{
+                    formatDate(props.activation.trial_ends_at_human)
+                }}</strong>
+                <template v-if="props.activation.trial_days_left">
+                    ({{ props.activation.trial_days_left }}
+                    {{
+                        props.activation.trial_days_left === 1 ? 'día' : 'días'
+                    }}).</template
+                >
             </div>
 
-            <SectionCard title="Estado de activación" description="Este paso crea subscriber, empresa y suscripción trialing">
-                <div class="text-sm text-muted-foreground">
-                    {{ statusMessage }}
-                </div>
-
-                <div v-if="props.activation" class="mt-4 grid gap-6 md:grid-cols-3">
-                    <StatCard title="Status" :value="props.activation.status ?? '—'" description="Estatus de la solicitud de activación" />
-                    <StatCard title="Trial termina" :value="formatDate(props.activation.trial_ends_at_human) ?? '—'" description="termina en" :trend-positive="false" />
-                    <StatCard title="Días restantes" :value="props.activation.trial_days_left ?? 0" description="aprox." />
-                </div>
-
-                <div class="mt-4 flex flex-wrap gap-2">
-                    <Button size="sm" :disabled="!canActivate" @click="activate">
-                        {{ buttonText }}
-                    </Button>
-                </div>
-            </SectionCard>
-
-            <SectionCard title="Resultado" description="Datos creados/vinculados">
-                <div class="grid gap-6 md:grid-cols-3">
-                    <StatCard title="Suscriptor" :value="props.subscriber?.name ?? '—'" description="Nombre de suscriptor" />
-                    <StatCard title="Empresa" :value="props.company?.name ?? '—'" description="Nombre de empresa" />
-                    <StatCard title="Moneda" :value="props.company?.currency ?? props.subscriber?.currency ?? 'USD'" description="currency" />
-                </div>
-            </SectionCard>
-        </div>
+            <div class="flex flex-col gap-2 sm:flex-row">
+                <button
+                    v-if="!done"
+                    type="button"
+                    :disabled="!canActivate"
+                    :class="portalButton.primary"
+                    @click="activate"
+                >
+                    {{ buttonText }}
+                </button>
+                <a v-else href="/app" :class="portalButton.dark"
+                    >Ir a mis aplicaciones</a
+                >
+            </div>
+        </PortalPage>
     </AppLayout>
 </template>
