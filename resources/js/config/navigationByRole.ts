@@ -100,7 +100,7 @@ export const navigationByRole = {
                 icon: 'CreditCard',
             },
             {
-                title: 'Empresa',
+                title: 'Datos de la empresa',
                 href: '/subscriber/company',
                 icon: 'Building2',
             },

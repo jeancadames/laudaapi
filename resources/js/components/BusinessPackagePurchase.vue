@@ -153,11 +153,15 @@ const startDay = computed(() => {
     <div class="mx-auto max-w-2xl space-y-8">
         <!-- Sin compra que mostrar -->
         <div v-if="error" class="space-y-4">
-            <p class="text-sm font-medium break-words">{{ companyName }}</p>
+            <p
+                class="text-sm font-medium break-words text-slate-500 dark:text-slate-400"
+            >
+                {{ companyName }}
+            </p>
             <h1
                 ref="heading"
                 tabindex="-1"
-                class="text-2xl font-semibold tracking-tight outline-none"
+                class="text-2xl font-bold tracking-tight text-slate-950 outline-none sm:text-[28px] dark:text-white"
             >
                 {{ errorTitle }}
             </h1>
@@ -201,11 +205,15 @@ const startDay = computed(() => {
 
         <!-- Primera carga -->
         <div v-else-if="!purchase || !view" class="space-y-3" aria-busy="true">
-            <p class="text-sm font-medium break-words">{{ companyName }}</p>
+            <p
+                class="text-sm font-medium break-words text-slate-500 dark:text-slate-400"
+            >
+                {{ companyName }}
+            </p>
             <h1
                 ref="heading"
                 tabindex="-1"
-                class="text-2xl font-semibold tracking-tight outline-none"
+                class="text-2xl font-bold tracking-tight text-slate-950 outline-none sm:text-[28px] dark:text-white"
             >
                 Tu compra
             </h1>
@@ -220,13 +228,15 @@ const startDay = computed(() => {
 
         <template v-else>
             <header class="space-y-2">
-                <p class="text-sm font-medium break-words">
+                <p
+                    class="text-sm font-medium break-words text-slate-500 dark:text-slate-400"
+                >
                     {{ companyName }}
                 </p>
                 <h1
                     ref="heading"
                     tabindex="-1"
-                    class="text-2xl font-semibold tracking-tight outline-none sm:text-3xl"
+                    class="text-2xl font-bold tracking-tight text-slate-950 outline-none sm:text-[28px] dark:text-white"
                 >
                     {{ view.title }}
                 </h1>

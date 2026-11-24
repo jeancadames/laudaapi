@@ -28,6 +28,7 @@ import {
     StepperTitle,
     StepperTrigger,
 } from '@/components/ui/stepper';
+import { timezoneLabel } from '@/lib/timezoneLabel';
 
 export type CompanyProfilePayload = {
     company_name: string;
@@ -260,6 +261,65 @@ function taxpayerLabel(value: string): string {
 
     return 'Sin especificar';
 }
+
+/** País y zona horaria se eligen por nombre; el valor guardado no cambia de formato. */
+const countryOptions = [
+    ['DO', 'República Dominicana'],
+    ['PR', 'Puerto Rico'],
+    ['US', 'Estados Unidos'],
+    ['PA', 'Panamá'],
+    ['CO', 'Colombia'],
+    ['MX', 'México'],
+    ['ES', 'España'],
+] as const;
+
+const timezoneOptions = [
+    ['America/Santo_Domingo', 'República Dominicana'],
+    ['America/Puerto_Rico', 'Puerto Rico'],
+    ['America/New_York', 'EE. UU., costa este (Miami)'],
+    ['America/Chicago', 'EE. UU., centro (Chicago)'],
+    ['America/Los_Angeles', 'EE. UU., costa oeste'],
+    ['America/Panama', 'Panamá'],
+    ['America/Bogota', 'Colombia (Bogotá)'],
+    ['America/Mexico_City', 'México (Ciudad de México)'],
+    ['Europe/Madrid', 'España (Madrid)'],
+] as const;
+
+function countryName(code: string): string {
+    const known = countryOptions.find(([value]) => value === code)?.[1];
+    if (known) return known;
+    try {
+        return (
+            new Intl.DisplayNames(['es'], { type: 'region' }).of(code) ?? code
+        );
+    } catch {
+        return code;
+    }
+}
+
+/** Un valor guardado fuera de la lista se conserva y se muestra por su nombre. */
+const countryChoices = computed(() =>
+    !formState.country_code ||
+    countryOptions.some(([value]) => value === formState.country_code)
+        ? countryOptions
+        : [
+              ...countryOptions,
+              [formState.country_code, countryName(formState.country_code)] as const,
+          ],
+);
+
+const timezoneChoices = computed(() =>
+    !formState.timezone ||
+    timezoneOptions.some(([value]) => value === formState.timezone)
+        ? timezoneOptions
+        : [
+              ...timezoneOptions,
+              [
+                  formState.timezone,
+                  `Otra zona (${timezoneLabel(formState.timezone)})`,
+              ] as const,
+          ],
+);
 
 function companySizeLabel(value: string): string {
     return (
@@ -648,15 +708,22 @@ function companySizeLabel(value: string): string {
                         País *
                     </Label>
 
-                    <input
+                    <select
                         id="country_code"
                         v-model="formState.country_code"
                         name="country_code"
-                        type="text"
-                        maxlength="2"
                         required
-                        class="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm uppercase shadow-xs transition-colors outline-none placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
-                    />
+                        class="h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
+                    >
+                        <option value="" disabled>Elige el país</option>
+                        <option
+                            v-for="[value, label] in countryChoices"
+                            :key="value"
+                            :value="value"
+                        >
+                            {{ label }}
+                        </option>
+                    </select>
 
                     <InputError :message="errors.country_code" />
                 </div>
@@ -691,18 +758,24 @@ function companySizeLabel(value: string): string {
 
                 <div class="grid gap-2">
                     <Label for="timezone">
-                        Zona horaria *
+                        Horario de la empresa *
                     </Label>
 
-                    <input
+                    <select
                         id="timezone"
                         v-model="formState.timezone"
                         name="timezone"
-                        type="text"
-                        maxlength="100"
                         required
-                        class="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm shadow-xs transition-colors outline-none placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
-                    />
+                        class="h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
+                    >
+                        <option
+                            v-for="[value, label] in timezoneChoices"
+                            :key="value"
+                            :value="value"
+                        >
+                            {{ label }}
+                        </option>
+                    </select>
 
                     <InputError :message="errors.timezone" />
                 </div>
@@ -1050,7 +1123,7 @@ function companySizeLabel(value: string): string {
                     </p>
 
                     <p class="mt-1 text-sm text-slate-500">
-                        {{ formState.country_code }} ·
+                        {{ countryName(formState.country_code) }} ·
                         {{ formState.currency }}
                     </p>
                 </div>

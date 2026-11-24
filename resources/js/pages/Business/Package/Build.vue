@@ -3,6 +3,7 @@ import { Head, Link, router, usePage } from '@inertiajs/vue3';
 import { computed, onBeforeUnmount, ref, shallowRef } from 'vue';
 import BusinessPackageConfigurator from '@/components/BusinessPackageConfigurator.vue';
 import BusinessPackagePurchase from '@/components/BusinessPackagePurchase.vue';
+import PortalPage from '@/components/portal/PortalPage.vue';
 import { Button } from '@/components/ui/button';
 import AppLayout from '@/layouts/AppLayout.vue';
 import {
@@ -144,7 +145,7 @@ const failureTitle: Partial<Record<FailureCode, string>> = {
             { title: purchaseId ? 'Tu compra' : 'Armar mi paquete', href: '' },
         ]"
     >
-        <div class="mx-auto w-full max-w-5xl px-4 py-6 sm:px-8 sm:py-8">
+        <PortalPage>
             <BusinessPackagePurchase
                 v-if="purchaseId"
                 :key="purchaseId"
@@ -231,6 +232,6 @@ const failureTitle: Partial<Record<FailureCode, string>> = {
                     </Button>
                 </div>
             </div>
-        </div>
+        </PortalPage>
     </AppLayout>
 </template>

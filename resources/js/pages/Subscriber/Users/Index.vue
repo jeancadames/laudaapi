@@ -1,17 +1,11 @@
 <script setup lang="ts">
 import { Head, router, useForm } from '@inertiajs/vue3';
-import {
-    KeyRound,
-    Mail,
-    RefreshCw,
-    ShieldCheck,
-    UserCheck,
-    UserPlus,
-    Users,
-    UserX,
-} from 'lucide-vue-next';
+import { KeyRound, Mail, RefreshCw, UserPlus, UserX } from 'lucide-vue-next';
 import { computed, ref } from 'vue';
 
+import { portalButton } from '@/components/portal/buttons';
+import PortalPage from '@/components/portal/PortalPage.vue';
+import PortalSection from '@/components/portal/PortalSection.vue';
 import AppLayout from '@/layouts/AppLayout.vue';
 import type { BreadcrumbItem } from '@/types';
 
@@ -51,7 +45,7 @@ const props = defineProps<{
 }>();
 
 const breadcrumbs: BreadcrumbItem[] = [
-    { title: 'Panel de control', href: '/app/control' },
+    { title: 'Inicio', href: '/app' },
     { title: 'Usuarios', href: '/subscriber/users' },
 ];
 
@@ -66,9 +60,7 @@ const form = useForm<{
 });
 
 const roleDrafts = ref<Record<number, RoleValue>>(
-    Object.fromEntries(
-        props.members.map((member) => [member.id, member.role]),
-    ),
+    Object.fromEntries(props.members.map((member) => [member.id, member.role])),
 );
 
 const query = ref('');
@@ -79,8 +71,9 @@ const filteredMembers = computed(() => {
     if (!term) return props.members;
 
     return props.members.filter((member) =>
-        [member.name, member.email, member.role]
-            .some((value) => value.toLowerCase().includes(term)),
+        [member.name, member.email, member.role].some((value) =>
+            value.toLowerCase().includes(term),
+        ),
     );
 });
 
@@ -88,7 +81,8 @@ const roleLabel = (role: RoleValue) =>
     props.role_options.find((option) => option.value === role)?.label ?? role;
 
 const roleDescription = (role: RoleValue) =>
-    props.role_options.find((option) => option.value === role)?.description ?? '';
+    props.role_options.find((option) => option.value === role)?.description ??
+    '';
 
 const submit = () => {
     form.post('/subscriber/users', {
@@ -110,13 +104,16 @@ const updateRole = (member: Member) => {
     );
 };
 
-const toggleActive = (member: Member) => {
-    const action = member.active ? 'desactivar' : 'activar';
+/** Persona cuya desactivación se está confirmando (la confirmación aparece en su fila). */
+const confirmingId = ref<number | null>(null);
 
-    if (!window.confirm(`¿Seguro que deseas ${action} a ${member.name}?`)) {
+const toggleActive = (member: Member) => {
+    if (member.active && confirmingId.value !== member.id) {
+        confirmingId.value = member.id;
         return;
     }
 
+    confirmingId.value = null;
     router.patch(
         `/subscriber/users/${member.id}/active`,
         {},
@@ -134,299 +131,341 @@ const resendAccess = (member: Member) => {
 </script>
 
 <template>
-    <Head title="Usuarios · LAUDAAPI" />
+    <Head title="Usuarios" />
 
     <AppLayout :breadcrumbs="breadcrumbs">
-        <div class="min-h-full bg-[#FAFAF8] dark:bg-background">
-            <div class="mx-auto w-full max-w-7xl space-y-7 p-4 sm:p-6 lg:p-8">
-                <header class="overflow-hidden rounded-[2rem] border border-slate-200/70 bg-white p-6 shadow-sm sm:p-8 dark:border-slate-800 dark:bg-slate-950">
-                    <div class="grid gap-6 lg:grid-cols-[1fr_auto] lg:items-end">
-                        <div>
-                            <div class="mb-3 inline-flex items-center gap-2 rounded-full border border-red-100 bg-red-50 px-3 py-1 text-xs font-semibold text-red-700 dark:border-red-950 dark:bg-red-950/40 dark:text-red-300">
-                                <ShieldCheck class="h-3.5 w-3.5" />
-                                Mi empresa
+        <PortalPage
+            :eyebrow="props.subscriber.name"
+            title="Usuarios"
+            description="Decide quién de tu equipo entra a LAUDA. Lo que cada persona puede hacer dentro de una aplicación se ajusta en esa aplicación."
+        >
+            <template #actions>
+                <dl
+                    class="flex gap-2 text-center"
+                    aria-label="Resumen del equipo"
+                >
+                    <div
+                        v-for="item in [
+                            { label: 'En total', value: props.summary.total },
+                            { label: 'Activos', value: props.summary.active },
+                            {
+                                label: 'Administran',
+                                value: props.summary.admins,
+                            },
+                        ]"
+                        :key="item.label"
+                        class="min-w-20 rounded-xl border border-slate-200 bg-white px-3 py-2 dark:border-slate-800 dark:bg-slate-950"
+                    >
+                        <dd
+                            class="text-lg font-semibold text-slate-950 tabular-nums dark:text-white"
+                        >
+                            {{ item.value }}
+                        </dd>
+                        <dt class="text-xs text-slate-600 dark:text-slate-400">
+                            {{ item.label }}
+                        </dt>
+                    </div>
+                </dl>
+            </template>
+
+            <PortalSection
+                heading-id="add-user-title"
+                title="Agregar a alguien"
+                description="Si la persona aún no tiene cuenta, la creamos y le enviamos un correo para que elija su contraseña."
+            >
+                <form
+                    class="grid gap-4 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5 md:grid-cols-[1fr_1fr_12rem_auto] md:items-start dark:border-slate-800 dark:bg-slate-950"
+                    @submit.prevent="submit"
+                >
+                    <label class="block">
+                        <span
+                            class="text-sm font-medium text-slate-700 dark:text-slate-300"
+                        >
+                            Nombre
+                        </span>
+                        <input
+                            v-model="form.name"
+                            type="text"
+                            autocomplete="name"
+                            class="mt-1.5 h-10 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm transition outline-none focus:border-slate-400 dark:border-slate-800 dark:bg-slate-950"
+                            placeholder="Nombre y apellido"
+                        />
+                        <p
+                            v-if="form.errors.name"
+                            class="mt-1 text-sm text-red-600"
+                        >
+                            {{ form.errors.name }}
+                        </p>
+                    </label>
+
+                    <label class="block">
+                        <span
+                            class="text-sm font-medium text-slate-700 dark:text-slate-300"
+                        >
+                            Correo
+                        </span>
+                        <input
+                            v-model="form.email"
+                            type="email"
+                            autocomplete="email"
+                            class="mt-1.5 h-10 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm transition outline-none focus:border-slate-400 dark:border-slate-800 dark:bg-slate-950"
+                            placeholder="persona@empresa.com"
+                        />
+                        <p
+                            v-if="form.errors.email"
+                            class="mt-1 text-sm text-red-600"
+                        >
+                            {{ form.errors.email }}
+                        </p>
+                    </label>
+
+                    <label class="block">
+                        <span
+                            class="text-sm font-medium text-slate-700 dark:text-slate-300"
+                        >
+                            Rol
+                        </span>
+                        <select
+                            v-model="form.role"
+                            class="mt-1.5 h-10 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm transition outline-none focus:border-slate-400 dark:border-slate-800 dark:bg-slate-950"
+                        >
+                            <option
+                                v-for="option in props.role_options"
+                                :key="option.value"
+                                :value="option.value"
+                            >
+                                {{ option.label }}
+                            </option>
+                        </select>
+                        <p
+                            v-if="form.errors.role"
+                            class="mt-1 text-sm text-red-600"
+                        >
+                            {{ form.errors.role }}
+                        </p>
+                    </label>
+
+                    <button
+                        type="submit"
+                        :disabled="form.processing"
+                        class="md:mt-7"
+                        :class="portalButton.dark"
+                    >
+                        <UserPlus class="size-4" aria-hidden="true" />
+                        {{ form.processing ? 'Agregando…' : 'Agregar' }}
+                    </button>
+
+                    <p
+                        class="text-sm leading-6 text-slate-600 md:col-span-4 dark:text-slate-400"
+                    >
+                        <span
+                            class="font-medium text-slate-800 dark:text-slate-200"
+                            >{{ roleLabel(form.role) }}:</span
+                        >
+                        {{ roleDescription(form.role) }}
+                    </p>
+                </form>
+            </PortalSection>
+
+            <PortalSection
+                heading-id="team-title"
+                title="Tu equipo"
+                :count="props.members.length"
+                :description="`${props.summary.owners} ${props.summary.owners === 1 ? 'propietario activo' : 'propietarios activos'}.`"
+            >
+                <template v-if="props.members.length > 4" #aside>
+                    <label class="w-full sm:w-64">
+                        <span class="sr-only">Buscar en tu equipo</span>
+                        <input
+                            v-model="query"
+                            type="search"
+                            placeholder="Buscar por nombre o correo"
+                            class="h-10 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm transition outline-none focus:border-slate-400 dark:border-slate-800 dark:bg-slate-950"
+                        />
+                    </label>
+                </template>
+
+                <ul
+                    class="divide-y divide-slate-100 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm dark:divide-slate-800 dark:border-slate-800 dark:bg-slate-950"
+                >
+                    <li
+                        v-for="member in filteredMembers"
+                        :key="member.id"
+                        class="p-4 sm:p-5"
+                    >
+                        <div
+                            class="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between"
+                        >
+                            <div class="min-w-0">
+                                <div class="flex flex-wrap items-center gap-2">
+                                    <h3
+                                        class="font-semibold break-words text-slate-950 dark:text-white"
+                                    >
+                                        {{ member.name }}
+                                    </h3>
+                                    <span
+                                        v-if="
+                                            member.id === props.current_user_id
+                                        "
+                                        class="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-700 dark:bg-slate-900 dark:text-slate-300"
+                                    >
+                                        Tú
+                                    </span>
+                                    <span
+                                        class="rounded-full px-2 py-0.5 text-xs font-medium"
+                                        :class="
+                                            member.active
+                                                ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300'
+                                                : 'bg-slate-100 text-slate-600 dark:bg-slate-900 dark:text-slate-300'
+                                        "
+                                    >
+                                        {{
+                                            member.active
+                                                ? 'Activo'
+                                                : 'Inactivo'
+                                        }}
+                                    </span>
+                                </div>
+                                <p
+                                    class="mt-1 flex min-w-0 items-center gap-1.5 text-sm text-slate-600 dark:text-slate-400"
+                                >
+                                    <Mail
+                                        class="size-3.5 shrink-0"
+                                        aria-hidden="true"
+                                    />
+                                    <span class="break-all">{{
+                                        member.email
+                                    }}</span>
+                                </p>
+                                <p
+                                    class="mt-1 text-sm text-slate-600 dark:text-slate-400"
+                                >
+                                    <span
+                                        class="font-medium text-slate-800 dark:text-slate-200"
+                                        >{{ roleLabel(member.role) }}</span
+                                    >
+                                    · {{ roleDescription(member.role) }}
+                                </p>
                             </div>
 
-                            <h1 class="text-2xl font-black tracking-tight text-slate-950 sm:text-3xl dark:text-white">
-                                Usuarios
-                            </h1>
+                            <div
+                                v-if="member.id !== props.current_user_id"
+                                class="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center lg:shrink-0 lg:justify-end"
+                            >
+                                <div class="flex gap-2">
+                                    <label
+                                        class="min-w-0 flex-1 sm:w-40 sm:flex-none"
+                                    >
+                                        <span class="sr-only"
+                                            >Rol de {{ member.name }}</span
+                                        >
+                                        <select
+                                            v-model="roleDrafts[member.id]"
+                                            class="h-10 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm outline-none dark:border-slate-800 dark:bg-slate-950"
+                                        >
+                                            <option
+                                                v-for="option in props.role_options"
+                                                :key="option.value"
+                                                :value="option.value"
+                                            >
+                                                {{ option.label }}
+                                            </option>
+                                        </select>
+                                    </label>
+                                    <button
+                                        v-if="
+                                            roleDrafts[member.id] !==
+                                            member.role
+                                        "
+                                        type="button"
+                                        :class="portalButton.dark"
+                                        @click="updateRole(member)"
+                                    >
+                                        Guardar
+                                    </button>
+                                </div>
+                                <button
+                                    type="button"
+                                    :class="portalButton.secondary"
+                                    @click="resendAccess(member)"
+                                >
+                                    <KeyRound
+                                        class="size-4"
+                                        aria-hidden="true"
+                                    />
+                                    Reenviar acceso
+                                </button>
+                                <button
+                                    v-if="confirmingId !== member.id"
+                                    type="button"
+                                    :class="portalButton.secondary"
+                                    @click="toggleActive(member)"
+                                >
+                                    <UserX
+                                        v-if="member.active"
+                                        class="size-4"
+                                        aria-hidden="true"
+                                    />
+                                    <RefreshCw
+                                        v-else
+                                        class="size-4"
+                                        aria-hidden="true"
+                                    />
+                                    {{
+                                        member.active ? 'Desactivar' : 'Activar'
+                                    }}
+                                </button>
+                            </div>
 
-                            <p class="mt-2 max-w-3xl text-sm leading-6 text-slate-500 sm:text-base dark:text-slate-400">
-                                Decide quién de tu equipo entra a LAUDA en
-                                {{ props.subscriber.name }}. Lo que cada persona puede
-                                hacer dentro de una aplicación se ajusta en esa aplicación.
+                            <p
+                                v-else
+                                class="text-sm text-slate-600 lg:max-w-xs lg:text-right dark:text-slate-400"
+                            >
+                                No puedes cambiar tu propio rol ni desactivarte.
                             </p>
                         </div>
 
-                        <div class="grid grid-cols-3 gap-2">
-                            <div class="min-w-0 rounded-2xl bg-slate-50 px-2 py-3 text-center dark:bg-slate-900">
-                                <p class="text-xl font-black text-slate-950 dark:text-white">
-                                    {{ props.summary.total }}
-                                </p>
-                                <p class="text-[10px] text-slate-600 sm:text-[11px]">Total</p>
-                            </div>
-                            <div class="min-w-0 rounded-2xl bg-slate-50 px-2 py-3 text-center dark:bg-slate-900">
-                                <p class="text-xl font-black text-slate-950 dark:text-white">
-                                    {{ props.summary.active }}
-                                </p>
-                                <p class="text-[10px] text-slate-600 sm:text-[11px]">Activos</p>
-                            </div>
-                            <div class="min-w-0 rounded-2xl bg-slate-50 px-2 py-3 text-center dark:bg-slate-900">
-                                <p class="text-xl font-black text-slate-950 dark:text-white">
-                                    {{ props.summary.admins }}
-                                </p>
-                                <p class="text-[10px] text-slate-600 sm:text-[11px]">Administradores</p>
-                            </div>
-                        </div>
-                    </div>
-                </header>
-
-                <section class="grid gap-5 xl:grid-cols-[0.8fr_1.2fr]">
-                    <form
-                        class="rounded-2xl border border-slate-100 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-950"
-                        @submit.prevent="submit"
-                    >
-                        <div class="flex items-center gap-3">
-                            <div class="flex h-10 w-10 items-center justify-center rounded-xl bg-slate-100 dark:bg-slate-900">
-                                <UserPlus class="h-5 w-5 text-slate-700 dark:text-slate-200" />
-                            </div>
-                            <div>
-                                <h2 class="font-bold text-slate-950 dark:text-white">
-                                    Agregar usuario
-                                </h2>
-                                <p class="text-xs text-slate-500">
-                                    Invita a alguien de tu equipo.
-                                </p>
-                            </div>
-                        </div>
-
-                        <div class="mt-5 space-y-4">
-                            <label class="block">
-                                <span class="text-xs font-semibold text-slate-600 dark:text-slate-300">
-                                    Nombre
-                                </span>
-                                <input
-                                    v-model="form.name"
-                                    type="text"
-                                    autocomplete="name"
-                                    class="mt-1.5 h-10 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm outline-none transition focus:border-slate-400 dark:border-slate-800 dark:bg-slate-950"
-                                    placeholder="Nombre del usuario"
-                                />
-                                <p v-if="form.errors.name" class="mt-1 text-xs text-red-600">
-                                    {{ form.errors.name }}
-                                </p>
-                            </label>
-
-                            <label class="block">
-                                <span class="text-xs font-semibold text-slate-600 dark:text-slate-300">
-                                    Correo
-                                </span>
-                                <input
-                                    v-model="form.email"
-                                    type="email"
-                                    autocomplete="email"
-                                    class="mt-1.5 h-10 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm outline-none transition focus:border-slate-400 dark:border-slate-800 dark:bg-slate-950"
-                                    placeholder="usuario@empresa.com"
-                                />
-                                <p v-if="form.errors.email" class="mt-1 text-xs text-red-600">
-                                    {{ form.errors.email }}
-                                </p>
-                            </label>
-
-                            <label class="block">
-                                <span class="text-xs font-semibold text-slate-600 dark:text-slate-300">
-                                    Rol
-                                </span>
-                                <select
-                                    v-model="form.role"
-                                    class="mt-1.5 h-10 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm outline-none transition focus:border-slate-400 dark:border-slate-800 dark:bg-slate-950"
-                                >
-                                    <option
-                                        v-for="option in props.role_options"
-                                        :key="option.value"
-                                        :value="option.value"
-                                    >
-                                        {{ option.label }}
-                                    </option>
-                                </select>
-                                <p class="mt-1.5 text-xs leading-5 text-slate-500">
-                                    {{ roleDescription(form.role) }}
-                                </p>
-                                <p v-if="form.errors.role" class="mt-1 text-xs text-red-600">
-                                    {{ form.errors.role }}
-                                </p>
-                            </label>
-
-                            <button
-                                type="submit"
-                                :disabled="form.processing"
-                                class="inline-flex h-10 w-full items-center justify-center gap-2 rounded-xl bg-slate-950 px-4 text-sm font-bold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-white dark:text-slate-950 dark:hover:bg-slate-200"
+                        <div
+                            v-if="confirmingId === member.id"
+                            role="alert"
+                            class="mt-4 flex flex-col gap-3 rounded-xl border border-amber-300 bg-amber-50 p-4 sm:flex-row sm:items-center sm:justify-between dark:border-amber-900/60 dark:bg-amber-950/30"
+                        >
+                            <p
+                                class="text-sm leading-6 text-slate-800 dark:text-slate-200"
                             >
-                                <UserPlus class="h-4 w-4" />
-                                {{ form.processing ? 'Agregando…' : 'Agregar usuario' }}
-                            </button>
-                        </div>
-
-                        <div class="mt-5 rounded-xl bg-slate-50 p-4 text-xs leading-5 text-slate-500 dark:bg-slate-900">
-                            Si la persona aún no tiene cuenta, la creamos y le enviamos
-                            un correo para que elija su propia contraseña.
-                        </div>
-                    </form>
-
-                    <div class="rounded-2xl border border-slate-100 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-950">
-                        <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                            <div class="flex items-center gap-3">
-                                <div class="flex h-10 w-10 items-center justify-center rounded-xl bg-slate-100 dark:bg-slate-900">
-                                    <Users class="h-5 w-5 text-slate-700 dark:text-slate-200" />
-                                </div>
-                                <div>
-                                    <h2 class="font-bold text-slate-950 dark:text-white">
-                                        Miembros del equipo
-                                    </h2>
-                                    <p class="text-xs text-slate-500">
-                                        {{ props.summary.owners }}
-                                        {{ props.summary.owners === 1 ? 'propietario activo' : 'propietarios activos' }}
-                                    </p>
-                                </div>
-                            </div>
-
-                            <input
-                                v-model="query"
-                                type="search"
-                                placeholder="Buscar usuario"
-                                class="h-9 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm outline-none transition focus:border-slate-400 sm:w-56 dark:border-slate-800 dark:bg-slate-950"
-                            />
-                        </div>
-
-                        <div class="mt-5 space-y-3">
-                            <article
-                                v-for="member in filteredMembers"
-                                :key="member.id"
-                                class="rounded-2xl border border-slate-100 p-4 dark:border-slate-800"
-                            >
-                                <div class="flex flex-col gap-4">
-                                    <div class="flex items-start justify-between gap-3">
-                                        <div class="min-w-0">
-                                            <div class="flex flex-wrap items-center gap-2">
-                                                <h3 class="truncate font-bold text-slate-950 dark:text-white">
-                                                    {{ member.name }}
-                                                </h3>
-
-                                                <span
-                                                    v-if="member.id === props.current_user_id"
-                                                    class="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-semibold text-slate-600 dark:bg-slate-900 dark:text-slate-300"
-                                                >
-                                                    Tú
-                                                </span>
-
-                                                <span
-                                                    :class="[
-                                                        'rounded-full px-2 py-0.5 text-[10px] font-semibold',
-                                                        member.active
-                                                            ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300'
-                                                            : 'bg-slate-100 text-slate-500 dark:bg-slate-900',
-                                                    ]"
-                                                >
-                                                    {{ member.active ? 'Activo' : 'Inactivo' }}
-                                                </span>
-                                            </div>
-
-                                            <div class="mt-1 flex items-center gap-1.5 text-xs text-slate-500">
-                                                <Mail class="h-3.5 w-3.5" />
-                                                <span class="truncate">{{ member.email }}</span>
-                                            </div>
-
-                                            <p class="mt-2 text-xs leading-5 text-slate-500">
-                                                {{ roleLabel(member.role) }} ·
-                                                {{ roleDescription(member.role) }}
-                                            </p>
-                                        </div>
-
-                                        <div
-                                            :class="[
-                                                'flex h-9 w-9 shrink-0 items-center justify-center rounded-xl',
-                                                member.active
-                                                    ? 'bg-emerald-50 text-emerald-600 dark:bg-emerald-950/40'
-                                                    : 'bg-slate-100 text-slate-400 dark:bg-slate-900',
-                                            ]"
-                                        >
-                                            <UserCheck v-if="member.active" class="h-4 w-4" />
-                                            <UserX v-else class="h-4 w-4" />
-                                        </div>
-                                    </div>
-
-                                    <div
-                                        v-if="member.id !== props.current_user_id"
-                                        class="grid gap-2 sm:grid-cols-[1fr_auto_auto]"
-                                    >
-                                        <div class="flex gap-2">
-                                            <select
-                                                v-model="roleDrafts[member.id]"
-                                                class="h-9 min-w-0 flex-1 rounded-xl border border-slate-200 bg-white px-3 text-xs outline-none dark:border-slate-800 dark:bg-slate-950"
-                                            >
-                                                <option
-                                                    v-for="option in props.role_options"
-                                                    :key="option.value"
-                                                    :value="option.value"
-                                                >
-                                                    {{ option.label }}
-                                                </option>
-                                            </select>
-
-                                            <button
-                                                type="button"
-                                                class="inline-flex h-9 items-center justify-center rounded-xl border border-slate-200 px-3 text-xs font-semibold transition hover:bg-slate-50 dark:border-slate-800 dark:hover:bg-slate-900"
-                                                @click="updateRole(member)"
-                                            >
-                                                Guardar rol
-                                            </button>
-                                        </div>
-
-                                        <button
-                                            type="button"
-                                            class="inline-flex h-9 items-center justify-center gap-1.5 rounded-xl border border-slate-200 px-3 text-xs font-semibold transition hover:bg-slate-50 dark:border-slate-800 dark:hover:bg-slate-900"
-                                            @click="resendAccess(member)"
-                                        >
-                                            <KeyRound class="h-3.5 w-3.5" />
-                                            Reenviar acceso
-                                        </button>
-
-                                        <button
-                                            type="button"
-                                            :class="[
-                                                'inline-flex h-9 items-center justify-center gap-1.5 rounded-xl px-3 text-xs font-semibold transition',
-                                                member.active
-                                                    ? 'bg-red-50 text-red-700 hover:bg-red-100 dark:bg-red-950/30 dark:text-red-300'
-                                                    : 'bg-emerald-50 text-emerald-700 hover:bg-emerald-100 dark:bg-emerald-950/30 dark:text-emerald-300',
-                                            ]"
-                                            @click="toggleActive(member)"
-                                        >
-                                            <UserX v-if="member.active" class="h-3.5 w-3.5" />
-                                            <RefreshCw v-else class="h-3.5 w-3.5" />
-                                            {{ member.active ? 'Desactivar' : 'Activar' }}
-                                        </button>
-                                    </div>
-
-                                    <div
-                                        v-else
-                                        class="rounded-xl bg-slate-50 px-3 py-2 text-xs text-slate-500 dark:bg-slate-900"
-                                    >
-                                        Tu propia membresía se protege para evitar que
-                                        pierdas accidentalmente el acceso administrativo.
-                                    </div>
-                                </div>
-                            </article>
-
+                                {{ member.name }} ya no podrá entrar a LAUDA con
+                                esta empresa. Puedes volver a activarlo cuando
+                                quieras.
+                            </p>
                             <div
-                                v-if="!filteredMembers.length"
-                                class="rounded-xl border border-dashed border-slate-200 px-4 py-10 text-center text-sm text-slate-500 dark:border-slate-800"
+                                class="flex flex-col gap-2 sm:shrink-0 sm:flex-row"
                             >
-                                No encontramos usuarios con ese filtro.
+                                <button
+                                    type="button"
+                                    :class="portalButton.dark"
+                                    @click="toggleActive(member)"
+                                >
+                                    Sí, desactivar
+                                </button>
+                                <button
+                                    type="button"
+                                    :class="portalButton.link"
+                                    @click="confirmingId = null"
+                                >
+                                    Cancelar
+                                </button>
                             </div>
                         </div>
-                    </div>
-                </section>
-            </div>
-        </div>
+                    </li>
+
+                    <li
+                        v-if="!filteredMembers.length"
+                        class="px-4 py-10 text-center text-sm text-slate-600"
+                    >
+                        No encontramos a nadie con esa búsqueda.
+                    </li>
+                </ul>
+            </PortalSection>
+        </PortalPage>
     </AppLayout>
 </template>

@@ -172,11 +172,19 @@ class CentralCompanyProfileContractTest extends TestCase
             'resources/js/components/company/CompanyProfileForm.vue'
         );
 
+        // País y horario se eligen de una lista nativa por nombre, no por código.
+        foreach (['country_code', 'timezone'] as $name) {
+            $this->assertMatchesRegularExpression(
+                '/<select[\s\S]*?name="'.$name.'"/',
+                $form,
+                'Lista no nativa: '.$name
+            );
+        }
+
         foreach ([
             'company_name',
             'legal_name',
             'tax_id',
-            'country_code',
             'billing_email',
             'billing_phone',
             'billing_contact_name',
@@ -185,7 +193,6 @@ class CentralCompanyProfileContractTest extends TestCase
             'state',
             'city',
             'postal_code',
-            'timezone',
             'economic_activity_primary_code',
             'economic_activity_primary_name',
         ] as $name) {

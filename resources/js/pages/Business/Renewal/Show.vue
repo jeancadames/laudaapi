@@ -1,7 +1,8 @@
 <script setup lang="ts">
-import { Head, Link, router } from '@inertiajs/vue3';
+import { Head, router } from '@inertiajs/vue3';
 import { computed, reactive, ref, watch } from 'vue';
 import BusinessAmountInput from '@/components/BusinessAmountInput.vue';
+import PortalPage from '@/components/portal/PortalPage.vue';
 import { Button } from '@/components/ui/button';
 import AppLayout from '@/layouts/AppLayout.vue';
 import { timezoneLabel } from '@/lib/timezoneLabel';
@@ -198,30 +199,20 @@ function confirmOffer() {
     <Head title="Renovación Business" />
     <AppLayout
         :breadcrumbs="[
+            {
+                title: 'Inicio',
+                href: current.admin ? '/dashboard' : '/app',
+            },
             { title: 'Activación Business', href: current.back_url },
             { title: 'Renovación', href: '#' },
         ]"
     >
-        <div class="mx-auto w-full max-w-5xl space-y-8 px-5 py-8 sm:px-8">
-            <header class="space-y-3">
-                <Link
-                    :href="current.back_url"
-                    class="inline-flex min-h-11 items-center text-sm underline underline-offset-4"
-                    >Volver a activación</Link
-                >
-                <h1 class="text-3xl font-semibold tracking-tight">
-                    Renovación Business
-                </h1>
-                <p class="text-base text-muted-foreground">
-                    {{ current.company_name }} · {{ current.currency }}
-                </p>
-                <p class="max-w-2xl text-sm leading-6 text-muted-foreground">
-                    Revisa y acepta las condiciones de cada período para
-                    continuar con las soluciones contratadas. La aceptación
-                    autoriza su factura; el acceso requiere pago confirmado y
-                    comienza en la fecha indicada.
-                </p>
-            </header>
+        <PortalPage
+            :eyebrow="current.company_name"
+            title="Renovación Business"
+            description="Revisa y acepta las condiciones de cada período para continuar con las soluciones contratadas. Al aceptar se emite su factura; el acceso empieza en la fecha indicada, una vez confirmado el pago."
+            :back="{ href: current.back_url, label: 'Volver a activación' }"
+        >
             <div
                 v-if="current.hold"
                 role="status"
@@ -516,11 +507,24 @@ function confirmOffer() {
                         <h2 class="text-xl font-semibold">
                             Pendiente de propuesta
                         </h2>
-                        <p class="text-sm leading-6 text-muted-foreground">
+                        <p
+                            v-if="current.admin"
+                            class="text-sm leading-6 text-muted-foreground"
+                        >
                             Administración debe completar y publicar las
                             condiciones antes de que puedas aceptarlas. Al
                             vencer la cobertura actual, se requiere una
                             renovación pagada para continuar.
+                        </p>
+                        <p
+                            v-else
+                            class="text-sm leading-6 text-muted-foreground"
+                        >
+                            LAUDA está preparando las condiciones de tu próximo
+                            período. Cuando estén listas podrás revisarlas y
+                            aceptarlas aquí. Al terminar el período pagado, para
+                            seguir usando tus aplicaciones necesitas renovar y
+                            pagar el siguiente.
                         </p>
                     </section>
                 </section>
@@ -614,9 +618,16 @@ function confirmOffer() {
                             >
                         </form>
                     </template>
-                    <p v-else class="text-sm leading-6 text-muted-foreground">
+                    <p
+                        v-else-if="current.admin"
+                        class="text-sm leading-6 text-muted-foreground"
+                    >
                         Completa las condiciones para publicar el importe que
                         revisará la empresa. La publicación no crea una factura.
+                    </p>
+                    <p v-else class="text-sm leading-6 text-muted-foreground">
+                        Todavía no hay un importe para revisar. Vuelve a esta
+                        página más adelante o pulsa «Actualizar estado».
                     </p>
                     <Button
                         variant="outline"
@@ -687,6 +698,6 @@ function confirmOffer() {
                     completo se conserva.
                 </p>
             </section>
-        </div>
+        </PortalPage>
     </AppLayout>
 </template>

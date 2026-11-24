@@ -1,13 +1,11 @@
 <script setup lang="ts">
 import { Head } from '@inertiajs/vue3';
-import {
-    Building2,
-    ShieldCheck,
-} from 'lucide-vue-next';
+import { ShieldCheck } from 'lucide-vue-next';
 
 import CompanyProfileForm, {
     type CompanyProfilePayload,
 } from '@/components/company/CompanyProfileForm.vue';
+import PortalPage from '@/components/portal/PortalPage.vue';
 import AppLayout from '@/layouts/AppLayout.vue';
 import type { BreadcrumbItem } from '@/types';
 
@@ -25,87 +23,88 @@ const props = defineProps<{
 
 const breadcrumbs: BreadcrumbItem[] = [
     { title: 'Inicio', href: '/app' },
-    { title: 'Panel de control', href: '/app/control' },
-    { title: 'Perfil de Empresa', href: '/subscriber/company' },
+    { title: 'Datos de la empresa', href: '/subscriber/company' },
 ];
 </script>
 
 <template>
     <AppLayout :breadcrumbs="breadcrumbs">
-        <Head title="Perfil de Empresa" />
+        <Head title="Datos de la empresa" />
 
-        <div class="min-h-full bg-slate-50/60 py-6 dark:bg-slate-950/40">
-            <div
-                class="mx-auto flex w-full max-w-5xl flex-col gap-5 px-4 sm:px-6 lg:px-8"
-            >
-                <header
-                    class="rounded-[2rem] border border-slate-200/70 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-950"
+        <PortalPage
+            :eyebrow="props.profile.company_name || null"
+            title="Datos de la empresa"
+            description="Los datos que usamos en tus facturas, cotizaciones y aplicaciones."
+        >
+            <template #actions>
+                <span
+                    class="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-200"
                 >
+                    <ShieldCheck
+                        class="size-4 text-emerald-600"
+                        aria-hidden="true"
+                    />
+                    Tu rol:
+                    {{
+                        props.viewer.role === 'owner'
+                            ? 'Propietario'
+                            : 'Administrador'
+                    }}
+                </span>
+            </template>
+
+            <div class="grid gap-6 lg:grid-cols-[minmax(0,1fr)_18rem]">
+                <div class="min-w-0">
+                    <CompanyProfileForm
+                        :initial="props.profile"
+                        action="/subscriber/company"
+                        submit-label="Guardar los datos"
+                    />
+                </div>
+
+                <aside class="space-y-4 lg:sticky lg:top-6 lg:self-start">
                     <div
-                        class="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between"
+                        class="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-950"
                     >
-                        <div>
-                            <div
-                                class="mb-3 inline-flex items-center gap-2 rounded-full bg-red-50 px-3 py-1 text-xs font-bold text-red-700 dark:bg-red-950/40 dark:text-red-300"
-                            >
-                                <Building2 class="h-3.5 w-3.5" />
-                                Mi empresa
-                            </div>
-
-                            <h1
-                                class="text-2xl font-black tracking-tight text-slate-950 dark:text-white"
-                            >
-                                Perfil de Empresa
-                            </h1>
-
-                            <p
-                                class="mt-2 max-w-2xl text-sm leading-6 text-slate-500"
-                            >
-                                Los datos de tu empresa que usamos en facturas, cotizaciones y aplicaciones.
-                            </p>
-                        </div>
-
-                        <div
-                            class="inline-flex items-center gap-2 rounded-xl border border-slate-200 px-3 py-2 text-xs font-semibold text-slate-600 dark:border-slate-800 dark:text-slate-300"
+                        <h2
+                            class="text-sm font-semibold text-slate-950 dark:text-white"
                         >
-                            <ShieldCheck class="h-4 w-4 text-emerald-600" />
-                            {{ props.viewer.role === 'owner' ? 'Propietario' : 'Administrador' }}
-                        </div>
+                            Tu cuenta
+                        </h2>
+                        <p
+                            class="mt-1 text-sm font-medium break-words text-slate-800 dark:text-slate-200"
+                        >
+                            {{ props.account.name }}
+                        </p>
+                        <p
+                            class="text-sm break-all text-slate-600 dark:text-slate-400"
+                        >
+                            {{ props.account.email }}
+                        </p>
+                        <p
+                            class="mt-2 text-sm leading-6 text-slate-600 dark:text-slate-400"
+                        >
+                            Con este correo entras a LAUDA. Es distinto del
+                            correo de facturación de la empresa.
+                        </p>
                     </div>
-                </header>
 
-                <div
-                    class="rounded-2xl border border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-950"
-                >
-                    <p class="text-xs font-bold uppercase tracking-wide text-slate-400">
-                        Cuenta
-                    </p>
-                    <p class="mt-1 font-bold text-slate-950 dark:text-white">
-                        {{ props.account.name }}
-                    </p>
-                    <p class="text-sm text-slate-500">
-                        {{ props.account.email }}
-                    </p>
-                    <p class="mt-2 text-xs leading-5 text-slate-500">
-                        El correo de acceso de tu usuario es independiente del correo empresarial.
-                    </p>
-                </div>
-
-                <CompanyProfileForm
-                    :initial="props.profile"
-                    action="/subscriber/company"
-                    submit-label="Guardar Perfil de Empresa"
-                />
-
-                <div
-                    class="rounded-2xl border border-slate-200 bg-white p-5 text-sm leading-6 text-slate-600 dark:border-slate-800 dark:bg-slate-950 dark:text-slate-300"
-                >
-                    <strong class="text-slate-950 dark:text-white">
-                        Tus datos fiscales no se cambian solos.
-                    </strong>
-                    Lo que guardes aquí se mantiene tal cual. Lo que diga la DGII o tus aplicaciones fiscales se revisa aparte y nunca reemplaza estos datos sin tu permiso.
-                </div>
+                    <div
+                        class="rounded-2xl border border-slate-200 bg-white p-4 text-sm leading-6 text-slate-600 shadow-sm dark:border-slate-800 dark:bg-slate-950 dark:text-slate-300"
+                    >
+                        <h2
+                            class="font-semibold text-slate-950 dark:text-white"
+                        >
+                            Tus datos no cambian solos
+                        </h2>
+                        <p class="mt-1">
+                            Lo que guardes aquí se mantiene. Si la DGII o tus
+                            aplicaciones tienen otros datos, te lo mostramos
+                            aparte y no se reemplaza nada sin tu permiso.
+                        </p>
+                    </div>
+                </aside>
             </div>
-        </div>
+        </PortalPage>
     </AppLayout>
 </template>

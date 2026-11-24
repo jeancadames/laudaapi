@@ -2,6 +2,7 @@
 import { Head, Link, router } from '@inertiajs/vue3';
 import { computed, ref, watch } from 'vue';
 import BusinessTransitionSummary from '@/components/BusinessTransitionSummary.vue';
+import PortalPage from '@/components/portal/PortalPage.vue';
 import { Button } from '@/components/ui/button';
 import AppLayout from '@/layouts/AppLayout.vue';
 import { timezoneLabel } from '@/lib/timezoneLabel';
@@ -114,28 +115,23 @@ async function activate() {
     <Head title="Activación Business" />
     <AppLayout
         :breadcrumbs="[
+            {
+                title: 'Inicio',
+                href: current.admin ? '/dashboard' : '/app',
+            },
             { title: 'Implementación', href: current.back_url },
             { title: 'Activación Business', href: current.action_url ?? '#' },
         ]"
     >
-        <div class="mx-auto w-full max-w-5xl space-y-8 px-5 py-8 sm:px-8">
-            <header class="space-y-3">
-                <Link
-                    :href="current.back_url"
-                    class="inline-flex min-h-11 items-center text-sm text-muted-foreground underline underline-offset-4"
-                    >Volver a implementación</Link
-                >
-                <p class="text-sm font-medium break-words">
-                    {{ quote.company_name }}
-                </p>
-                <h1 class="text-3xl font-semibold tracking-tight">
-                    Activación Business
-                </h1>
-                <p class="text-muted-foreground">
-                    {{ quote.offer_name }} · {{ quote.level_name }} · Ciclo
-                    {{ quote.billing_cycle === 'yearly' ? 'anual' : 'mensual' }}
-                </p>
-            </header>
+        <PortalPage
+            :eyebrow="quote.company_name"
+            title="Activación Business"
+            :description="`${quote.offer_name} · ${quote.level_name} · Pago ${quote.billing_cycle === 'yearly' ? 'anual' : 'mensual'}`"
+            :back="{
+                href: current.back_url,
+                label: 'Volver a implementación',
+            }"
+        >
             <div
                 class="grid items-start gap-8 lg:grid-cols-[minmax(0,1fr)_minmax(18rem,22rem)]"
             >
@@ -161,12 +157,15 @@ async function activate() {
                             <p class="text-sm leading-6 text-muted-foreground">
                                 {{
                                     solution.ready
-                                        ? 'Vinculación bilateral preparada.'
+                                        ? current.admin
+                                            ? 'Vinculación bilateral preparada.'
+                                            : 'Lista para usar.'
                                         : solution.reason
                                 }}
                             </p>
+                            <!-- Nota técnica de administración: no se muestra al cliente. -->
                             <p
-                                v-if="current.contract"
+                                v-if="current.admin && current.contract"
                                 class="text-sm leading-6 break-words whitespace-pre-wrap"
                             >
                                 {{
@@ -248,7 +247,11 @@ async function activate() {
                         class="space-y-3 border-t pt-5 text-sm"
                     >
                         <p class="font-semibold">
-                            Contrato #{{ current.contract.id }}
+                            {{
+                                current.admin
+                                    ? `Contrato #${current.contract.id}`
+                                    : 'Tu contrato'
+                            }}
                         </p>
                         <p>
                             Activado por {{ current.contract.activated_name }}.
@@ -383,6 +386,6 @@ async function activate() {
                     >
                 </aside>
             </div>
-        </div>
+        </PortalPage>
     </AppLayout>
 </template>

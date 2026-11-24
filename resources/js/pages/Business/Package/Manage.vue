@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import { Head, Link, router, usePage } from '@inertiajs/vue3';
 import {
-    ArrowLeft,
     CalendarClock,
     Check,
     CircleAlert,
@@ -19,6 +18,7 @@ import {
     shallowRef,
     watch,
 } from 'vue';
+import PortalPage from '@/components/portal/PortalPage.vue';
 import { Button } from '@/components/ui/button';
 import { useBusinessPackageChange } from '@/composables/useBusinessPackageChange';
 import { useBusinessPurchase } from '@/composables/useBusinessPurchase';
@@ -239,65 +239,52 @@ const reloadPage = () => window.location.reload();
     <Head title="Administrar mi paquete" />
     <AppLayout
         :breadcrumbs="[
+            { title: 'Inicio', href: '/app' },
             { title: 'Tu paquete', href: plan.back_url },
             { title: 'Administrar mi paquete', href: '' },
         ]"
     >
-        <div
-            class="mx-auto w-full max-w-2xl space-y-8 px-4 py-6 sm:px-8 sm:py-8"
+        <PortalPage
+            :eyebrow="plan.company"
+            title="Administrar mi paquete"
+            description="Agrega o quita aplicaciones para tu próximo período."
+            width="narrow"
+            :back="{ href: plan.back_url, label: 'Volver a mi paquete' }"
         >
-            <Link
-                :href="plan.back_url"
-                class="-ml-1 inline-flex min-h-11 items-center gap-1.5 rounded-md px-1 text-sm font-medium text-muted-foreground hover:text-foreground focus-visible:ring-[3px] focus-visible:ring-ring/50 focus-visible:outline-none"
+            <div
+                class="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5 dark:border-slate-800 dark:bg-slate-950"
+                data-testid="current-package"
             >
-                <ArrowLeft class="size-4" aria-hidden="true" />
-                Volver a mi paquete
-            </Link>
-
-            <header class="space-y-3">
-                <p class="text-sm font-medium break-words">
-                    {{ plan.company }}
+                <p class="text-sm text-muted-foreground">
+                    {{ ended ? 'Paquete anterior' : 'Tienes contratado' }}
                 </p>
-                <h1 class="text-2xl font-semibold tracking-tight sm:text-3xl">
-                    Administrar mi paquete
-                </h1>
-                <div
-                    class="rounded-xl border bg-muted/30 p-4"
-                    data-testid="current-package"
-                >
-                    <p class="text-sm text-muted-foreground">
-                        {{ ended ? 'Paquete anterior' : 'Tienes contratado' }}
-                    </p>
-                    <p class="mt-1 font-semibold">{{ currentNames }}</p>
-                    <dl v-if="facts.length" class="mt-2 space-y-1 text-sm">
-                        <div
-                            v-for="fact in facts"
-                            :key="fact.label"
-                            class="flex flex-wrap gap-x-1.5"
+                <p class="mt-1 font-semibold">{{ currentNames }}</p>
+                <dl v-if="facts.length" class="mt-2 space-y-1 text-sm">
+                    <div
+                        v-for="fact in facts"
+                        :key="fact.label"
+                        class="flex flex-wrap gap-x-1.5"
+                    >
+                        <dt class="text-muted-foreground">{{ fact.label }}:</dt>
+                        <dd
+                            :class="
+                                fact.muted
+                                    ? 'text-muted-foreground'
+                                    : 'font-medium'
+                            "
                         >
-                            <dt class="text-muted-foreground">
-                                {{ fact.label }}:
-                            </dt>
-                            <dd
-                                :class="
-                                    fact.muted
-                                        ? 'text-muted-foreground'
-                                        : 'font-medium'
-                                "
-                            >
-                                {{ fact.value }}
-                            </dd>
-                        </div>
-                        <div class="flex flex-wrap gap-x-1.5">
-                            <dt class="text-muted-foreground">Facturación:</dt>
-                            <dd>{{ cycle.option }}</dd>
-                        </div>
-                    </dl>
-                    <p v-else class="mt-1 text-sm text-muted-foreground">
-                        Facturación {{ cycle.adverb }}
-                    </p>
-                </div>
-            </header>
+                            {{ fact.value }}
+                        </dd>
+                    </div>
+                    <div class="flex flex-wrap gap-x-1.5">
+                        <dt class="text-muted-foreground">Facturación:</dt>
+                        <dd>{{ cycle.option }}</dd>
+                    </div>
+                </dl>
+                <p v-else class="mt-1 text-sm text-muted-foreground">
+                    Facturación {{ cycle.adverb }}
+                </p>
+            </div>
 
             <!-- 1 · Elegir -->
             <template v-if="stage === 'edit'">
@@ -962,6 +949,6 @@ const reloadPage = () => window.location.reload();
                     <Link :href="plan.back_url">Volver a mi paquete</Link>
                 </Button>
             </section>
-        </div>
+        </PortalPage>
     </AppLayout>
 </template>

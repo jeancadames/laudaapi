@@ -203,17 +203,21 @@ watch(existingPurchaseId, (purchaseId) => {
         >
             <div class="min-w-0 space-y-8">
                 <header class="space-y-2">
-                    <p class="text-sm font-medium break-words">
+                    <p
+                        class="text-sm font-medium break-words text-slate-500 dark:text-slate-400"
+                    >
                         {{ catalog.company_name }}
                     </p>
                     <h1
                         ref="heading"
                         tabindex="-1"
-                        class="text-2xl font-semibold tracking-tight outline-none sm:text-3xl"
+                        class="text-2xl font-bold tracking-tight text-slate-950 outline-none sm:text-[28px] dark:text-white"
                     >
                         Armar mi paquete
                     </h1>
-                    <p class="leading-7 text-muted-foreground">
+                    <p
+                        class="max-w-2xl text-[15px] leading-6 text-slate-600 dark:text-slate-400"
+                    >
                         Elige solo las aplicaciones que necesitas, en la
                         combinación que quieras: armamos tu plan y te mostramos
                         el precio antes de contratar. Todavía no se cobra nada.
@@ -221,9 +225,7 @@ watch(existingPurchaseId, (purchaseId) => {
                 </header>
 
                 <section v-if="catalog.presets?.length" class="space-y-3">
-                    <h2 class="text-lg font-semibold">
-                        Paquetes predeterminados
-                    </h2>
+                    <h2 class="text-lg font-semibold">Paquetes sugeridos</h2>
                     <p class="text-sm text-muted-foreground">
                         Elige una combinación inicial. Puedes ajustar las
                         aplicaciones antes de revisar el precio.
@@ -485,13 +487,15 @@ watch(existingPurchaseId, (purchaseId) => {
                     <ArrowLeft class="size-4" aria-hidden="true" />
                     Cambiar mi selección
                 </button>
-                <p class="text-sm font-medium break-words">
+                <p
+                    class="text-sm font-medium break-words text-slate-500 dark:text-slate-400"
+                >
                     {{ catalog.company_name }}
                 </p>
                 <h1
                     ref="heading"
                     tabindex="-1"
-                    class="text-2xl font-semibold tracking-tight outline-none sm:text-3xl"
+                    class="text-2xl font-bold tracking-tight text-slate-950 outline-none sm:text-[28px] dark:text-white"
                 >
                     Tu plan personalizado
                 </h1>

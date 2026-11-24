@@ -3,6 +3,7 @@ import { Head, Link, router } from '@inertiajs/vue3';
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import BusinessCapacitySummary from '@/components/BusinessCapacitySummary.vue';
 import BusinessTransitionSummary from '@/components/BusinessTransitionSummary.vue';
+import PortalPage from '@/components/portal/PortalPage.vue';
 import { Button } from '@/components/ui/button';
 import AppLayout from '@/layouts/AppLayout.vue';
 import { timezoneLabel } from '@/lib/timezoneLabel';
@@ -152,27 +153,15 @@ async function accept() {
             { title: quote.offer_name, href: quote.url },
         ]"
     >
-        <div class="mx-auto w-full max-w-6xl space-y-8 px-5 py-8 sm:px-8">
-            <header class="space-y-3">
-                <Link
-                    href="/app/business/quotes"
-                    class="inline-flex text-sm text-muted-foreground underline underline-offset-4"
-                    >Volver a cotizaciones</Link
-                >
-                <p class="text-sm font-medium break-words">
-                    {{ quote.company_name }}
-                </p>
-                <h1 class="text-3xl font-semibold tracking-tight">
-                    {{ quote.offer_name }} · {{ snapshot.level.name }}
-                </h1>
-                <p class="text-sm leading-6 text-muted-foreground">
-                    Emitida {{ date(quote.issued_at) }} · Válida hasta
-                    {{ date(quote.valid_until) }} ({{
-                        timezoneLabel(snapshot.timezone)
-                    }})
-                </p>
-            </header>
-
+        <PortalPage
+            :eyebrow="quote.company_name"
+            :title="`${quote.offer_name} · ${snapshot.level.name}`"
+            :description="`Emitida ${date(quote.issued_at)} · Válida hasta ${date(quote.valid_until)} (${timezoneLabel(snapshot.timezone)})`"
+            :back="{
+                href: '/app/business/quotes',
+                label: 'Volver a cotizaciones',
+            }"
+        >
             <div
                 class="grid items-start gap-8 lg:grid-cols-[minmax(0,1fr)_minmax(18rem,22rem)]"
             >
@@ -453,6 +442,6 @@ async function accept() {
                     </form>
                 </aside>
             </div>
-        </div>
+        </PortalPage>
     </AppLayout>
 </template>
