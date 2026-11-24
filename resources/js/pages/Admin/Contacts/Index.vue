@@ -2,23 +2,23 @@
 import { Head, Link, router } from '@inertiajs/vue3'
 import { onBeforeUnmount, onMounted, ref, watch, computed } from 'vue'
 
-import AppLayout from '@/layouts/AppLayout.vue'
-import { dashboard } from '@/routes'
-import { index as adminContactsIndex } from '@/routes/admin/contacts'
-import { type BreadcrumbItem } from '@/types'
-
-import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
-
-// ✅ NUEVO: dropdown (ajusta rutas si difieren en tu proyecto)
+import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card'
 import {
     DropdownMenu,
     DropdownMenuTrigger,
     DropdownMenuContent,
     DropdownMenuItem,
 } from '@/components/ui/dropdown-menu'
+import { Input } from '@/components/ui/input'
+import AppLayout from '@/layouts/AppLayout.vue'
+import { adminTone } from '@/lib/adminLabels'
+import { dashboard } from '@/routes'
+import { index as adminContactsIndex } from '@/routes/admin/contacts'
+import { type BreadcrumbItem } from '@/types'
+
+// ✅ NUEVO: dropdown (ajusta rutas si difieren en tu proyecto)
 
 type ContactRequest = {
     id: number
@@ -53,7 +53,7 @@ const props = defineProps<{
 }>()
 
 const breadcrumbs: BreadcrumbItem[] = [
-    { title: 'Dashboard', href: dashboard().url },
+    { title: 'Panel', href: dashboard().url },
     { title: 'Solicitudes de Contacto', href: adminContactsIndex().url },
 ]
 
@@ -230,7 +230,7 @@ const currentStatus = computed(() => {
                                     {{ contact.name }}
                                 </CardTitle>
 
-                                <Badge :variant="contact.read_at ? 'secondary' : 'default'" class="capitalize">
+                                <Badge :class="adminTone(contact.read_at ? 'read' : 'pending')">
                                     {{ contact.read_at ? 'Leído' : 'Nuevo' }}
                                 </Badge>
                             </div>

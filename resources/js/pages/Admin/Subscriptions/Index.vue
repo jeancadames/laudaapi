@@ -3,26 +3,24 @@
 import { Head, Link, router } from '@inertiajs/vue3'
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 
-import AppLayout from '@/layouts/AppLayout.vue'
-import { dashboard } from '@/routes'
-import subscriptionsRoutes from '@/routes/admin/subscriptions'
-import { type BreadcrumbItem } from '@/types'
-
-import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
-
+import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card'
 import {
     DropdownMenu,
     DropdownMenuTrigger,
     DropdownMenuContent,
     DropdownMenuItem,
 } from '@/components/ui/dropdown-menu'
-
+import { Input } from '@/components/ui/input'
 import { useDateFormatter } from '@/composables/useDateFormatter'
+import AppLayout from '@/layouts/AppLayout.vue'
+import { adminTone } from '@/lib/adminLabels'
+import { dashboard } from '@/routes'
+import subscriptionsRoutes from '@/routes/admin/subscriptions'
+import { type BreadcrumbItem } from '@/types'
 
-const { formatDate, formatDateTime } = useDateFormatter()
+const { formatDate } = useDateFormatter()
 
 type SubscriptionStatus = 'trialing' | 'active' | 'past_due' | 'cancelled' | 'expired'
 type Cycle = 'monthly' | 'yearly'
@@ -89,7 +87,7 @@ const props = defineProps<{
 }>()
 
 const breadcrumbs: BreadcrumbItem[] = [
-    { title: 'Dashboard', href: dashboard().url },
+    { title: 'Panel', href: dashboard().url },
     { title: 'Suscripciones', href: subscriptionsRoutes.index().url },
 ]
 
@@ -137,7 +135,7 @@ function applyFilters(next?: Partial<{ search: string; status: StatusFilter; cyc
         page: 1,
     }
 
-    router.get(subscriptions.index({ query }).url, {}, {
+    router.get(subscriptionsRoutes.index({ query }).url, {}, {
         preserveState: true,
         preserveScroll: true,
         replace: true,
@@ -184,14 +182,6 @@ function money(amount: number, currency: string) {
     } catch {
         return `${currency} ${Number(amount ?? 0).toFixed(2)}`
     }
-}
-
-
-function statusBadgeVariant(st: SubscriptionStatus) {
-    if (st === 'active') return 'default'
-    if (st === 'trialing') return 'secondary'
-    if (st === 'past_due') return 'destructive'
-    return 'outline'
 }
 
 function statusLabel(st: SubscriptionStatus) {
@@ -276,11 +266,11 @@ function statusLabel(st: SubscriptionStatus) {
                             </CardTitle>
 
                             <div class="flex items-center gap-2">
-                                <Badge :variant="statusBadgeVariant(s.status)" class="capitalize">
+                                <Badge :class="adminTone(s.status)">
                                     {{ statusLabel(s.status) }}
                                 </Badge>
-                                <Badge variant="outline" class="capitalize">
-                                    {{ s.billing_cycle }}
+                                <Badge variant="outline">
+                                    {{ s.billing_cycle === 'yearly' ? 'Anual' : s.billing_cycle === 'monthly' ? 'Mensual' : s.billing_cycle }}
                                 </Badge>
                             </div>
                         </div>
@@ -331,7 +321,7 @@ function statusLabel(st: SubscriptionStatus) {
                         <div class="grid grid-cols-2 gap-2">
                             <div>
                                 <div class="text-xs text-muted-foreground">Suscriptor activo</div>
-                                <Badge :variant="s.subscriber?.active ? 'default' : 'secondary'">
+                                <Badge :class="adminTone(s.subscriber?.active ? 'active' : 'inactive')">
                                     {{ s.subscriber?.active ? 'Sí' : 'No' }}
                                 </Badge>
                             </div>

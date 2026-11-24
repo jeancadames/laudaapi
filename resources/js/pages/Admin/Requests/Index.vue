@@ -2,17 +2,9 @@
 import { Head, Link, router } from '@inertiajs/vue3'
 import { onBeforeUnmount, onMounted, ref, watch, computed } from 'vue'
 
-import AppLayout from '@/layouts/AppLayout.vue'
-import { dashboard } from '@/routes'
-import requestsRoutes from '@/routes/admin/requests'
-import { type BreadcrumbItem } from '@/types'
-
-import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
-
-// ✅ shadcn-vue dropdown menu
+import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card'
 import {
     DropdownMenu,
     DropdownMenuTrigger,
@@ -21,6 +13,14 @@ import {
     DropdownMenuSeparator,
     DropdownMenuItem,
 } from '@/components/ui/dropdown-menu'
+import { Input } from '@/components/ui/input'
+import AppLayout from '@/layouts/AppLayout.vue'
+import { adminTone } from '@/lib/adminLabels'
+import { dashboard } from '@/routes'
+import requestsRoutes from '@/routes/admin/requests'
+import { type BreadcrumbItem } from '@/types'
+
+// ✅ shadcn-vue dropdown menu
 
 // ✅ Status válidos (única fuente de verdad)
 type Status = 'pending' | 'accepted' | 'trialing' | 'expired' | 'converted' | 'discarded'
@@ -84,7 +84,7 @@ const props = defineProps<{
 }>()
 
 const breadcrumbs: BreadcrumbItem[] = [
-    { title: 'Dashboard', href: dashboard().url },
+    { title: 'Panel', href: dashboard().url },
     { title: 'Solicitudes de Activación', href: requestsRoutes.index().url },
 ]
 
@@ -147,12 +147,6 @@ const currentStatusLabel = computed(() => {
         ? `Todos (${countOf('all')})`
         : `${statusLabel(status.value)} (${countOf(status.value)})`
 })
-
-function statusBadgeVariant(s: Status) {
-    if (s === 'pending') return 'default'
-    if (s === 'discarded' || s === 'expired') return 'destructive'
-    return 'secondary'
-}
 
 function buildQS(override?: Partial<{ search: string; status: StatusFilter; page: number }>) {
     const params = new URLSearchParams()
@@ -315,12 +309,12 @@ onBeforeUnmount(() => unsubs.forEach((u) => u()))
                                 </div>
 
                                 <div class="flex flex-col items-end gap-1 shrink-0">
-                                    <Badge :variant="statusBadgeVariant(r.status)" class="capitalize whitespace-nowrap">
+                                    <Badge :class="adminTone(r.status)" class="whitespace-nowrap">
                                         {{ statusLabelValue(r.status) }}
                                     </Badge>
 
                                     <Badge v-if="r.status === 'pending' && isLinkExpired(r)" variant="destructive" class="whitespace-nowrap">
-                                        Link expirado
+                                        Enlace vencido
                                     </Badge>
                                 </div>
                             </div>

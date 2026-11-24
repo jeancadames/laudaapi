@@ -1,14 +1,14 @@
 <script setup lang="ts">
 import { Head, router, usePage } from '@inertiajs/vue3'
 import { computed, ref, onMounted, onBeforeUnmount } from 'vue'
+import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
+import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card'
 import AppLayout from '@/layouts/AppLayout.vue'
+import { adminTone } from '@/lib/adminLabels'
 import { dashboard } from '@/routes'
 import requests from '@/routes/admin/requests'
 import { type BreadcrumbItem } from '@/types'
-
-import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card'
-import { Badge } from '@/components/ui/badge'
-import { Button } from '@/components/ui/button'
 
 type Status =
     | 'pending'
@@ -59,7 +59,7 @@ const backUrl = computed(() => {
 })
 
 const breadcrumbs = computed<BreadcrumbItem[]>(() => [
-    { title: 'Dashboard', href: dashboard().url },
+    { title: 'Panel', href: dashboard().url },
     { title: 'Solicitudes de Activación', href: backUrl.value },
     { title: props.request.name, href: page.url },
 ])
@@ -76,13 +76,6 @@ function statusLabel(s: Status) {
         discarded: 'Descartado',
     }
     return map[ s ]
-}
-
-function statusBadgeVariant(s: Status) {
-    if (s === 'pending') return 'default'
-    if (s === 'accepted') return 'secondary'
-    if (s === 'discarded' || s === 'expired') return 'destructive'
-    return 'secondary'
 }
 
 function safeTel(phone: string) {
@@ -173,7 +166,7 @@ onBeforeUnmount(() => unsubs.forEach((u) => u()))
 
                         <div class="flex sm:justify-end">
                             <div class="flex flex-col items-start sm:items-end gap-1">
-                                <Badge :variant="statusBadgeVariant(props.request.status)" class="capitalize whitespace-nowrap">
+                                <Badge :class="adminTone(props.request.status)" class="whitespace-nowrap">
                                     {{ statusLabel(props.request.status) }}
                                 </Badge>
 

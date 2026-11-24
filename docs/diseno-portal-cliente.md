@@ -70,3 +70,26 @@ Pantallas compartidas con administración (Activación, Renovación) usan
   Armar mi paquete.
 - Buscador del Panel solo cuando hay más de 4 aplicaciones.
 - Móvil: botones a todo el ancho en tarjetas; sin desplazamiento horizontal.
+
+## Pantallas del cliente cubiertas
+
+Inicio, Panel de control, Conexiones, Armar y Administrar mi paquete,
+Cotizaciones (lista, detalle y facturación), Implementación, Activación,
+Renovación, Facturas, Pagos, Métodos de pago, Mi suscripción, Mis servicios,
+Catálogo, Uso, Datos de la empresa, Usuarios, Seguridad, Soporte y Activa tu
+cuenta. Fechas y montos con `lib/portalFormat.ts` («24 nov 2026»,
+«RD$3,500.00»), nunca en formato de base de datos. `Subscriber/Dashboard` no
+tiene ruta y no se mantiene.
+
+## Panel de administración (superadmin)
+
+Herramienta de trabajo: conserva su estructura densa (tarjetas, filtros y
+paginación). Reglas mínimas:
+
+- Español en etiquetas, migas («Panel», no «Dashboard») y estados
+  (`lib/adminLabels.ts`).
+- Color de estado con `adminTone`: verde = pagada/activa, ámbar = pendiente,
+  rojo solo para lo vencido; nunca el rojo de marca para un estado normal.
+- Totales de dinero separados por moneda; nunca se suman pesos con dólares.
+- Las claves técnicas (eventos de auditoría, «Orden #N») sí se muestran al
+  administrador.

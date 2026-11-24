@@ -2,17 +2,9 @@
 import { Head, Link, router } from '@inertiajs/vue3'
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 
-import AppLayout from '@/layouts/AppLayout.vue'
-import { dashboard } from '@/routes'
-import errorlog from '@/routes/admin/errorlog'
-import { type BreadcrumbItem } from '@/types'
-
-import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
-
-// ✅ shadcn-vue dropdown menu
+import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card'
 import {
     DropdownMenu,
     DropdownMenuTrigger,
@@ -21,6 +13,13 @@ import {
     DropdownMenuSeparator,
     DropdownMenuItem,
 } from '@/components/ui/dropdown-menu'
+import { Input } from '@/components/ui/input'
+import AppLayout from '@/layouts/AppLayout.vue'
+import { dashboard } from '@/routes'
+import errorlog from '@/routes/admin/errorlog'
+import { type BreadcrumbItem } from '@/types'
+
+// ✅ shadcn-vue dropdown menu
 
 type UserLite = { id: number; name: string; email: string }
 
@@ -66,8 +65,8 @@ const props = defineProps<{
 }>()
 
 const breadcrumbs: BreadcrumbItem[] = [
-    { title: 'Dashboard', href: dashboard().url },
-    { title: 'Error Log', href: errorlog.index().url },
+    { title: 'Panel', href: dashboard().url },
+    { title: 'Registro de errores', href: errorlog.index().url },
 ]
 
 const isLoading = ref(false)
@@ -161,7 +160,7 @@ onBeforeUnmount(() => unsubs.forEach((u) => u()))
 
 <template>
 
-    <Head title="Error Log" />
+    <Head title="Registro de errores" />
 
     <AppLayout :breadcrumbs="breadcrumbs">
         <div class="flex h-full flex-1 flex-col gap-6 overflow-x-auto rounded-xl p-4">

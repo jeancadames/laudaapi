@@ -3,15 +3,9 @@
 import { Head, router } from '@inertiajs/vue3'
 import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
 
-import AppLayout from '@/layouts/AppLayout.vue'
-import { dashboard } from '@/routes'
-import services from '@/routes/admin/services'
-import type { BreadcrumbItem } from '@/types'
-
-import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
+import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card'
 
 import {
     DropdownMenu,
@@ -19,12 +13,17 @@ import {
     DropdownMenuContent,
     DropdownMenuItem,
 } from '@/components/ui/dropdown-menu'
+import { Input } from '@/components/ui/input'
 import Select from '@/components/ui/select/Select.vue'
-import SelectTrigger from '@/components/ui/select/SelectTrigger.vue'
-import SelectValue from '@/components/ui/select/SelectValue.vue'
 import SelectContent from '@/components/ui/select/SelectContent.vue'
 import SelectGroup from '@/components/ui/select/SelectGroup.vue'
 import SelectItem from '@/components/ui/select/SelectItem.vue'
+import SelectTrigger from '@/components/ui/select/SelectTrigger.vue'
+import SelectValue from '@/components/ui/select/SelectValue.vue'
+import AppLayout from '@/layouts/AppLayout.vue'
+import { dashboard } from '@/routes'
+import services from '@/routes/admin/services'
+import type { BreadcrumbItem } from '@/types'
 
 type BillingModel = 'flat' | 'per_user' | 'seat_block' | 'usage'
 type BillingCycle = 'monthly' | 'yearly'
@@ -124,7 +123,7 @@ const props = defineProps<{
 }>()
 
 const breadcrumbs: BreadcrumbItem[] = [
-    { title: 'Dashboard', href: dashboard().url },
+    { title: 'Panel', href: dashboard().url },
     { title: 'Servicios', href: services.index({ parent: DEFAULT_PARENT }).url },
     { title: props.parent.title, href: services.index({ parent: props.parent.slug }).url },
 ]

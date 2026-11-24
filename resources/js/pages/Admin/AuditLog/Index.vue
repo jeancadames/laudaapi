@@ -2,17 +2,9 @@
 import { Head, Link, router } from '@inertiajs/vue3'
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 
-import AppLayout from '@/layouts/AppLayout.vue'
-import { dashboard } from '@/routes'
-import auditlog from '@/routes/admin/auditlog'
-import { type BreadcrumbItem } from '@/types'
-
-import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card'
-import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
-
-// ✅ shadcn-vue dropdown menu
+import { Button } from '@/components/ui/button'
+import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card'
 import {
     DropdownMenu,
     DropdownMenuTrigger,
@@ -21,6 +13,14 @@ import {
     DropdownMenuSeparator,
     DropdownMenuItem,
 } from '@/components/ui/dropdown-menu'
+import { Input } from '@/components/ui/input'
+import AppLayout from '@/layouts/AppLayout.vue'
+import { adminDateTime } from '@/lib/adminLabels'
+import { dashboard } from '@/routes'
+import auditlog from '@/routes/admin/auditlog'
+import { type BreadcrumbItem } from '@/types'
+
+// ✅ shadcn-vue dropdown menu
 
 type UserLite = { id: number; name: string; email: string }
 
@@ -54,8 +54,8 @@ const props = defineProps<{
 }>()
 
 const breadcrumbs: BreadcrumbItem[] = [
-    { title: 'Dashboard', href: dashboard().url },
-    { title: 'Logs Auditoría', href: auditlog.index().url },
+    { title: 'Panel', href: dashboard().url },
+    { title: 'Auditoría', href: auditlog.index().url },
 ]
 
 const isLoading = ref(false)
@@ -124,7 +124,7 @@ onBeforeUnmount(() => unsubs.forEach((u) => u()))
 
 <template>
 
-    <Head title="Logs Auditoría" />
+    <Head title="Auditoría" />
 
     <AppLayout :breadcrumbs="breadcrumbs">
         <!-- ✅ evita cortes raros en mobile sin forzar scroll -->
@@ -132,7 +132,7 @@ onBeforeUnmount(() => unsubs.forEach((u) => u()))
             <!-- Header -->
             <div class="flex items-center justify-between">
                 <h1 class="text-2xl font-semibold tracking-tight whitespace-nowrap leading-none">
-                    Logs Auditoria
+                    Auditoría
                 </h1>
 
                 <div class="mt-1 text-sm text-muted-foreground">
@@ -144,9 +144,9 @@ onBeforeUnmount(() => unsubs.forEach((u) => u()))
 
                 <!-- Filters -->
                 <div class="flex flex-col sm:flex-row gap-3 sm:items-center">
-                    <Input v-model="search" placeholder="Buscar (event/model/ip/ua/data)..." class="w-full sm:w-72" />
-                    <Input v-model="ip" placeholder="ip" class="w-full sm:w-40" />
-                    <Input v-model="userId" placeholder="user_id" class="w-full sm:w-28" />
+                    <Input v-model="search" placeholder="Buscar evento, modelo, IP o datos" class="w-full sm:w-72" />
+                    <Input v-model="ip" placeholder="IP" class="w-full sm:w-40" />
+                    <Input v-model="userId" placeholder="ID de usuario" class="w-full sm:w-28" />
 
                     <!-- Event dropdown -->
                     <DropdownMenu>
@@ -230,8 +230,8 @@ onBeforeUnmount(() => unsubs.forEach((u) => u()))
 
                             <!-- ✅ badges nunca se salen -->
                             <div class="flex flex-wrap items-center gap-2 sm:justify-end">
-                                <Badge class="whitespace-nowrap">#{{ l.id }}</Badge>
-                                <Badge variant="secondary" class="whitespace-nowrap">{{ l.created_at }}</Badge>
+                                <Badge variant="outline" class="whitespace-nowrap">#{{ l.id }}</Badge>
+                                <Badge variant="secondary" class="whitespace-nowrap">{{ adminDateTime(l.created_at) }}</Badge>
                             </div>
                         </div>
                     </CardHeader>

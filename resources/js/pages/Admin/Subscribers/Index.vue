@@ -3,15 +3,9 @@
 import { Head, router } from '@inertiajs/vue3'
 import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
 
-import AppLayout from '@/layouts/AppLayout.vue'
-import { dashboard } from '@/routes'
-import subscribersRoutes from '@/routes/admin/subscribers'
-import { type BreadcrumbItem } from '@/types'
-
-import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
+import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card'
 
 import {
     DropdownMenu,
@@ -19,12 +13,18 @@ import {
     DropdownMenuContent,
     DropdownMenuItem,
 } from '@/components/ui/dropdown-menu'
+import { Input } from '@/components/ui/input'
 import Select from '@/components/ui/select/Select.vue'
-import SelectTrigger from '@/components/ui/select/SelectTrigger.vue'
-import SelectValue from '@/components/ui/select/SelectValue.vue'
 import SelectContent from '@/components/ui/select/SelectContent.vue'
 import SelectGroup from '@/components/ui/select/SelectGroup.vue'
 import SelectItem from '@/components/ui/select/SelectItem.vue'
+import SelectTrigger from '@/components/ui/select/SelectTrigger.vue'
+import SelectValue from '@/components/ui/select/SelectValue.vue'
+import AppLayout from '@/layouts/AppLayout.vue'
+import { adminTone } from '@/lib/adminLabels'
+import { dashboard } from '@/routes'
+import subscribersRoutes from '@/routes/admin/subscribers'
+import { type BreadcrumbItem } from '@/types'
 
 type StatusFilter = 'all' | 'active' | 'inactive'
 type ProviderFilter = 'all' | 'stripe'
@@ -63,7 +63,7 @@ const props = defineProps<{
 }>()
 
 const breadcrumbs: BreadcrumbItem[] = [
-    { title: 'Dashboard', href: dashboard().url },
+    { title: 'Panel', href: dashboard().url },
     { title: 'Suscriptores', href: subscribersRoutes.index().url },
 ]
 
@@ -133,7 +133,7 @@ const statusOptions = computed(() => ([
 const currentStatus = computed(() => statusOptions.value.find(o => o.value === status.value) ?? statusOptions.value[ 0 ])
 
 const providerOptions = computed(() => ([
-    { value: 'all' as const, label: 'Provider: todos' },
+    { value: 'all' as const, label: 'Proveedor: todos' },
     { value: 'stripe' as const, label: 'stripe' },
 ]))
 const currentProvider = computed(() => providerOptions.value.find(o => o.value === provider.value) ?? providerOptions.value[ 0 ])
@@ -294,7 +294,7 @@ const headerSubtitle = computed(() => {
                             </CardTitle>
 
                             <div class="flex items-center gap-2">
-                                <Badge :variant="row.active ? 'default' : 'secondary'">
+                                <Badge :class="adminTone(row.active ? 'active' : 'inactive')">
                                     {{ row.active ? 'Activo' : 'Inactivo' }}
                                 </Badge>
                                 <Badge v-if="row.provider" variant="outline" class="capitalize">

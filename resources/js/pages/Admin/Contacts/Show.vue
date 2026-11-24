@@ -1,14 +1,13 @@
 <script setup lang="ts">
 import { Head, router, usePage } from '@inertiajs/vue3'
 import { computed, ref, onMounted, onBeforeUnmount } from 'vue'
+import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
+import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card'
 import AppLayout from '@/layouts/AppLayout.vue'
 import { dashboard } from '@/routes'
 import contacts from '@/routes/admin/contacts'
 import { type BreadcrumbItem } from '@/types'
-
-import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card'
-import { Badge } from '@/components/ui/badge'
-import { Button } from '@/components/ui/button'
 
 type ContactRequest = {
     id: number
@@ -40,7 +39,7 @@ const backUrl = computed(() => {
 })
 
 const breadcrumbs = computed<BreadcrumbItem[]>(() => [
-    { title: 'Dashboard', href: dashboard().url },
+    { title: 'Panel', href: dashboard().url },
     { title: 'Solicitudes de Contacto', href: backUrl.value },
     { title: props.contact.name, href: page.url },
 ])

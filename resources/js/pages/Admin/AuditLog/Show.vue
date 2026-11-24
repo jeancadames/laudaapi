@@ -2,14 +2,13 @@
 import { Head, Link, router, usePage } from '@inertiajs/vue3'
 import { computed } from 'vue'
 
+import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
+import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card'
 import AppLayout from '@/layouts/AppLayout.vue'
 import { dashboard } from '@/routes'
 import auditlog from '@/routes/admin/auditlog'
 import { type BreadcrumbItem } from '@/types'
-
-import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card'
-import { Button } from '@/components/ui/button'
-import { Badge } from '@/components/ui/badge'
 
 type UserLite = { id: number; name: string; email: string }
 
@@ -36,8 +35,8 @@ const backUrl = computed(() => {
 })
 
 const breadcrumbs = computed<BreadcrumbItem[]>(() => [
-    { title: 'Dashboard', href: dashboard().url },
-    { title: 'Logs Auditoría', href: backUrl.value },
+    { title: 'Panel', href: dashboard().url },
+    { title: 'Auditoría', href: backUrl.value },
     { title: `#${props.log.id}`, href: page.url },
 ])
 
@@ -52,13 +51,13 @@ function prettyJson(v: any) {
 
 <template>
 
-    <Head :title="`Audit Log #${props.log.id}`" />
+    <Head :title="`Auditoría #${props.log.id}`" />
 
     <AppLayout :breadcrumbs="breadcrumbs">
         <div class="flex flex-col gap-6 p-4">
             <div class="flex items-center justify-between">
                 <div>
-                    <h1 class="text-2xl font-semibold tracking-tight">Detalle de Audit Log</h1>
+                    <h1 class="text-2xl font-semibold tracking-tight">Detalle de auditoría</h1>
                     <div class="text-sm text-muted-foreground mt-1">
                         Evento: <span class="font-medium">{{ props.log.event }}</span>
                     </div>

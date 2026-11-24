@@ -2,14 +2,13 @@
 import { Head, router, usePage } from '@inertiajs/vue3'
 import { computed, ref, onMounted, onBeforeUnmount } from 'vue'
 
+import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import AppLayout from '@/layouts/AppLayout.vue'
 import { dashboard } from '@/routes'
 import errorlog from '@/routes/admin/errorlog'
 import { type BreadcrumbItem } from '@/types'
-
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
-import { Badge } from '@/components/ui/badge'
-import { Button } from '@/components/ui/button'
 
 type Level = string
 
@@ -57,7 +56,7 @@ const backUrl = computed(() => {
 })
 
 const breadcrumbs = computed<BreadcrumbItem[]>(() => [
-    { title: 'Dashboard', href: dashboard().url },
+    { title: 'Panel', href: dashboard().url },
     { title: 'Logs Errores', href: backUrl.value },
     { title: `Error #${props.log.id}`, href: page.url },
 ])
@@ -105,7 +104,7 @@ onBeforeUnmount(() => unsubs.forEach((u) => u()))
 
 <template>
 
-    <Head :title="`Error Log #${props.log.id}`" />
+    <Head :title="`Error #${props.log.id}`" />
 
     <AppLayout :breadcrumbs="breadcrumbs">
         <div class="flex flex-col gap-6 p-4">

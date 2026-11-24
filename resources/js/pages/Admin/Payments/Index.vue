@@ -1,23 +1,23 @@
 <script setup lang="ts">
-import BusinessTransferReview from '@/components/BusinessTransferReview.vue'
 import { Head, Link, router } from '@inertiajs/vue3'
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import BusinessTransferReview from '@/components/BusinessTransferReview.vue'
 
-import AppLayout from '@/layouts/AppLayout.vue'
-import { dashboard } from '@/routes'
-import paymentsRoutes from '@/routes/admin/payments'
-import type { BreadcrumbItem } from '@/types'
-
-import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
+import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card'
 import {
     DropdownMenu,
     DropdownMenuTrigger,
     DropdownMenuContent,
     DropdownMenuItem,
 } from '@/components/ui/dropdown-menu'
+import { Input } from '@/components/ui/input'
+import AppLayout from '@/layouts/AppLayout.vue'
+import { adminDateTime, adminLabel, adminTone } from '@/lib/adminLabels'
+import { dashboard } from '@/routes'
+import paymentsRoutes from '@/routes/admin/payments'
+import type { BreadcrumbItem } from '@/types'
 
 type MethodFilter = 'all' | 'card' | 'bank_transfer' | 'cash' | 'check' | 'other'
 type StatusFilter = 'all' | 'paid' | 'unpaid'
@@ -53,7 +53,7 @@ const props = defineProps<{
 }>()
 
 const breadcrumbs: BreadcrumbItem[] = [
-    { title: 'Dashboard', href: dashboard().url },
+    { title: 'Panel', href: dashboard().url },
     { title: 'Pagos', href: paymentsRoutes.index().url },
 ]
 
@@ -124,17 +124,17 @@ watch(status, (v) => applyFilters({ status: v }))
 
 const methodOptions = computed(() => ([
     { value: 'all' as const, label: 'Método: todos', count: getCount('all', props.payments.total) },
-    { value: 'card' as const, label: 'card', count: methodCount('card') },
-    { value: 'bank_transfer' as const, label: 'bank_transfer', count: methodCount('bank_transfer') },
-    { value: 'cash' as const, label: 'cash', count: methodCount('cash') },
-    { value: 'check' as const, label: 'check', count: methodCount('check') },
-    { value: 'other' as const, label: 'other', count: methodCount('other') },
+    { value: 'card' as const, label: adminLabel('card'), count: methodCount('card') },
+    { value: 'bank_transfer' as const, label: adminLabel('bank_transfer'), count: methodCount('bank_transfer') },
+    { value: 'cash' as const, label: adminLabel('cash'), count: methodCount('cash') },
+    { value: 'check' as const, label: adminLabel('check'), count: methodCount('check') },
+    { value: 'other' as const, label: adminLabel('other'), count: methodCount('other') },
 ]))
 
 const statusOptions = computed(() => ([
     { value: 'all' as const, label: 'Estados: todos', count: getCount('all', props.payments.total) },
-    { value: 'paid' as const, label: 'paid', count: getCount('paid', 0) },
-    { value: 'unpaid' as const, label: 'unpaid', count: getCount('unpaid', 0) },
+    { value: 'paid' as const, label: 'Recibidos', count: getCount('paid', 0) },
+    { value: 'unpaid' as const, label: 'Sin confirmar', count: getCount('unpaid', 0) },
 ]))
 
 const currentMethod = computed(() => methodOptions.value.find(o => o.value === method.value) ?? methodOptions.value[ 0 ])
@@ -227,9 +227,9 @@ function goPayment(id: number) {
                             </CardTitle>
 
                             <div class="flex items-center gap-2">
-                                <Badge variant="outline" class="capitalize">{{ p.method }}</Badge>
-                                <Badge :variant="p.paid_at ? 'default' : 'secondary'">
-                                    {{ p.paid_at ? 'Paid' : 'Unpaid' }}
+                                <Badge variant="outline">{{ adminLabel(p.method) }}</Badge>
+                                <Badge :class="adminTone(p.paid_at ? 'paid' : 'unpaid')">
+                                    {{ p.paid_at ? 'Recibido' : 'Sin confirmar' }}
                                 </Badge>
                             </div>
                         </div>
@@ -254,8 +254,8 @@ function goPayment(id: number) {
                             </div>
 
                             <div>
-                                <div class="text-xs text-muted-foreground">Paid at</div>
-                                <div class="font-mono">{{ p.paid_at ?? '—' }}</div>
+                                <div class="text-xs text-muted-foreground">Fecha de pago</div>
+                                <div>{{ adminDateTime(p.paid_at) }}</div>
                             </div>
                         </div>
 

@@ -2,15 +2,15 @@
 import { Head, router } from '@inertiajs/vue3'
 import { computed } from 'vue'
 
+import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
+import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card'
 import AppLayout from '@/layouts/AppLayout.vue'
+import { adminTone } from '@/lib/adminLabels'
 import { dashboard } from '@/routes'
 import adminCompany from '@/routes/admin/company'
 import company from '@/routes/admin/company'
 import type { BreadcrumbItem } from '@/types'
-
-import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card'
-import { Badge } from '@/components/ui/badge'
-import { Button } from '@/components/ui/button'
 
 type CompanyRow = {
     id: number
@@ -46,7 +46,7 @@ const props = defineProps<{
 }>()
 
 const breadcrumbs: BreadcrumbItem[] = [
-    { title: 'Dashboard', href: dashboard().url },
+    { title: 'Panel', href: dashboard().url },
     { title: 'Clientes', href: adminCompany.index().url }, // ✅ label
 ]
 
@@ -106,12 +106,12 @@ function goCompany(id: number) {
                             </CardTitle>
 
                             <div class="flex items-center gap-2">
-                                <Badge :variant="c.active ? 'default' : 'secondary'">
+                                <Badge :class="adminTone(c.active ? 'active' : 'inactive')">
                                     {{ c.active ? 'Activo' : 'Inactivo' }}
                                 </Badge>
 
-                                <Badge :variant="c.tax_profile.exists ? 'default' : 'secondary'">
-                                    {{ c.tax_profile.exists ? 'Impuestos al día' : 'Impuestos pendiente' }}
+                                <Badge :class="adminTone(c.tax_profile.exists ? 'active' : 'pending')">
+                                    {{ c.tax_profile.exists ? 'Datos fiscales completos' : 'Faltan datos fiscales' }}
                                 </Badge>
                             </div>
                         </div>

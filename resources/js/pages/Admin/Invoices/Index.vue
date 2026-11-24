@@ -2,21 +2,21 @@
 import { Head, router } from '@inertiajs/vue3'
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 
-import AppLayout from '@/layouts/AppLayout.vue'
-import { dashboard } from '@/routes'
-import invoicesRoutes from '@/routes/admin/invoices'
-import type { BreadcrumbItem } from '@/types'
-
-import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
+import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card'
 import {
     DropdownMenu,
     DropdownMenuTrigger,
     DropdownMenuContent,
     DropdownMenuItem,
 } from '@/components/ui/dropdown-menu'
+import { Input } from '@/components/ui/input'
+import AppLayout from '@/layouts/AppLayout.vue'
+import { adminLabel, adminTone } from '@/lib/adminLabels'
+import { dashboard } from '@/routes'
+import invoicesRoutes from '@/routes/admin/invoices'
+import type { BreadcrumbItem } from '@/types'
 
 type StatusFilter = 'all' | 'draft' | 'issued' | 'overdue' | 'paid' | 'void'
 
@@ -65,11 +65,17 @@ const props = defineProps<{
             accounts_receivable: number
             outstanding_issued_overdue: number
         }
+        totals_by_currency?: Array<{
+            currency: string
+            total_invoiced: number
+            total_amount_paid_on_invoices: number
+            accounts_receivable: number
+        }>
     }
 }>()
 
 const breadcrumbs: BreadcrumbItem[] = [
-    { title: 'Dashboard', href: dashboard().url },
+    { title: 'Panel', href: dashboard().url },
     { title: 'Facturas', href: invoicesRoutes.index().url },
 ]
 
@@ -123,40 +129,28 @@ watch(search, (val) => {
 watch(status, (v) => applyFilters({ status: v }))
 
 const by = computed(() => props.counts?.by_status ?? {})
-const totals = computed(() => props.counts?.totals ?? ({} as any))
 
 const statusOptions = computed(() => ([
     { value: 'all' as const, label: 'Estados: todos', count: props.counts?.all ?? props.invoices.total },
-    { value: 'draft' as const, label: 'draft', count: by.value.draft ?? 0 },
-    { value: 'issued' as const, label: 'issued', count: by.value.issued ?? 0 },
-    { value: 'overdue' as const, label: 'overdue', count: by.value.overdue ?? 0 },
-    { value: 'paid' as const, label: 'paid', count: by.value.paid ?? 0 },
-    { value: 'void' as const, label: 'void', count: by.value.void ?? 0 },
+    { value: 'draft' as const, label: adminLabel('draft'), count: by.value.draft ?? 0 },
+    { value: 'issued' as const, label: adminLabel('issued'), count: by.value.issued ?? 0 },
+    { value: 'overdue' as const, label: adminLabel('overdue'), count: by.value.overdue ?? 0 },
+    { value: 'paid' as const, label: adminLabel('paid'), count: by.value.paid ?? 0 },
+    { value: 'void' as const, label: adminLabel('void'), count: by.value.void ?? 0 },
 ]))
 const currentStatus = computed(() => statusOptions.value.find(o => o.value === status.value) ?? statusOptions.value[ 0 ])
-
-const currency = computed(() => 'USD') // tú dijiste que solo USD por ahora
 
 function money(v: any) {
     const n = Number(v ?? 0)
     if (!Number.isFinite(n)) return '0.00'
     return new Intl.NumberFormat('es-DO', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(n)
 }
-function moneyWithCurrency(v: any) {
-    return `${money(v)} ${currency.value}`
-}
+/** Los totales se separan por moneda: nunca se suman pesos con dólares. */
+const totalsByCurrency = computed(() => props.counts?.totals_by_currency ?? [])
 
 const headerSubtitle = computed(() => {
     return `Mostrando ${props.invoices.data.length} • Total: ${props.invoices.total}${isLoading.value ? ' • Cargando...' : ''}`
 })
-
-function badgeVariant(st: InvoiceRow[ 'status' ]) {
-    if (st === 'paid') return 'default'
-    if (st === 'overdue') return 'secondary'
-    if (st === 'void') return 'secondary'
-    if (st === 'draft') return 'outline'
-    return 'default' // issued
-}
 
 function goInvoice(id: number) {
     router.visit(`/admin/invoices/${id}${buildQS()}`)
@@ -179,15 +173,15 @@ function goInvoice(id: number) {
                     </div>
 
                     <!-- Totales rápidos -->
-                    <div class="mt-2 flex flex-wrap gap-2 text-xs text-muted-foreground">
+                    <div v-for="t in totalsByCurrency" :key="t.currency" class="mt-2 flex flex-wrap gap-2 text-xs text-muted-foreground">
                         <span class="rounded-md border px-2 py-1">
-                            Total facturado: <span class="font-mono">{{ moneyWithCurrency(totals.total_invoiced ?? 0) }}</span>
+                            Total facturado: <span class="font-mono">{{ money(t.total_invoiced) }} {{ t.currency }}</span>
                         </span>
                         <span class="rounded-md border px-2 py-1">
-                            Pagado (en facturas): <span class="font-mono">{{ moneyWithCurrency(totals.total_amount_paid_on_invoices ?? 0) }}</span>
+                            Pagado: <span class="font-mono">{{ money(t.total_amount_paid_on_invoices) }} {{ t.currency }}</span>
                         </span>
                         <span class="rounded-md border px-2 py-1">
-                            CxC (emitidos+vencidos): <span class="font-mono">{{ moneyWithCurrency(totals.accounts_receivable ?? 0) }}</span>
+                            Por cobrar (emitidas y vencidas): <span class="font-mono">{{ money(t.accounts_receivable) }} {{ t.currency }}</span>
                         </span>
                     </div>
                 </div>
@@ -232,11 +226,11 @@ function goInvoice(id: number) {
                             </CardTitle>
 
                             <div class="flex items-center gap-2">
-                                <Badge :variant="badgeVariant(inv.status)" class="capitalize">
-                                    {{ inv.status }}
+                                <Badge :class="adminTone(inv.status)">
+                                    {{ adminLabel(inv.status) }}
                                 </Badge>
                                 <Badge variant="outline">
-                                    items: {{ inv.items_count }}
+                                    {{ inv.items_count }} {{ inv.items_count === 1 ? 'línea' : 'líneas' }}
                                 </Badge>
                             </div>
                         </div>

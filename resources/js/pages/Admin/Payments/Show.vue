@@ -1,14 +1,13 @@
 <script setup lang="ts">
 import { Head, router } from '@inertiajs/vue3'
 
+import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
+import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card'
 import AppLayout from '@/layouts/AppLayout.vue'
 import { dashboard } from '@/routes'
 import payments from '@/routes/admin/payments'
 import type { BreadcrumbItem } from '@/types'
-
-import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card'
-import { Badge } from '@/components/ui/badge'
-import { Button } from '@/components/ui/button'
 
 type PaymentShow = {
     id: number
@@ -30,7 +29,7 @@ const props = defineProps<{
 }>()
 
 const breadcrumbs: BreadcrumbItem[] = [
-    { title: 'Dashboard', href: dashboard().url },
+    { title: 'Panel', href: dashboard().url },
     { title: 'Payments', href: payments.index().url },
     { title: `Payment #${props.payment.id}`, href: payments.show({ payment: props.payment.id }).url },
 ]
@@ -86,7 +85,7 @@ const breadcrumbs: BreadcrumbItem[] = [
                             </div>
 
                             <div>
-                                <div class="text-xs text-muted-foreground">Paid at</div>
+                                <div class="text-xs text-muted-foreground">Fecha de pago</div>
                                 <div class="font-mono">{{ payment.paid_at ?? '—' }}</div>
                             </div>
 
@@ -126,7 +125,7 @@ const breadcrumbs: BreadcrumbItem[] = [
                             <div class="font-mono">{{ payment.invoice?.number ?? '—' }}</div>
                         </div>
                         <div>
-                            <div class="text-xs text-muted-foreground">Status</div>
+                            <div class="text-xs text-muted-foreground">Estado</div>
                             <div class="font-mono">{{ payment.invoice?.status ?? '—' }}</div>
                         </div>
                         <div>

@@ -57,7 +57,7 @@ const props = defineProps<{
 
 const breadcrumbs: BreadcrumbItem[] = [
     {
-        title: 'Dashboard',
+        title: 'Panel',
         href: dashboard().url,
     },
 ];
@@ -180,7 +180,7 @@ const flowItems = [
             >
                 <div class="page-header">
                     <div
-                        class="mb-2 inline-flex items-center gap-2 rounded-full border border-red-200 bg-red-50 px-3 py-1 text-[10px] font-black tracking-[0.16em] text-[#F53003] uppercase dark:border-red-900/50 dark:bg-red-950/30 dark:text-red-300"
+                        class="mb-2 inline-flex items-center gap-2 rounded-full border border-red-200 bg-red-50 px-3 py-1 text-xs font-bold tracking-[0.16em] text-[#F53003] uppercase dark:border-red-900/50 dark:bg-red-950/30 dark:text-red-300"
                     >
                         LAUDA Transformación Digital 360
                     </div>
@@ -209,12 +209,12 @@ const flowItems = [
                     <div class="flex items-start justify-between gap-4">
                         <div>
                             <p
-                                class="text-[10px] font-black tracking-[0.14em] text-slate-400 uppercase"
+                                class="text-xs font-bold tracking-[0.14em] text-slate-400 uppercase"
                             >
                                 Solicitudes
                             </p>
                             <p
-                                class="mt-2 text-3xl font-black tracking-tight text-slate-900 dark:text-white"
+                                class="mt-2 text-3xl font-bold tracking-tight text-slate-900 dark:text-white"
                             >
                                 {{ props.stats.requests.total }}
                             </p>
@@ -238,12 +238,12 @@ const flowItems = [
                     <div class="flex items-start justify-between gap-4">
                         <div>
                             <p
-                                class="text-[10px] font-black tracking-[0.14em] text-red-400 uppercase"
+                                class="text-xs font-bold tracking-[0.14em] text-red-400 uppercase"
                             >
                                 Por gestionar
                             </p>
                             <p
-                                class="mt-2 text-3xl font-black tracking-tight text-red-700 dark:text-red-300"
+                                class="mt-2 text-3xl font-bold tracking-tight text-red-700 dark:text-red-300"
                             >
                                 {{ props.stats.requests.review_queue }}
                             </p>
@@ -269,12 +269,12 @@ const flowItems = [
                     <div class="flex items-start justify-between gap-4">
                         <div>
                             <p
-                                class="text-[10px] font-black tracking-[0.14em] text-blue-400 uppercase"
+                                class="text-xs font-bold tracking-[0.14em] text-blue-400 uppercase"
                             >
                                 Invitaciones
                             </p>
                             <p
-                                class="mt-2 text-3xl font-black tracking-tight text-blue-700 dark:text-blue-300"
+                                class="mt-2 text-3xl font-bold tracking-tight text-blue-700 dark:text-blue-300"
                             >
                                 {{ props.stats.access.invitation_pipeline }}
                             </p>
@@ -300,12 +300,12 @@ const flowItems = [
                     <div class="flex items-start justify-between gap-4">
                         <div>
                             <p
-                                class="text-[10px] font-black tracking-[0.14em] text-emerald-500 uppercase"
+                                class="text-xs font-bold tracking-[0.14em] text-emerald-500 uppercase"
                             >
                                 Diagnósticos enviados
                             </p>
                             <p
-                                class="mt-2 text-3xl font-black tracking-tight text-emerald-700 dark:text-emerald-300"
+                                class="mt-2 text-3xl font-bold tracking-tight text-emerald-700 dark:text-emerald-300"
                             >
                                 {{ props.stats.assessments.completed }}
                             </p>
@@ -335,12 +335,12 @@ const flowItems = [
                     >
                         <div>
                             <p
-                                class="text-[10px] font-black tracking-[0.16em] text-[#F53003] uppercase"
+                                class="text-xs font-bold tracking-[0.16em] text-[#F53003] uppercase"
                             >
                                 Flujo actual
                             </p>
                             <h2
-                                class="mt-1 text-lg font-black tracking-tight text-slate-900 dark:text-white"
+                                class="mt-1 text-lg font-bold tracking-tight text-slate-900 dark:text-white"
                             >
                                 Hitos de Diagnóstico 360
                             </h2>
@@ -366,21 +366,21 @@ const flowItems = [
                             class="relative rounded-xl border border-slate-200 bg-slate-50/70 p-4 dark:border-slate-800 dark:bg-slate-950/50"
                         >
                             <span
-                                class="text-[9px] font-black tracking-[0.14em] text-slate-400 uppercase"
+                                class="text-xs font-bold tracking-[0.14em] text-slate-400 uppercase"
                             >
                                 0{{ index + 1 }}
                             </span>
                             <p
-                                class="mt-2 text-2xl font-black tracking-tight text-slate-900 dark:text-white"
+                                class="mt-2 text-2xl font-bold tracking-tight text-slate-900 dark:text-white"
                             >
                                 {{ item.value() }}
                             </p>
                             <p
-                                class="mt-1 text-[11px] font-bold text-slate-700 dark:text-slate-300"
+                                class="mt-1 text-xs font-bold text-slate-700 dark:text-slate-300"
                             >
                                 {{ item.label }}
                             </p>
-                            <p class="mt-0.5 text-[10px] text-slate-400">
+                            <p class="mt-0.5 text-xs text-slate-400">
                                 {{ item.hint }}
                             </p>
                         </div>
@@ -391,12 +391,12 @@ const flowItems = [
                     class="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900/50 dark:shadow-none"
                 >
                     <p
-                        class="text-[10px] font-black tracking-[0.16em] text-[#F53003] uppercase"
+                        class="text-xs font-bold tracking-[0.16em] text-[#F53003] uppercase"
                     >
                         Prioridades
                     </p>
                     <h2
-                        class="mt-1 text-lg font-black tracking-tight text-slate-900 dark:text-white"
+                        class="mt-1 text-lg font-bold tracking-tight text-slate-900 dark:text-white"
                     >
                         Qué requiere atención
                     </h2>
@@ -407,7 +407,7 @@ const flowItems = [
                             class="rounded-xl border border-red-200 bg-red-50/70 p-3.5 dark:border-red-900/50 dark:bg-red-950/20"
                         >
                             <p
-                                class="text-sm font-black text-red-700 dark:text-red-300"
+                                class="text-sm font-bold text-red-700 dark:text-red-300"
                             >
                                 {{ props.stats.requests.review_queue }}
                                 solicitud(es) por gestionar
@@ -425,7 +425,7 @@ const flowItems = [
                             class="rounded-xl border border-amber-200 bg-amber-50/70 p-3.5 dark:border-amber-900/50 dark:bg-amber-950/20"
                         >
                             <p
-                                class="text-sm font-black text-amber-700 dark:text-amber-300"
+                                class="text-sm font-bold text-amber-700 dark:text-amber-300"
                             >
                                 {{ props.stats.assessments.results_to_review }}
                                 diagnóstico(s) enviado(s)
@@ -446,7 +446,7 @@ const flowItems = [
                             class="rounded-xl border border-emerald-200 bg-emerald-50/70 p-3.5 dark:border-emerald-900/50 dark:bg-emerald-950/20"
                         >
                             <p
-                                class="text-sm font-black text-emerald-700 dark:text-emerald-300"
+                                class="text-sm font-bold text-emerald-700 dark:text-emerald-300"
                             >
                                 Sin acciones críticas
                             </p>
@@ -469,12 +469,12 @@ const flowItems = [
                 >
                     <div>
                         <p
-                            class="text-[10px] font-black tracking-[0.16em] text-[#F53003] uppercase"
+                            class="text-xs font-bold tracking-[0.16em] text-[#F53003] uppercase"
                         >
                             Actividad reciente
                         </p>
                         <h2
-                            class="mt-1 text-lg font-black tracking-tight text-slate-900 dark:text-white"
+                            class="mt-1 text-lg font-bold tracking-tight text-slate-900 dark:text-white"
                         >
                             Últimas solicitudes
                         </h2>
@@ -499,7 +499,7 @@ const flowItems = [
                         <Building2 class="h-5 w-5" />
                     </div>
                     <p
-                        class="mt-3 text-sm font-black text-slate-700 dark:text-slate-200"
+                        class="mt-3 text-sm font-bold text-slate-700 dark:text-slate-200"
                     >
                         Aún no hay solicitudes de Diagnóstico 360
                     </p>
@@ -515,27 +515,27 @@ const flowItems = [
                                 class="border-b border-slate-200 text-left dark:border-slate-800"
                             >
                                 <th
-                                    class="px-5 py-3 text-[10px] font-black tracking-[0.12em] text-slate-400 uppercase"
+                                    class="px-5 py-3 text-xs font-bold tracking-[0.12em] text-slate-400 uppercase"
                                 >
                                     Organización
                                 </th>
                                 <th
-                                    class="px-5 py-3 text-[10px] font-black tracking-[0.12em] text-slate-400 uppercase"
+                                    class="px-5 py-3 text-xs font-bold tracking-[0.12em] text-slate-400 uppercase"
                                 >
                                     Acceso
                                 </th>
                                 <th
-                                    class="px-5 py-3 text-[10px] font-black tracking-[0.12em] text-slate-400 uppercase"
+                                    class="px-5 py-3 text-xs font-bold tracking-[0.12em] text-slate-400 uppercase"
                                 >
                                     Diagnóstico
                                 </th>
                                 <th
-                                    class="px-5 py-3 text-[10px] font-black tracking-[0.12em] text-slate-400 uppercase"
+                                    class="px-5 py-3 text-xs font-bold tracking-[0.12em] text-slate-400 uppercase"
                                 >
                                     Resultado
                                 </th>
                                 <th
-                                    class="px-5 py-3 text-[10px] font-black tracking-[0.12em] text-slate-400 uppercase"
+                                    class="px-5 py-3 text-xs font-bold tracking-[0.12em] text-slate-400 uppercase"
                                 >
                                     Fecha
                                 </th>
@@ -551,7 +551,7 @@ const flowItems = [
                             >
                                 <td class="px-5 py-4">
                                     <p
-                                        class="text-sm font-black text-slate-800 dark:text-slate-100"
+                                        class="text-sm font-bold text-slate-800 dark:text-slate-100"
                                     >
                                         {{
                                             item.company ||
@@ -565,7 +565,7 @@ const flowItems = [
 
                                 <td class="px-5 py-4">
                                     <span
-                                        class="inline-flex rounded-full border px-2.5 py-1 text-[10px] font-black"
+                                        class="inline-flex rounded-full border px-2.5 py-1 text-xs font-bold"
                                         :class="statusClass(item.status)"
                                     >
                                         {{ statusLabel(item.status) }}
@@ -594,14 +594,14 @@ const flowItems = [
                                         v-if="item.maturity_score !== null"
                                     >
                                         <p
-                                            class="text-sm font-black text-slate-800 dark:text-slate-100"
+                                            class="text-sm font-bold text-slate-800 dark:text-slate-100"
                                         >
                                             {{
                                                 item.maturity_score.toFixed(0)
                                             }}/100
                                         </p>
                                         <p
-                                            class="mt-0.5 text-[10px] text-slate-400"
+                                            class="mt-0.5 text-xs text-slate-400"
                                         >
                                             Madurez digital
                                         </p>
@@ -638,12 +638,12 @@ const flowItems = [
                 >
                     <div>
                         <p
-                            class="text-[10px] font-black tracking-[0.16em] text-[#F53003] uppercase"
+                            class="text-xs font-bold tracking-[0.16em] text-[#F53003] uppercase"
                         >
                             Ruta LAUDA 360
                         </p>
                         <h2
-                            class="mt-1 text-base font-black tracking-tight text-slate-900 dark:text-white"
+                            class="mt-1 text-base font-bold tracking-tight text-slate-900 dark:text-white"
                         >
                             Construimos la plataforma en el mismo orden que la
                             transformación.
@@ -652,22 +652,22 @@ const flowItems = [
 
                     <div class="flex flex-wrap items-center gap-2">
                         <span
-                            class="rounded-full border border-red-200 bg-red-50 px-3 py-1.5 text-[10px] font-black text-[#F53003] dark:border-red-900/50 dark:bg-red-950/30 dark:text-red-300"
+                            class="rounded-full border border-red-200 bg-red-50 px-3 py-1.5 text-xs font-bold text-[#F53003] dark:border-red-900/50 dark:bg-red-950/30 dark:text-red-300"
                         >
                             Diagnóstico 360 · Activo
                         </span>
                         <span
-                            class="rounded-full border border-slate-200 bg-white px-3 py-1.5 text-[10px] font-bold text-slate-500 dark:border-slate-700 dark:bg-slate-900"
+                            class="rounded-full border border-slate-200 bg-white px-3 py-1.5 text-xs font-bold text-slate-500 dark:border-slate-700 dark:bg-slate-900"
                         >
                             Informe Ampliado · Próximo
                         </span>
                         <span
-                            class="rounded-full border border-slate-200 bg-white px-3 py-1.5 text-[10px] font-bold text-slate-500 dark:border-slate-700 dark:bg-slate-900"
+                            class="rounded-full border border-slate-200 bg-white px-3 py-1.5 text-xs font-bold text-slate-500 dark:border-slate-700 dark:bg-slate-900"
                         >
                             Roadmap Detallado · Después
                         </span>
                         <span
-                            class="rounded-full border border-slate-200 bg-white px-3 py-1.5 text-[10px] font-bold text-slate-500 dark:border-slate-700 dark:bg-slate-900"
+                            class="rounded-full border border-slate-200 bg-white px-3 py-1.5 text-xs font-bold text-slate-500 dark:border-slate-700 dark:bg-slate-900"
                         >
                             Ejecución · Progresiva
                         </span>

@@ -3,7 +3,7 @@ import type { NavConfigItem } from './navigation';
 export const navigationByRole = {
     admin: {
         main: [
-            { title: 'Dashboard', href: '/dashboard', icon: 'LayoutGrid' },
+            { title: 'Panel', href: '/dashboard', icon: 'LayoutGrid' },
             { title: 'Pagos', href: '/admin/payments', icon: 'CreditCard' },
             { title: 'Facturas', href: '/admin/invoices', icon: 'ReceiptText' },
             { title: 'Empresas', href: '/admin/company', icon: 'Building2' },

@@ -2,15 +2,14 @@
 import { Head, Link, router } from '@inertiajs/vue3'
 import { computed } from 'vue'
 
+import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
+import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card'
 import AppLayout from '@/layouts/AppLayout.vue'
 import { dashboard } from '@/routes'
 import invoices from '@/routes/admin/invoices'
 import payments from '@/routes/admin/payments'
 import type { BreadcrumbItem } from '@/types'
-
-import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card'
-import { Badge } from '@/components/ui/badge'
-import { Button } from '@/components/ui/button'
 
 type InvoiceStatus = 'draft' | 'issued' | 'paid' | 'void' | 'overdue'
 
@@ -73,7 +72,7 @@ const props = defineProps<{
 }>()
 
 const breadcrumbs: BreadcrumbItem[] = [
-    { title: 'Dashboard', href: dashboard().url },
+    { title: 'Panel', href: dashboard().url },
     { title: 'Facturas', href: invoices.index().url },
     {
         title: props.invoice?.number ?? 'Factura',
@@ -314,7 +313,7 @@ function openExternal(url?: string | null) {
                         </div>
 
                         <div class="flex items-center justify-between gap-3">
-                            <span class="text-muted-foreground">Provider invoice</span>
+                            <span class="text-muted-foreground">Factura del proveedor</span>
                             <span class="font-mono truncate">{{ props.invoice.provider_invoice_id ?? '—' }}</span>
                         </div>
 
@@ -411,7 +410,7 @@ function openExternal(url?: string | null) {
                                     <th class="py-2 text-left">Referencia</th>
                                     <th class="py-2 text-left">Método</th>
                                     <th class="py-2 text-right">Monto</th>
-                                    <th class="py-2 text-left">Paid at</th>
+                                    <th class="py-2 text-left">Fecha de pago</th>
                                 </tr>
                             </thead>
 

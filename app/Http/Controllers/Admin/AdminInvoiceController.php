@@ -73,7 +73,26 @@ class AdminInvoiceController extends Controller
             ->selectRaw('COALESCE(SUM(total - amount_paid), 0) as s')
             ->value('s');
 
+        // Una suma por moneda: nunca se mezclan pesos con dólares.
+        $totalsByCurrency = (clone $allBase)
+            ->selectRaw("COALESCE(currency, 'DOP') as currency")
+            ->selectRaw("COALESCE(SUM(CASE WHEN status != 'void' THEN total ELSE 0 END), 0) as total_invoiced")
+            ->selectRaw("COALESCE(SUM(CASE WHEN status != 'void' THEN amount_paid ELSE 0 END), 0) as total_amount_paid_on_invoices")
+            ->selectRaw("COALESCE(SUM(CASE WHEN status IN ('issued', 'overdue') THEN total - amount_paid ELSE 0 END), 0) as accounts_receivable")
+            ->groupByRaw("COALESCE(currency, 'DOP')")
+            ->orderByRaw("COALESCE(currency, 'DOP')")
+            ->get()
+            ->map(fn ($row) => [
+                'currency' => (string) $row->currency,
+                'total_invoiced' => (float) $row->total_invoiced,
+                'total_amount_paid_on_invoices' => (float) $row->total_amount_paid_on_invoices,
+                'accounts_receivable' => (float) $row->accounts_receivable,
+            ])
+            ->values()
+            ->all();
+
         $counts = [
+            'totals_by_currency' => $totalsByCurrency,
             'all' => $totalInvoices,
             'by_status' => [
                 'draft' => (int) ($byStatus['draft'] ?? 0),
